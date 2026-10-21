@@ -234,6 +234,35 @@
       .field input:focus, .field select:focus { outline: 2px solid var(--blue-600); outline-offset: 1px; border-color: var(--blue-600); }
       .calc-result { padding: 24px 26px; background: var(--surface-2); }
       .calc-result h3 { margin: 0 0 14px; font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+      .part-head {
+        display: flex; align-items: center; gap: 9px;
+        margin: 20px 0 4px; font-size: 13.5px; font-weight: 800;
+        letter-spacing: .05em; text-transform: uppercase; color: var(--blue-700);
+      }
+      .part-head:first-child { margin-top: 0; }
+      @media (prefers-color-scheme: dark) { .part-head { color: #7dbcf7; } }
+      .part-head .pnum {
+        flex: none; width: 24px; height: 24px; border-radius: 8px;
+        background: var(--blue-700); color: #fff; font-size: 13px;
+        display: grid; place-items: center; font-weight: 900;
+      }
+      .part-head.cost .pnum { background: var(--orange); }
+      .subtotal {
+        display: flex; justify-content: space-between; align-items: baseline; gap: 14px;
+        margin-top: 10px; padding: 11px 13px; border-radius: 11px;
+        background: var(--blue-50); border: 1px solid var(--line);
+        font-size: 14.5px; font-weight: 800;
+      }
+      .subtotal .sv { white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .giavon {
+        display: flex; justify-content: space-between; align-items: center; gap: 14px;
+        margin-top: 12px; padding: 16px; border-radius: 14px;
+        background: var(--orange); color: #fff;
+        box-shadow: 0 8px 22px rgba(245,130,32,.35);
+      }
+      .giavon .gv-l { font-weight: 800; font-size: 15px; }
+      .giavon .gv-l small { display: block; font-weight: 500; font-size: 12.5px; color: #ffe3c7; margin-top: 2px; }
+      .giavon .gv-v { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 27px; white-space: nowrap; }
       .rrow { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14.5px; }
       .rrow .rn { font-weight: 600; }
       .rrow .rn small { display: block; color: var(--ink-2); font-weight: 500; font-size: 12.5px; }
@@ -502,7 +531,7 @@
       <section class="calc" aria-labelledby="tc">
         <div class="calc-head">
           <h2 id="tc">Ước tính thu nhập của điểm bán</h2>
-          <p>Nhập số thuê bao phát triển mới và thông tin gói cước để xem nhanh tổng số tiền dự kiến được chi trả theo chính sách.</p>
+          <p>Nhập số thuê bao phát triển mới và thông tin gói cước để xem chi phí đầu tư, các khoản dự kiến được chi trả theo chính sách và giá vốn của mỗi SIM.</p>
         </div>
         <div class="calc-grid">
           <form class="calc-form" id="calcForm">
@@ -528,15 +557,20 @@
             </div>
           </form>
           <div class="calc-result">
-            <h3>Chi tiết dự kiến chi trả</h3>
+            <h3>Kết quả ước tính</h3>
             <div id="resultRows"></div>
             <div class="rtotal">
-              <div class="tl">Tổng dự kiến<small>cho toàn bộ thuê bao nhập vào</small></div>
+              <div class="tl">Tổng dự kiến chi trả<small>Phần 2 — cho toàn bộ thuê bao nhập vào</small></div>
               <div class="tv" id="totalOut">0đ</div>
+            </div>
+            <div class="part-head cost"><span class="pnum">3</span> Giá vốn của SIM</div>
+            <div class="giavon">
+              <div class="gv-l">Giá vốn / SIM<small>(Tổng chi phí đầu vào &minus; Tổng chi trả nhận được) &divide; số thuê bao</small></div>
+              <div class="gv-v" id="costOut">&mdash;</div>
             </div>
           </div>
         </div>
-        <p class="calc-note">Số liệu ước tính giả định mọi thuê bao đều đủ điều kiện của từng khoản (kích hoạt 900 trong 24h, mua gói ngay trong tháng hòa mạng&hellip;). Doanh thu gói trong mục hoa hồng khuyến khích được tạm tính bằng giá gói; thực tế doanh thu gói là số tiền trước thuế theo quy định. Kết quả chỉ mang tính tham khảo để điểm bán lên kế hoạch phát triển thuê bao.</p>
+        <p class="calc-note">Số liệu ước tính giả định mọi thuê bao đều đủ điều kiện của từng khoản (kích hoạt 900 trong 24h, mua gói ngay trong tháng hòa mạng&hellip;). Hoa hồng khuyến khích được tính theo công thức: giá gói &divide; 1,1 &times; tỷ lệ % tương ứng. Kết quả chỉ mang tính tham khảo để điểm bán lên kế hoạch phát triển thuê bao.</p>
       </section>
 
       <!-- ===== GREETING ===== -->
@@ -556,6 +590,7 @@
         var cycleEl = document.getElementById('inCycle');
         var rowsEl = document.getElementById('resultRows');
         var totalEl = document.getElementById('totalOut');
+        var costEl = document.getElementById('costOut');
         var arpuHint = document.getElementById('arpuHint');
 
         function fmt(n) {
@@ -589,6 +624,20 @@
           var html = '';
           var total = 0;
 
+          // ===== PHẦN 1: CHI PHÍ ĐẦU TƯ =====
+          var simCost = 25000 * n;
+          var feeCost = 75000 * n;
+          var pkgCost = price * n;
+          var totalCost = simCost + feeCost + pkgCost;
+          html += '<div class="part-head cost"><span class="pnum">1</span> Chi phí điểm bán đầu tư</div>';
+          html += row('Tiền SIM trắng', '25.000đ × ' + n + ' thuê bao', simCost);
+          html += row('Tiền phí hòa mạng', '75.000đ × ' + n + ' thuê bao', feeCost);
+          html += row('Tiền gói cước', fmt(price) + ' × ' + n + ' thuê bao', pkgCost);
+          html += '<div class="subtotal"><span>Tổng chi phí đầu vào</span><span class="sv">' + fmt(totalCost) + '</span></div>';
+
+          // ===== PHẦN 2: DỰ TOÁN CHI TRẢ =====
+          html += '<div class="part-head"><span class="pnum">2</span> Dự toán các khoản chi trả</div>';
+
           // 1. BCKH
           if (price >= 30000) {
             var bckh = 20000 * n; total += bckh;
@@ -601,13 +650,14 @@
           var hhBan = 0.25 * price * n; total += hhBan;
           html += row('2. Hoa hồng bán gói', '25% × giá gói ' + fmt(price) + ' × ' + n + ' thuê bao', hhBan);
 
-          // 3. Hoa hồng khuyến khích
+          // 3. Hoa hồng khuyến khích = (Giá gói / 1,1) × % tương ứng
+          var revBase = price / 1.1;
           if (cycle === 1) {
-            var hhkk = 0.25 * price * n; total += hhkk;
-            html += row('3. Hoa hồng khuyến khích', 'Gói 1 tháng: 25% doanh thu gói', hhkk);
+            var hhkk = 0.25 * revBase * n; total += hhkk;
+            html += row('3. Hoa hồng khuyến khích', 'Gói 1 tháng: (giá gói ÷ 1,1) × 25%', hhkk);
           } else if (arpu >= 100000) {
-            var hhkk2 = 0.05 * price * n; total += hhkk2;
-            html += row('3. Hoa hồng khuyến khích', 'Gói chu kỳ dài, ARPU ≥ 100K: 5% doanh thu gói', hhkk2);
+            var hhkk2 = 0.05 * revBase * n; total += hhkk2;
+            html += row('3. Hoa hồng khuyến khích', 'Gói chu kỳ dài, ARPU ≥ 100K: (giá gói ÷ 1,1) × 5%', hhkk2);
           } else {
             html += row('3. Hoa hồng khuyến khích', 'Gói chu kỳ dài cần ARPU từ 100K trở lên', 0, { na: 'Chưa đủ ĐK', off: true });
           }
@@ -636,6 +686,9 @@
 
           rowsEl.innerHTML = html;
           totalEl.textContent = fmt(total);
+
+          // ===== PHẦN 3: GIÁ VỐN CỦA SIM =====
+          costEl.textContent = n > 0 ? fmt((totalCost - total) / n) : '—';
         }
 
         ['input', 'change'].forEach(function (ev) {
