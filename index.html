@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>Cơ chế chính sách kênh điểm ủy quyền — Áp dụng từ 01/10/2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --blue-900: #062a52;
+        --blue-800: #083a70;
+        --blue-700: #00539f;
+        --blue-600: #0067c8;
+        --blue-100: #dcecfb;
+        --blue-50: #eef5fd;
+        --orange: #f58220;
+        --orange-dark: #d96a0d;
+        --orange-soft: #fff1e3;
+        --green: #0f9d58;
+        --green-soft: #e6f6ee;
+        --bg: #f2f6fb;
+        --surface: #ffffff;
+        --surface-2: #f7fafd;
+        --ink: #12283f;
+        --ink-2: #43586c;
+        --line: #d7e3f0;
+        --note-bg: #fff7ec;
+        --note-line: #f3cf9e;
+        --note-ink: #7a4a12;
+        --shadow: 0 10px 30px rgba(6, 42, 82, .10);
+        --shadow-sm: 0 4px 14px rgba(6, 42, 82, .08);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0a1622;
+          --surface: #122636;
+          --surface-2: #0e2033;
+          --ink: #eaf2fa;
+          --ink-2: #a9bfd4;
+          --line: #24405c;
+          --blue-50: #0e2a47;
+          --blue-100: #173d63;
+          --orange-soft: #3a2712;
+          --green-soft: #123125;
+          --note-bg: #33240e;
+          --note-line: #6b4d1e;
+          --note-ink: #f4cf96;
+          --shadow: 0 10px 30px rgba(0,0,0,.45);
+          --shadow-sm: 0 4px 14px rgba(0,0,0,.35);
+        }
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Be Vietnam Pro", system-ui, sans-serif;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 56px; }
+
+      /* ===== HERO ===== */
+      .hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(120deg, var(--blue-900) 0%, var(--blue-800) 46%, var(--blue-700) 100%);
+        color: #fff;
+        border-radius: 0 0 28px 28px;
+        padding: 44px 20px 40px;
+        text-align: center;
+      }
+      .hero::before, .hero::after {
+        content: ""; position: absolute; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,.10);
+      }
+      .hero::before { width: 340px; height: 340px; left: -120px; top: -140px; }
+      .hero::after { width: 420px; height: 420px; right: -160px; bottom: -260px; border-color: rgba(245,130,32,.28); }
+      .hero .stripe {
+        position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+        background: linear-gradient(90deg, var(--orange) 0 55%, #ffb26b 55% 100%);
+      }
+      .hero-inner { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; }
+      .hero .brand {
+        display: inline-flex; align-items: center; gap: 10px;
+        font-family: "Archivo", sans-serif; font-weight: 900; letter-spacing: .14em;
+        font-size: 15px; color: #bcd8f5; text-transform: uppercase;
+      }
+      .hero .brand .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--orange); }
+      .hero h1 {
+        margin: 16px 0 6px;
+        font-family: "Archivo", sans-serif; font-weight: 900;
+        font-size: clamp(30px, 5.4vw, 52px); line-height: 1.12; letter-spacing: .01em;
+        text-transform: uppercase;
+      }
+      .hero h1 .hl { color: #ffb26b; }
+      .hero .sub {
+        margin: 0 auto; max-width: 640px;
+        font-size: clamp(15px, 2.2vw, 18px); color: #d7e8fa; font-weight: 500;
+      }
+      .hero .date-badge {
+        display: inline-flex; align-items: center; gap: 9px;
+        margin-top: 22px; padding: 9px 20px;
+        background: var(--orange); color: #fff;
+        border-radius: 999px; font-weight: 800; font-size: 15px;
+        box-shadow: 0 8px 22px rgba(245,130,32,.45);
+      }
+      .hero .date-badge svg { flex: none; }
+
+      /* highlights strip */
+      .highlights {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+        margin: -26px auto 0; position: relative; z-index: 2; max-width: 1180px; padding: 0 20px;
+      }
+      .hl-card {
+        background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+        padding: 16px 18px; box-shadow: var(--shadow-sm);
+        display: flex; flex-direction: column; gap: 2px;
+      }
+      .hl-card .v { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 26px; color: var(--blue-700); }
+      @media (prefers-color-scheme: dark) { .hl-card .v { color: #6db3f2; } }
+      .hl-card .v em { font-style: normal; color: var(--orange); }
+      .hl-card .l { font-size: 13px; color: var(--ink-2); font-weight: 600; }
+
+      /* ===== SECTION CARDS ===== */
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 30px; }
+      .card {
+        background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+        box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column;
+      }
+      .card-head { padding: 20px 22px 0; display: flex; gap: 14px; align-items: flex-start; }
+      .num {
+        flex: none; width: 46px; height: 46px; border-radius: 14px;
+        background: var(--blue-700); color: #fff;
+        font-family: "Archivo", sans-serif; font-weight: 900; font-size: 22px;
+        display: grid; place-items: center;
+        box-shadow: 0 6px 14px rgba(0,83,159,.35);
+      }
+      .card:nth-child(2) .num { background: var(--orange); box-shadow: 0 6px 14px rgba(245,130,32,.4); }
+      .card:nth-child(3) .num { background: var(--green); box-shadow: 0 6px 14px rgba(15,157,88,.35); }
+      .card h2 { margin: 2px 0 0; font-size: 19px; font-weight: 800; line-height: 1.3; }
+      .card .tag { font-size: 12.5px; color: var(--ink-2); font-weight: 600; margin-top: 2px; }
+      .big-value {
+        margin: 16px 22px 0; padding: 14px 16px; border-radius: 14px;
+        background: var(--blue-50); border: 1px dashed var(--blue-600);
+        text-align: center;
+      }
+      .big-value .amount { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 34px; color: var(--blue-700); line-height: 1.05; }
+      @media (prefers-color-scheme: dark) { .big-value .amount { color: #7dbcf7; } }
+      .big-value .unit { font-size: 13.5px; font-weight: 700; color: var(--ink-2); }
+      .card-body { padding: 16px 22px 20px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+      .cond-title { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+      ul.cond { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+      ul.cond li { display: flex; gap: 9px; font-size: 14.5px; align-items: flex-start; }
+      ul.cond li svg { flex: none; margin-top: 3px; }
+      ul.cond li.no { color: var(--ink); }
+      .note {
+        margin-top: auto; background: var(--note-bg); border: 1px solid var(--note-line);
+        border-radius: 12px; padding: 11px 13px; font-size: 13.5px; color: var(--note-ink);
+      }
+      .note b { font-weight: 800; }
+      .note ul { margin: 6px 0 0; padding-left: 18px; }
+      .note li { margin: 3px 0; }
+      .formula {
+        font-family: "Archivo", sans-serif; font-weight: 700; font-size: 15px;
+        background: var(--surface); border: 1px solid var(--note-line); border-radius: 9px;
+        padding: 8px 10px; text-align: center; margin-top: 8px; color: var(--ink);
+      }
+
+      /* split rows inside card 3 */
+      .split { display: flex; flex-direction: column; gap: 10px; }
+      .split-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+      }
+      .split-row .lbl { font-size: 14px; font-weight: 600; }
+      .split-row .pct { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 24px; color: var(--green); white-space: nowrap; }
+
+      /* ===== WIDE SECTIONS ===== */
+      .wide { margin-top: 18px; }
+      .ladder { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; align-items: end; }
+      .tier {
+        border-radius: 16px 16px 12px 12px; padding: 16px 14px 14px; text-align: center; color: #fff;
+        display: flex; flex-direction: column; gap: 3px; position: relative;
+      }
+      .tier .t-range { font-size: 13px; font-weight: 700; opacity: .92; }
+      .tier .t-amount { font-family: "Archivo", sans-serif; font-weight: 900; font-size: clamp(24px, 3vw, 32px); line-height: 1.05; }
+      .tier .t-unit { font-size: 12px; font-weight: 600; opacity: .9; }
+      .tier .t-rank { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
+      .tier-1 { background: #5b93c9; min-height: 118px; }
+      .tier-2 { background: #2f74b5; min-height: 134px; }
+      .tier-3 { background: #00539f; min-height: 150px; }
+      .tier-4 { background: #083a70; min-height: 166px; }
+      .tier-5 { background: var(--orange); min-height: 182px; box-shadow: 0 10px 24px rgba(245,130,32,.35); }
+      .tier { justify-content: flex-end; }
+
+      .ckd { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .ckd-box {
+        border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 18px;
+        border: 1px solid var(--line); background: var(--surface-2);
+      }
+      .ckd-box .ckd-amt { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 40px; color: var(--blue-700); line-height: 1; white-space: nowrap; }
+      @media (prefers-color-scheme: dark) { .ckd-box .ckd-amt { color: #7dbcf7; } }
+      .ckd-box.hot .ckd-amt { color: var(--orange-dark); }
+      @media (prefers-color-scheme: dark) { .ckd-box.hot .ckd-amt { color: #ffb26b; } }
+      .ckd-box .ckd-lbl { font-size: 15px; font-weight: 700; }
+      .ckd-box .ckd-sub { font-size: 13px; color: var(--ink-2); font-weight: 500; }
+
+      /* ===== CALCULATOR ===== */
+      .calc {
+        margin-top: 34px; background: var(--surface); border: 1px solid var(--line);
+        border-radius: 22px; box-shadow: var(--shadow); overflow: hidden;
+      }
+      .calc-head {
+        background: linear-gradient(120deg, var(--blue-800), var(--blue-700)); color: #fff;
+        padding: 22px 26px;
+      }
+      .calc-head h2 { margin: 0; font-size: 21px; font-weight: 800; }
+      .calc-head p { margin: 4px 0 0; font-size: 14px; color: #cfe4f8; }
+      .calc-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 0; }
+      .calc-form { padding: 24px 26px; display: flex; flex-direction: column; gap: 16px; border-right: 1px solid var(--line); }
+      .field label { display: block; font-size: 13.5px; font-weight: 700; margin-bottom: 6px; }
+      .field .hint { font-size: 12px; color: var(--ink-2); font-weight: 500; margin-top: 4px; }
+      .field input, .field select {
+        width: 100%; padding: 12px 14px; border-radius: 11px; border: 1.5px solid var(--line);
+        background: var(--surface-2); color: var(--ink);
+        font-family: inherit; font-size: 16px; font-weight: 600;
+      }
+      .field input:focus, .field select:focus { outline: 2px solid var(--blue-600); outline-offset: 1px; border-color: var(--blue-600); }
+      .calc-result { padding: 24px 26px; background: var(--surface-2); }
+      .calc-result h3 { margin: 0 0 14px; font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+      .rrow { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14.5px; }
+      .rrow .rn { font-weight: 600; }
+      .rrow .rn small { display: block; color: var(--ink-2); font-weight: 500; font-size: 12.5px; }
+      .rrow .rv { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .rrow.off .rn, .rrow.off .rv { color: var(--ink-2); }
+      .rrow .rv.na { font-size: 12.5px; font-weight: 700; color: var(--orange-dark); }
+      @media (prefers-color-scheme: dark) { .rrow .rv.na { color: #ffb26b; } }
+      .rtotal { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 16px; padding: 16px; border-radius: 14px; background: var(--blue-700); color: #fff; }
+      .rtotal .tl { font-weight: 800; font-size: 15px; }
+      .rtotal .tl small { display: block; font-weight: 500; font-size: 12.5px; color: #cfe4f8; }
+      .rtotal .tv { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 27px; white-space: nowrap; }
+      .calc-note { padding: 0 26px 22px; font-size: 12.5px; color: var(--ink-2); background: var(--surface-2); }
+
+      /* ===== GREETING ===== */
+      .greeting {
+        margin-top: 34px; position: relative; overflow: hidden;
+        background: linear-gradient(120deg, var(--blue-900), var(--blue-700));
+        color: #fff; border-radius: 24px; padding: 38px 30px; text-align: center;
+      }
+      .greeting::after {
+        content: ""; position: absolute; inset: auto 0 0 0; height: 6px;
+        background: linear-gradient(90deg, var(--orange) 0 55%, #ffb26b 55% 100%);
+      }
+      .greeting .g-title { font-family: "Archivo", sans-serif; font-weight: 900; font-size: clamp(21px, 3.4vw, 28px); margin: 0 0 12px; text-transform: uppercase; letter-spacing: .02em; }
+      .greeting .g-title .hl { color: #ffb26b; }
+      .greeting p { margin: 0 auto; max-width: 780px; font-size: clamp(14.5px, 2vw, 16.5px); color: #e3eefb; }
+      .greeting .g-sign { margin-top: 18px; font-weight: 800; font-size: 15px; color: #fff; }
+      .greeting .g-sign span { color: #ffb26b; }
+
+      .foot-note { text-align: center; margin-top: 20px; font-size: 12.5px; color: var(--ink-2); }
+
+      @media (max-width: 980px) {
+        .grid { grid-template-columns: 1fr 1fr; }
+        .highlights { grid-template-columns: 1fr 1fr; }
+        .calc-grid { grid-template-columns: 1fr; }
+        .calc-form { border-right: none; border-bottom: 1px solid var(--line); }
+      }
+      @media (max-width: 640px) {
+        .grid { grid-template-columns: 1fr; }
+        .ladder { grid-template-columns: 1fr; align-items: stretch; }
+        .tier { min-height: 0 !important; text-align: left; flex-direction: row; align-items: center; justify-content: space-between; border-radius: 14px; }
+        .tier .t-mid { text-align: right; }
+        .ckd { grid-template-columns: 1fr; }
+        .hero { padding: 34px 16px 34px; border-radius: 0 0 20px 20px; }
+        .wrap { padding: 0 14px 44px; }
+        .highlights { padding: 0 14px; }
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .card, .hl-card, .tier { transition: transform .18s ease, box-shadow .18s ease; }
+        .card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ===== HERO ===== -->
+    <header class="hero">
+      <div class="hero-inner">
+        <div class="brand"><span class="dot"></span> VNPT &middot; Kênh điểm ủy quyền <span class="dot"></span></div>
+        <h1>Cơ chế chính sách<br />dành cho <span class="hl">điểm ủy quyền</span></h1>
+        <p class="sub">Đầy đủ các khoản chi trả &amp; khuyến khích: BCKH, hoa hồng bán gói, hoa hồng khuyến khích, thưởng theo sản lượng phát triển mới và gói chu kỳ dài.</p>
+        <div class="date-badge">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2.5" stroke="#fff" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+          Áp dụng từ ngày 01/10/2026
+        </div>
+      </div>
+      <div class="stripe"></div>
+    </header>
+
+    <!-- ===== HIGHLIGHTS ===== -->
+    <div class="highlights" aria-label="Các mức chi trả nổi bật">
+      <div class="hl-card"><span class="v">20.000<em>đ</em></span><span class="l">BCKH / thuê bao đủ điều kiện</span></div>
+      <div class="hl-card"><span class="v">25<em>%</em></span><span class="l">Hoa hồng bán gói theo giá gói</span></div>
+      <div class="hl-card"><span class="v">65<em>K</em></span><span class="l">Thưởng tối đa / thuê bao PTM (≥ 50 TB)</span></div>
+      <div class="hl-card"><span class="v">50<em>K</em></span><span class="l">Khuyến khích SIM gói CKD từ 12 tháng</span></div>
+    </div>
+
+    <main class="wrap">
+      <!-- ===== ROW 1: SECTIONS 1-3 ===== -->
+      <div class="grid">
+        <!-- 1. BCKH -->
+        <section class="card" aria-labelledby="t1">
+          <div class="card-head">
+            <div class="num">1</div>
+            <div>
+              <h2 id="t1">Tiền BCKH</h2>
+              <div class="tag">Chi trả cho mỗi thuê bao đủ điều kiện</div>
+            </div>
+          </div>
+          <div class="big-value">
+            <div class="amount">20.000đ</div>
+            <div class="unit">/ thuê bao</div>
+          </div>
+          <div class="card-body">
+            <div>
+              <div class="cond-title">Điều kiện chi trả</div>
+              <ul class="cond" style="margin-top:8px">
+                <li>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#0f9d58"/><path d="M8 12.5l2.6 2.6L16 9.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span>Thuê bao được <b>kích hoạt 900 trong vòng 24h</b> kể từ thời điểm ĐKTT</span>
+                </li>
+                <li>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#0f9d58"/><path d="M8 12.5l2.6 2.6L16 9.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span>Thuê bao có đăng ký <b>gói cước bất kỳ có giá từ 30K trở lên</b></span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Hoa hồng bán gói -->
+        <section class="card" aria-labelledby="t2">
+          <div class="card-head">
+            <div class="num">2</div>
+            <div>
+              <h2 id="t2">Hoa hồng bán gói</h2>
+              <div class="tag">Tính trên giá gói cước</div>
+            </div>
+          </div>
+          <div class="big-value">
+            <div class="amount">25%</div>
+            <div class="unit">giá gói</div>
+          </div>
+          <div class="card-body">
+            <div>
+              <div class="cond-title">Điều kiện áp dụng</div>
+              <ul class="cond" style="margin-top:8px">
+                <li>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#0f9d58"/><path d="M8 12.5l2.6 2.6L16 9.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span>Thuê bao phải <b>mua gói cước ngay trong tháng hòa mạng</b></span>
+                </li>
+                <li class="no">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e05252"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+                  <span>Không áp dụng đối với các <b>bộ SIM đóng KIT kích hoạt lại</b></span>
+                </li>
+                <li class="no">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e05252"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+                  <span>Không áp dụng đối với thuê bao <b>chuyển đổi hình thức từ trả sau sang trả trước</b></span>
+                </li>
+                <li class="no">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e05252"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+                  <span>Không áp dụng đối với thuê bao <b>khôi phục, thuê bao tái hòa mạng</b></span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Hoa hồng khuyến khích -->
+        <section class="card" aria-labelledby="t3">
+          <div class="card-head">
+            <div class="num">3</div>
+            <div>
+              <h2 id="t3">Hoa hồng khuyến khích</h2>
+              <div class="tag">Tính trên doanh thu gói cước</div>
+            </div>
+          </div>
+          <div class="card-body" style="padding-top:18px">
+            <div class="split">
+              <div class="split-row">
+                <span class="lbl">Gói chu kỳ <b>1 tháng</b></span>
+                <span class="pct">25%</span>
+              </div>
+              <div class="split-row">
+                <span class="lbl">Gói <b>chu kỳ dài</b>, ARPU từ <b>100K</b> trở lên</span>
+                <span class="pct">5%</span>
+              </div>
+            </div>
+            <div class="note">
+              <b>Ghi chú:</b>
+              <div class="formula">ARPU gói = Tổng giá gói &divide; Số tháng của chu kỳ gói</div>
+              <ul>
+                <li>Doanh thu gói là số tiền <b>trước thuế</b> của gói cước.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== SECTION 4: SẢN LƯỢNG ===== -->
+      <section class="card wide" aria-labelledby="t4">
+        <div class="card-head">
+          <div class="num" style="background:var(--blue-800)">4</div>
+          <div>
+            <h2 id="t4">Khuyến khích theo mức sản lượng phát triển mới</h2>
+            <div class="tag">Càng phát triển nhiều thuê bao mới, mức thưởng trên mỗi thuê bao càng cao</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="ladder" role="img" aria-label="Thang thưởng sản lượng: 5 đến dưới 10 thuê bao được 20K một thuê bao; 10 đến dưới 20 được 30K; 20 đến dưới 30 được 40K; 30 đến dưới 50 được 50K; từ 50 thuê bao trở lên được 65K một thuê bao">
+            <div class="tier tier-1">
+              <div class="t-rank">Mức 1</div>
+              <div class="t-range">5 &ndash; &lt;10 thuê bao</div>
+              <div class="t-mid"><span class="t-amount">20K</span><div class="t-unit">/ thuê bao</div></div>
+            </div>
+            <div class="tier tier-2">
+              <div class="t-rank">Mức 2</div>
+              <div class="t-range">10 &ndash; &lt;20 thuê bao</div>
+              <div class="t-mid"><span class="t-amount">30K</span><div class="t-unit">/ thuê bao</div></div>
+            </div>
+            <div class="tier tier-3">
+              <div class="t-rank">Mức 3</div>
+              <div class="t-range">20 &ndash; &lt;30 thuê bao</div>
+              <div class="t-mid"><span class="t-amount">40K</span><div class="t-unit">/ thuê bao</div></div>
+            </div>
+            <div class="tier tier-4">
+              <div class="t-rank">Mức 4</div>
+              <div class="t-range">30 &ndash; &lt;50 thuê bao</div>
+              <div class="t-mid"><span class="t-amount">50K</span><div class="t-unit">/ thuê bao</div></div>
+            </div>
+            <div class="tier tier-5">
+              <div class="t-rank">Mức 5 &middot; Cao nhất</div>
+              <div class="t-range">Từ 50 thuê bao trở lên</div>
+              <div class="t-mid"><span class="t-amount">65K</span><div class="t-unit">/ thuê bao</div></div>
+            </div>
+          </div>
+          <div class="note">
+            <b>Ghi chú:</b>
+            <ul>
+              <li>Đạt ở mức nào thì chi trả theo mức đó, <b>không cộng dồn</b>.</li>
+              <li>Thuê bao phát triển mới phải mua gói tối thiểu từ <b>70K</b> trở lên.</li>
+              <li>Không ghi nhận sản lượng đối với các thuê bao <b>đóng KIT kích hoạt lại</b>.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== SECTION 5: CKD ===== -->
+      <section class="card wide" aria-labelledby="t5">
+        <div class="card-head">
+          <div class="num" style="background:var(--orange)">5</div>
+          <div>
+            <h2 id="t5">Khuyến khích phát triển SIM mua gói chu kỳ dài (CKD)</h2>
+            <div class="tag">Thưởng thêm cho mỗi thuê bao mua gói dài hạn đủ điều kiện</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="ckd">
+            <div class="ckd-box">
+              <div class="ckd-amt">30K</div>
+              <div>
+                <div class="ckd-lbl">Gói từ 6 tháng đến dưới 12 tháng</div>
+                <div class="ckd-sub">Chi trả 30.000đ / thuê bao</div>
+              </div>
+            </div>
+            <div class="ckd-box hot">
+              <div class="ckd-amt">50K</div>
+              <div>
+                <div class="ckd-lbl">Gói từ 12 tháng trở lên</div>
+                <div class="ckd-sub">Chi trả 50.000đ / thuê bao</div>
+              </div>
+            </div>
+          </div>
+          <div class="note">
+            <b>Ghi chú:</b>
+            <ul>
+              <li>Chỉ áp dụng đối với các gói CKD có <b>ARPU từ 100K trở lên</b>.</li>
+              <li>Không áp dụng đối với <b>bộ SIM đóng KIT kích hoạt lại</b>.</li>
+              <li>Không áp dụng đối với các <b>SIM bundle đã xuất bán từ 31/08/2026 trở về trước</b>.</li>
+              <li>Không áp dụng đối với thuê bao <b>chuyển đổi hình thức, thuê bao khôi phục, thuê bao tái hòa mạng</b>.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== CALCULATOR ===== -->
+      <section class="calc" aria-labelledby="tc">
+        <div class="calc-head">
+          <h2 id="tc">Ước tính thu nhập của điểm bán</h2>
+          <p>Nhập số thuê bao phát triển mới và thông tin gói cước để xem nhanh tổng số tiền dự kiến được chi trả theo chính sách.</p>
+        </div>
+        <div class="calc-grid">
+          <form class="calc-form" id="calcForm">
+            <div class="field">
+              <label for="inSubs">Số thuê bao phát triển mới trong tháng</label>
+              <input type="number" id="inSubs" min="0" step="1" value="30" inputmode="numeric" />
+            </div>
+            <div class="field">
+              <label for="inPrice">Giá gói cước mỗi thuê bao mua (VNĐ)</label>
+              <input type="number" id="inPrice" min="0" step="1000" value="600000" inputmode="numeric" />
+              <div class="hint">Ví dụ: gói 100K/tháng chu kỳ 6 tháng có tổng giá gói là 600.000đ.</div>
+            </div>
+            <div class="field">
+              <label for="inCycle">Chu kỳ gói (tháng)</label>
+              <select id="inCycle">
+                <option value="1">1 tháng</option>
+                <option value="3">3 tháng</option>
+                <option value="6" selected>6 tháng</option>
+                <option value="12">12 tháng</option>
+                <option value="24">24 tháng</option>
+              </select>
+              <div class="hint" id="arpuHint"></div>
+            </div>
+          </form>
+          <div class="calc-result">
+            <h3>Chi tiết dự kiến chi trả</h3>
+            <div id="resultRows"></div>
+            <div class="rtotal">
+              <div class="tl">Tổng dự kiến<small>cho toàn bộ thuê bao nhập vào</small></div>
+              <div class="tv" id="totalOut">0đ</div>
+            </div>
+          </div>
+        </div>
+        <p class="calc-note">Số liệu ước tính giả định mọi thuê bao đều đủ điều kiện của từng khoản (kích hoạt 900 trong 24h, mua gói ngay trong tháng hòa mạng&hellip;). Doanh thu gói trong mục hoa hồng khuyến khích được tạm tính bằng giá gói; thực tế doanh thu gói là số tiền trước thuế theo quy định. Kết quả chỉ mang tính tham khảo để điểm bán lên kế hoạch phát triển thuê bao.</p>
+      </section>
+
+      <!-- ===== GREETING ===== -->
+      <section class="greeting">
+        <h2 class="g-title">Lời chúc gửi tới <span class="hl">Quý điểm bán</span></h2>
+        <p>Kính chúc Quý điểm bán luôn dồi dào sức khỏe, kinh doanh thuận lợi, buôn may bán đắt! Mỗi thuê bao phát triển mới là một bước tiến vững chắc, mỗi khách hàng hài lòng là một niềm tin được gửi gắm. VNPT trân trọng cảm ơn sự tin tưởng và đồng hành của Quý điểm bán trong suốt thời gian qua, và cam kết luôn sát cánh, hỗ trợ hết mình để chúng ta cùng nhau chinh phục những cột mốc doanh thu mới, vươn xa hơn nữa trên hành trình phát triển.</p>
+        <div class="g-sign">Đồng hành cùng phát triển &mdash; <span>VNPT</span></div>
+      </section>
+
+      <p class="foot-note">Cơ chế chính sách dành cho kênh điểm ủy quyền &middot; Áp dụng từ 01/10/2026</p>
+    </main>
+
+    <script>
+      (function () {
+        var subsEl = document.getElementById('inSubs');
+        var priceEl = document.getElementById('inPrice');
+        var cycleEl = document.getElementById('inCycle');
+        var rowsEl = document.getElementById('resultRows');
+        var totalEl = document.getElementById('totalOut');
+        var arpuHint = document.getElementById('arpuHint');
+
+        function fmt(n) {
+          return Math.round(n).toLocaleString('vi-VN') + 'đ';
+        }
+        function tierRate(n) {
+          if (n >= 50) return 65;
+          if (n >= 30) return 50;
+          if (n >= 20) return 40;
+          if (n >= 10) return 30;
+          if (n >= 5) return 20;
+          return 0;
+        }
+        function row(name, detail, value, opts) {
+          opts = opts || {};
+          var cls = 'rrow' + (opts.off ? ' off' : '');
+          var val = opts.na ? '<span class="rv na">' + opts.na + '</span>'
+                           : '<span class="rv">' + fmt(value) + '</span>';
+          return '<div class="' + cls + '"><div class="rn">' + name +
+                 (detail ? '<small>' + detail + '</small>' : '') + '</div>' + val + '</div>';
+        }
+
+        function calc() {
+          var n = Math.max(0, parseInt(subsEl.value, 10) || 0);
+          var price = Math.max(0, parseFloat(priceEl.value) || 0);
+          var cycle = parseInt(cycleEl.value, 10) || 1;
+          var arpu = cycle > 0 ? price / cycle : 0;
+          arpuHint.textContent = 'ARPU gói = ' + fmt(arpu) + ' / tháng' +
+            (cycle > 1 ? (arpu >= 100000 ? ' — đạt ngưỡng ARPU 100K' : ' — chưa đạt ngưỡng ARPU 100K') : '');
+
+          var html = '';
+          var total = 0;
+
+          // 1. BCKH
+          if (price >= 30000) {
+            var bckh = 20000 * n; total += bckh;
+            html += row('1. Tiền BCKH', '20.000đ × ' + n + ' thuê bao (gói từ 30K, kích hoạt 900 trong 24h)', bckh);
+          } else {
+            html += row('1. Tiền BCKH', 'Gói dưới 30K — chưa đủ điều kiện', 0, { na: 'Chưa đủ ĐK', off: true });
+          }
+
+          // 2. Hoa hồng bán gói
+          var hhBan = 0.25 * price * n; total += hhBan;
+          html += row('2. Hoa hồng bán gói', '25% × giá gói ' + fmt(price) + ' × ' + n + ' thuê bao', hhBan);
+
+          // 3. Hoa hồng khuyến khích
+          if (cycle === 1) {
+            var hhkk = 0.25 * price * n; total += hhkk;
+            html += row('3. Hoa hồng khuyến khích', 'Gói 1 tháng: 25% doanh thu gói', hhkk);
+          } else if (arpu >= 100000) {
+            var hhkk2 = 0.05 * price * n; total += hhkk2;
+            html += row('3. Hoa hồng khuyến khích', 'Gói chu kỳ dài, ARPU ≥ 100K: 5% doanh thu gói', hhkk2);
+          } else {
+            html += row('3. Hoa hồng khuyến khích', 'Gói chu kỳ dài cần ARPU từ 100K trở lên', 0, { na: 'Chưa đủ ĐK', off: true });
+          }
+
+          // 4. Khuyến khích sản lượng PTM
+          var rate = tierRate(n);
+          if (rate > 0 && price >= 70000) {
+            var sl = rate * 1000 * n; total += sl;
+            html += row('4. Khuyến khích sản lượng PTM', 'Mức ' + rate + 'K/thuê bao × ' + n + ' thuê bao (không cộng dồn)', sl);
+          } else if (rate === 0) {
+            html += row('4. Khuyến khích sản lượng PTM', 'Cần đạt từ 5 thuê bao PTM trở lên', 0, { na: 'Chưa đạt mức', off: true });
+          } else {
+            html += row('4. Khuyến khích sản lượng PTM', 'Thuê bao PTM phải mua gói tối thiểu 70K', 0, { na: 'Chưa đủ ĐK', off: true });
+          }
+
+          // 5. CKD
+          if (cycle >= 6 && arpu >= 100000) {
+            var ckdRate = cycle >= 12 ? 50000 : 30000;
+            var ckd = ckdRate * n; total += ckd;
+            html += row('5. Khuyến khích gói CKD', fmt(ckdRate) + ' × ' + n + ' thuê bao (gói ' + cycle + ' tháng, ARPU ≥ 100K)', ckd);
+          } else if (cycle >= 6) {
+            html += row('5. Khuyến khích gói CKD', 'Gói CKD cần ARPU từ 100K trở lên', 0, { na: 'Chưa đủ ĐK', off: true });
+          } else {
+            html += row('5. Khuyến khích gói CKD', 'Chỉ áp dụng cho gói từ 6 tháng trở lên', 0, { na: 'Không áp dụng', off: true });
+          }
+
+          rowsEl.innerHTML = html;
+          totalEl.textContent = fmt(total);
+        }
+
+        ['input', 'change'].forEach(function (ev) {
+          subsEl.addEventListener(ev, calc);
+          priceEl.addEventListener(ev, calc);
+          cycleEl.addEventListener(ev, calc);
+        });
+        document.getElementById('calcForm').addEventListener('submit', function (e) { e.preventDefault(); });
+        calc();
+      })();
+    </script>
+  </body>
+</html>
