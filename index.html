@@ -1,704 +1,1424 @@
 <!doctype html>
 <html lang="vi">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="color-scheme" content="light dark" />
-    <link rel="icon" href="data:," />
-    <title>Cơ chế chính sách kênh điểm ủy quyền — Áp dụng từ 01/10/2026</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&family=Archivo:wght@700;800;900&display=swap" rel="stylesheet" />
-    <style>
-      :root {
-        --blue-900: #062a52;
-        --blue-800: #083a70;
-        --blue-700: #00539f;
-        --blue-600: #0067c8;
-        --blue-100: #dcecfb;
-        --blue-50: #eef5fd;
-        --orange: #f58220;
-        --orange-dark: #d96a0d;
-        --orange-soft: #fff1e3;
-        --green: #0f9d58;
-        --green-soft: #e6f6ee;
-        --bg: #f2f6fb;
-        --surface: #ffffff;
-        --surface-2: #f7fafd;
-        --ink: #12283f;
-        --ink-2: #43586c;
-        --line: #d7e3f0;
-        --note-bg: #fff7ec;
-        --note-line: #f3cf9e;
-        --note-ink: #7a4a12;
-        --shadow: 0 10px 30px rgba(6, 42, 82, .10);
-        --shadow-sm: 0 4px 14px rgba(6, 42, 82, .08);
-      }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #0a1622;
-          --surface: #122636;
-          --surface-2: #0e2033;
-          --ink: #eaf2fa;
-          --ink-2: #a9bfd4;
-          --line: #24405c;
-          --blue-50: #0e2a47;
-          --blue-100: #173d63;
-          --orange-soft: #3a2712;
-          --green-soft: #123125;
-          --note-bg: #33240e;
-          --note-line: #6b4d1e;
-          --note-ink: #f4cf96;
-          --shadow: 0 10px 30px rgba(0,0,0,.45);
-          --shadow-sm: 0 4px 14px rgba(0,0,0,.35);
-        }
-      }
-      * { box-sizing: border-box; }
-      html { scroll-behavior: smooth; }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--ink);
-        font-family: "Be Vietnam Pro", system-ui, sans-serif;
-        line-height: 1.55;
-        -webkit-font-smoothing: antialiased;
-      }
-      .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 56px; }
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Cơ chế chính sách kênh điểm ủy quyền — Áp dụng từ 01/10/2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --blue:#0057a8; --blue-dark:#003d73; --blue-deep:#002b52; --blue-light:#e8f2fb;
+  --orange:#f58220; --orange-dark:#d96c0d; --ink:#12283d; --muted:#5a7186;
+  --bg:#eef5fb; --card:#ffffff; --line:#d7e5f2; --ok:#0d8a4c; --bad:#c62f3b;
+  --radius:16px; --shadow:0 8px 28px rgba(0,45,86,.10);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:15px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid #9cc8ee;border-color:var(--blue)}
+label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin:0 0 6px}
+h1,h2,h3{margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+/* ---------- Top bar ---------- */
+.topbar{position:sticky;top:0;z-index:60;background:linear-gradient(90deg,var(--blue-deep),var(--blue));color:#fff;box-shadow:0 4px 18px rgba(0,30,60,.25)}
+.topbar-in{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.3px}
+.brand .logo{background:#fff;color:var(--blue);font-weight:900;font-style:italic;padding:4px 10px;border-radius:8px;font-size:17px}
+.brand small{display:block;font-weight:500;font-size:11px;opacity:.85;letter-spacing:.6px}
+.topbar .spacer{flex:1}
+.btn{border:none;border-radius:10px;padding:10px 18px;font-weight:700;font-size:14px;background:var(--orange);color:#fff;transition:.15s}
+.btn:hover{background:var(--orange-dark)}
+.btn.ghost{background:rgba(255,255,255,.14);color:#fff;border:1.5px solid rgba(255,255,255,.5)}
+.btn.blue{background:var(--blue)}
+.btn.blue:hover{background:var(--blue-dark)}
+.btn.gray{background:#e7eef5;color:var(--ink)}
+.btn.danger{background:var(--bad)}
+.btn.sm{padding:6px 12px;font-size:13px;border-radius:8px}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.userchip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.35);padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600}
+/* ---------- Hero ---------- */
+.hero{background:linear-gradient(135deg,var(--blue-deep),var(--blue) 55%,#0a74c7);color:#fff;padding:44px 0 34px;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-90px;top:-90px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(245,130,32,.5),transparent 65%)}
+.hero .kicker{display:inline-block;background:var(--orange);font-weight:800;font-size:12.5px;padding:5px 12px;border-radius:999px;letter-spacing:.8px;text-transform:uppercase}
+.hero h1{font-size:clamp(26px,4.4vw,42px);font-weight:900;line-height:1.15;margin:14px 0 10px;max-width:820px}
+.hero p{opacity:.92;max-width:760px;font-size:16px;margin:0}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0 4px;position:relative;z-index:1}
+.stat{background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.28);border-radius:14px;padding:14px 16px;backdrop-filter:blur(4px)}
+.stat b{font-size:26px;font-weight:900;display:block}
+.stat span{font-size:13px;opacity:.9}
+/* ---------- Sections ---------- */
+.section{padding:26px 0 4px}
+.sec-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.sec-num{background:var(--orange);color:#fff;font-weight:900;font-size:19px;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:var(--shadow)}
+.sec-head h2{font-size:clamp(19px,2.6vw,25px);font-weight:800;color:var(--blue-deep)}
+.sec-head p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+.big-price{font-size:clamp(34px,5vw,52px);font-weight:900;color:var(--blue)}
+.big-price small{font-size:17px;color:var(--muted);font-weight:600}
+ul.cond{margin:10px 0 0;padding-left:20px;line-height:1.75;font-size:15px}
+ul.cond li::marker{color:var(--orange)}
+.note{background:#fff7ec;border:1.5px solid #f5d9ae;border-radius:12px;padding:12px 16px;font-size:14.5px;line-height:1.7;margin-top:14px}
+.note b{color:var(--orange-dark)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.rate-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 4px;border-bottom:1.5px dashed var(--line)}
+.rate-row:last-child{border-bottom:none}
+.rate-row .pct{font-size:30px;font-weight:900;color:var(--orange-dark)}
+.tiers{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.tier{border:1.5px solid var(--line);border-radius:14px;padding:14px 12px;text-align:center;background:linear-gradient(180deg,#fff,#f2f8fd)}
+.tier .lv{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.tier .amt{font-size:27px;font-weight:900;color:var(--blue);margin:4px 0}
+.tier .rng{font-size:13px;color:var(--muted)}
+.tier.top{border-color:var(--orange);background:linear-gradient(180deg,#fff7ec,#ffedd6)}
+.tier.top .amt{color:var(--orange-dark)}
+/* ---------- Estimator ---------- */
+.est-inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+.est-part{border:1.5px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.est-part h3{font-size:16.5px;color:var(--blue-dark);margin-bottom:8px}
+.est-part h3 .tag{background:var(--blue);color:#fff;border-radius:7px;padding:2px 9px;font-size:12.5px;margin-right:8px}
+.est-row{display:flex;justify-content:space-between;gap:12px;padding:8px 2px;border-bottom:1px dashed var(--line);font-size:15px}
+.est-row:last-child{border-bottom:none}
+.est-row.total{font-weight:800;color:var(--blue-dark);font-size:16.5px}
+.est-grand{background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;border-radius:14px;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.est-grand b{font-size:29px;font-weight:900}
+.sim-cost{background:linear-gradient(135deg,var(--orange),var(--orange-dark));color:#fff;border-radius:14px;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.sim-cost b{font-size:29px;font-weight:900}
+.fineprint{font-size:13px;color:var(--muted);line-height:1.65;margin-top:10px}
+/* ---------- Greeting / footer ---------- */
+.greeting{background:linear-gradient(135deg,var(--blue-deep),var(--blue));color:#fff;border-radius:20px;padding:30px;margin:30px 0 8px;text-align:center;box-shadow:var(--shadow)}
+.greeting h2{font-size:22px;margin-bottom:10px}
+.greeting p{max-width:820px;margin:0 auto;line-height:1.8;opacity:.96}
+.greeting .sign{margin-top:14px;font-weight:800;color:#ffb066;letter-spacing:.4px}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:22px 0 34px}
+/* ---------- Modal ---------- */
+.modal-back{position:fixed;inset:0;background:rgba(4,26,46,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:18px;max-width:430px;width:100%;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.modal h2{color:var(--blue-deep);font-size:21px;margin-bottom:4px}
+.modal .sub{color:var(--muted);font-size:13.5px;margin-bottom:16px;line-height:1.6}
+.field{margin-bottom:13px}
+.form-err{background:#fdecec;color:var(--bad);border:1.5px solid #f3c2c6;border-radius:10px;padding:9px 12px;font-size:13.5px;margin-bottom:12px}
+.form-ok{background:#e8f7ee;color:var(--ok);border:1.5px solid #bfe6cf;border-radius:10px;padding:9px 12px;font-size:13.5px;margin-bottom:12px}
+/* ---------- App shell ---------- */
+.app{display:grid;grid-template-columns:250px 1fr;gap:18px;padding:22px 0 40px;align-items:start}
+.sidebar{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;position:sticky;top:76px}
+.sidebar .who{padding:6px 8px 12px;border-bottom:1.5px solid var(--line);margin-bottom:10px}
+.sidebar .who b{display:block;font-size:15.5px}
+.sidebar .who span{font-size:12.5px;color:var(--muted)}
+.nav-btn{display:flex;width:100%;text-align:left;gap:9px;align-items:center;background:none;border:none;padding:11px 10px;border-radius:10px;font-size:14.5px;font-weight:600;color:var(--ink)}
+.nav-btn:hover{background:var(--blue-light)}
+.nav-btn.active{background:var(--blue);color:#fff}
+.panel{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
+.panel h2{color:var(--blue-deep);font-size:20px;margin-bottom:4px}
+.panel .desc{color:var(--muted);font-size:14px;margin-bottom:16px;line-height:1.65}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.form-grid .full{grid-column:1/-1}
+.checkline{display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:600;color:var(--ink)}
+.checkline input{width:auto;transform:scale(1.2)}
+table.data{width:100%;border-collapse:collapse;font-size:13.5px}
+table.data th{background:var(--blue);color:#fff;text-align:left;padding:9px 10px;font-weight:700}
+table.data td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.data tr:nth-child(even) td{background:#f6fafd}
+.tbl-wrap{overflow-x:auto;border:1.5px solid var(--line);border-radius:12px}
+.tree{font-size:15px;line-height:1.5}
+.tree ul{list-style:none;margin:0;padding-left:22px;border-left:2px dashed var(--line)}
+.tree>ul{padding-left:0;border-left:none}
+.tree li{padding:5px 0}
+.tree .u-name{font-weight:700}
+.tree .u-code{color:var(--muted);font-size:12.5px;background:var(--blue-light);padding:1px 8px;border-radius:999px;margin-right:7px;font-weight:700}
+.tree .u-act{margin-left:9px}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
+.pill.admin{background:#ffe3c2;color:#8a4b00}
+.pill.user{background:var(--blue-light);color:var(--blue-dark)}
+.pill.ok{background:#d9f2e3;color:var(--ok)}
+.pill.bad{background:#fbdcdc;color:var(--bad)}
+.guide-step{border:1.5px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:13px}
+.guide-step h3{color:var(--blue-dark);font-size:16.5px;margin-bottom:7px}
+.guide-step p,.guide-step li{font-size:14.5px;line-height:1.75}
+.guide-step ol,.guide-step ul{margin:6px 0;padding-left:22px}
+pre.code{background:#0c2237;color:#d7ecff;border-radius:12px;padding:15px;font-size:12.3px;line-height:1.55;overflow:auto;max-height:430px;white-space:pre}
+code.inl{background:var(--blue-light);padding:1px 7px;border-radius:6px;font-size:13px;color:var(--blue-deep)}
+.copy-row{display:flex;justify-content:flex-end;margin:8px 0 4px}
+.kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+.kpi{border:1.5px solid var(--line);border-radius:14px;padding:15px;text-align:center;background:linear-gradient(180deg,#fff,#f2f8fd)}
+.kpi b{font-size:25px;color:var(--blue-dark);display:block}
+.kpi span{font-size:13px;color:var(--muted)}
+.hidden{display:none !important}
+@media (max-width:900px){
+  .stats{grid-template-columns:1fr 1fr}
+  .tiers{grid-template-columns:1fr 1fr}
+  .grid2,.est-inputs,.form-grid,.kpi-row{grid-template-columns:1fr}
+  .app{grid-template-columns:1fr}
+  .sidebar{position:static}
+}
+</style>
+</head>
+<body>
 
-      /* ===== HERO ===== */
-      .hero {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(120deg, var(--blue-900) 0%, var(--blue-800) 46%, var(--blue-700) 100%);
-        color: #fff;
-        border-radius: 0 0 28px 28px;
-        padding: 44px 20px 40px;
-        text-align: center;
-      }
-      .hero::before, .hero::after {
-        content: ""; position: absolute; border-radius: 50%;
-        border: 2px solid rgba(255,255,255,.10);
-      }
-      .hero::before { width: 340px; height: 340px; left: -120px; top: -140px; }
-      .hero::after { width: 420px; height: 420px; right: -160px; bottom: -260px; border-color: rgba(245,130,32,.28); }
-      .hero .stripe {
-        position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
-        background: linear-gradient(90deg, var(--orange) 0 55%, #ffb26b 55% 100%);
-      }
-      .hero-inner { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; }
-      .hero .brand {
-        display: inline-flex; align-items: center; gap: 10px;
-        font-family: "Archivo", sans-serif; font-weight: 900; letter-spacing: .14em;
-        font-size: 15px; color: #bcd8f5; text-transform: uppercase;
-      }
-      .hero .brand .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--orange); }
-      .hero h1 {
-        margin: 16px 0 6px;
-        font-family: "Archivo", sans-serif; font-weight: 900;
-        font-size: clamp(30px, 5.4vw, 52px); line-height: 1.12; letter-spacing: .01em;
-        text-transform: uppercase;
-      }
-      .hero h1 .hl { color: #ffb26b; }
-      .hero .sub {
-        margin: 0 auto; max-width: 640px;
-        font-size: clamp(15px, 2.2vw, 18px); color: #d7e8fa; font-weight: 500;
-      }
-      .hero .date-badge {
-        display: inline-flex; align-items: center; gap: 9px;
-        margin-top: 22px; padding: 9px 20px;
-        background: var(--orange); color: #fff;
-        border-radius: 999px; font-weight: 800; font-size: 15px;
-        box-shadow: 0 8px 22px rgba(245,130,32,.45);
-      }
-      .hero .date-badge svg { flex: none; }
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand"><span class="logo">VNPT</span><span>VIỄN THÔNG QUẢNG NINH<small>HỆ THỐNG CHI TRẢ HOA HỒNG — KÊNH ĐIỂM ỦY QUYỀN</small></span></div>
+    <div class="spacer"></div>
+    <span class="userchip hidden" id="userChip"></span>
+    <button class="btn" id="loginBtn">Đăng nhập</button>
+    <button class="btn ghost hidden" id="logoutBtn">Đăng xuất</button>
+  </div>
+</header>
 
-      /* highlights strip */
-      .highlights {
-        display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
-        margin: -26px auto 0; position: relative; z-index: 2; max-width: 1180px; padding: 0 20px;
-      }
-      .hl-card {
-        background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
-        padding: 16px 18px; box-shadow: var(--shadow-sm);
-        display: flex; flex-direction: column; gap: 2px;
-      }
-      .hl-card .v { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 26px; color: var(--blue-700); }
-      @media (prefers-color-scheme: dark) { .hl-card .v { color: #6db3f2; } }
-      .hl-card .v em { font-style: normal; color: var(--orange); }
-      .hl-card .l { font-size: 13px; color: var(--ink-2); font-weight: 600; }
-
-      /* ===== SECTION CARDS ===== */
-      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 30px; }
-      .card {
-        background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
-        box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column;
-      }
-      .card-head { padding: 20px 22px 0; display: flex; gap: 14px; align-items: flex-start; }
-      .num {
-        flex: none; width: 46px; height: 46px; border-radius: 14px;
-        background: var(--blue-700); color: #fff;
-        font-family: "Archivo", sans-serif; font-weight: 900; font-size: 22px;
-        display: grid; place-items: center;
-        box-shadow: 0 6px 14px rgba(0,83,159,.35);
-      }
-      .card:nth-child(2) .num { background: var(--orange); box-shadow: 0 6px 14px rgba(245,130,32,.4); }
-      .card:nth-child(3) .num { background: var(--green); box-shadow: 0 6px 14px rgba(15,157,88,.35); }
-      .card h2 { margin: 2px 0 0; font-size: 19px; font-weight: 800; line-height: 1.3; }
-      .card .tag { font-size: 12.5px; color: var(--ink-2); font-weight: 600; margin-top: 2px; }
-      .big-value {
-        margin: 16px 22px 0; padding: 14px 16px; border-radius: 14px;
-        background: var(--blue-50); border: 1px dashed var(--blue-600);
-        text-align: center;
-      }
-      .big-value .amount { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 34px; color: var(--blue-700); line-height: 1.05; }
-      @media (prefers-color-scheme: dark) { .big-value .amount { color: #7dbcf7; } }
-      .big-value .unit { font-size: 13.5px; font-weight: 700; color: var(--ink-2); }
-      .card-body { padding: 16px 22px 20px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
-      .cond-title { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
-      ul.cond { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
-      ul.cond li { display: flex; gap: 9px; font-size: 14.5px; align-items: flex-start; }
-      ul.cond li svg { flex: none; margin-top: 3px; }
-      ul.cond li.no { color: var(--ink); }
-      .note {
-        margin-top: auto; background: var(--note-bg); border: 1px solid var(--note-line);
-        border-radius: 12px; padding: 11px 13px; font-size: 13.5px; color: var(--note-ink);
-      }
-      .note b { font-weight: 800; }
-      .note ul { margin: 6px 0 0; padding-left: 18px; }
-      .note li { margin: 3px 0; }
-      .formula {
-        font-family: "Archivo", sans-serif; font-weight: 700; font-size: 15px;
-        background: var(--surface); border: 1px solid var(--note-line); border-radius: 9px;
-        padding: 8px 10px; text-align: center; margin-top: 8px; color: var(--ink);
-      }
-
-      /* split rows inside card 3 */
-      .split { display: flex; flex-direction: column; gap: 10px; }
-      .split-row {
-        display: flex; align-items: center; justify-content: space-between; gap: 12px;
-        background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
-      }
-      .split-row .lbl { font-size: 14px; font-weight: 600; }
-      .split-row .pct { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 24px; color: var(--green); white-space: nowrap; }
-
-      /* ===== WIDE SECTIONS ===== */
-      .wide { margin-top: 18px; }
-      .ladder { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; align-items: end; }
-      .tier {
-        border-radius: 16px 16px 12px 12px; padding: 16px 14px 14px; text-align: center; color: #fff;
-        display: flex; flex-direction: column; gap: 3px; position: relative;
-      }
-      .tier .t-range { font-size: 13px; font-weight: 700; opacity: .92; }
-      .tier .t-amount { font-family: "Archivo", sans-serif; font-weight: 900; font-size: clamp(24px, 3vw, 32px); line-height: 1.05; }
-      .tier .t-unit { font-size: 12px; font-weight: 600; opacity: .9; }
-      .tier .t-rank { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
-      .tier-1 { background: #5b93c9; min-height: 118px; }
-      .tier-2 { background: #2f74b5; min-height: 134px; }
-      .tier-3 { background: #00539f; min-height: 150px; }
-      .tier-4 { background: #083a70; min-height: 166px; }
-      .tier-5 { background: var(--orange); min-height: 182px; box-shadow: 0 10px 24px rgba(245,130,32,.35); }
-      .tier { justify-content: flex-end; }
-
-      .ckd { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-      .ckd-box {
-        border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 18px;
-        border: 1px solid var(--line); background: var(--surface-2);
-      }
-      .ckd-box .ckd-amt { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 40px; color: var(--blue-700); line-height: 1; white-space: nowrap; }
-      @media (prefers-color-scheme: dark) { .ckd-box .ckd-amt { color: #7dbcf7; } }
-      .ckd-box.hot .ckd-amt { color: var(--orange-dark); }
-      @media (prefers-color-scheme: dark) { .ckd-box.hot .ckd-amt { color: #ffb26b; } }
-      .ckd-box .ckd-lbl { font-size: 15px; font-weight: 700; }
-      .ckd-box .ckd-sub { font-size: 13px; color: var(--ink-2); font-weight: 500; }
-
-      /* ===== CALCULATOR ===== */
-      .calc {
-        margin-top: 34px; background: var(--surface); border: 1px solid var(--line);
-        border-radius: 22px; box-shadow: var(--shadow); overflow: hidden;
-      }
-      .calc-head {
-        background: linear-gradient(120deg, var(--blue-800), var(--blue-700)); color: #fff;
-        padding: 22px 26px;
-      }
-      .calc-head h2 { margin: 0; font-size: 21px; font-weight: 800; }
-      .calc-head p { margin: 4px 0 0; font-size: 14px; color: #cfe4f8; }
-      .calc-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 0; }
-      .calc-form { padding: 24px 26px; display: flex; flex-direction: column; gap: 16px; border-right: 1px solid var(--line); }
-      .field label { display: block; font-size: 13.5px; font-weight: 700; margin-bottom: 6px; }
-      .field .hint { font-size: 12px; color: var(--ink-2); font-weight: 500; margin-top: 4px; }
-      .field input, .field select {
-        width: 100%; padding: 12px 14px; border-radius: 11px; border: 1.5px solid var(--line);
-        background: var(--surface-2); color: var(--ink);
-        font-family: inherit; font-size: 16px; font-weight: 600;
-      }
-      .field input:focus, .field select:focus { outline: 2px solid var(--blue-600); outline-offset: 1px; border-color: var(--blue-600); }
-      .calc-result { padding: 24px 26px; background: var(--surface-2); }
-      .calc-result h3 { margin: 0 0 14px; font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
-      .part-head {
-        display: flex; align-items: center; gap: 9px;
-        margin: 20px 0 4px; font-size: 13.5px; font-weight: 800;
-        letter-spacing: .05em; text-transform: uppercase; color: var(--blue-700);
-      }
-      .part-head:first-child { margin-top: 0; }
-      @media (prefers-color-scheme: dark) { .part-head { color: #7dbcf7; } }
-      .part-head .pnum {
-        flex: none; width: 24px; height: 24px; border-radius: 8px;
-        background: var(--blue-700); color: #fff; font-size: 13px;
-        display: grid; place-items: center; font-weight: 900;
-      }
-      .part-head.cost .pnum { background: var(--orange); }
-      .subtotal {
-        display: flex; justify-content: space-between; align-items: baseline; gap: 14px;
-        margin-top: 10px; padding: 11px 13px; border-radius: 11px;
-        background: var(--blue-50); border: 1px solid var(--line);
-        font-size: 14.5px; font-weight: 800;
-      }
-      .subtotal .sv { white-space: nowrap; font-variant-numeric: tabular-nums; }
-      .giavon {
-        display: flex; justify-content: space-between; align-items: center; gap: 14px;
-        margin-top: 12px; padding: 16px; border-radius: 14px;
-        background: var(--orange); color: #fff;
-        box-shadow: 0 8px 22px rgba(245,130,32,.35);
-      }
-      .giavon .gv-l { font-weight: 800; font-size: 15px; }
-      .giavon .gv-l small { display: block; font-weight: 500; font-size: 12.5px; color: #ffe3c7; margin-top: 2px; }
-      .giavon .gv-v { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 27px; white-space: nowrap; }
-      .rrow { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14.5px; }
-      .rrow .rn { font-weight: 600; }
-      .rrow .rn small { display: block; color: var(--ink-2); font-weight: 500; font-size: 12.5px; }
-      .rrow .rv { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
-      .rrow.off .rn, .rrow.off .rv { color: var(--ink-2); }
-      .rrow .rv.na { font-size: 12.5px; font-weight: 700; color: var(--orange-dark); }
-      @media (prefers-color-scheme: dark) { .rrow .rv.na { color: #ffb26b; } }
-      .rtotal { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 16px; padding: 16px; border-radius: 14px; background: var(--blue-700); color: #fff; }
-      .rtotal .tl { font-weight: 800; font-size: 15px; }
-      .rtotal .tl small { display: block; font-weight: 500; font-size: 12.5px; color: #cfe4f8; }
-      .rtotal .tv { font-family: "Archivo", sans-serif; font-weight: 900; font-size: 27px; white-space: nowrap; }
-      .calc-note { padding: 0 26px 22px; font-size: 12.5px; color: var(--ink-2); background: var(--surface-2); }
-
-      /* ===== GREETING ===== */
-      .greeting {
-        margin-top: 34px; position: relative; overflow: hidden;
-        background: linear-gradient(120deg, var(--blue-900), var(--blue-700));
-        color: #fff; border-radius: 24px; padding: 38px 30px; text-align: center;
-      }
-      .greeting::after {
-        content: ""; position: absolute; inset: auto 0 0 0; height: 6px;
-        background: linear-gradient(90deg, var(--orange) 0 55%, #ffb26b 55% 100%);
-      }
-      .greeting .g-title { font-family: "Archivo", sans-serif; font-weight: 900; font-size: clamp(21px, 3.4vw, 28px); margin: 0 0 12px; text-transform: uppercase; letter-spacing: .02em; }
-      .greeting .g-title .hl { color: #ffb26b; }
-      .greeting p { margin: 0 auto; max-width: 780px; font-size: clamp(14.5px, 2vw, 16.5px); color: #e3eefb; }
-      .greeting .g-sign { margin-top: 18px; font-weight: 800; font-size: 15px; color: #fff; }
-      .greeting .g-sign span { color: #ffb26b; }
-
-      .foot-note { text-align: center; margin-top: 20px; font-size: 12.5px; color: var(--ink-2); }
-
-      @media (max-width: 980px) {
-        .grid { grid-template-columns: 1fr 1fr; }
-        .highlights { grid-template-columns: 1fr 1fr; }
-        .calc-grid { grid-template-columns: 1fr; }
-        .calc-form { border-right: none; border-bottom: 1px solid var(--line); }
-      }
-      @media (max-width: 640px) {
-        .grid { grid-template-columns: 1fr; }
-        .ladder { grid-template-columns: 1fr; align-items: stretch; }
-        .tier { min-height: 0 !important; text-align: left; flex-direction: row; align-items: center; justify-content: space-between; border-radius: 14px; }
-        .tier .t-mid { text-align: right; }
-        .ckd { grid-template-columns: 1fr; }
-        .hero { padding: 34px 16px 34px; border-radius: 0 0 20px 20px; }
-        .wrap { padding: 0 14px 44px; }
-        .highlights { padding: 0 14px; }
-      }
-      @media (prefers-reduced-motion: no-preference) {
-        .card, .hl-card, .tier { transition: transform .18s ease, box-shadow .18s ease; }
-        .card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
-      }
-    </style>
-  </head>
-  <body>
-    <!-- ===== HERO ===== -->
-    <header class="hero">
-      <div class="hero-inner">
-        <div class="brand"><span class="dot"></span> VNPT &middot; Kênh điểm ủy quyền <span class="dot"></span></div>
-        <h1>Cơ chế chính sách<br />dành cho <span class="hl">điểm ủy quyền</span></h1>
-        <p class="sub">Đầy đủ các khoản chi trả &amp; khuyến khích: BCKH, hoa hồng bán gói, hoa hồng khuyến khích, thưởng theo sản lượng phát triển mới và gói chu kỳ dài.</p>
-        <div class="date-badge">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2.5" stroke="#fff" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
-          Áp dụng từ ngày 01/10/2026
-        </div>
+<!-- ================= PHAN CONG KHAI: INFOGRAPHIC CHINH SACH ================= -->
+<main id="publicView">
+  <div class="hero">
+    <div class="wrap">
+      <span class="kicker">Áp dụng từ 01/10/2026</span>
+      <h1>Cơ chế chính sách dành cho kênh điểm ủy quyền</h1>
+      <p>Tổng hợp đầy đủ các khoản chi trả: tiền BCKH, hoa hồng bán gói, hoa hồng khuyến khích, khuyến khích theo sản lượng phát triển mới và chính sách SIM mua gói chu kỳ dài (CKD).</p>
+      <div class="stats">
+        <div class="stat"><b>20.000đ</b><span>BCKH / thuê bao đủ điều kiện</span></div>
+        <div class="stat"><b>25%</b><span>Hoa hồng bán gói theo giá gói</span></div>
+        <div class="stat"><b>65K</b><span>Thưởng tối đa / thuê bao PTM (≥ 50 TB)</span></div>
+        <div class="stat"><b>50K</b><span>Khuyến khích SIM gói CKD từ 12 tháng</span></div>
       </div>
-      <div class="stripe"></div>
-    </header>
+    </div>
+  </div>
 
-    <!-- ===== HIGHLIGHTS ===== -->
-    <div class="highlights" aria-label="Các mức chi trả nổi bật">
-      <div class="hl-card"><span class="v">20.000<em>đ</em></span><span class="l">BCKH / thuê bao đủ điều kiện</span></div>
-      <div class="hl-card"><span class="v">25<em>%</em></span><span class="l">Hoa hồng bán gói theo giá gói</span></div>
-      <div class="hl-card"><span class="v">65<em>K</em></span><span class="l">Thưởng tối đa / thuê bao PTM (≥ 50 TB)</span></div>
-      <div class="hl-card"><span class="v">50<em>K</em></span><span class="l">Khuyến khích SIM gói CKD từ 12 tháng</span></div>
+  <div class="wrap">
+    <div class="section">
+      <div class="sec-head"><div class="sec-num">1</div><div><h2>Tiền BCKH</h2><p>Chi trả cho mỗi thuê bao đủ điều kiện</p></div></div>
+      <div class="card">
+        <div class="big-price">20.000đ <small>/ thuê bao</small></div>
+        <ul class="cond">
+          <li>Thuê bao được <b>kích hoạt 900 trong vòng 24h</b> kể từ thời điểm ĐKTT</li>
+          <li>Thuê bao có đăng ký <b>gói cước bất kỳ có giá từ 30K trở lên</b></li>
+        </ul>
+      </div>
     </div>
 
-    <main class="wrap">
-      <!-- ===== ROW 1: SECTIONS 1-3 ===== -->
-      <div class="grid">
-        <!-- 1. BCKH -->
-        <section class="card" aria-labelledby="t1">
-          <div class="card-head">
-            <div class="num">1</div>
-            <div>
-              <h2 id="t1">Tiền BCKH</h2>
-              <div class="tag">Chi trả cho mỗi thuê bao đủ điều kiện</div>
-            </div>
-          </div>
-          <div class="big-value">
-            <div class="amount">20.000đ</div>
-            <div class="unit">/ thuê bao</div>
-          </div>
-          <div class="card-body">
-            <div>
-              <div class="cond-title">Điều kiện chi trả</div>
-              <ul class="cond" style="margin-top:8px">
-                <li>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#0f9d58"/><path d="M8 12.5l2.6 2.6L16 9.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  <span>Thuê bao được <b>kích hoạt 900 trong vòng 24h</b> kể từ thời điểm ĐKTT</span>
-                </li>
-                <li>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#0f9d58"/><path d="M8 12.5l2.6 2.6L16 9.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  <span>Thuê bao có đăng ký <b>gói cước bất kỳ có giá từ 30K trở lên</b></span>
-                </li>
-              </ul>
-            </div>
-          </div>
+    <div class="section">
+      <div class="sec-head"><div class="sec-num">2</div><div><h2>Hoa hồng bán gói</h2><p>Tính trên giá gói cước</p></div></div>
+      <div class="card">
+        <div class="big-price">25% <small>giá gói</small></div>
+        <ul class="cond">
+          <li>Thuê bao phải <b>mua gói cước ngay trong tháng hòa mạng</b></li>
+          <li>Không áp dụng đối với các <b>bộ SIM đóng KIT kích hoạt lại</b></li>
+          <li>Không áp dụng đối với thuê bao <b>chuyển đổi hình thức từ trả sau sang trả trước</b></li>
+          <li>Không áp dụng đối với thuê bao <b>khôi phục, thuê bao tái hòa mạng</b></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head"><div class="sec-num">3</div><div><h2>Hoa hồng khuyến khích</h2><p>Tính trên doanh thu gói cước</p></div></div>
+      <div class="card">
+        <div class="rate-row"><div>Gói chu kỳ <b>1 tháng</b></div><div class="pct">25%</div></div>
+        <div class="rate-row"><div>Gói <b>chu kỳ dài</b>, ARPU từ <b>100K</b> trở lên</div><div class="pct">5%</div></div>
+        <div class="note"><b>Ghi chú:</b> ARPU gói = Tổng giá gói ÷ Số tháng của chu kỳ gói. Doanh thu gói là số tiền <b>trước thuế</b> của gói cước.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head"><div class="sec-num">4</div><div><h2>Khuyến khích theo mức sản lượng phát triển mới</h2><p>Càng phát triển nhiều thuê bao mới, mức thưởng trên mỗi thuê bao càng cao</p></div></div>
+      <div class="card">
+        <div class="tiers">
+          <div class="tier"><div class="lv">Mức 1</div><div class="amt">20K</div><div class="rng">5 – &lt;10 thuê bao</div></div>
+          <div class="tier"><div class="lv">Mức 2</div><div class="amt">30K</div><div class="rng">10 – &lt;20 thuê bao</div></div>
+          <div class="tier"><div class="lv">Mức 3</div><div class="amt">40K</div><div class="rng">20 – &lt;30 thuê bao</div></div>
+          <div class="tier"><div class="lv">Mức 4</div><div class="amt">50K</div><div class="rng">30 – &lt;50 thuê bao</div></div>
+          <div class="tier top"><div class="lv">Mức 5 · Cao nhất</div><div class="amt">65K</div><div class="rng">Từ 50 thuê bao trở lên</div></div>
+        </div>
+        <div class="note"><b>Ghi chú:</b> Đạt ở mức nào thì chi trả theo mức đó, <b>không cộng dồn</b>. Thuê bao phát triển mới phải mua gói tối thiểu từ <b>70K</b> trở lên. Không ghi nhận sản lượng đối với các thuê bao <b>đóng KIT kích hoạt lại</b>. <span style="color:var(--muted)">(Mức tiền tính trên mỗi thuê bao.)</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head"><div class="sec-num">5</div><div><h2>Khuyến khích phát triển SIM mua gói chu kỳ dài (CKD)</h2><p>Thưởng thêm cho mỗi thuê bao mua gói dài hạn đủ điều kiện</p></div></div>
+      <div class="card">
+        <div class="grid2">
+          <div class="tier"><div class="amt">30K</div><div class="rng">Gói từ <b>6 tháng</b> đến dưới <b>12 tháng</b><br/>Chi trả 30.000đ / thuê bao</div></div>
+          <div class="tier top"><div class="amt">50K</div><div class="rng">Gói từ <b>12 tháng</b> trở lên<br/>Chi trả 50.000đ / thuê bao</div></div>
+        </div>
+        <div class="note"><b>Ghi chú:</b> Chỉ áp dụng đối với các gói CKD có <b>ARPU từ 100K trở lên</b>. Không áp dụng đối với <b>bộ SIM đóng KIT kích hoạt lại</b>. Không áp dụng đối với các <b>SIM bundle đã xuất bán từ 31/08/2026 trở về trước</b>. Không áp dụng đối với thuê bao <b>chuyển đổi hình thức, thuê bao khôi phục, thuê bao tái hòa mạng</b>.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head"><div class="sec-num">✦</div><div><h2>Ước tính thu nhập của điểm bán</h2><p>Nhập số thuê bao phát triển mới và thông tin gói cước để xem chi phí đầu tư, các khoản dự kiến được chi trả theo chính sách và giá vốn của mỗi SIM.</p></div></div>
+      <div class="card">
+        <div class="est-inputs">
+          <div><label>Số thuê bao phát triển mới</label><input type="number" id="estSubs" min="0" value="30" /></div>
+          <div><label>Giá gói cước (đ)</label><input type="number" id="estPrice" min="0" step="1000" value="600000" /></div>
+          <div><label>Chu kỳ gói (tháng)</label><input type="number" id="estCycle" min="1" value="6" /></div>
+        </div>
+        <div class="est-part">
+          <h3><span class="tag">Phần 1</span>Chi phí điểm bán đầu tư</h3>
+          <div class="est-row"><span>Tiền SIM trắng (25.000đ / thuê bao)</span><b id="cSim">—</b></div>
+          <div class="est-row"><span>Tiền phí hòa mạng (75.000đ / thuê bao)</span><b id="cAct">—</b></div>
+          <div class="est-row"><span>Tiền gói cước</span><b id="cPkg">—</b></div>
+          <div class="est-row total"><span>Tổng chi phí đầu vào</span><b id="cTotal">—</b></div>
+        </div>
+        <div class="est-part">
+          <h3><span class="tag">Phần 2</span>Dự toán các khoản chi trả</h3>
+          <div class="est-row"><span>1. Tiền BCKH (20.000đ / thuê bao)</span><b id="pBckh">—</b></div>
+          <div class="est-row"><span>2. Hoa hồng bán gói (25% giá gói)</span><b id="pPkg">—</b></div>
+          <div class="est-row"><span>3. Hoa hồng khuyến khích</span><b id="pInc">—</b></div>
+          <div class="est-row"><span>4. Khuyến khích theo sản lượng PTM</span><b id="pVol">—</b></div>
+          <div class="est-row"><span>5. Khuyến khích SIM mua gói CKD</span><b id="pCkd">—</b></div>
+          <div class="est-row total"><span>Tổng chi trả nhận được</span><b id="pTotal">—</b></div>
+        </div>
+        <div class="sim-cost"><div>Phần 3 — Giá vốn của SIM<small style="display:block;font-weight:500;opacity:.92">(Tổng chi phí đầu vào − Tổng chi trả nhận được) ÷ số thuê bao</small></div><b id="simCost">—</b></div>
+        <p class="fineprint">Số liệu ước tính giả định mọi thuê bao đều đủ điều kiện của từng khoản (kích hoạt 900 trong 24h, mua gói ngay trong tháng hòa mạng…). Hoa hồng khuyến khích được tính theo công thức: giá gói ÷ 1,1 × tỷ lệ % tương ứng. Kết quả chỉ mang tính tham khảo để điểm bán lên kế hoạch phát triển thuê bao.</p>
+      </div>
+    </div>
+
+    <div class="greeting">
+      <h2>Lời chúc gửi tới Quý điểm bán</h2>
+      <p>Kính chúc Quý điểm bán luôn dồi dào sức khỏe, kinh doanh thuận lợi, buôn may bán đắt! Mỗi thuê bao phát triển mới là một bước tiến vững chắc, mỗi khách hàng hài lòng là một niềm tin được gửi gắm. VNPT trân trọng cảm ơn sự tin tưởng và đồng hành của Quý điểm bán trong suốt thời gian qua, và cam kết luôn sát cánh, hỗ trợ hết mình để chúng ta cùng nhau chinh phục những cột mốc doanh thu mới, vươn xa hơn nữa trên hành trình phát triển.</p>
+      <div class="sign">Đồng hành cùng phát triển — VNPT</div>
+    </div>
+  </div>
+  <footer>Cơ chế chính sách dành cho kênh điểm ủy quyền · Áp dụng từ 01/10/2026 · Viễn thông Quảng Ninh</footer>
+</main>
+
+<!-- ================= PHAN DANG NHAP: HE THONG QUAN LY ================= -->
+<div id="appView" class="hidden">
+  <div class="wrap">
+    <div class="app">
+      <aside class="sidebar">
+        <div class="who"><b id="whoName">—</b><span id="whoRole">—</span></div>
+        <button class="nav-btn" data-panel="panel-units">🏢 Quản lý đơn vị</button>
+        <button class="nav-btn" data-panel="panel-users">👥 Quản lý người dùng</button>
+        <button class="nav-btn" data-panel="panel-import">📥 Quản lý dữ liệu đầu vào</button>
+        <button class="nav-btn" data-panel="panel-config">🗄️ Cấu hình kết nối D1</button>
+        <button class="nav-btn" data-panel="panel-reports">📊 Báo cáo thống kê</button>
+        <button class="nav-btn" data-panel="panel-settings">⚙️ Cài đặt</button>
+      </aside>
+      <div>
+        <!-- QUAN LY DON VI -->
+        <section class="panel hidden" id="panel-units">
+          <h2>Quản lý đơn vị</h2>
+          <p class="desc">Tạo mới và quản lý các đơn vị theo cấu trúc cây (đơn vị cha — đơn vị con). Mọi thay đổi được lưu trực tiếp lên CSDL Cloudflare D1.</p>
+          <form id="unitForm" class="form-grid">
+            <input type="hidden" id="unitId" />
+            <div><label>Mã đơn vị *</label><input id="unitCode" required placeholder="VD: VDCT" /></div>
+            <div><label>Tên đơn vị *</label><input id="unitName" required placeholder="VD: VNPT Vân Đồn - Cô Tô" /></div>
+            <div class="full"><label>Đơn vị cha (tùy chọn)</label><select id="unitParent"><option value="">— Không có (đơn vị gốc) —</option></select></div>
+            <div class="full" style="display:flex;gap:10px"><button class="btn blue" type="submit" id="unitSubmit">Thêm đơn vị</button><button class="btn gray hidden" type="button" id="unitCancel">Hủy sửa</button></div>
+          </form>
+          <div id="unitMsg"></div>
+          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Cây đơn vị</h3>
+          <div class="tree" id="unitTree">Đang tải…</div>
         </section>
 
-        <!-- 2. Hoa hồng bán gói -->
-        <section class="card" aria-labelledby="t2">
-          <div class="card-head">
-            <div class="num">2</div>
-            <div>
-              <h2 id="t2">Hoa hồng bán gói</h2>
-              <div class="tag">Tính trên giá gói cước</div>
-            </div>
-          </div>
-          <div class="big-value">
-            <div class="amount">25%</div>
-            <div class="unit">giá gói</div>
-          </div>
-          <div class="card-body">
-            <div>
-              <div class="cond-title">Điều kiện áp dụng</div>
-              <ul class="cond" style="margin-top:8px">
-                <li>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#0f9d58"/><path d="M8 12.5l2.6 2.6L16 9.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  <span>Thuê bao phải <b>mua gói cước ngay trong tháng hòa mạng</b></span>
-                </li>
-                <li class="no">
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e05252"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
-                  <span>Không áp dụng đối với các <b>bộ SIM đóng KIT kích hoạt lại</b></span>
-                </li>
-                <li class="no">
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e05252"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
-                  <span>Không áp dụng đối với thuê bao <b>chuyển đổi hình thức từ trả sau sang trả trước</b></span>
-                </li>
-                <li class="no">
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e05252"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
-                  <span>Không áp dụng đối với thuê bao <b>khôi phục, thuê bao tái hòa mạng</b></span>
-                </li>
-              </ul>
-            </div>
-          </div>
+        <!-- QUAN LY NGUOI DUNG -->
+        <section class="panel hidden" id="panel-users">
+          <h2>Quản lý người dùng</h2>
+          <p class="desc">Tạo tài khoản cho các điểm bán. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Tích chọn "Được quyền import dữ liệu" để tài khoản được dùng module Quản lý dữ liệu đầu vào.</p>
+          <form id="userForm" class="form-grid">
+            <input type="hidden" id="userId" />
+            <div><label>Mã kênh bán hàng</label><input id="uChannel" placeholder="VD: KBH-VDCT-001" /></div>
+            <div><label>Họ và tên người dùng / điểm bán *</label><input id="uName" required /></div>
+            <div><label>User đăng nhập *</label><input id="uUsername" required autocomplete="off" /></div>
+            <div><label>Mật khẩu (để trống = Vnpt@2026)</label><input id="uPassword" type="text" autocomplete="off" placeholder="Vnpt@2026" /></div>
+            <div><label>Số tài khoản Eload</label><input id="uEload" /></div>
+            <div><label>Số Ví VNPT Money</label><input id="uWallet" /></div>
+            <div><label>Loại tài khoản</label><select id="uRole"><option value="user">User thường (điểm bán)</option><option value="admin">Admin</option></select></div>
+            <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="uCanImport" /> Được quyền import dữ liệu</label></div>
+            <div class="full" style="display:flex;gap:10px"><button class="btn blue" type="submit" id="userSubmit">Tạo người dùng</button><button class="btn gray hidden" type="button" id="userCancel">Hủy sửa</button></div>
+          </form>
+          <div id="userMsg"></div>
+          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Danh sách người dùng</h3>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="8">Đang tải…</td></tr></tbody></table></div>
         </section>
 
-        <!-- 3. Hoa hồng khuyến khích -->
-        <section class="card" aria-labelledby="t3">
-          <div class="card-head">
-            <div class="num">3</div>
-            <div>
-              <h2 id="t3">Hoa hồng khuyến khích</h2>
-              <div class="tag">Tính trên doanh thu gói cước</div>
-            </div>
-          </div>
-          <div class="card-body" style="padding-top:18px">
-            <div class="split">
-              <div class="split-row">
-                <span class="lbl">Gói chu kỳ <b>1 tháng</b></span>
-                <span class="pct">25%</span>
-              </div>
-              <div class="split-row">
-                <span class="lbl">Gói <b>chu kỳ dài</b>, ARPU từ <b>100K</b> trở lên</span>
-                <span class="pct">5%</span>
-              </div>
-            </div>
-            <div class="note">
-              <b>Ghi chú:</b>
-              <div class="formula">ARPU gói = Tổng giá gói &divide; Số tháng của chu kỳ gói</div>
-              <ul>
-                <li>Doanh thu gói là số tiền <b>trước thuế</b> của gói cước.</li>
-              </ul>
-            </div>
-          </div>
+        <!-- QUAN LY DU LIEU DAU VAO -->
+        <section class="panel hidden" id="panel-import">
+          <h2>Quản lý dữ liệu đầu vào</h2>
+          <p class="desc">Import dữ liệu chi trả từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng: <code class="inl">HHBG_MMYYYY</code> cho hoa hồng bán gói và <code class="inl">BCKH_MMYY</code> cho tiền BCKH. Tên cột trong file Excel cần trùng với tên trường quy định (không phân biệt hoa/thường).</p>
+          <form id="importForm" class="form-grid">
+            <div><label>Loại dữ liệu</label><select id="impType"><option value="HHBG">Chi trả hoa hồng bán gói (HHBG)</option><option value="BCKH">Chi trả tiền BCKH (BCKH)</option></select></div>
+            <div><label>Tháng / Năm import</label><div style="display:flex;gap:8px"><input type="number" id="impMonth" min="1" max="12" /><input type="number" id="impYear" min="2020" max="2100" /></div></div>
+            <div class="full"><label>File Excel dữ liệu</label><input type="file" id="impFile" accept=".xlsx,.xls,.csv" /></div>
+            <div class="full"><button class="btn blue" type="submit" id="impBtn">Import lên D1</button></div>
+          </form>
+          <div id="impMsg"></div>
+          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Các bảng dữ liệu đã import</h3>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th></tr></thead><tbody id="tablesBody"><tr><td colspan="4">Đang tải…</td></tr></tbody></table></div>
+          <div class="note"><b>Trường dữ liệu HHBG:</b> Tên Eload, Số Eload, Số Ví, Số thuê bao, Loại thuê bao, Chu kỳ chi trả, Tên gói cước, Giá gói cước, Thời gian giao dịch, Trans ID, Kênh thực hiện, Thù lao chi trả, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.<br/><b>Trường dữ liệu BCKH:</b> Số Eload, Tên Eload, Số thuê bao, Thời gian kích hoạt, Hoa hồng BCKH, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.</div>
+        </section>
+
+        <!-- CAU HINH KET NOI D1 -->
+        <section class="panel hidden" id="panel-config">
+          <h2>Cấu hình kết nối CSDL Cloudflare D1</h2>
+          <p class="desc">Website kết nối tới CSDL Cloudflare D1 thông qua một Cloudflare Worker (API trung gian). Nhập địa chỉ Worker của anh vào ô dưới, bấm "Kiểm tra kết nối" để test, rồi bấm "Lưu &amp; áp dụng". Nếu chưa tạo Worker, hãy làm theo hướng dẫn chi tiết từng bước ở phía dưới.</p>
+          <form id="cfgForm" class="form-grid">
+            <div class="full"><label>Địa chỉ Worker API (VD: https://vnpt-api.ten-cua-anh.workers.dev)</label><input id="cfgApiUrl" placeholder="https://....workers.dev" /></div>
+            <div class="full" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn gray" type="button" id="cfgTest">Kiểm tra kết nối</button><button class="btn blue" type="submit">Lưu &amp; áp dụng</button></div>
+          </form>
+          <div id="cfgMsg"></div>
+
+          <h3 style="margin:22px 0 10px;color:var(--blue-dark)">Hướng dẫn cài đặt từng bước trên Cloudflare</h3>
+
+          <div class="guide-step"><h3>Bước 1 — Tạo tài khoản Cloudflare (nếu chưa có)</h3>
+            <ol><li>Truy cập <b>https://dash.cloudflare.com/sign-up</b> và đăng ký bằng email của anh (miễn phí).</li><li>Đăng nhập vào Cloudflare Dashboard.</li></ol></div>
+
+          <div class="guide-step"><h3>Bước 2 — Tạo CSDL D1</h3>
+            <ol><li>Trong Dashboard, vào mục <b>Storage &amp; Databases → D1 SQL Database</b>.</li><li>Bấm <b>Create</b>, đặt tên database, ví dụ: <code class="inl">vnpt-chi-tra</code>, rồi bấm <b>Create</b>.</li></ol></div>
+
+          <div class="guide-step"><h3>Bước 3 — Tạo các bảng dữ liệu</h3>
+            <ol><li>Mở database vừa tạo, chọn tab <b>Console</b>.</li><li>Sao chép toàn bộ câu lệnh SQL dưới đây, dán vào Console và bấm <b>Run</b>. Lệnh này tạo bảng đơn vị, bảng người dùng và tài khoản admin ban đầu (<b>admin / Vnpt@2026</b>).</li></ol>
+            <div class="copy-row"><button class="btn sm gray" type="button" data-copy="sqlCode">Sao chép SQL</button></div>
+            <pre class="code" id="sqlCode">-- ============================================================================
+-- VNPT - He thong quan ly chi tra hoa hong kenh diem uy quyen
+-- Cau lenh SQL tao bang tren Cloudflare D1
+-- Cach dung: Cloudflare Dashboard -&gt; Storage &amp; Databases -&gt; D1 -&gt; chon database
+--            -&gt; tab Console -&gt; dan toan bo noi dung file nay -&gt; Run.
+-- ============================================================================
+
+-- 1) Bang don vi (cau truc cay cha - con qua parent_id)
+CREATE TABLE IF NOT EXISTS don_vi (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ma_don_vi TEXT UNIQUE NOT NULL,
+  ten_don_vi TEXT NOT NULL,
+  parent_id INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2) Bang nguoi dung (admin va diem ban)
+CREATE TABLE IF NOT EXISTS nguoi_dung (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ma_kenh TEXT,
+  ho_ten TEXT NOT NULL,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  salt TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT &#x27;user&#x27;,        -- &#x27;admin&#x27; hoac &#x27;user&#x27;
+  so_eload TEXT,
+  so_vi TEXT,
+  can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3) Tai khoan admin ban dau
+--    Ten dang nhap: admin  |  Mat khau: Vnpt@2026
+--    HAY DANG NHAP VA DOI MAT KHAU NGAY SAU KHI CAI DAT XONG!
+INSERT OR IGNORE INTO nguoi_dung
+  (ma_kenh, ho_ten, username, password_hash, salt, role, can_import)
+VALUES
+  (&#x27;ADMIN&#x27;, &#x27;Quan tri vien&#x27;, &#x27;admin&#x27;,
+   &#x27;dda8cd32c5dcab690f832bfceddf4d15eec944a2b5ade7349694a281b212a3ae&#x27;,
+   &#x27;vnpt-seed-2026&#x27;, &#x27;admin&#x27;, 1);
+
+-- ============================================================================
+-- LUU Y ve bang du lieu import theo thang:
+-- Worker se TU DONG tao bang moi khi import, dung dinh dang ten:
+--   HHBG_MMYYYY  (du lieu chi tra hoa hong ban goi cua 1 thang)
+--   BCKH_MMYY    (du lieu chi tra tien BCKH cua 1 thang)
+-- Vi du cau truc cua 2 loai bang (chi de tham khao, khong can chay tay):
+--
+-- CREATE TABLE HHBG_102026 (
+--   id INTEGER PRIMARY KEY AUTOINCREMENT,
+--   ten_eload TEXT, so_eload TEXT, so_vi TEXT, so_thue_bao TEXT,
+--   loai_thue_bao TEXT, chu_ky_chi_tra TEXT, ten_goi TEXT, gia_goi REAL,
+--   thoi_gian_giao_dich TEXT, trans_id TEXT, kenh_thuc_hien TEXT,
+--   thu_lao REAL, ma_giao_dich TEXT, thoi_gian_chi_tra TEXT,
+--   trang_thai TEXT, nguyen_nhan_loi TEXT,
+--   imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP
+-- );
+--
+-- CREATE TABLE BCKH_1026 (
+--   id INTEGER PRIMARY KEY AUTOINCREMENT,
+--   so_eload TEXT, ten_eload TEXT, so_thue_bao TEXT,
+--   thoi_gian_kich_hoat TEXT, hoa_hong_bckh REAL, ma_giao_dich TEXT,
+--   thoi_gian_chi_tra TEXT, trang_thai TEXT, nguyen_nhan_loi TEXT,
+--   imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP
+-- );
+-- ============================================================================
+</pre></div>
+
+          <div class="guide-step"><h3>Bước 4 — Tạo Worker kết nối</h3>
+            <ol><li>Vào mục <b>Workers &amp; Pages → Create → Create Worker</b>, đặt tên Worker, ví dụ: <code class="inl">vnpt-api</code>, bấm <b>Deploy</b>.</li><li>Mở Worker vừa tạo, bấm <b>Edit code</b>, xóa toàn bộ mã mẫu, dán toàn bộ mã nguồn Worker dưới đây vào, bấm <b>Save and deploy</b>.</li></ol>
+            <div class="copy-row"><button class="btn sm gray" type="button" data-copy="workerCode">Sao chép mã Worker</button></div>
+            <pre class="code" id="workerCode">// ============================================================================
+// VNPT - He thong quan ly chi tra hoa hong kenh diem uy quyen
+// Cloudflare Worker ket noi CSDL Cloudflare D1 (binding: DB)
+// Bien moi truong (Secret): AUTH_SECRET - khoa bi mat ky token dang nhap
+// ============================================================================
+
+const TOKEN_TTL_SECONDS = 12 * 60 * 60; // Token dang nhap co hieu luc 12 gio
+
+// ---------------------------------------------------------------------------
+// Cong cu ma hoa
+// ---------------------------------------------------------------------------
+function b64urlEncodeBytes(bytes) {
+  let bin = &quot;&quot;;
+  bytes.forEach((b) =&gt; (bin += String.fromCharCode(b)));
+  return btoa(bin).replace(/\+/g, &quot;-&quot;).replace(/\//g, &quot;_&quot;).replace(/=+$/, &quot;&quot;);
+}
+function b64urlEncodeText(text) {
+  return b64urlEncodeBytes(new TextEncoder().encode(text));
+}
+function b64urlDecodeText(s) {
+  s = s.replace(/-/g, &quot;+&quot;).replace(/_/g, &quot;/&quot;);
+  while (s.length % 4) s += &quot;=&quot;;
+  const bin = atob(s);
+  const bytes = Uint8Array.from(bin, (c) =&gt; c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+async function sha256Hex(text) {
+  const digest = await crypto.subtle.digest(&quot;SHA-256&quot;, new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).join(&quot;&quot;);
+}
+async function hashPassword(password, salt) {
+  return sha256Hex(salt + &quot;:&quot; + password);
+}
+function randomSalt() {
+  const a = new Uint8Array(12);
+  crypto.getRandomValues(a);
+  return [...a].map((b) =&gt; b.toString(16).padStart(2, &quot;0&quot;)).join(&quot;&quot;);
+}
+function getSecret(env) {
+  return env.AUTH_SECRET || &quot;vnpt-secret-mac-dinh-hay-dat-secret-rieng&quot;;
+}
+async function signToken(env, payload) {
+  const header = b64urlEncodeText(JSON.stringify({ alg: &quot;HS256&quot;, typ: &quot;JWT&quot; }));
+  const body = b64urlEncodeText(JSON.stringify(payload));
+  const data = header + &quot;.&quot; + body;
+  const key = await crypto.subtle.importKey(
+    &quot;raw&quot;,
+    new TextEncoder().encode(getSecret(env)),
+    { name: &quot;HMAC&quot;, hash: &quot;SHA-256&quot; },
+    false,
+    [&quot;sign&quot;]
+  );
+  const sig = await crypto.subtle.sign(&quot;HMAC&quot;, key, new TextEncoder().encode(data));
+  return data + &quot;.&quot; + b64urlEncodeBytes(new Uint8Array(sig));
+}
+async function verifyToken(env, token) {
+  try {
+    const parts = token.split(&quot;.&quot;);
+    if (parts.length !== 3) return null;
+    const data = parts[0] + &quot;.&quot; + parts[1];
+    const key = await crypto.subtle.importKey(
+      &quot;raw&quot;,
+      new TextEncoder().encode(getSecret(env)),
+      { name: &quot;HMAC&quot;, hash: &quot;SHA-256&quot; },
+      false,
+      [&quot;sign&quot;]
+    );
+    const sig = await crypto.subtle.sign(&quot;HMAC&quot;, key, new TextEncoder().encode(data));
+    if (b64urlEncodeBytes(new Uint8Array(sig)) !== parts[2]) return null;
+    const payload = JSON.parse(b64urlDecodeText(parts[1]));
+    if (!payload.exp || payload.exp * 1000 &lt; Date.now()) return null;
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cong cu HTTP
+// ---------------------------------------------------------------------------
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      &quot;Content-Type&quot;: &quot;application/json; charset=utf-8&quot;,
+      &quot;Access-Control-Allow-Origin&quot;: &quot;*&quot;,
+      &quot;Access-Control-Allow-Methods&quot;: &quot;GET, POST, PUT, DELETE, OPTIONS&quot;,
+      &quot;Access-Control-Allow-Headers&quot;: &quot;Content-Type, Authorization&quot;,
+    },
+  });
+}
+function err(message, status = 400) {
+  return json({ ok: false, error: message }, status);
+}
+async function readBody(request) {
+  try {
+    return await request.json();
+  } catch (e) {
+    return {};
+  }
+}
+async function requireAuth(request, env) {
+  const h = request.headers.get(&quot;Authorization&quot;) || &quot;&quot;;
+  const m = h.match(/^Bearer\s+(.+)$/i);
+  if (!m) return null;
+  const payload = await verifyToken(env, m[1]);
+  if (!payload) return null;
+  const user = await env.DB.prepare(
+    &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, can_import, active FROM nguoi_dung WHERE id = ?&quot;
+  )
+    .bind(payload.sub)
+    .first();
+  if (!user || !user.active) return null;
+  return user;
+}
+function publicUser(u) {
+  return {
+    id: u.id,
+    ma_kenh: u.ma_kenh || &quot;&quot;,
+    ho_ten: u.ho_ten,
+    username: u.username,
+    role: u.role,
+    so_eload: u.so_eload || &quot;&quot;,
+    so_vi: u.so_vi || &quot;&quot;,
+    can_import: !!u.can_import,
+  };
+}
+function toNumber(v) {
+  if (v === null || v === undefined || v === &quot;&quot;) return 0;
+  if (typeof v === &quot;number&quot;) return v;
+  const n = parseFloat(String(v).replace(/[^\d.,-]/g, &quot;&quot;).replace(/\./g, &quot;&quot;).replace(&quot;,&quot;, &quot;.&quot;));
+  return isNaN(n) ? 0 : n;
+}
+function toText(v) {
+  if (v === null || v === undefined) return &quot;&quot;;
+  return String(v).trim();
+}
+
+// ---------------------------------------------------------------------------
+// Dinh nghia cot cua 2 bang du lieu dau vao
+// ---------------------------------------------------------------------------
+const HHBG_COLUMNS = [
+  [&quot;ten_eload&quot;, &quot;TEXT&quot;], [&quot;so_eload&quot;, &quot;TEXT&quot;], [&quot;so_vi&quot;, &quot;TEXT&quot;],
+  [&quot;so_thue_bao&quot;, &quot;TEXT&quot;], [&quot;loai_thue_bao&quot;, &quot;TEXT&quot;], [&quot;chu_ky_chi_tra&quot;, &quot;TEXT&quot;],
+  [&quot;ten_goi&quot;, &quot;TEXT&quot;], [&quot;gia_goi&quot;, &quot;REAL&quot;], [&quot;thoi_gian_giao_dich&quot;, &quot;TEXT&quot;],
+  [&quot;trans_id&quot;, &quot;TEXT&quot;], [&quot;kenh_thuc_hien&quot;, &quot;TEXT&quot;], [&quot;thu_lao&quot;, &quot;REAL&quot;],
+  [&quot;ma_giao_dich&quot;, &quot;TEXT&quot;], [&quot;thoi_gian_chi_tra&quot;, &quot;TEXT&quot;], [&quot;trang_thai&quot;, &quot;TEXT&quot;],
+  [&quot;nguyen_nhan_loi&quot;, &quot;TEXT&quot;],
+];
+const BCKH_COLUMNS = [
+  [&quot;so_eload&quot;, &quot;TEXT&quot;], [&quot;ten_eload&quot;, &quot;TEXT&quot;], [&quot;so_thue_bao&quot;, &quot;TEXT&quot;],
+  [&quot;thoi_gian_kich_hoat&quot;, &quot;TEXT&quot;], [&quot;hoa_hong_bckh&quot;, &quot;REAL&quot;],
+  [&quot;ma_giao_dich&quot;, &quot;TEXT&quot;], [&quot;thoi_gian_chi_tra&quot;, &quot;TEXT&quot;], [&quot;trang_thai&quot;, &quot;TEXT&quot;],
+  [&quot;nguyen_nhan_loi&quot;, &quot;TEXT&quot;],
+];
+function tableNameFor(loai, thang, nam) {
+  const mm = String(thang).padStart(2, &quot;0&quot;);
+  if (loai === &quot;HHBG&quot;) return &quot;HHBG_&quot; + mm + nam; // HHBG_MMYYYY
+  return &quot;BCKH_&quot; + mm + String(nam).slice(-2);      // BCKH_MMYY
+}
+function createTableSQL(table, columns) {
+  const cols = columns.map(([n, t]) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot; &#x27; + t).join(&quot;, &quot;);
+  return (
+    &#x27;CREATE TABLE IF NOT EXISTS &quot;&#x27; + table + &#x27;&quot; (id INTEGER PRIMARY KEY AUTOINCREMENT, &#x27; +
+    cols + &#x27;, imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP)&#x27;
+  );
+}
+async function listMonthlyTables(env, prefix) {
+  const res = await env.DB.prepare(
+    &quot;SELECT name FROM sqlite_master WHERE type=&#x27;table&#x27; AND name LIKE ? ORDER BY name&quot;
+  )
+    .bind(prefix + &quot;_%&quot;)
+    .all();
+  return (res.results || []).map((r) =&gt; r.name);
+}
+function tableInRange(name, loai, from, to) {
+  // from/to: &#x27;YYYY-MM-DD&#x27;. Ten bang: HHBG_MMYYYY hoac BCKH_MMYY -&gt; lay thang dau &amp; cuoi.
+  const m = name.match(/_(\d{2})(\d{2,4})$/);
+  if (!m) return false;
+  let year = parseInt(m[2], 10);
+  if (m[2].length === 2) year += 2000;
+  const month = parseInt(m[1], 10);
+  const first = year + &quot;-&quot; + String(month).padStart(2, &quot;0&quot;) + &quot;-01&quot;;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const last = year + &quot;-&quot; + String(month).padStart(2, &quot;0&quot;) + &quot;-&quot; + String(lastDay).padStart(2, &quot;0&quot;);
+  return last &gt;= from &amp;&amp; first &lt;= to;
+}
+
+// ---------------------------------------------------------------------------
+// Xu ly chinh
+// ---------------------------------------------------------------------------
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/+$/, &quot;&quot;) || &quot;/&quot;;
+    const method = request.method;
+
+    if (method === &quot;OPTIONS&quot;) {
+      return new Response(null, {
+        headers: {
+          &quot;Access-Control-Allow-Origin&quot;: &quot;*&quot;,
+          &quot;Access-Control-Allow-Methods&quot;: &quot;GET, POST, PUT, DELETE, OPTIONS&quot;,
+          &quot;Access-Control-Allow-Headers&quot;: &quot;Content-Type, Authorization&quot;,
+        },
+      });
+    }
+    if (!env.DB) return err(&quot;Worker chua duoc gan (binding) voi CSDL D1. Hay kiem tra lai buoc Binding trong huong dan.&quot;, 500);
+
+    try {
+      // ---- Kiem tra ket noi (cong khai, dung cho nut &quot;Test ket noi&quot;) ----
+      if (path === &quot;/api/health&quot; &amp;&amp; method === &quot;GET&quot;) {
+        await env.DB.prepare(&quot;SELECT 1&quot;).first();
+        return json({ ok: true, db: true, message: &quot;Ket noi CSDL D1 thanh cong&quot; });
+      }
+
+      // ---- Dang nhap ----
+      if (path === &quot;/api/login&quot; &amp;&amp; method === &quot;POST&quot;) {
+        const b = await readBody(request);
+        const username = toText(b.username);
+        const password = String(b.password || &quot;&quot;);
+        if (!username || !password) return err(&quot;Vui long nhap ten dang nhap va mat khau&quot;, 422);
+        const user = await env.DB.prepare(&quot;SELECT * FROM nguoi_dung WHERE username = ?&quot;)
+          .bind(username)
+          .first();
+        if (!user || !user.active) return err(&quot;Tai khoan khong ton tai hoac da bi khoa&quot;, 401);
+        const hash = await hashPassword(password, user.salt);
+        if (hash !== user.password_hash) return err(&quot;Mat khau khong dung&quot;, 401);
+        const token = await signToken(env, {
+          sub: user.id,
+          username: user.username,
+          role: user.role,
+          exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
+        });
+        return json({ ok: true, token, user: publicUser(user) });
+      }
+
+      // ---- Cac API con lai deu can dang nhap ----
+      const me = await requireAuth(request, env);
+      if (!me) return err(&quot;Phien dang nhap khong hop le hoac da het han. Vui long dang nhap lai.&quot;, 401);
+      const isAdmin = me.role === &quot;admin&quot;;
+
+      if (path === &quot;/api/me&quot; &amp;&amp; method === &quot;GET&quot;) {
+        return json({ ok: true, user: publicUser(me) });
+      }
+
+      // ---- Quan ly don vi ----
+      if (path === &quot;/api/units&quot; &amp;&amp; method === &quot;GET&quot;) {
+        const res = await env.DB.prepare(
+          &quot;SELECT id, ma_don_vi, ten_don_vi, parent_id FROM don_vi ORDER BY ma_don_vi&quot;
+        ).all();
+        return json({ ok: true, units: res.results || [] });
+      }
+      if (path === &quot;/api/units&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen tao don vi&quot;, 403);
+        const b = await readBody(request);
+        if (!toText(b.ma_don_vi) || !toText(b.ten_don_vi)) return err(&quot;Thieu ma don vi hoac ten don vi&quot;, 422);
+        const r = await env.DB.prepare(
+          &quot;INSERT INTO don_vi (ma_don_vi, ten_don_vi, parent_id) VALUES (?, ?, ?)&quot;
+        )
+          .bind(toText(b.ma_don_vi), toText(b.ten_don_vi), b.parent_id ? Number(b.parent_id) : null)
+          .run();
+        return json({ ok: true, id: r.meta.last_row_id });
+      }
+      const unitMatch = path.match(/^\/api\/units\/(\d+)$/);
+      if (unitMatch &amp;&amp; method === &quot;PUT&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen sua don vi&quot;, 403);
+        const b = await readBody(request);
+        await env.DB.prepare(&quot;UPDATE don_vi SET ma_don_vi = ?, ten_don_vi = ?, parent_id = ? WHERE id = ?&quot;)
+          .bind(toText(b.ma_don_vi), toText(b.ten_don_vi), b.parent_id ? Number(b.parent_id) : null, Number(unitMatch[1]))
+          .run();
+        return json({ ok: true });
+      }
+      if (unitMatch &amp;&amp; method === &quot;DELETE&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen xoa don vi&quot;, 403);
+        await env.DB.prepare(&quot;UPDATE don_vi SET parent_id = NULL WHERE parent_id = ?&quot;).bind(Number(unitMatch[1])).run();
+        await env.DB.prepare(&quot;DELETE FROM don_vi WHERE id = ?&quot;).bind(Number(unitMatch[1])).run();
+        return json({ ok: true });
+      }
+
+      // ---- Quan ly nguoi dung (chi admin) ----
+      if (path === &quot;/api/users&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen xem danh sach nguoi dung&quot;, 403);
+        const res = await env.DB.prepare(
+          &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, can_import, active FROM nguoi_dung ORDER BY ho_ten&quot;
+        ).all();
+        return json({ ok: true, users: (res.results || []).map(publicUser) });
+      }
+      if (path === &quot;/api/users&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen tao nguoi dung&quot;, 403);
+        const b = await readBody(request);
+        if (!toText(b.ho_ten) || !toText(b.username)) return err(&quot;Thieu ho ten hoac user dang nhap&quot;, 422);
+        const salt = randomSalt();
+        const password = String(b.password || &quot;Vnpt@2026&quot;);
+        const hash = await hashPassword(password, salt);
+        const r = await env.DB.prepare(
+          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+        )
+          .bind(
+            toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
+            b.role === &quot;admin&quot; ? &quot;admin&quot; : &quot;user&quot;,
+            toText(b.so_eload), toText(b.so_vi), b.can_import ? 1 : 0
+          )
+          .run();
+        return json({ ok: true, id: r.meta.last_row_id });
+      }
+      const userMatch = path.match(/^\/api\/users\/(\d+)$/);
+      if (userMatch &amp;&amp; method === &quot;PUT&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen sua nguoi dung&quot;, 403);
+        const b = await readBody(request);
+        await env.DB.prepare(
+          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, can_import = ?, role = ?, active = ? WHERE id = ?&quot;
+        )
+          .bind(
+            toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
+            b.can_import ? 1 : 0, b.role === &quot;admin&quot; ? &quot;admin&quot; : &quot;user&quot;,
+            b.active === false ? 0 : 1, Number(userMatch[1])
+          )
+          .run();
+        if (b.password) {
+          const salt = randomSalt();
+          const hash = await hashPassword(String(b.password), salt);
+          await env.DB.prepare(&quot;UPDATE nguoi_dung SET password_hash = ?, salt = ? WHERE id = ?&quot;)
+            .bind(hash, salt, Number(userMatch[1]))
+            .run();
+        }
+        return json({ ok: true });
+      }
+      if (userMatch &amp;&amp; method === &quot;DELETE&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen xoa nguoi dung&quot;, 403);
+        if (Number(userMatch[1]) === me.id) return err(&quot;Khong the tu xoa tai khoan dang dang nhap&quot;, 422);
+        await env.DB.prepare(&quot;DELETE FROM nguoi_dung WHERE id = ?&quot;).bind(Number(userMatch[1])).run();
+        return json({ ok: true });
+      }
+
+      // ---- Import du lieu dau vao tu Excel ----
+      if (path === &quot;/api/import/tables&quot; &amp;&amp; method === &quot;GET&quot;) {
+        const hhbg = await listMonthlyTables(env, &quot;HHBG&quot;);
+        const bckh = await listMonthlyTables(env, &quot;BCKH&quot;);
+        const out = [];
+        for (const t of [...hhbg, ...bckh]) {
+          const c = await env.DB.prepare(&#x27;SELECT COUNT(*) AS n FROM &quot;&#x27; + t + &#x27;&quot;&#x27;).first();
+          out.push({ table: t, rows: c ? c.n : 0 });
+        }
+        return json({ ok: true, tables: out });
+      }
+      if (path === &quot;/api/import&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        const b = await readBody(request);
+        const loai = b.loai === &quot;BCKH&quot; ? &quot;BCKH&quot; : &quot;HHBG&quot;;
+        const thang = Number(b.thang);
+        const nam = Number(b.nam);
+        const rows = Array.isArray(b.rows) ? b.rows : [];
+        if (!thang || thang &lt; 1 || thang &gt; 12 || !nam) return err(&quot;Thang/nam import khong hop le&quot;, 422);
+        if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
+        const columns = loai === &quot;HHBG&quot; ? HHBG_COLUMNS : BCKH_COLUMNS;
+        const table = tableNameFor(loai, thang, nam);
+        await env.DB.prepare(createTableSQL(table, columns)).run();
+        const colNames = columns.map(([n]) =&gt; n);
+        const numericCols = new Set(columns.filter(([, t]) =&gt; t === &quot;REAL&quot;).map(([n]) =&gt; n));
+        const sql =
+          &#x27;INSERT INTO &quot;&#x27; + table + &#x27;&quot; (&#x27; + colNames.map((n) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot;&#x27;).join(&quot;, &quot;) +
+          &quot;, imported_by) VALUES (&quot; + colNames.map(() =&gt; &quot;?&quot;).join(&quot;, &quot;) + &quot;, ?)&quot;;
+        let inserted = 0;
+        const CHUNK = 100;
+        for (let i = 0; i &lt; rows.length; i += CHUNK) {
+          const batch = rows.slice(i, i + CHUNK).map((row) =&gt; {
+            const vals = colNames.map((n) =&gt; {
+              const v = row[n];
+              return numericCols.has(n) ? toNumber(v) : toText(v);
+            });
+            vals.push(me.username);
+            return env.DB.prepare(sql).bind(...vals);
+          });
+          await env.DB.batch(batch);
+          inserted += batch.length;
+        }
+        return json({ ok: true, table, inserted });
+      }
+
+      // ---- Bao cao thong ke ----
+      if (path === &quot;/api/reports/summary&quot; &amp;&amp; method === &quot;GET&quot;) {
+        const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
+        const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
+        const group = url.searchParams.get(&quot;group&quot;) || &quot;day&quot;;
+        const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;ALL&quot;).toUpperCase();
+        const groupExpr =
+          group === &quot;month&quot;
+            ? &quot;substr(tg, 1, 7)&quot;
+            : group === &quot;week&quot;
+            ? &quot;strftime(&#x27;%Y-W%W&#x27;, date(substr(tg, 1, 10)))&quot;
+            : &quot;substr(tg, 1, 10)&quot;;
+        const parts = [];
+        const binds = [];
+        const sources = [];
+        if (loai === &quot;ALL&quot; || loai === &quot;HHBG&quot;) sources.push({ prefix: &quot;HHBG&quot;, money: &quot;thu_lao&quot;, time: &quot;COALESCE(NULLIF(thoi_gian_chi_tra, &#x27;&#x27;), thoi_gian_giao_dich)&quot;, own: &quot;(so_eload = ? OR so_vi = ?)&quot;, ownBinds: [me.so_eload || &quot;__none__&quot;, me.so_vi || &quot;__none__&quot;] });
+        if (loai === &quot;ALL&quot; || loai === &quot;BCKH&quot;) sources.push({ prefix: &quot;BCKH&quot;, money: &quot;hoa_hong_bckh&quot;, time: &quot;thoi_gian_chi_tra&quot;, own: &quot;(so_eload = ?)&quot;, ownBinds: [me.so_eload || &quot;__none__&quot;] });
+        for (const s of sources) {
+          const tables = await listMonthlyTables(env, s.prefix);
+          for (const t of tables) {
+            if (!tableInRange(t, s.prefix, from, to)) continue;
+            let sql =
+              &#x27;SELECT &#x27; + groupExpr + &#x27; AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT &#x27; +
+              s.time + &#x27; AS tg, &#x27; + s.money + &#x27; AS tien, so_eload&#x27; + (s.prefix === &quot;HHBG&quot; ? &quot;, so_vi&quot; : &quot;&quot;) +
+              &#x27; FROM &quot;&#x27; + t + &#x27;&quot;) WHERE substr(tg, 1, 10) BETWEEN ? AND ?&#x27;;
+            const localBinds = [from, to];
+            if (!isAdmin) {
+              sql += &quot; AND &quot; + s.own;
+              localBinds.push(...s.ownBinds);
+            }
+            sql += &quot; GROUP BY ky&quot;;
+            parts.push(sql);
+            binds.push(...localBinds);
+          }
+        }
+        if (!parts.length) return json({ ok: true, rows: [], tong_giao_dich: 0, tong_tien: 0 });
+        const union = parts.join(&quot; UNION ALL &quot;);
+        const res = await env.DB.prepare(
+          &quot;SELECT ky, SUM(so_giao_dich) AS so_giao_dich, SUM(tong_tien) AS tong_tien FROM (&quot; + union + &quot;) GROUP BY ky ORDER BY ky&quot;
+        )
+          .bind(...binds)
+          .all();
+        const rows = res.results || [];
+        return json({
+          ok: true,
+          rows,
+          tong_giao_dich: rows.reduce((a, r) =&gt; a + (r.so_giao_dich || 0), 0),
+          tong_tien: rows.reduce((a, r) =&gt; a + (r.tong_tien || 0), 0),
+        });
+      }
+      if (path === &quot;/api/reports/detail&quot; &amp;&amp; method === &quot;GET&quot;) {
+        const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
+        const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
+        const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;ALL&quot;).toUpperCase();
+        const limit = Math.min(Number(url.searchParams.get(&quot;limit&quot;) || 500), 2000);
+        const out = [];
+        const sources = [];
+        if (loai === &quot;ALL&quot; || loai === &quot;HHBG&quot;) sources.push({ prefix: &quot;HHBG&quot;, money: &quot;thu_lao&quot;, time: &quot;COALESCE(NULLIF(thoi_gian_chi_tra, &#x27;&#x27;), thoi_gian_giao_dich)&quot;, own: &quot;(so_eload = ? OR so_vi = ?)&quot;, ownBinds: [me.so_eload || &quot;__none__&quot;, me.so_vi || &quot;__none__&quot;], extra: &quot;, ten_goi, gia_goi&quot; });
+        if (loai === &quot;ALL&quot; || loai === &quot;BCKH&quot;) sources.push({ prefix: &quot;BCKH&quot;, money: &quot;hoa_hong_bckh&quot;, time: &quot;thoi_gian_chi_tra&quot;, own: &quot;(so_eload = ?)&quot;, ownBinds: [me.so_eload || &quot;__none__&quot;], extra: &quot;, &#x27;&#x27; AS ten_goi, 0 AS gia_goi&quot; });
+        for (const s of sources) {
+          const tables = await listMonthlyTables(env, s.prefix);
+          for (const t of tables) {
+            if (!tableInRange(t, s.prefix, from, to)) continue;
+            let sql =
+              &quot;SELECT &#x27;&quot; + s.prefix + &quot;&#x27; AS loai, so_thue_bao, so_eload, &quot; + s.money + &quot; AS so_tien, ma_giao_dich, &quot; +
+              s.time + &quot; AS thoi_gian, trang_thai, nguyen_nhan_loi&quot; + s.extra +
+              &#x27; FROM &quot;&#x27; + t + &#x27;&quot; WHERE substr(&#x27; + s.time + &quot;, 1, 10) BETWEEN ? AND ?&quot;;
+            const binds = [from, to];
+            if (!isAdmin) {
+              sql += &quot; AND &quot; + s.own;
+              binds.push(...s.ownBinds);
+            }
+            sql += &quot; ORDER BY thoi_gian DESC LIMIT ?&quot;;
+            binds.push(limit);
+            const res = await env.DB.prepare(sql).bind(...binds).all();
+            out.push(...(res.results || []));
+          }
+        }
+        out.sort((a, b) =&gt; String(b.thoi_gian || &quot;&quot;).localeCompare(String(a.thoi_gian || &quot;&quot;)));
+        return json({ ok: true, rows: out.slice(0, limit) });
+      }
+
+      // ---- Cai dat tai khoan ----
+      if (path === &quot;/api/settings/password&quot; &amp;&amp; method === &quot;POST&quot;) {
+        const b = await readBody(request);
+        const full = await env.DB.prepare(&quot;SELECT * FROM nguoi_dung WHERE id = ?&quot;).bind(me.id).first();
+        const oldHash = await hashPassword(String(b.old_password || &quot;&quot;), full.salt);
+        if (oldHash !== full.password_hash) return err(&quot;Mat khau cu khong dung&quot;, 422);
+        if (!b.new_password || String(b.new_password).length &lt; 8) return err(&quot;Mat khau moi phai co it nhat 8 ky tu&quot;, 422);
+        const salt = randomSalt();
+        const hash = await hashPassword(String(b.new_password), salt);
+        await env.DB.prepare(&quot;UPDATE nguoi_dung SET password_hash = ?, salt = ? WHERE id = ?&quot;)
+          .bind(hash, salt, me.id)
+          .run();
+        return json({ ok: true });
+      }
+      if (path === &quot;/api/settings/contact&quot; &amp;&amp; method === &quot;POST&quot;) {
+        const b = await readBody(request);
+        await env.DB.prepare(&quot;UPDATE nguoi_dung SET so_eload = ?, so_vi = ? WHERE id = ?&quot;)
+          .bind(toText(b.so_eload), toText(b.so_vi), me.id)
+          .run();
+        return json({ ok: true });
+      }
+
+      return err(&quot;Khong tim thay chuc nang: &quot; + path, 404);
+    } catch (e) {
+      return err(&quot;Loi he thong: &quot; + (e &amp;&amp; e.message ? e.message : String(e)), 500);
+    }
+  },
+};
+</pre></div>
+
+          <div class="guide-step"><h3>Bước 5 — Gắn (Bind) Worker với CSDL D1</h3>
+            <ol><li>Trong trang quản lý Worker, vào <b>Settings → Bindings → Add → D1 database</b>.</li><li>Đặt <b>Variable name</b> đúng là <code class="inl">DB</code> (bắt buộc), chọn database <code class="inl">vnpt-chi-tra</code> đã tạo ở Bước 2, bấm <b>Save</b> rồi <b>Deploy</b> lại Worker.</li></ol></div>
+
+          <div class="guide-step"><h3>Bước 6 — Đặt khóa bí mật cho token đăng nhập</h3>
+            <ol><li>Vẫn trong <b>Settings</b> của Worker, vào <b>Variables and Secrets → Add</b>.</li><li>Chọn loại <b>Secret</b>, đặt tên là <code class="inl">AUTH_SECRET</code>, giá trị là một chuỗi ký tự dài tùy ý do anh tự nghĩ (càng dài càng an toàn), bấm <b>Save</b> và <b>Deploy</b>.</li></ol></div>
+
+          <div class="guide-step"><h3>Bước 7 — Kết nối website với Worker</h3>
+            <ol><li>Sao chép địa chỉ Worker (dạng <code class="inl">https://vnpt-api.xxx.workers.dev</code>) hiển thị trong trang quản lý Worker.</li><li>Quay lại trang này, dán địa chỉ vào ô <b>Địa chỉ Worker API</b> ở phía trên, bấm <b>Kiểm tra kết nối</b> — nếu báo "Kết nối CSDL D1 thành công" là đạt.</li><li>Bấm <b>Lưu &amp; áp dụng</b>, sau đó đăng nhập bằng tài khoản <b>admin / Vnpt@2026</b> và đổi mật khẩu ngay trong module Cài đặt.</li></ol></div>
+        </section>
+
+        <!-- BAO CAO THONG KE -->
+        <section class="panel hidden" id="panel-reports">
+          <h2>Báo cáo thống kê</h2>
+          <p class="desc">Xem báo cáo chi trả hoa hồng (bán gói + BCKH) đã import lên D1. Tài khoản điểm bán chỉ nhìn thấy dữ liệu gắn với số Eload / số Ví của mình; admin xem được toàn bộ.</p>
+          <form id="repForm" class="form-grid">
+            <div><label>Loại dữ liệu</label><select id="repType"><option value="ALL">Tất cả (HHBG + BCKH)</option><option value="HHBG">Hoa hồng bán gói</option><option value="BCKH">Tiền BCKH</option></select></div>
+            <div><label>Nhóm theo (cho báo cáo tổng hợp)</label><select id="repGroup"><option value="day">Theo ngày</option><option value="week">Theo tuần</option><option value="month">Theo tháng</option></select></div>
+            <div><label>Từ ngày</label><input type="date" id="repFrom" /></div>
+            <div><label>Đến ngày</label><input type="date" id="repTo" /></div>
+            <div class="full" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn blue" type="button" id="repSummaryBtn">Báo cáo tổng hợp</button><button class="btn gray" type="button" id="repDetailBtn">Báo cáo chi tiết</button></div>
+          </form>
+          <div id="repMsg"></div>
+          <div class="kpi-row"><div class="kpi"><b id="repTotalTx">—</b><span>Tổng số giao dịch</span></div><div class="kpi"><b id="repTotalMoney">—</b><span>Tổng số tiền chi trả</span></div></div>
+          <div class="tbl-wrap"><table class="data"><thead id="repHead"><tr><th>Kỳ</th><th>Số giao dịch</th><th>Tổng tiền chi trả</th></tr></thead><tbody id="repBody"><tr><td colspan="3">Chưa có dữ liệu — hãy chọn khoảng thời gian và bấm báo cáo.</td></tr></tbody></table></div>
+        </section>
+
+        <!-- CAI DAT -->
+        <section class="panel hidden" id="panel-settings">
+          <h2>Cài đặt tài khoản</h2>
+          <p class="desc">Quản lý thông tin tài khoản của chính anh. Thay đổi có hiệu lực ngay trên CSDL D1.</p>
+          <form id="pwForm" class="form-grid">
+            <div><label>Mật khẩu hiện tại</label><input type="password" id="pwOld" required /></div>
+            <div><label>Mật khẩu mới (ít nhất 8 ký tự)</label><input type="password" id="pwNew" required /></div>
+            <div class="full"><button class="btn blue" type="submit">Đổi mật khẩu</button></div>
+          </form>
+          <div id="pwMsg"></div>
+          <form id="contactForm" class="form-grid" style="margin-top:20px">
+            <div><label>Số tài khoản Eload</label><input id="setEload" /></div>
+            <div><label>Số Ví VNPT Money</label><input id="setWallet" /></div>
+            <div class="full"><button class="btn blue" type="submit">Lưu thông tin</button></div>
+          </form>
+          <div id="contactMsg"></div>
         </section>
       </div>
+    </div>
+  </div>
+</div>
 
-      <!-- ===== SECTION 4: SẢN LƯỢNG ===== -->
-      <section class="card wide" aria-labelledby="t4">
-        <div class="card-head">
-          <div class="num" style="background:var(--blue-800)">4</div>
-          <div>
-            <h2 id="t4">Khuyến khích theo mức sản lượng phát triển mới</h2>
-            <div class="tag">Càng phát triển nhiều thuê bao mới, mức thưởng trên mỗi thuê bao càng cao</div>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="ladder" role="img" aria-label="Thang thưởng sản lượng: 5 đến dưới 10 thuê bao được 20K một thuê bao; 10 đến dưới 20 được 30K; 20 đến dưới 30 được 40K; 30 đến dưới 50 được 50K; từ 50 thuê bao trở lên được 65K một thuê bao">
-            <div class="tier tier-1">
-              <div class="t-rank">Mức 1</div>
-              <div class="t-range">5 &ndash; &lt;10 thuê bao</div>
-              <div class="t-mid"><span class="t-amount">20K</span><div class="t-unit">/ thuê bao</div></div>
-            </div>
-            <div class="tier tier-2">
-              <div class="t-rank">Mức 2</div>
-              <div class="t-range">10 &ndash; &lt;20 thuê bao</div>
-              <div class="t-mid"><span class="t-amount">30K</span><div class="t-unit">/ thuê bao</div></div>
-            </div>
-            <div class="tier tier-3">
-              <div class="t-rank">Mức 3</div>
-              <div class="t-range">20 &ndash; &lt;30 thuê bao</div>
-              <div class="t-mid"><span class="t-amount">40K</span><div class="t-unit">/ thuê bao</div></div>
-            </div>
-            <div class="tier tier-4">
-              <div class="t-rank">Mức 4</div>
-              <div class="t-range">30 &ndash; &lt;50 thuê bao</div>
-              <div class="t-mid"><span class="t-amount">50K</span><div class="t-unit">/ thuê bao</div></div>
-            </div>
-            <div class="tier tier-5">
-              <div class="t-rank">Mức 5 &middot; Cao nhất</div>
-              <div class="t-range">Từ 50 thuê bao trở lên</div>
-              <div class="t-mid"><span class="t-amount">65K</span><div class="t-unit">/ thuê bao</div></div>
-            </div>
-          </div>
-          <div class="note">
-            <b>Ghi chú:</b>
-            <ul>
-              <li>Đạt ở mức nào thì chi trả theo mức đó, <b>không cộng dồn</b>.</li>
-              <li>Thuê bao phát triển mới phải mua gói tối thiểu từ <b>70K</b> trở lên.</li>
-              <li>Không ghi nhận sản lượng đối với các thuê bao <b>đóng KIT kích hoạt lại</b>.</li>
-            </ul>
-          </div>
-        </div>
-      </section>
+<!-- ================= MODAL DANG NHAP ================= -->
+<div id="loginModal" class="modal-back hidden">
+  <div class="modal">
+    <h2>Đăng nhập hệ thống</h2>
+    <p class="sub">Tài khoản admin và tài khoản điểm bán do admin cấp. Dữ liệu đăng nhập được kiểm tra trực tiếp trên CSDL Cloudflare D1.</p>
+    <div id="loginErr"></div>
+    <form id="loginForm">
+      <div class="field"><label>Tên đăng nhập</label><input id="loginUser" required autocomplete="username" /></div>
+      <div class="field"><label>Mật khẩu</label><input id="loginPass" type="password" required autocomplete="current-password" /></div>
+      <div style="display:flex;gap:10px;margin-top:6px"><button class="btn blue" type="submit" style="flex:1">Đăng nhập</button><button class="btn gray" type="button" id="loginCancel">Đóng</button></div>
+    </form>
+    <p class="sub" id="apiWarn" style="margin-top:14px"></p>
+    <div id="bootCfg" class="hidden" style="margin-top:6px;border-top:1.5px dashed var(--line);padding-top:12px">
+      <div class="field"><label>Địa chỉ Worker API (nhập lần đầu trên trình duyệt này, hoặc khi đổi Worker)</label><input id="bootApiUrl" placeholder="https://....workers.dev" /></div>
+      <button class="btn gray sm" type="button" id="bootTest">Kiểm tra kết nối</button>
+      <span id="bootMsg" style="font-size:13px;margin-left:8px"></span>
+    </div>
+  </div>
+</div>
 
-      <!-- ===== SECTION 5: CKD ===== -->
-      <section class="card wide" aria-labelledby="t5">
-        <div class="card-head">
-          <div class="num" style="background:var(--orange)">5</div>
-          <div>
-            <h2 id="t5">Khuyến khích phát triển SIM mua gói chu kỳ dài (CKD)</h2>
-            <div class="tag">Thưởng thêm cho mỗi thuê bao mua gói dài hạn đủ điều kiện</div>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="ckd">
-            <div class="ckd-box">
-              <div class="ckd-amt">30K</div>
-              <div>
-                <div class="ckd-lbl">Gói từ 6 tháng đến dưới 12 tháng</div>
-                <div class="ckd-sub">Chi trả 30.000đ / thuê bao</div>
-              </div>
-            </div>
-            <div class="ckd-box hot">
-              <div class="ckd-amt">50K</div>
-              <div>
-                <div class="ckd-lbl">Gói từ 12 tháng trở lên</div>
-                <div class="ckd-sub">Chi trả 50.000đ / thuê bao</div>
-              </div>
-            </div>
-          </div>
-          <div class="note">
-            <b>Ghi chú:</b>
-            <ul>
-              <li>Chỉ áp dụng đối với các gói CKD có <b>ARPU từ 100K trở lên</b>.</li>
-              <li>Không áp dụng đối với <b>bộ SIM đóng KIT kích hoạt lại</b>.</li>
-              <li>Không áp dụng đối với các <b>SIM bundle đã xuất bán từ 31/08/2026 trở về trước</b>.</li>
-              <li>Không áp dụng đối với thuê bao <b>chuyển đổi hình thức, thuê bao khôi phục, thuê bao tái hòa mạng</b>.</li>
-            </ul>
-          </div>
-        </div>
-      </section>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-      <!-- ===== CALCULATOR ===== -->
-      <section class="calc" aria-labelledby="tc">
-        <div class="calc-head">
-          <h2 id="tc">Ước tính thu nhập của điểm bán</h2>
-          <p>Nhập số thuê bao phát triển mới và thông tin gói cước để xem chi phí đầu tư, các khoản dự kiến được chi trả theo chính sách và giá vốn của mỗi SIM.</p>
-        </div>
-        <div class="calc-grid">
-          <form class="calc-form" id="calcForm">
-            <div class="field">
-              <label for="inSubs">Số thuê bao phát triển mới trong tháng</label>
-              <input type="number" id="inSubs" min="0" step="1" value="30" inputmode="numeric" />
-            </div>
-            <div class="field">
-              <label for="inPrice">Giá gói cước mỗi thuê bao mua (VNĐ)</label>
-              <input type="number" id="inPrice" min="0" step="1000" value="600000" inputmode="numeric" />
-              <div class="hint">Ví dụ: gói 100K/tháng chu kỳ 6 tháng có tổng giá gói là 600.000đ.</div>
-            </div>
-            <div class="field">
-              <label for="inCycle">Chu kỳ gói (tháng)</label>
-              <select id="inCycle">
-                <option value="1">1 tháng</option>
-                <option value="3">3 tháng</option>
-                <option value="6" selected>6 tháng</option>
-                <option value="12">12 tháng</option>
-                <option value="24">24 tháng</option>
-              </select>
-              <div class="hint" id="arpuHint"></div>
-            </div>
-          </form>
-          <div class="calc-result">
-            <h3>Kết quả ước tính</h3>
-            <div id="resultRows"></div>
-            <div class="rtotal">
-              <div class="tl">Tổng dự kiến chi trả<small>Phần 2 — cho toàn bộ thuê bao nhập vào</small></div>
-              <div class="tv" id="totalOut">0đ</div>
-            </div>
-            <div class="part-head cost"><span class="pnum">3</span> Giá vốn của SIM</div>
-            <div class="giavon">
-              <div class="gv-l">Giá vốn / SIM<small>(Tổng chi phí đầu vào &minus; Tổng chi trả nhận được) &divide; số thuê bao</small></div>
-              <div class="gv-v" id="costOut">&mdash;</div>
-            </div>
-          </div>
-        </div>
-        <p class="calc-note">Số liệu ước tính giả định mọi thuê bao đều đủ điều kiện của từng khoản (kích hoạt 900 trong 24h, mua gói ngay trong tháng hòa mạng&hellip;). Hoa hồng khuyến khích được tính theo công thức: giá gói &divide; 1,1 &times; tỷ lệ % tương ứng. Kết quả chỉ mang tính tham khảo để điểm bán lên kế hoạch phát triển thuê bao.</p>
-      </section>
+<script>
+/* =====================================================================
+   VNPT - Ung dung quan ly chi tra hoa hong kenh diem uy quyen
+   Ket noi Cloudflare D1 thong qua Worker API (khong dung Local Storage
+   cho du lieu; chi dung Session Storage cho phien dang nhap tam thoi)
+   ===================================================================== */
+const DEFAULT_API_URL = ""; // Dia chi Worker mac dinh (se gan sau khi deploy Worker)
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Math.round(Number(n) || 0)).toLocaleString("vi-VN") + "đ";
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-      <!-- ===== GREETING ===== -->
-      <section class="greeting">
-        <h2 class="g-title">Lời chúc gửi tới <span class="hl">Quý điểm bán</span></h2>
-        <p>Kính chúc Quý điểm bán luôn dồi dào sức khỏe, kinh doanh thuận lợi, buôn may bán đắt! Mỗi thuê bao phát triển mới là một bước tiến vững chắc, mỗi khách hàng hài lòng là một niềm tin được gửi gắm. VNPT trân trọng cảm ơn sự tin tưởng và đồng hành của Quý điểm bán trong suốt thời gian qua, và cam kết luôn sát cánh, hỗ trợ hết mình để chúng ta cùng nhau chinh phục những cột mốc doanh thu mới, vươn xa hơn nữa trên hành trình phát triển.</p>
-        <div class="g-sign">Đồng hành cùng phát triển &mdash; <span>VNPT</span></div>
-      </section>
+/* ---------------- Module uoc tinh thu nhap (phan cong khai) ---------------- */
+function calcEst() {
+  const n = Math.max(0, parseInt($("estSubs").value) || 0);
+  const P = Math.max(0, parseFloat($("estPrice").value) || 0);
+  const m = Math.max(1, parseInt($("estCycle").value) || 1);
+  // Phan 1: chi phi dau tu
+  const cSim = 25000 * n, cAct = 75000 * n, cPkg = P * n;
+  const cTotal = cSim + cAct + cPkg;
+  // Phan 2: du toan chi tra
+  const arpu = P / m;
+  const pBckh = 20000 * n;
+  const pPkg = 0.25 * P * n;
+  let incRate = 0;
+  if (m === 1) incRate = 0.25; else if (arpu >= 100000) incRate = 0.05;
+  const pInc = (P / 1.1) * incRate * n;
+  let volRate = 0;
+  if (n >= 50) volRate = 65000; else if (n >= 30) volRate = 50000; else if (n >= 20) volRate = 40000; else if (n >= 10) volRate = 30000; else if (n >= 5) volRate = 20000;
+  const pVol = P >= 70000 ? volRate * n : 0;
+  let ckdRate = 0;
+  if (arpu >= 100000) { if (m >= 12) ckdRate = 50000; else if (m >= 6) ckdRate = 30000; }
+  const pCkd = ckdRate * n;
+  const pTotal = pBckh + pPkg + pInc + pVol + pCkd;
+  // Phan 3: gia von SIM
+  const simCost = n > 0 ? (cTotal - pTotal) / n : 0;
+  $("cSim").textContent = fmt(cSim); $("cAct").textContent = fmt(cAct); $("cPkg").textContent = fmt(cPkg); $("cTotal").textContent = fmt(cTotal);
+  $("pBckh").textContent = fmt(pBckh); $("pPkg").textContent = fmt(pPkg); $("pInc").textContent = fmt(pInc);
+  $("pVol").textContent = fmt(pVol); $("pCkd").textContent = fmt(pCkd); $("pTotal").textContent = fmt(pTotal);
+  $("simCost").textContent = fmt(simCost);
+}
+["estSubs", "estPrice", "estCycle"].forEach((id) => $(id).addEventListener("input", calcEst));
+calcEst();
 
-      <p class="foot-note">Cơ chế chính sách dành cho kênh điểm ủy quyền &middot; Áp dụng từ 01/10/2026</p>
-    </main>
+/* ---------------- Trang thai dang nhap & API ---------------- */
+let apiBase = (() => {
+  const q = new URLSearchParams(location.search).get("api");
+  return (q || sessionStorage.getItem("vnpt_api_url") || DEFAULT_API_URL || "").replace(/\/+$/, "");
+})();
+let token = sessionStorage.getItem("vnpt_token") || "";
+let me = null;
 
-    <script>
-      (function () {
-        var subsEl = document.getElementById('inSubs');
-        var priceEl = document.getElementById('inPrice');
-        var cycleEl = document.getElementById('inCycle');
-        var rowsEl = document.getElementById('resultRows');
-        var totalEl = document.getElementById('totalOut');
-        var costEl = document.getElementById('costOut');
-        var arpuHint = document.getElementById('arpuHint');
+async function api(path, opts = {}) {
+  if (!apiBase) throw new Error("Chưa cấu hình địa chỉ Worker API. Hãy nhập địa chỉ Worker trong cửa sổ đăng nhập.");
+  const res = await fetch(apiBase + path, {
+    ...opts,
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}), ...(opts.headers || {}) },
+  });
+  let data = {};
+  try { data = await res.json(); } catch (e) { /* bo qua */ }
+  if (!res.ok || data.ok === false) throw new Error(data.error || ("Lỗi " + res.status));
+  return data;
+}
+function setMsg(el, text, ok = true) {
+  el.innerHTML = text ? '<div class="' + (ok ? "form-ok" : "form-err") + '">' + esc(text) + "</div>" : "";
+}
 
-        function fmt(n) {
-          return Math.round(n).toLocaleString('vi-VN') + 'đ';
-        }
-        function tierRate(n) {
-          if (n >= 50) return 65;
-          if (n >= 30) return 50;
-          if (n >= 20) return 40;
-          if (n >= 10) return 30;
-          if (n >= 5) return 20;
-          return 0;
-        }
-        function row(name, detail, value, opts) {
-          opts = opts || {};
-          var cls = 'rrow' + (opts.off ? ' off' : '');
-          var val = opts.na ? '<span class="rv na">' + opts.na + '</span>'
-                           : '<span class="rv">' + fmt(value) + '</span>';
-          return '<div class="' + cls + '"><div class="rn">' + name +
-                 (detail ? '<small>' + detail + '</small>' : '') + '</div>' + val + '</div>';
-        }
+/* ---------------- Dang nhap / dang xuat ---------------- */
+function refreshAuthUI() {
+  const logged = !!me;
+  $("loginBtn").classList.toggle("hidden", logged);
+  $("logoutBtn").classList.toggle("hidden", !logged);
+  $("userChip").classList.toggle("hidden", !logged);
+  if (logged) {
+    $("userChip").textContent = "👤 " + me.ho_ten + (me.role === "admin" ? " (Admin)" : "");
+    $("whoName").textContent = me.ho_ten;
+    $("whoRole").textContent = (me.role === "admin" ? "Quản trị viên" : "Điểm bán") + (me.ma_kenh ? " · " + me.ma_kenh : "");
+    // Phan quyen menu
+    document.querySelectorAll(".nav-btn").forEach((b) => {
+      const p = b.dataset.panel;
+      let show = true;
+      if (p === "panel-units" || p === "panel-users" || p === "panel-config") show = me.role === "admin";
+      if (p === "panel-import") show = me.role === "admin" || me.can_import;
+      b.classList.toggle("hidden", !show);
+    });
+    $("setEload").value = me.so_eload || "";
+    $("setWallet").value = me.so_vi || "";
+  }
+  $("publicView").classList.toggle("hidden", logged);
+  $("appView").classList.toggle("hidden", !logged);
+}
+function openPanel(panelId) {
+  document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("hidden", p.id !== panelId));
+  document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.panel === panelId));
+  if (panelId === "panel-units") loadUnits();
+  if (panelId === "panel-users") loadUsers();
+  if (panelId === "panel-import") loadTables();
+  if (panelId === "panel-config") $("cfgApiUrl").value = apiBase;
+}
+document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel)));
 
-        function calc() {
-          var n = Math.max(0, parseInt(subsEl.value, 10) || 0);
-          var price = Math.max(0, parseFloat(priceEl.value) || 0);
-          var cycle = parseInt(cycleEl.value, 10) || 1;
-          var arpu = cycle > 0 ? price / cycle : 0;
-          arpuHint.textContent = 'ARPU gói = ' + fmt(arpu) + ' / tháng' +
-            (cycle > 1 ? (arpu >= 100000 ? ' — đạt ngưỡng ARPU 100K' : ' — chưa đạt ngưỡng ARPU 100K') : '');
+function showLogin() {
+  $("loginModal").classList.remove("hidden");
+  $("bootCfg").classList.toggle("hidden", !!apiBase);
+  $("apiWarn").textContent = apiBase ? "" : "Hệ thống chưa được kết nối tới Worker API. Hãy nhập địa chỉ Worker ở mục cấu hình phía dưới (xem hướng dẫn trong module Cấu hình kết nối D1 sau khi có tài khoản admin, hoặc liên hệ quản trị viên).";
+  setMsg($("loginErr"), "");
+}
+$("loginBtn").addEventListener("click", showLogin);
+$("loginCancel").addEventListener("click", () => $("loginModal").classList.add("hidden"));
+$("loginModal").addEventListener("click", (e) => { if (e.target === $("loginModal")) $("loginModal").classList.add("hidden"); });
 
-          var html = '';
-          var total = 0;
+async function testApi(url, msgEl) {
+  const u = (url || "").trim().replace(/\/+$/, "");
+  if (!u) { setMsg(msgEl, "Chưa nhập địa chỉ Worker.", false); return false; }
+  try {
+    const res = await fetch(u + "/api/health");
+    const d = await res.json();
+    if (d && d.ok) { setMsg(msgEl, "Kết nối CSDL D1 thành công ✔"); return u; }
+    setMsg(msgEl, "Worker phản hồi nhưng chưa kết nối được D1. Hãy kiểm tra bước Binding (biến DB) trong hướng dẫn.", false);
+  } catch (e) {
+    setMsg(msgEl, "Không gọi được Worker tại địa chỉ này. Hãy kiểm tra lại URL và chắc chắn Worker đã Deploy.", false);
+  }
+  return false;
+}
+$("bootTest").addEventListener("click", async () => {
+  const u = await testApi($("bootApiUrl").value, $("bootMsg"));
+  if (u) { apiBase = u; sessionStorage.setItem("vnpt_api_url", u); $("apiWarn").textContent = ""; }
+});
 
-          // ===== PHẦN 1: CHI PHÍ ĐẦU TƯ =====
-          var simCost = 25000 * n;
-          var feeCost = 75000 * n;
-          var pkgCost = price * n;
-          var totalCost = simCost + feeCost + pkgCost;
-          html += '<div class="part-head cost"><span class="pnum">1</span> Chi phí điểm bán đầu tư</div>';
-          html += row('Tiền SIM trắng', '25.000đ × ' + n + ' thuê bao', simCost);
-          html += row('Tiền phí hòa mạng', '75.000đ × ' + n + ' thuê bao', feeCost);
-          html += row('Tiền gói cước', fmt(price) + ' × ' + n + ' thuê bao', pkgCost);
-          html += '<div class="subtotal"><span>Tổng chi phí đầu vào</span><span class="sv">' + fmt(totalCost) + '</span></div>';
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  setMsg($("loginErr"), "");
+  try {
+    if (!apiBase) {
+      const u = ($("bootApiUrl").value || "").trim().replace(/\/+$/, "");
+      if (u) { apiBase = u; sessionStorage.setItem("vnpt_api_url", u); }
+    }
+    const res = await fetch(apiBase + "/api/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: $("loginUser").value.trim(), password: $("loginPass").value }),
+    });
+    const d = await res.json();
+    if (!res.ok || !d.ok) throw new Error(d.error || "Đăng nhập thất bại");
+    token = d.token; me = d.user;
+    sessionStorage.setItem("vnpt_token", token);
+    $("loginModal").classList.add("hidden");
+    refreshAuthUI();
+    openPanel(me.role === "admin" ? "panel-units" : "panel-reports");
+  } catch (err) {
+    setMsg($("loginErr"), err.message, false);
+  }
+});
+$("logoutBtn").addEventListener("click", () => {
+  token = ""; me = null;
+  sessionStorage.removeItem("vnpt_token");
+  refreshAuthUI();
+});
 
-          // ===== PHẦN 2: DỰ TOÁN CHI TRẢ =====
-          html += '<div class="part-head"><span class="pnum">2</span> Dự toán các khoản chi trả</div>';
+/* ---------------- Quan ly don vi (cay) ---------------- */
+let unitsCache = [];
+async function loadUnits() {
+  try {
+    const d = await api("/api/units");
+    unitsCache = d.units || [];
+    renderUnitTree();
+    renderUnitParentOptions();
+  } catch (e) { setMsg($("unitMsg"), e.message, false); }
+}
+function renderUnitParentOptions() {
+  const sel = $("unitParent");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Không có (đơn vị gốc) —</option>' +
+    unitsCache.map((u) => '<option value="' + u.id + '">' + esc(u.ten_don_vi) + " (" + esc(u.ma_don_vi) + ")</option>").join("");
+  sel.value = cur;
+}
+function renderUnitTree() {
+  const byParent = new Map();
+  unitsCache.forEach((u) => {
+    const k = u.parent_id || 0;
+    if (!byParent.has(k)) byParent.set(k, []);
+    byParent.get(k).push(u);
+  });
+  const build = (pid) => {
+    const items = byParent.get(pid) || [];
+    if (!items.length) return "";
+    return "<ul>" + items.map((u) =>
+      "<li><span class='u-code'>" + esc(u.ma_don_vi) + "</span><span class='u-name'>" + esc(u.ten_don_vi) + "</span>" +
+      "<span class='u-act'><button class='btn sm gray' data-edit-unit='" + u.id + "'>Sửa</button> " +
+      "<button class='btn sm danger' data-del-unit='" + u.id + "'>Xóa</button></span>" +
+      build(u.id) + "</li>").join("") + "</ul>";
+  };
+  $("unitTree").innerHTML = unitsCache.length ? build(0) : "Chưa có đơn vị nào. Hãy tạo đơn vị đầu tiên ở biểu mẫu phía trên.";
+  $("unitTree").querySelectorAll("[data-edit-unit]").forEach((b) => b.addEventListener("click", () => editUnit(Number(b.dataset.editUnit))));
+  $("unitTree").querySelectorAll("[data-del-unit]").forEach((b) => b.addEventListener("click", () => delUnit(Number(b.dataset.delUnit))));
+}
+function editUnit(id) {
+  const u = unitsCache.find((x) => x.id === id);
+  if (!u) return;
+  $("unitId").value = u.id; $("unitCode").value = u.ma_don_vi; $("unitName").value = u.ten_don_vi;
+  $("unitParent").value = u.parent_id || "";
+  $("unitSubmit").textContent = "Lưu thay đổi"; $("unitCancel").classList.remove("hidden");
+}
+$("unitCancel").addEventListener("click", () => {
+  $("unitForm").reset(); $("unitId").value = "";
+  $("unitSubmit").textContent = "Thêm đơn vị"; $("unitCancel").classList.add("hidden");
+});
+$("unitForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = $("unitId").value;
+  const body = { ma_don_vi: $("unitCode").value.trim(), ten_don_vi: $("unitName").value.trim(), parent_id: $("unitParent").value ? Number($("unitParent").value) : null };
+  try {
+    if (id) await api("/api/units/" + id, { method: "PUT", body: JSON.stringify(body) });
+    else await api("/api/units", { method: "POST", body: JSON.stringify(body) });
+    setMsg($("unitMsg"), id ? "Đã cập nhật đơn vị." : "Đã tạo đơn vị mới.");
+    $("unitCancel").click();
+    loadUnits();
+  } catch (err) { setMsg($("unitMsg"), err.message, false); }
+});
+async function delUnit(id) {
+  if (!confirm("Xóa đơn vị này? Các đơn vị con (nếu có) sẽ trở thành đơn vị gốc.")) return;
+  try { await api("/api/units/" + id, { method: "DELETE" }); loadUnits(); }
+  catch (e) { setMsg($("unitMsg"), e.message, false); }
+}
 
-          // 1. BCKH
-          if (price >= 30000) {
-            var bckh = 20000 * n; total += bckh;
-            html += row('1. Tiền BCKH', '20.000đ × ' + n + ' thuê bao (gói từ 30K, kích hoạt 900 trong 24h)', bckh);
-          } else {
-            html += row('1. Tiền BCKH', 'Gói dưới 30K — chưa đủ điều kiện', 0, { na: 'Chưa đủ ĐK', off: true });
-          }
+/* ---------------- Quan ly nguoi dung ---------------- */
+let usersCache = [];
+async function loadUsers() {
+  try {
+    const d = await api("/api/users");
+    usersCache = d.users || [];
+    $("usersBody").innerHTML = usersCache.map((u) =>
+      "<tr><td>" + esc(u.ma_kenh) + "</td><td><b>" + esc(u.ho_ten) + "</b></td><td>" + esc(u.username) + "</td>" +
+      "<td><span class='pill " + (u.role === "admin" ? "admin" : "user") + "'>" + (u.role === "admin" ? "Admin" : "Điểm bán") + "</span></td>" +
+      "<td>" + esc(u.so_eload) + "</td><td>" + esc(u.so_vi) + "</td>" +
+      "<td>" + (u.can_import ? "<span class='pill ok'>Có</span>" : "—") + "</td>" +
+      "<td style='white-space:nowrap'><button class='btn sm gray' data-edit-user='" + u.id + "'>Sửa</button> <button class='btn sm danger' data-del-user='" + u.id + "'>Xóa</button></td></tr>").join("") ||
+      "<tr><td colspan='8'>Chưa có người dùng nào.</td></tr>";
+    $("usersBody").querySelectorAll("[data-edit-user]").forEach((b) => b.addEventListener("click", () => editUser(Number(b.dataset.editUser))));
+    $("usersBody").querySelectorAll("[data-del-user]").forEach((b) => b.addEventListener("click", () => delUser(Number(b.dataset.delUser))));
+  } catch (e) { setMsg($("userMsg"), e.message, false); }
+}
+function editUser(id) {
+  const u = usersCache.find((x) => x.id === id);
+  if (!u) return;
+  $("userId").value = u.id; $("uChannel").value = u.ma_kenh || ""; $("uName").value = u.ho_ten;
+  $("uUsername").value = u.username; $("uUsername").disabled = true; $("uPassword").value = "";
+  $("uEload").value = u.so_eload || ""; $("uWallet").value = u.so_vi || "";
+  $("uRole").value = u.role; $("uCanImport").checked = !!u.can_import;
+  $("userSubmit").textContent = "Lưu thay đổi"; $("userCancel").classList.remove("hidden");
+}
+$("userCancel").addEventListener("click", () => {
+  $("userForm").reset(); $("userId").value = ""; $("uUsername").disabled = false;
+  $("userSubmit").textContent = "Tạo người dùng"; $("userCancel").classList.add("hidden");
+});
+$("userForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = $("userId").value;
+  const body = {
+    ma_kenh: $("uChannel").value.trim(), ho_ten: $("uName").value.trim(), username: $("uUsername").value.trim(),
+    password: $("uPassword").value, so_eload: $("uEload").value.trim(), so_vi: $("uWallet").value.trim(),
+    role: $("uRole").value, can_import: $("uCanImport").checked, active: true,
+  };
+  try {
+    if (id) await api("/api/users/" + id, { method: "PUT", body: JSON.stringify(body) });
+    else await api("/api/users", { method: "POST", body: JSON.stringify(body) });
+    setMsg($("userMsg"), id ? "Đã cập nhật người dùng." : "Đã tạo người dùng mới. Mật khẩu: " + (body.password || "Vnpt@2026"));
+    $("userCancel").click();
+    loadUsers();
+  } catch (err) { setMsg($("userMsg"), err.message, false); }
+});
+async function delUser(id) {
+  if (!confirm("Xóa người dùng này?")) return;
+  try { await api("/api/users/" + id, { method: "DELETE" }); loadUsers(); }
+  catch (e) { setMsg($("userMsg"), e.message, false); }
+}
 
-          // 2. Hoa hồng bán gói
-          var hhBan = 0.25 * price * n; total += hhBan;
-          html += row('2. Hoa hồng bán gói', '25% × giá gói ' + fmt(price) + ' × ' + n + ' thuê bao', hhBan);
+/* ---------------- Import du lieu Excel ---------------- */
+const HEADER_MAP = {
+  HHBG: { "tên eload": "ten_eload", "số eload": "so_eload", "số ví": "so_vi", "số ví vnpt money": "so_vi", "số thuê bao": "so_thue_bao", "loại thuê bao": "loai_thue_bao", "chu kỳ chi trả": "chu_ky_chi_tra", "tên gói cước": "ten_goi", "giá gói cước": "gia_goi", "thời gian giao dịch": "thoi_gian_giao_dich", "trans id": "trans_id", "kênh thực hiện": "kenh_thuc_hien", "thù lao chi trả": "thu_lao", "mã giao dịch": "ma_giao_dich", "thời gian chi trả": "thoi_gian_chi_tra", "trạng thái chi trả": "trang_thai", "nguyên nhân lỗi": "nguyen_nhan_loi" },
+  BCKH: { "số eload": "so_eload", "tên eload": "ten_eload", "số thuê bao": "so_thue_bao", "thời gian kích hoạt": "thoi_gian_kich_hoat", "hoa hồng bckh": "hoa_hong_bckh", "mã giao dịch": "ma_giao_dich", "thời gian chi trả": "thoi_gian_chi_tra", "trạng thái chi trả": "trang_thai", "nguyên nhân lỗi": "nguyen_nhan_loi" },
+};
+const DATE_FIELDS = new Set(["thoi_gian_giao_dich", "thoi_gian_chi_tra", "thoi_gian_kich_hoat"]);
+function normHeader(h) { return String(h || "").trim().toLowerCase().replace(/\s+/g, " "); }
+function toIsoDate(v) {
+  if (v instanceof Date && !isNaN(v)) {
+    const p = (x) => String(x).padStart(2, "0");
+    return v.getFullYear() + "-" + p(v.getMonth() + 1) + "-" + p(v.getDate()) + " " + p(v.getHours()) + ":" + p(v.getMinutes()) + ":" + p(v.getSeconds());
+  }
+  if (typeof v === "number" && v > 20000 && v < 80000 && window.XLSX && XLSX.SSF) {
+    const d = XLSX.SSF.parse_date_code(v);
+    if (d) { const p = (x) => String(x).padStart(2, "0"); return d.y + "-" + p(d.m) + "-" + p(d.d) + " " + p(d.H || 0) + ":" + p(d.M || 0) + ":" + p(Math.floor(d.S || 0)); }
+  }
+  const s = String(v ?? "").trim();
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) { const p = (x) => String(x).padStart(2, "0"); return m[3] + "-" + p(m[2]) + "-" + p(m[1]) + " " + p(m[4] || 0) + ":" + (m[5] || "00") + ":" + (m[6] || "00"); }
+  return s;
+}
+async function loadTables() {
+  try {
+    const d = await api("/api/import/tables");
+    $("tablesBody").innerHTML = (d.tables || []).map((t) => {
+      const isH = t.table.startsWith("HHBG");
+      const mm = t.table.match(/_(\d{2})(\d{2,4})$/);
+      return "<tr><td><code class='inl'>" + esc(t.table) + "</code></td><td>" + (isH ? "Hoa hồng bán gói" : "Tiền BCKH") + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (t.rows || 0).toLocaleString("vi-VN") + "</td></tr>";
+    }).join("") || "<tr><td colspan='4'>Chưa import bảng nào.</td></tr>";
+  } catch (e) { setMsg($("impMsg"), e.message, false); }
+}
+$("importForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const file = $("impFile").files[0];
+  if (!file) { setMsg($("impMsg"), "Hãy chọn file Excel trước khi import.", false); return; }
+  const loai = $("impType").value;
+  const thang = Number($("impMonth").value), nam = Number($("impYear").value);
+  if (!thang || !nam) { setMsg($("impMsg"), "Hãy nhập tháng/năm import.", false); return; }
+  try {
+    $("impBtn").disabled = true;
+    setMsg($("impMsg"), "Đang đọc file Excel…");
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array", cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
+    if (!raw.length) throw new Error("File không có dòng dữ liệu nào.");
+    const map = HEADER_MAP[loai];
+    const rows = raw.map((r) => {
+      const o = {};
+      Object.keys(r).forEach((k) => {
+        const f = map[normHeader(k)] || (Object.values(map).includes(k.trim()) ? k.trim() : null);
+        if (f) o[f] = DATE_FIELDS.has(f) ? toIsoDate(r[k]) : r[k];
+      });
+      return o;
+    }).filter((o) => Object.keys(o).length);
+    setMsg($("impMsg"), "Đang import " + rows.length.toLocaleString("vi-VN") + " dòng lên D1…");
+    const d = await api("/api/import", { method: "POST", body: JSON.stringify({ loai, thang, nam, rows }) });
+    setMsg($("impMsg"), "Import thành công " + (d.inserted || 0).toLocaleString("vi-VN") + " dòng vào bảng " + d.table + ".");
+    loadTables();
+  } catch (err) { setMsg($("impMsg"), err.message, false); }
+  finally { $("impBtn").disabled = false; }
+});
 
-          // 3. Hoa hồng khuyến khích = (Giá gói / 1,1) × % tương ứng
-          var revBase = price / 1.1;
-          if (cycle === 1) {
-            var hhkk = 0.25 * revBase * n; total += hhkk;
-            html += row('3. Hoa hồng khuyến khích', 'Gói 1 tháng: (giá gói ÷ 1,1) × 25%', hhkk);
-          } else if (arpu >= 100000) {
-            var hhkk2 = 0.05 * revBase * n; total += hhkk2;
-            html += row('3. Hoa hồng khuyến khích', 'Gói chu kỳ dài, ARPU ≥ 100K: (giá gói ÷ 1,1) × 5%', hhkk2);
-          } else {
-            html += row('3. Hoa hồng khuyến khích', 'Gói chu kỳ dài cần ARPU từ 100K trở lên', 0, { na: 'Chưa đủ ĐK', off: true });
-          }
+/* ---------------- Bao cao thong ke ---------------- */
+function repParams() {
+  return { loai: $("repType").value, from: $("repFrom").value, to: $("repTo").value };
+}
+$("repSummaryBtn").addEventListener("click", async () => {
+  const p = repParams();
+  if (!p.from || !p.to) { setMsg($("repMsg"), "Hãy chọn khoảng thời gian.", false); return; }
+  try {
+    setMsg($("repMsg"), "Đang tải báo cáo…");
+    const d = await api("/api/reports/summary?" + new URLSearchParams({ ...p, group: $("repGroup").value }));
+    $("repHead").innerHTML = "<tr><th>Kỳ</th><th>Số giao dịch</th><th>Tổng tiền chi trả</th></tr>";
+    $("repBody").innerHTML = (d.rows || []).map((r) => "<tr><td><b>" + esc(r.ky) + "</b></td><td>" + (r.so_giao_dich || 0).toLocaleString("vi-VN") + "</td><td>" + fmt(r.tong_tien) + "</td></tr>").join("") || "<tr><td colspan='3'>Không có dữ liệu trong khoảng đã chọn.</td></tr>";
+    $("repTotalTx").textContent = (d.tong_giao_dich || 0).toLocaleString("vi-VN");
+    $("repTotalMoney").textContent = fmt(d.tong_tien);
+    setMsg($("repMsg"), "");
+  } catch (e) { setMsg($("repMsg"), e.message, false); }
+});
+$("repDetailBtn").addEventListener("click", async () => {
+  const p = repParams();
+  if (!p.from || !p.to) { setMsg($("repMsg"), "Hãy chọn khoảng thời gian.", false); return; }
+  try {
+    setMsg($("repMsg"), "Đang tải chi tiết…");
+    const d = await api("/api/reports/detail?" + new URLSearchParams({ ...p, limit: 1000 }));
+    $("repHead").innerHTML = "<tr><th>Loại</th><th>Thời gian</th><th>Số thuê bao</th><th>Số Eload</th><th>Tên gói</th><th>Số tiền</th><th>Mã GD</th><th>Trạng thái</th><th>Nguyên nhân lỗi</th></tr>";
+    $("repBody").innerHTML = (d.rows || []).map((r) =>
+      "<tr><td>" + esc(r.loai) + "</td><td>" + esc(r.thoi_gian) + "</td><td>" + esc(r.so_thue_bao) + "</td><td>" + esc(r.so_eload) + "</td><td>" + esc(r.ten_goi) + "</td><td><b>" + fmt(r.so_tien) + "</b></td><td>" + esc(r.ma_giao_dich) + "</td><td>" + esc(r.trang_thai) + "</td><td>" + esc(r.nguyen_nhan_loi) + "</td></tr>").join("") ||
+      "<tr><td colspan='9'>Không có dữ liệu trong khoảng đã chọn.</td></tr>";
+    $("repTotalTx").textContent = (d.rows || []).length.toLocaleString("vi-VN");
+    $("repTotalMoney").textContent = fmt((d.rows || []).reduce((a, r) => a + (Number(r.so_tien) || 0), 0));
+    setMsg($("repMsg"), "");
+  } catch (e) { setMsg($("repMsg"), e.message, false); }
+});
 
-          // 4. Khuyến khích sản lượng PTM
-          var rate = tierRate(n);
-          if (rate > 0 && price >= 70000) {
-            var sl = rate * 1000 * n; total += sl;
-            html += row('4. Khuyến khích sản lượng PTM', 'Mức ' + rate + 'K/thuê bao × ' + n + ' thuê bao (không cộng dồn)', sl);
-          } else if (rate === 0) {
-            html += row('4. Khuyến khích sản lượng PTM', 'Cần đạt từ 5 thuê bao PTM trở lên', 0, { na: 'Chưa đạt mức', off: true });
-          } else {
-            html += row('4. Khuyến khích sản lượng PTM', 'Thuê bao PTM phải mua gói tối thiểu 70K', 0, { na: 'Chưa đủ ĐK', off: true });
-          }
+/* ---------------- Cai dat tai khoan ---------------- */
+$("pwForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/api/settings/password", { method: "POST", body: JSON.stringify({ old_password: $("pwOld").value, new_password: $("pwNew").value }) });
+    setMsg($("pwMsg"), "Đã đổi mật khẩu thành công.");
+    $("pwForm").reset();
+  } catch (err) { setMsg($("pwMsg"), err.message, false); }
+});
+$("contactForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/api/settings/contact", { method: "POST", body: JSON.stringify({ so_eload: $("setEload").value.trim(), so_vi: $("setWallet").value.trim() }) });
+    me.so_eload = $("setEload").value.trim(); me.so_vi = $("setWallet").value.trim();
+    setMsg($("contactMsg"), "Đã lưu số Eload / số Ví VNPT Money.");
+  } catch (err) { setMsg($("contactMsg"), err.message, false); }
+});
 
-          // 5. CKD
-          if (cycle >= 6 && arpu >= 100000) {
-            var ckdRate = cycle >= 12 ? 50000 : 30000;
-            var ckd = ckdRate * n; total += ckd;
-            html += row('5. Khuyến khích gói CKD', fmt(ckdRate) + ' × ' + n + ' thuê bao (gói ' + cycle + ' tháng, ARPU ≥ 100K)', ckd);
-          } else if (cycle >= 6) {
-            html += row('5. Khuyến khích gói CKD', 'Gói CKD cần ARPU từ 100K trở lên', 0, { na: 'Chưa đủ ĐK', off: true });
-          } else {
-            html += row('5. Khuyến khích gói CKD', 'Chỉ áp dụng cho gói từ 6 tháng trở lên', 0, { na: 'Không áp dụng', off: true });
-          }
+/* ---------------- Cau hinh ket noi D1 ---------------- */
+$("cfgTest").addEventListener("click", () => testApi($("cfgApiUrl").value, $("cfgMsg")));
+$("cfgForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const u = ($("cfgApiUrl").value || "").trim().replace(/\/+$/, "");
+  if (!u) { setMsg($("cfgMsg"), "Chưa nhập địa chỉ Worker.", false); return; }
+  apiBase = u;
+  sessionStorage.setItem("vnpt_api_url", u);
+  setMsg($("cfgMsg"), "Đã lưu địa chỉ Worker cho trình duyệt này. Hãy bấm 'Kiểm tra kết nối' để xác nhận, sau đó đăng xuất và đăng nhập lại để dùng kết nối mới.");
+});
+document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+  const t = $(b.dataset.copy).textContent;
+  try { await navigator.clipboard.writeText(t); b.textContent = "Đã sao chép ✔"; setTimeout(() => (b.textContent = "Sao chép"), 1600); }
+  catch (e) { alert("Không sao chép tự động được, hãy bôi đen và sao chép thủ công."); }
+}));
 
-          rowsEl.innerHTML = html;
-          totalEl.textContent = fmt(total);
-
-          // ===== PHẦN 3: GIÁ VỐN CỦA SIM =====
-          costEl.textContent = n > 0 ? fmt((totalCost - total) / n) : '—';
-        }
-
-        ['input', 'change'].forEach(function (ev) {
-          subsEl.addEventListener(ev, calc);
-          priceEl.addEventListener(ev, calc);
-          cycleEl.addEventListener(ev, calc);
-        });
-        document.getElementById('calcForm').addEventListener('submit', function (e) { e.preventDefault(); });
-        calc();
-      })();
-    </script>
-  </body>
+/* ---------------- Khoi tao ---------------- */
+(function init() {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  $("repFrom").value = iso(first); $("repTo").value = iso(now);
+  $("impMonth").value = now.getMonth() + 1; $("impYear").value = now.getFullYear();
+  refreshAuthUI();
+  if (token && apiBase) {
+    api("/api/me").then((d) => { me = d.user; refreshAuthUI(); openPanel(me.role === "admin" ? "panel-units" : "panel-reports"); })
+      .catch(() => { token = ""; sessionStorage.removeItem("vnpt_token"); refreshAuthUI(); });
+  }
+})();
+</script>
+</body>
 </html>

@@ -1,0 +1,67 @@
+-- ============================================================================
+-- VNPT - He thong quan ly chi tra hoa hong kenh diem uy quyen
+-- Cau lenh SQL tao bang tren Cloudflare D1
+-- Cach dung: Cloudflare Dashboard -> Storage & Databases -> D1 -> chon database
+--            -> tab Console -> dan toan bo noi dung file nay -> Run.
+-- ============================================================================
+
+-- 1) Bang don vi (cau truc cay cha - con qua parent_id)
+CREATE TABLE IF NOT EXISTS don_vi (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ma_don_vi TEXT UNIQUE NOT NULL,
+  ten_don_vi TEXT NOT NULL,
+  parent_id INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2) Bang nguoi dung (admin va diem ban)
+CREATE TABLE IF NOT EXISTS nguoi_dung (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ma_kenh TEXT,
+  ho_ten TEXT NOT NULL,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  salt TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'user',        -- 'admin' hoac 'user'
+  so_eload TEXT,
+  so_vi TEXT,
+  can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3) Tai khoan admin ban dau
+--    Ten dang nhap: admin  |  Mat khau: Vnpt@2026
+--    HAY DANG NHAP VA DOI MAT KHAU NGAY SAU KHI CAI DAT XONG!
+INSERT OR IGNORE INTO nguoi_dung
+  (ma_kenh, ho_ten, username, password_hash, salt, role, can_import)
+VALUES
+  ('ADMIN', 'Quan tri vien', 'admin',
+   'dda8cd32c5dcab690f832bfceddf4d15eec944a2b5ade7349694a281b212a3ae',
+   'vnpt-seed-2026', 'admin', 1);
+
+-- ============================================================================
+-- LUU Y ve bang du lieu import theo thang:
+-- Worker se TU DONG tao bang moi khi import, dung dinh dang ten:
+--   HHBG_MMYYYY  (du lieu chi tra hoa hong ban goi cua 1 thang)
+--   BCKH_MMYY    (du lieu chi tra tien BCKH cua 1 thang)
+-- Vi du cau truc cua 2 loai bang (chi de tham khao, khong can chay tay):
+--
+-- CREATE TABLE HHBG_102026 (
+--   id INTEGER PRIMARY KEY AUTOINCREMENT,
+--   ten_eload TEXT, so_eload TEXT, so_vi TEXT, so_thue_bao TEXT,
+--   loai_thue_bao TEXT, chu_ky_chi_tra TEXT, ten_goi TEXT, gia_goi REAL,
+--   thoi_gian_giao_dich TEXT, trans_id TEXT, kenh_thuc_hien TEXT,
+--   thu_lao REAL, ma_giao_dich TEXT, thoi_gian_chi_tra TEXT,
+--   trang_thai TEXT, nguyen_nhan_loi TEXT,
+--   imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP
+-- );
+--
+-- CREATE TABLE BCKH_1026 (
+--   id INTEGER PRIMARY KEY AUTOINCREMENT,
+--   so_eload TEXT, ten_eload TEXT, so_thue_bao TEXT,
+--   thoi_gian_kich_hoat TEXT, hoa_hong_bckh REAL, ma_giao_dich TEXT,
+--   thoi_gian_chi_tra TEXT, trang_thai TEXT, nguyen_nhan_loi TEXT,
+--   imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP
+-- );
+-- ============================================================================
