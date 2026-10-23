@@ -708,6 +708,11 @@
               </select>
               <div class="hint" id="arpuHint"></div>
             </div>
+            <div class="field">
+              <label for="inDisc">Tỷ lệ chiết khấu nạp thẻ (%)</label>
+              <input type="number" id="inDisc" min="0" max="100" step="0.1" value="0" inputmode="decimal" />
+              <div class="hint">Khoản chiết khấu nạp thẻ được cộng vào Dự toán các khoản chi trả (Phần 2): giá gói × tỷ lệ chiết khấu × số thuê bao.</div>
+            </div>
           </form>
           <div class="calc-result">
             <h3>Kết quả ước tính</h3>
@@ -1467,6 +1472,7 @@ export default {
         var subsEl = document.getElementById('inSubs');
         var priceEl = document.getElementById('inPrice');
         var cycleEl = document.getElementById('inCycle');
+        var discEl = document.getElementById('inDisc');
         var rowsEl = document.getElementById('resultRows');
         var totalEl = document.getElementById('totalOut');
         var costEl = document.getElementById('costOut');
@@ -1496,6 +1502,7 @@ export default {
           var n = Math.max(0, parseInt(subsEl.value, 10) || 0);
           var price = Math.max(0, parseFloat(priceEl.value) || 0);
           var cycle = parseInt(cycleEl.value, 10) || 1;
+          var discRate = Math.max(0, parseFloat(discEl.value) || 0);
           var arpu = cycle > 0 ? price / cycle : 0;
           arpuHint.textContent = 'ARPU gói = ' + fmt(arpu) + ' / tháng' +
             (cycle > 1 ? (arpu >= 100000 ? ' — đạt ngưỡng ARPU 100K' : ' — chưa đạt ngưỡng ARPU 100K') : '');
@@ -1563,6 +1570,10 @@ export default {
             html += row('5. Khuyến khích gói CKD', 'Chỉ áp dụng cho gói từ 6 tháng trở lên', 0, { na: 'Không áp dụng', off: true });
           }
 
+          // 6. Chiết khấu nạp thẻ = giá gói × tỷ lệ chiết khấu × số thuê bao
+          var disc = price * (discRate / 100) * n; total += disc;
+          html += row('6. Chiết khấu nạp thẻ', 'Giá gói ' + fmt(price) + ' × ' + discRate + '% × ' + n + ' thuê bao', disc);
+
           rowsEl.innerHTML = html;
           totalEl.textContent = fmt(total);
 
@@ -1574,6 +1585,7 @@ export default {
           subsEl.addEventListener(ev, calc);
           priceEl.addEventListener(ev, calc);
           cycleEl.addEventListener(ev, calc);
+          discEl.addEventListener(ev, calc);
         });
         document.getElementById('calcForm').addEventListener('submit', function (e) { e.preventDefault(); });
         calc();
