@@ -1007,7 +1007,7 @@ export default {
    Ket noi Cloudflare D1 thong qua Worker API (khong dung Local Storage
    cho du lieu; chi dung Session Storage cho phien dang nhap tam thoi)
    ===================================================================== */
-const DEFAULT_API_URL = ""; // Dia chi Worker mac dinh (se gan sau khi deploy Worker)
+const DEFAULT_API_URL = "https://co-che-duq.tuanha-qnh.workers.dev"; // Dia chi Worker API mac dinh
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round(Number(n) || 0)).toLocaleString("vi-VN") + "đ";
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
