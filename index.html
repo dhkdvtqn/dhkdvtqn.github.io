@@ -797,6 +797,14 @@
           <div id="userMsg"></div>
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Danh sách người dùng</h3>
           <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="8">Đang tải…</td></tr></tbody></table></div>
+          <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import người dùng từ Excel</h3>
+          <p class="desc">Tải file mẫu về, điền thông tin người dùng vào file rồi import lên hệ thống. User đăng nhập đã tồn tại sẽ tự động bị bỏ qua; mật khẩu để trống sẽ dùng mặc định <code class="inl">Vnpt@2026</code>.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <input type="file" id="uImpFile" accept=".xlsx,.xls,.csv" style="max-width:340px" />
+            <button class="btn blue" type="button" id="uImpBtn">Import người dùng</button>
+            <button class="btn gray" type="button" id="uTemplateBtn">Tải file mẫu Excel</button>
+          </div>
+          <div id="uImpMsg" style="margin-top:10px"></div>
         </section>
 
         <!-- QUAN LY DU LIEU DAU VAO -->
@@ -814,6 +822,35 @@
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Các bảng dữ liệu đã import</h3>
           <div class="tbl-wrap"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th></th></tr></thead><tbody id="tablesBody"><tr><td colspan="5">Đang tải…</td></tr></tbody></table></div>
           <div class="note"><b>Trường dữ liệu HHBG:</b> Tên Eload, Số Eload, Số Ví, Số thuê bao, Loại thuê bao, Chu kỳ chi trả, Tên gói cước, Giá gói cước, Thời gian giao dịch, Trans ID, Kênh thực hiện, Thù lao chi trả, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.<br/><b>Trường dữ liệu BCKH:</b> Số Eload, Tên Eload, Số thuê bao, Thời gian kích hoạt, Hoa hồng BCKH, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.</div>
+
+          <div id="dtManager" class="hidden">
+            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Quản lý loại dữ liệu (chỉ admin)</h3>
+            <p class="desc">Ngoài 2 loại mặc định, admin có thể tạo thêm loại dữ liệu chi trả mới. Khi tạo loại mới, hãy khai báo các cột dữ liệu (đúng tên cột trong file Excel) và chọn các cột "vai trò" để hệ thống map dữ liệu với bảng người dùng (nguoi_dung): <b>cột Số Eload</b> và <b>cột Số Ví</b> là căn cứ để mỗi điểm bán chỉ xem được dữ liệu của mình trong Báo cáo thống kê; <b>cột Số tiền</b> và <b>cột Thời gian</b> dùng để tính báo cáo. Tạo xong là import được ngay, không cần thao tác gì thêm — bảng dữ liệu tháng sẽ tự được tạo trên D1 theo dạng MÃ_MMYYYY hoặc MÃ_MMYY tùy chọn.</p>
+            <div id="dtList" style="margin-bottom:14px"></div>
+            <form id="dtForm" class="form-grid">
+              <div><label>Mã loại dữ liệu (viết liền, không dấu) *</label><input id="dtCode" placeholder="VD: HHFTTH" autocomplete="off" /></div>
+              <div><label>Tên loại dữ liệu *</label><input id="dtName" placeholder="VD: Chi trả hoa hồng FTTH" /></div>
+              <div><label>Định dạng tên bảng theo tháng</label><select id="dtFmt"><option value="MMYYYY">MÃ_MMYYYY — VD: HHFTTH_102026</option><option value="MMYY">MÃ_MMYY — VD: HHFTTH_1026</option></select></div>
+              <div></div>
+              <div class="full">
+                <label>Danh sách cột dữ liệu * (tên cột như trong file Excel; khóa dữ liệu tự sinh, có thể sửa)</label>
+                <div id="dtCols"></div>
+                <button class="btn sm gray" type="button" id="dtAddCol">+ Thêm cột</button>
+              </div>
+              <div><label>Cột Số tiền chi trả *</label><select id="dtMoney"></select></div>
+              <div><label>Cột Thời gian (để lọc báo cáo) *</label><select id="dtTime"></select></div>
+              <div><label>Cột Số Eload (map với nguoi_dung) *</label><select id="dtEload"></select></div>
+              <div><label>Cột Số Ví VNPT Money (map với nguoi_dung)</label><select id="dtVi"></select></div>
+              <div><label>Cột Số thuê bao</label><select id="dtSub"></select></div>
+              <div><label>Cột Tên gói cước</label><select id="dtPkg"></select></div>
+              <div><label>Cột Mã giao dịch</label><select id="dtTrans"></select></div>
+              <div><label>Cột Trạng thái chi trả</label><select id="dtStatus"></select></div>
+              <div><label>Cột Nguyên nhân lỗi</label><select id="dtReason"></select></div>
+              <div><label>Cột Thời gian dự phòng (nếu cột thời gian chính trống)</label><select id="dtTimeFb"></select></div>
+              <div class="full"><button class="btn blue" type="submit">Tạo loại dữ liệu</button></div>
+            </form>
+            <div id="dtMsg"></div>
+          </div>
         </section>
 
         <!-- CAU HINH KET NOI D1 -->
@@ -1048,26 +1085,110 @@ function toText(v) {
 }
 
 // ---------------------------------------------------------------------------
-// Dinh nghia cot cua 2 bang du lieu dau vao
+// Loai du lieu dau vao: 2 loai mac dinh (HHBG, BCKH) + cac loai admin tu tao.
+// Moi loai duoc luu trong bang loai_du_lieu tren D1 (so dang ky), gom:
+// - columns: danh sach cot [{key, label, type}] type: text | money | date
+// - cac cot &quot;vai tro&quot; de bao cao va phan quyen: money_col (so tien chi tra),
+//   time_col (thoi gian loc bao cao), eload_col / vi_col (map voi bang
+//   nguoi_dung qua so_eload / so_vi), sub_col, pkg_col, trans_col,
+//   status_col, reason_col.
 // ---------------------------------------------------------------------------
-const HHBG_COLUMNS = [
-  [&quot;ten_eload&quot;, &quot;TEXT&quot;], [&quot;so_eload&quot;, &quot;TEXT&quot;], [&quot;so_vi&quot;, &quot;TEXT&quot;],
-  [&quot;so_thue_bao&quot;, &quot;TEXT&quot;], [&quot;loai_thue_bao&quot;, &quot;TEXT&quot;], [&quot;chu_ky_chi_tra&quot;, &quot;TEXT&quot;],
-  [&quot;ten_goi&quot;, &quot;TEXT&quot;], [&quot;gia_goi&quot;, &quot;REAL&quot;], [&quot;thoi_gian_giao_dich&quot;, &quot;TEXT&quot;],
-  [&quot;trans_id&quot;, &quot;TEXT&quot;], [&quot;kenh_thuc_hien&quot;, &quot;TEXT&quot;], [&quot;thu_lao&quot;, &quot;REAL&quot;],
-  [&quot;ma_giao_dich&quot;, &quot;TEXT&quot;], [&quot;thoi_gian_chi_tra&quot;, &quot;TEXT&quot;], [&quot;trang_thai&quot;, &quot;TEXT&quot;],
-  [&quot;nguyen_nhan_loi&quot;, &quot;TEXT&quot;],
+const BUILTIN_TYPES = [
+  {
+    code: &quot;HHBG&quot;, name: &quot;Chi trả hoa hồng bán gói&quot;, prefix: &quot;HHBG&quot;, fmt: &quot;MMYYYY&quot;, builtin: 1,
+    columns: [
+      { key: &quot;ten_eload&quot;, label: &quot;Tên Eload&quot;, type: &quot;text&quot; },
+      { key: &quot;so_eload&quot;, label: &quot;Số Eload&quot;, type: &quot;text&quot; },
+      { key: &quot;so_vi&quot;, label: &quot;Số Ví&quot;, type: &quot;text&quot; },
+      { key: &quot;so_thue_bao&quot;, label: &quot;Số thuê bao&quot;, type: &quot;text&quot; },
+      { key: &quot;loai_thue_bao&quot;, label: &quot;Loại thuê bao&quot;, type: &quot;text&quot; },
+      { key: &quot;chu_ky_chi_tra&quot;, label: &quot;Chu kỳ chi trả&quot;, type: &quot;text&quot; },
+      { key: &quot;ten_goi&quot;, label: &quot;Tên gói cước&quot;, type: &quot;text&quot; },
+      { key: &quot;gia_goi&quot;, label: &quot;Giá gói cước&quot;, type: &quot;money&quot; },
+      { key: &quot;thoi_gian_giao_dich&quot;, label: &quot;Thời gian giao dịch&quot;, type: &quot;date&quot; },
+      { key: &quot;trans_id&quot;, label: &quot;Trans ID&quot;, type: &quot;text&quot; },
+      { key: &quot;kenh_thuc_hien&quot;, label: &quot;Kênh thực hiện&quot;, type: &quot;text&quot; },
+      { key: &quot;thu_lao&quot;, label: &quot;Thù lao chi trả&quot;, type: &quot;money&quot; },
+      { key: &quot;ma_giao_dich&quot;, label: &quot;Mã giao dịch&quot;, type: &quot;text&quot; },
+      { key: &quot;thoi_gian_chi_tra&quot;, label: &quot;Thời gian chi trả&quot;, type: &quot;date&quot; },
+      { key: &quot;trang_thai&quot;, label: &quot;Trạng thái chi trả&quot;, type: &quot;text&quot; },
+      { key: &quot;nguyen_nhan_loi&quot;, label: &quot;Nguyên nhân lỗi&quot;, type: &quot;text&quot; },
+    ],
+    money_col: &quot;thu_lao&quot;, time_col: &quot;thoi_gian_chi_tra&quot;, time_fallback_col: &quot;thoi_gian_giao_dich&quot;,
+    eload_col: &quot;so_eload&quot;, vi_col: &quot;so_vi&quot;, sub_col: &quot;so_thue_bao&quot;, pkg_col: &quot;ten_goi&quot;,
+    trans_col: &quot;ma_giao_dich&quot;, status_col: &quot;trang_thai&quot;, reason_col: &quot;nguyen_nhan_loi&quot;,
+  },
+  {
+    code: &quot;BCKH&quot;, name: &quot;Chi trả tiền BCKH&quot;, prefix: &quot;BCKH&quot;, fmt: &quot;MMYY&quot;, builtin: 1,
+    columns: [
+      { key: &quot;so_eload&quot;, label: &quot;Số Eload&quot;, type: &quot;text&quot; },
+      { key: &quot;ten_eload&quot;, label: &quot;Tên Eload&quot;, type: &quot;text&quot; },
+      { key: &quot;so_thue_bao&quot;, label: &quot;Số thuê bao&quot;, type: &quot;text&quot; },
+      { key: &quot;thoi_gian_kich_hoat&quot;, label: &quot;Thời gian kích hoạt&quot;, type: &quot;date&quot; },
+      { key: &quot;hoa_hong_bckh&quot;, label: &quot;Hoa hồng BCKH&quot;, type: &quot;money&quot; },
+      { key: &quot;ma_giao_dich&quot;, label: &quot;Mã giao dịch&quot;, type: &quot;text&quot; },
+      { key: &quot;thoi_gian_chi_tra&quot;, label: &quot;Thời gian chi trả&quot;, type: &quot;date&quot; },
+      { key: &quot;trang_thai&quot;, label: &quot;Trạng thái chi trả&quot;, type: &quot;text&quot; },
+      { key: &quot;nguyen_nhan_loi&quot;, label: &quot;Nguyên nhân lỗi&quot;, type: &quot;text&quot; },
+    ],
+    money_col: &quot;hoa_hong_bckh&quot;, time_col: &quot;thoi_gian_chi_tra&quot;, time_fallback_col: &quot;&quot;,
+    eload_col: &quot;so_eload&quot;, vi_col: &quot;&quot;, sub_col: &quot;so_thue_bao&quot;, pkg_col: &quot;&quot;,
+    trans_col: &quot;ma_giao_dich&quot;, status_col: &quot;trang_thai&quot;, reason_col: &quot;nguyen_nhan_loi&quot;,
+  },
 ];
-const BCKH_COLUMNS = [
-  [&quot;so_eload&quot;, &quot;TEXT&quot;], [&quot;ten_eload&quot;, &quot;TEXT&quot;], [&quot;so_thue_bao&quot;, &quot;TEXT&quot;],
-  [&quot;thoi_gian_kich_hoat&quot;, &quot;TEXT&quot;], [&quot;hoa_hong_bckh&quot;, &quot;REAL&quot;],
-  [&quot;ma_giao_dich&quot;, &quot;TEXT&quot;], [&quot;thoi_gian_chi_tra&quot;, &quot;TEXT&quot;], [&quot;trang_thai&quot;, &quot;TEXT&quot;],
-  [&quot;nguyen_nhan_loi&quot;, &quot;TEXT&quot;],
-];
-function tableNameFor(loai, thang, nam) {
+async function ensureTypes(env) {
+  await env.DB.prepare(
+    &quot;CREATE TABLE IF NOT EXISTS loai_du_lieu (&quot; +
+    &quot;id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, &quot; +
+    &quot;prefix TEXT NOT NULL, fmt TEXT NOT NULL DEFAULT &#x27;MMYYYY&#x27;, columns_json TEXT NOT NULL, &quot; +
+    &quot;money_col TEXT, time_col TEXT, time_fallback_col TEXT, eload_col TEXT, vi_col TEXT, &quot; +
+    &quot;sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, &quot; +
+    &quot;builtin INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)&quot;
+  ).run();
+  const c = await env.DB.prepare(&quot;SELECT COUNT(*) AS n FROM loai_du_lieu&quot;).first();
+  if (c &amp;&amp; c.n === 0) {
+    for (const t of BUILTIN_TYPES) {
+      await env.DB.prepare(
+        &quot;INSERT OR IGNORE INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)&quot;
+      )
+        .bind(t.code, t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col)
+        .run();
+    }
+  }
+}
+async function getDataTypes(env) {
+  await ensureTypes(env);
+  const res = await env.DB.prepare(&quot;SELECT * FROM loai_du_lieu ORDER BY builtin DESC, code&quot;).all();
+  return (res.results || []).map((r) =&gt; {
+    let cols = [];
+    try { cols = JSON.parse(r.columns_json || &quot;[]&quot;); } catch (e) { cols = []; }
+    return { ...r, columns: cols, builtin: !!r.builtin };
+  });
+}
+function typeColumnsSQL(t) {
+  return (t.columns || []).map((c) =&gt; [c.key, c.type === &quot;money&quot; || c.type === &quot;number&quot; ? &quot;REAL&quot; : &quot;TEXT&quot;]);
+}
+// Dung &quot;nguon bao cao&quot; tu 1 loai du lieu: cot tien, cot thoi gian va dieu kien
+// phan quyen (user thuong chi thay dong co so_eload / so_vi cua chinh minh).
+function buildSource(t, meUser) {
+  const time = t.time_fallback_col
+    ? &quot;COALESCE(NULLIF(&quot; + t.time_col + &quot;, &#x27;&#x27;), &quot; + t.time_fallback_col + &quot;)&quot;
+    : t.time_col;
+  const ownParts = [], ownBinds = [];
+  if (t.eload_col) { ownParts.push(t.eload_col + &quot; = ?&quot;); ownBinds.push(meUser.so_eload || &quot;__none__&quot;); }
+  if (t.vi_col) { ownParts.push(t.vi_col + &quot; = ?&quot;); ownBinds.push(meUser.so_vi || &quot;__none__&quot;); }
+  return {
+    code: t.code, prefix: t.prefix, money: t.money_col, time,
+    own: ownParts.length ? &quot;(&quot; + ownParts.join(&quot; OR &quot;) + &quot;)&quot; : &quot;(1 = 0)&quot;,
+    ownBinds,
+    eloadCol: t.eload_col || null, viCol: t.vi_col || null,
+    subCol: t.sub_col || null, pkgCol: t.pkg_col || null,
+    transCol: t.trans_col || null, statusCol: t.status_col || null, reasonCol: t.reason_col || null,
+  };
+}
+function tableNameForType(t, thang, nam) {
   const mm = String(thang).padStart(2, &quot;0&quot;);
-  if (loai === &quot;HHBG&quot;) return &quot;HHBG_&quot; + mm + nam; // HHBG_MMYYYY
-  return &quot;BCKH_&quot; + mm + String(nam).slice(-2);      // BCKH_MMYY
+  return t.prefix + &quot;_&quot; + mm + (t.fmt === &quot;MMYY&quot; ? String(nam).slice(-2) : nam);
 }
 function createTableSQL(table, columns) {
   const cols = columns.map(([n, t]) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot; &#x27; + t).join(&quot;, &quot;);
@@ -1214,6 +1335,44 @@ export default {
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
       }
+      // ---- Import nguoi dung tu Excel ----
+      if (path === &quot;/api/users/import&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen import nguoi dung&quot;, 403);
+        const b = await readBody(request);
+        const rows = Array.isArray(b.rows) ? b.rows : [];
+        if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
+        let created = 0, skipped = 0;
+        const errors = [];
+        for (let i = 0; i &lt; rows.length; i++) {
+          const r = rows[i] || {};
+          const username = toText(r.username);
+          const hoTen = toText(r.ho_ten);
+          if (!username || !hoTen) {
+            skipped++;
+            errors.push({ row: i + 2, reason: &quot;Thieu User dang nhap hoac Ho va ten&quot; });
+            continue;
+          }
+          const dup = await env.DB.prepare(&quot;SELECT id FROM nguoi_dung WHERE username = ?&quot;).bind(username).first();
+          if (dup) {
+            skipped++;
+            errors.push({ row: i + 2, reason: &quot;User dang nhap da ton tai: &quot; + username });
+            continue;
+          }
+          const salt = randomSalt();
+          const hash = await hashPassword(String(r.password || &quot;Vnpt@2026&quot;), salt);
+          await env.DB.prepare(
+            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+          )
+            .bind(
+              toText(r.ma_kenh), hoTen, username, hash, salt,
+              r.role === &quot;admin&quot; ? &quot;admin&quot; : &quot;user&quot;,
+              toText(r.so_eload), toText(r.so_vi), r.can_import ? 1 : 0
+            )
+            .run();
+          created++;
+        }
+        return json({ ok: true, created, skipped, errors: errors.slice(0, 50) });
+      }
       const userMatch = path.match(/^\/api\/users\/(\d+)$/);
       if (userMatch &amp;&amp; method === &quot;PUT&quot;) {
         if (!isAdmin) return err(&quot;Chi admin moi co quyen sua nguoi dung&quot;, 403);
@@ -1243,14 +1402,69 @@ export default {
         return json({ ok: true });
       }
 
+      // ---- Quan ly loai du lieu dau vao ----
+      if (path === &quot;/api/datatypes&quot; &amp;&amp; method === &quot;GET&quot;) {
+        const types = await getDataTypes(env);
+        return json({ ok: true, types });
+      }
+      if (path === &quot;/api/datatypes&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen tao loai du lieu&quot;, 403);
+        const b = await readBody(request);
+        const code = String(b.code || &quot;&quot;).trim().toUpperCase();
+        const name = toText(b.name);
+        const fmt = b.fmt === &quot;MMYY&quot; ? &quot;MMYY&quot; : &quot;MMYYYY&quot;;
+        const columns = Array.isArray(b.columns) ? b.columns : [];
+        if (!/^[A-Z][A-Z0-9_]{1,11}$/.test(code)) return err(&quot;Ma loai du lieu khong hop le (2-12 ky tu, bat dau bang chu cai, chi gom chu/so/_)&quot;, 422);
+        if (!name) return err(&quot;Thieu ten loai du lieu&quot;, 422);
+        if (!columns.length) return err(&quot;Loai du lieu phai co it nhat 1 cot&quot;, 422);
+        const keys = new Set();
+        for (const c of columns) {
+          if (!/^[a-z][a-z0-9_]*$/.test(String(c.key || &quot;&quot;))) return err(&quot;Khoa cot khong hop le: &quot; + (c.key || &quot;&quot;), 422);
+          if (keys.has(c.key)) return err(&quot;Trung khoa cot: &quot; + c.key, 422);
+          keys.add(c.key);
+        }
+        const roleCols = [&quot;money_col&quot;, &quot;time_col&quot;, &quot;eload_col&quot;];
+        for (const rc of roleCols) {
+          if (!b[rc] || !keys.has(b[rc])) return err(&quot;Chua chon cot vai tro bat buoc: &quot; + rc, 422);
+        }
+        for (const rc of [&quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;]) {
+          if (b[rc] &amp;&amp; !keys.has(b[rc])) return err(&quot;Cot vai tro khong nam trong danh sach cot: &quot; + rc, 422);
+        }
+        const exists = (await getDataTypes(env)).some((t) =&gt; t.code === code || t.prefix === code);
+        if (exists) return err(&quot;Ma loai du lieu da ton tai: &quot; + code, 422);
+        const cleanCols = columns.map((c) =&gt; ({
+          key: String(c.key), label: toText(c.label) || String(c.key),
+          type: [&quot;money&quot;, &quot;number&quot;, &quot;date&quot;].includes(c.type) ? c.type : &quot;text&quot;,
+        }));
+        const r = await env.DB.prepare(
+          &quot;INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)&quot;
+        )
+          .bind(code, name, code, fmt, JSON.stringify(cleanCols),
+            b.money_col, b.time_col, b.time_fallback_col || &quot;&quot;, b.eload_col, b.vi_col || &quot;&quot;,
+            b.sub_col || &quot;&quot;, b.pkg_col || &quot;&quot;, b.trans_col || &quot;&quot;, b.status_col || &quot;&quot;, b.reason_col || &quot;&quot;)
+          .run();
+        return json({ ok: true, id: r.meta.last_row_id, code });
+      }
+      const dtMatch = path.match(/^\/api\/datatypes\/(\d+)$/);
+      if (dtMatch &amp;&amp; method === &quot;DELETE&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen xoa loai du lieu&quot;, 403);
+        const t = await env.DB.prepare(&quot;SELECT * FROM loai_du_lieu WHERE id = ?&quot;).bind(Number(dtMatch[1])).first();
+        if (!t) return err(&quot;Khong tim thay loai du lieu&quot;, 404);
+        if (t.builtin) return err(&quot;Khong the xoa loai du lieu mac dinh cua he thong&quot;, 422);
+        await env.DB.prepare(&quot;DELETE FROM loai_du_lieu WHERE id = ?&quot;).bind(Number(dtMatch[1])).run();
+        return json({ ok: true });
+      }
+
       // ---- Import du lieu dau vao tu Excel ----
       if (path === &quot;/api/import/tables&quot; &amp;&amp; method === &quot;GET&quot;) {
-        const hhbg = await listMonthlyTables(env, &quot;HHBG&quot;);
-        const bckh = await listMonthlyTables(env, &quot;BCKH&quot;);
+        const types = await getDataTypes(env);
         const out = [];
-        for (const t of [...hhbg, ...bckh]) {
-          const c = await env.DB.prepare(&#x27;SELECT COUNT(*) AS n FROM &quot;&#x27; + t + &#x27;&quot;&#x27;).first();
-          out.push({ table: t, rows: c ? c.n : 0 });
+        for (const t of types) {
+          const tables = await listMonthlyTables(env, t.prefix);
+          for (const name of tables) {
+            const c = await env.DB.prepare(&#x27;SELECT COUNT(*) AS n FROM &quot;&#x27; + name + &#x27;&quot;&#x27;).first();
+            out.push({ table: name, code: t.code, rows: c ? c.n : 0 });
+          }
         }
         return json({ ok: true, tables: out });
       }
@@ -1259,18 +1473,22 @@ export default {
       if (tblMatch &amp;&amp; method === &quot;DELETE&quot;) {
         if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen xoa bang du lieu&quot;, 403);
         const name = tblMatch[1];
-        if (!/^(HHBG|BCKH)_\d{4,6}$/.test(name)) return err(&quot;Ten bang khong hop le&quot;, 422);
+        const types = await getDataTypes(env);
+        const okName = types.some((t) =&gt; new RegExp(&quot;^&quot; + t.prefix + &quot;_\\d{4,6}$&quot;).test(name));
+        if (!okName) return err(&quot;Ten bang khong hop le&quot;, 422);
         await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + name + &#x27;&quot;&#x27;).run();
         return json({ ok: true, table: name });
       }
       if (path === &quot;/api/import&quot; &amp;&amp; method === &quot;POST&quot;) {
         if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
         const b = await readBody(request);
-        const loai = b.loai === &quot;BCKH&quot; ? &quot;BCKH&quot; : &quot;HHBG&quot;;
+        const types = await getDataTypes(env);
+        const dtype = types.find((t) =&gt; t.code === String(b.loai || &quot;&quot;).toUpperCase());
+        if (!dtype) return err(&quot;Loai du lieu khong ton tai: &quot; + (b.loai || &quot;&quot;), 422);
         const mode = b.mode === &quot;replace&quot; ? &quot;replace&quot; : &quot;append&quot;; // append = Cap nhat, replace = Thay the
         const thang = Number(b.thang);
         const nam = Number(b.nam);
-        const columns = loai === &quot;HHBG&quot; ? HHBG_COLUMNS : BCKH_COLUMNS;
+        const columns = typeColumnsSQL(dtype);
         const colNames = columns.map(([n]) =&gt; n);
         // Chi giu cac truong khop voi bang map du lieu; dong rong bi loai bo.
         const rawRows = Array.isArray(b.rows) ? b.rows : [];
@@ -1283,7 +1501,7 @@ export default {
         });
         if (!thang || thang &lt; 1 || thang &gt; 12 || !nam) return err(&quot;Thang/nam import khong hop le&quot;, 422);
         if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
-        const table = tableNameFor(loai, thang, nam);
+        const table = tableNameForType(dtype, thang, nam);
         if (mode === &quot;replace&quot;) {
           await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + table + &#x27;&quot;&#x27;).run();
         }
@@ -1315,25 +1533,23 @@ export default {
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         const group = url.searchParams.get(&quot;group&quot;) || &quot;day&quot;;
         const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;ALL&quot;).toUpperCase();
-        const groupExpr =
-          group === &quot;month&quot;
-            ? &quot;substr(tg, 1, 7)&quot;
-            : group === &quot;week&quot;
-            ? &quot;strftime(&#x27;%Y-W%W&#x27;, date(substr(tg, 1, 10)))&quot;
-            : &quot;substr(tg, 1, 10)&quot;;
+        const groupExpr = group === &quot;month&quot; ? &quot;substr(tg, 1, 7)&quot; : &quot;substr(tg, 1, 10)&quot;;
+        const types = await getDataTypes(env);
+        const sources = types
+          .filter((t) =&gt; (loai === &quot;ALL&quot; || t.code === loai) &amp;&amp; t.money_col &amp;&amp; t.time_col)
+          .map((t) =&gt; buildSource(t, me));
         const parts = [];
         const binds = [];
-        const sources = [];
-        if (loai === &quot;ALL&quot; || loai === &quot;HHBG&quot;) sources.push({ prefix: &quot;HHBG&quot;, money: &quot;thu_lao&quot;, time: &quot;COALESCE(NULLIF(thoi_gian_chi_tra, &#x27;&#x27;), thoi_gian_giao_dich)&quot;, own: &quot;(so_eload = ? OR so_vi = ?)&quot;, ownBinds: [me.so_eload || &quot;__none__&quot;, me.so_vi || &quot;__none__&quot;] });
-        if (loai === &quot;ALL&quot; || loai === &quot;BCKH&quot;) sources.push({ prefix: &quot;BCKH&quot;, money: &quot;hoa_hong_bckh&quot;, time: &quot;thoi_gian_chi_tra&quot;, own: &quot;(so_eload = ?)&quot;, ownBinds: [me.so_eload || &quot;__none__&quot;] });
         for (const s of sources) {
           const tables = await listMonthlyTables(env, s.prefix);
           for (const t of tables) {
             if (!tableInRange(t, s.prefix, from, to)) continue;
+            const innerCols = [s.time + &quot; AS tg&quot;, s.money + &quot; AS tien&quot;];
+            if (s.eloadCol) innerCols.push(s.eloadCol);
+            if (s.viCol) innerCols.push(s.viCol);
             let sql =
               &#x27;SELECT &#x27; + groupExpr + &#x27; AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT &#x27; +
-              s.time + &#x27; AS tg, &#x27; + s.money + &#x27; AS tien, so_eload&#x27; + (s.prefix === &quot;HHBG&quot; ? &quot;, so_vi&quot; : &quot;&quot;) +
-              &#x27; FROM &quot;&#x27; + t + &#x27;&quot;) WHERE substr(tg, 1, 10) BETWEEN ? AND ?&#x27;;
+              innerCols.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot;) WHERE substr(tg, 1, 10) BETWEEN ? AND ?&#x27;;
             const localBinds = [from, to];
             if (!isAdmin) {
               sql += &quot; AND &quot; + s.own;
@@ -1365,17 +1581,27 @@ export default {
         const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;ALL&quot;).toUpperCase();
         const limit = Math.min(Number(url.searchParams.get(&quot;limit&quot;) || 500), 2000);
         const out = [];
-        const sources = [];
-        if (loai === &quot;ALL&quot; || loai === &quot;HHBG&quot;) sources.push({ prefix: &quot;HHBG&quot;, money: &quot;thu_lao&quot;, time: &quot;COALESCE(NULLIF(thoi_gian_chi_tra, &#x27;&#x27;), thoi_gian_giao_dich)&quot;, own: &quot;(so_eload = ? OR so_vi = ?)&quot;, ownBinds: [me.so_eload || &quot;__none__&quot;, me.so_vi || &quot;__none__&quot;], extra: &quot;, ten_goi, gia_goi&quot; });
-        if (loai === &quot;ALL&quot; || loai === &quot;BCKH&quot;) sources.push({ prefix: &quot;BCKH&quot;, money: &quot;hoa_hong_bckh&quot;, time: &quot;thoi_gian_chi_tra&quot;, own: &quot;(so_eload = ?)&quot;, ownBinds: [me.so_eload || &quot;__none__&quot;], extra: &quot;, &#x27;&#x27; AS ten_goi, 0 AS gia_goi&quot; });
+        const types = await getDataTypes(env);
+        const sources = types
+          .filter((t) =&gt; (loai === &quot;ALL&quot; || t.code === loai) &amp;&amp; t.money_col &amp;&amp; t.time_col)
+          .map((t) =&gt; buildSource(t, me));
         for (const s of sources) {
           const tables = await listMonthlyTables(env, s.prefix);
           for (const t of tables) {
             if (!tableInRange(t, s.prefix, from, to)) continue;
+            const sel = [
+              &quot;&#x27;&quot; + s.code + &quot;&#x27; AS loai&quot;,
+              (s.subCol || &quot;&#x27;&#x27;&quot;) + &quot; AS so_thue_bao&quot;,
+              (s.eloadCol || &quot;&#x27;&#x27;&quot;) + &quot; AS so_eload&quot;,
+              s.money + &quot; AS so_tien&quot;,
+              (s.transCol || &quot;&#x27;&#x27;&quot;) + &quot; AS ma_giao_dich&quot;,
+              s.time + &quot; AS thoi_gian&quot;,
+              (s.statusCol || &quot;&#x27;&#x27;&quot;) + &quot; AS trang_thai&quot;,
+              (s.reasonCol || &quot;&#x27;&#x27;&quot;) + &quot; AS nguyen_nhan_loi&quot;,
+              (s.pkgCol || &quot;&#x27;&#x27;&quot;) + &quot; AS ten_goi&quot;,
+            ];
             let sql =
-              &quot;SELECT &#x27;&quot; + s.prefix + &quot;&#x27; AS loai, so_thue_bao, so_eload, &quot; + s.money + &quot; AS so_tien, ma_giao_dich, &quot; +
-              s.time + &quot; AS thoi_gian, trang_thai, nguyen_nhan_loi&quot; + s.extra +
-              &#x27; FROM &quot;&#x27; + t + &#x27;&quot; WHERE substr(&#x27; + s.time + &quot;, 1, 10) BETWEEN ? AND ?&quot;;
+              &quot;SELECT &quot; + sel.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot; WHERE substr(&#x27; + s.time + &quot;, 1, 10) BETWEEN ? AND ?&quot;;
             const binds = [from, to];
             if (!isAdmin) {
               sql += &quot; AND &quot; + s.own;
@@ -1434,12 +1660,17 @@ export default {
         <!-- BAO CAO THONG KE -->
         <section class="panel hidden" id="panel-reports">
           <h2>Báo cáo thống kê</h2>
-          <p class="desc">Xem báo cáo chi trả hoa hồng (bán gói + BCKH) đã import lên D1. Tài khoản điểm bán chỉ nhìn thấy dữ liệu gắn với số Eload / số Ví của mình; admin xem được toàn bộ.</p>
+          <p class="desc">Xem báo cáo chi trả hoa hồng của các loại dữ liệu đã import lên D1, theo ngày (chọn từ ngày đến ngày) hoặc theo tháng (chọn tháng). Tài khoản điểm bán chỉ nhìn thấy dữ liệu gắn với số Eload / số Ví của mình; admin xem được toàn bộ.</p>
           <form id="repForm" class="form-grid">
-            <div><label>Loại dữ liệu</label><select id="repType"><option value="ALL">Tất cả (HHBG + BCKH)</option><option value="HHBG">Hoa hồng bán gói</option><option value="BCKH">Tiền BCKH</option></select></div>
-            <div><label>Nhóm theo (cho báo cáo tổng hợp)</label><select id="repGroup"><option value="day">Theo ngày</option><option value="week">Theo tuần</option><option value="month">Theo tháng</option></select></div>
-            <div><label>Từ ngày</label><input type="date" id="repFrom" /></div>
-            <div><label>Đến ngày</label><input type="date" id="repTo" /></div>
+            <div><label>Loại dữ liệu</label><select id="repType"><option value="ALL">Tất cả các loại dữ liệu</option><option value="HHBG">Hoa hồng bán gói</option><option value="BCKH">Tiền BCKH</option></select></div>
+            <div><label>Kiểu báo cáo</label><select id="repMode"><option value="day">Theo ngày</option><option value="month">Theo tháng</option></select></div>
+            <div class="full" id="repDayBox">
+              <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:170px"><label>Từ ngày</label><input type="date" id="repFrom" /></div>
+                <div style="flex:1;min-width:170px"><label>Đến ngày</label><input type="date" id="repTo" /></div>
+              </div>
+            </div>
+            <div class="full hidden" id="repMonthBox"><label>Chọn tháng</label><input type="month" id="repMonth" style="max-width:280px" /></div>
             <div class="full" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn blue" type="button" id="repSummaryBtn">Báo cáo tổng hợp</button><button class="btn gray" type="button" id="repDetailBtn">Báo cáo chi tiết</button></div>
           </form>
           <div id="repMsg"></div>
@@ -1677,7 +1908,8 @@ function openPanel(panelId) {
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.panel === panelId));
   if (panelId === "panel-units") loadUnits();
   if (panelId === "panel-users") loadUsers();
-  if (panelId === "panel-import") loadTables();
+  if (panelId === "panel-import") { loadTables(); loadDataTypes(); }
+  if (panelId === "panel-reports") loadDataTypes();
   if (panelId === "panel-config") $("cfgApiUrl").value = apiBase;
 }
 document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel)));
@@ -1816,7 +2048,11 @@ async function loadUsers() {
       "<td><span class='pill " + (u.role === "admin" ? "admin" : "user") + "'>" + (u.role === "admin" ? "Admin" : "Điểm bán") + "</span></td>" +
       "<td>" + esc(u.so_eload) + "</td><td>" + esc(u.so_vi) + "</td>" +
       "<td>" + (u.can_import ? "<span class='pill ok'>Có</span>" : "—") + "</td>" +
-      "<td style='white-space:nowrap'><button class='btn sm gray' data-edit-user='" + u.id + "'>Sửa</button> <button class='btn sm danger' data-del-user='" + u.id + "'>Xóa</button></td></tr>").join("") ||
+      "<td style='white-space:nowrap'><button class='btn sm gray' data-edit-user='" + u.id + "'>Sửa</button> " +
+      (me && u.id === me.id
+        ? "<button class='btn sm gray' disabled title='Không thể tự xóa tài khoản đang đăng nhập'>Xóa</button>"
+        : "<button class='btn sm danger' data-del-user='" + u.id + "'>Xóa</button>") +
+      "</td></tr>").join("") ||
       "<tr><td colspan='8'>Chưa có người dùng nào.</td></tr>";
     $("usersBody").querySelectorAll("[data-edit-user]").forEach((b) => b.addEventListener("click", () => editUser(Number(b.dataset.editUser))));
     $("usersBody").querySelectorAll("[data-del-user]").forEach((b) => b.addEventListener("click", () => delUser(Number(b.dataset.delUser))));
@@ -1857,12 +2093,128 @@ async function delUser(id) {
   catch (e) { setMsg($("userMsg"), e.message, false); }
 }
 
-/* ---------------- Import du lieu Excel ---------------- */
-const HEADER_MAP = {
-  HHBG: { "tên eload": "ten_eload", "số eload": "so_eload", "số ví": "so_vi", "số ví vnpt money": "so_vi", "số thuê bao": "so_thue_bao", "loại thuê bao": "loai_thue_bao", "chu kỳ chi trả": "chu_ky_chi_tra", "tên gói cước": "ten_goi", "giá gói cước": "gia_goi", "thời gian giao dịch": "thoi_gian_giao_dich", "trans id": "trans_id", "kênh thực hiện": "kenh_thuc_hien", "thù lao chi trả": "thu_lao", "mã giao dịch": "ma_giao_dich", "thời gian chi trả": "thoi_gian_chi_tra", "trạng thái chi trả": "trang_thai", "nguyên nhân lỗi": "nguyen_nhan_loi" },
-  BCKH: { "số eload": "so_eload", "tên eload": "ten_eload", "số thuê bao": "so_thue_bao", "thời gian kích hoạt": "thoi_gian_kich_hoat", "hoa hồng bckh": "hoa_hong_bckh", "mã giao dịch": "ma_giao_dich", "thời gian chi trả": "thoi_gian_chi_tra", "trạng thái chi trả": "trang_thai", "nguyên nhân lỗi": "nguyen_nhan_loi" },
+/* ---------------- Import nguoi dung tu Excel + file mau ---------------- */
+const USER_HEADER_MAP = {
+  "mã kênh bán hàng": "ma_kenh", "mã kênh": "ma_kenh",
+  "họ và tên người dùng/điểm bán": "ho_ten", "họ và tên": "ho_ten", "họ tên": "ho_ten", "tên điểm bán": "ho_ten",
+  "user đăng nhập": "username", "tên đăng nhập": "username", "username": "username", "user": "username",
+  "mật khẩu": "password", "password": "password",
+  "số tài khoản eload": "so_eload", "số eload": "so_eload",
+  "số ví vnpt money": "so_vi", "số ví": "so_vi",
+  "quyền import dữ liệu": "can_import", "được quyền import dữ liệu": "can_import", "quyền import": "can_import",
+  "loại tài khoản": "role", "vai trò": "role",
 };
-const DATE_FIELDS = new Set(["thoi_gian_giao_dich", "thoi_gian_chi_tra", "thoi_gian_kich_hoat"]);
+function parseYesNo(v) {
+  return ["1", "có", "co", "true", "x", "yes", "được", "duoc"].includes(String(v ?? "").trim().toLowerCase());
+}
+$("uTemplateBtn").addEventListener("click", () => {
+  try {
+    const headers = ["Mã kênh bán hàng", "Họ và tên người dùng/điểm bán", "User đăng nhập", "Mật khẩu", "Số tài khoản Eload", "Số Ví VNPT Money", "Quyền import dữ liệu", "Loại tài khoản"];
+    const sample = ["KBH-VDCT-001", "Điểm bán Minh Anh (ví dụ)", "minhanh.db", "", "0901234567", "0901234567", 0, "user"];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+    ws["!cols"] = headers.map(() => ({ wch: 26 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "NguoiDung");
+    const guide = [
+      ["HƯỚNG DẪN NHẬP LIỆU — FILE MẪU IMPORT NGƯỜI DÙNG"],
+      ["1. Nhập dữ liệu từ hàng 2 trở đi, KHÔNG thay đổi hàng tiêu đề (hàng 1). Xóa hàng ví dụ trước khi import."],
+      ["2. User đăng nhập: bắt buộc, không được trùng với tài khoản đã có trên hệ thống (dòng trùng sẽ bị bỏ qua và báo lại)."],
+      ["3. Họ và tên người dùng/điểm bán: bắt buộc."],
+      ["4. Mật khẩu: để trống thì hệ thống dùng mật khẩu mặc định Vnpt@2026."],
+      ["5. Quyền import dữ liệu: nhập 1 nếu cho phép dùng module Quản lý dữ liệu đầu vào, nhập 0 nếu không."],
+      ["6. Loại tài khoản: nhập user (điểm bán) hoặc admin."],
+      ["7. Số tài khoản Eload và Số Ví VNPT Money: dùng để điểm bán xem báo cáo chi trả của chính mình."],
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(guide);
+    ws2["!cols"] = [{ wch: 120 }];
+    XLSX.utils.book_append_sheet(wb, ws2, "HuongDan");
+    XLSX.writeFile(wb, "Mau_import_nguoi_dung.xlsx");
+    setMsg($("uImpMsg"), "Đã tải file mẫu Mau_import_nguoi_dung.xlsx — hãy điền thông tin vào sheet NguoiDung rồi import lên.");
+  } catch (e) { setMsg($("uImpMsg"), "Không tạo được file mẫu: " + e.message, false); }
+});
+$("uImpBtn").addEventListener("click", async () => {
+  const file = $("uImpFile").files[0];
+  if (!file) { setMsg($("uImpMsg"), "Hãy chọn file Excel danh sách người dùng trước.", false); return; }
+  try {
+    $("uImpBtn").disabled = true;
+    setMsg($("uImpMsg"), "Đang đọc file…");
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array", cellDates: true });
+    const ws = wb.Sheets["NguoiDung"] || wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
+    const rows = raw.map((r) => {
+      const o = {};
+      Object.keys(r).forEach((k) => {
+        const f = USER_HEADER_MAP[normHeader(k)];
+        if (f) o[f] = r[k];
+      });
+      if ("can_import" in o) o.can_import = parseYesNo(o.can_import);
+      if ("role" in o) o.role = String(o.role || "").toLowerCase().includes("admin") ? "admin" : "user";
+      return o;
+    }).filter((o) => o.username || o.ho_ten);
+    if (!rows.length) throw new Error("Không đọc được dòng người dùng nào. Hãy kiểm tra lại hàng tiêu đề của file (dùng đúng file mẫu).");
+    setMsg($("uImpMsg"), "Đang import " + rows.length + " người dùng…");
+    const d = await api("/api/users/import", { method: "POST", body: JSON.stringify({ rows }) });
+    let msg = "Import xong: tạo mới " + (d.created || 0) + " người dùng, bỏ qua " + (d.skipped || 0) + " dòng.";
+    if (d.errors && d.errors.length) msg += " Chi tiết bỏ qua: " + d.errors.slice(0, 8).map((x) => "Hàng " + x.row + ": " + x.reason).join("; ") + (d.errors.length > 8 ? "…" : "");
+    setMsg($("uImpMsg"), msg, true);
+    loadUsers();
+  } catch (err) { setMsg($("uImpMsg"), err.message, false); }
+  finally { $("uImpBtn").disabled = false; }
+});
+
+/* ---------------- Import du lieu Excel & loai du lieu ---------------- */
+// 2 loai mac dinh (khop voi du lieu Worker tu nap vao bang loai_du_lieu).
+// Dung lam phuong an du phong khi Worker chua co API /api/datatypes.
+const BUILTIN_TYPES = [
+  { code: "HHBG", name: "Chi trả hoa hồng bán gói", prefix: "HHBG", fmt: "MMYYYY", builtin: true,
+    columns: [
+      { key: "ten_eload", label: "Tên Eload", type: "text" }, { key: "so_eload", label: "Số Eload", type: "text" },
+      { key: "so_vi", label: "Số Ví", type: "text" }, { key: "so_thue_bao", label: "Số thuê bao", type: "text" },
+      { key: "loai_thue_bao", label: "Loại thuê bao", type: "text" }, { key: "chu_ky_chi_tra", label: "Chu kỳ chi trả", type: "text" },
+      { key: "ten_goi", label: "Tên gói cước", type: "text" }, { key: "gia_goi", label: "Giá gói cước", type: "money" },
+      { key: "thoi_gian_giao_dich", label: "Thời gian giao dịch", type: "date" }, { key: "trans_id", label: "Trans ID", type: "text" },
+      { key: "kenh_thuc_hien", label: "Kênh thực hiện", type: "text" }, { key: "thu_lao", label: "Thù lao chi trả", type: "money" },
+      { key: "ma_giao_dich", label: "Mã giao dịch", type: "text" }, { key: "thoi_gian_chi_tra", label: "Thời gian chi trả", type: "date" },
+      { key: "trang_thai", label: "Trạng thái chi trả", type: "text" }, { key: "nguyen_nhan_loi", label: "Nguyên nhân lỗi", type: "text" },
+    ],
+    money_col: "thu_lao", time_col: "thoi_gian_chi_tra", eload_col: "so_eload", vi_col: "so_vi" },
+  { code: "BCKH", name: "Chi trả tiền BCKH", prefix: "BCKH", fmt: "MMYY", builtin: true,
+    columns: [
+      { key: "so_eload", label: "Số Eload", type: "text" }, { key: "ten_eload", label: "Tên Eload", type: "text" },
+      { key: "so_thue_bao", label: "Số thuê bao", type: "text" }, { key: "thoi_gian_kich_hoat", label: "Thời gian kích hoạt", type: "date" },
+      { key: "hoa_hong_bckh", label: "Hoa hồng BCKH", type: "money" }, { key: "ma_giao_dich", label: "Mã giao dịch", type: "text" },
+      { key: "thoi_gian_chi_tra", label: "Thời gian chi trả", type: "date" }, { key: "trang_thai", label: "Trạng thái chi trả", type: "text" },
+      { key: "nguyen_nhan_loi", label: "Nguyên nhân lỗi", type: "text" },
+    ],
+    money_col: "hoa_hong_bckh", time_col: "thoi_gian_chi_tra", eload_col: "so_eload", vi_col: "" },
+];
+let dataTypes = BUILTIN_TYPES;
+function buildHeaderMap(t) {
+  const map = {};
+  (t.columns || []).forEach((c) => { map[normHeader(c.label)] = c.key; map[c.key] = c.key; });
+  return map;
+}
+function dateFieldsOf(t) {
+  return new Set((t.columns || []).filter((c) => c.type === "date").map((c) => c.key));
+}
+async function loadDataTypes() {
+  try {
+    const d = await api("/api/datatypes");
+    if (d.types && d.types.length) dataTypes = d.types;
+  } catch (e) { /* Worker chua cap nhat: dung 2 loai mac dinh */ }
+  renderTypeOptions();
+  renderDtList();
+  if (me) $("dtManager").classList.toggle("hidden", me.role !== "admin");
+}
+function renderTypeOptions() {
+  const imp = $("impType"), curImp = imp.value;
+  imp.innerHTML = dataTypes.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + " (" + esc(t.code) + ")</option>").join("");
+  if (curImp && dataTypes.some((t) => t.code === curImp)) imp.value = curImp;
+  const rep = $("repType"), curRep = rep.value;
+  rep.innerHTML = '<option value="ALL">Tất cả các loại dữ liệu</option>' + dataTypes.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + "</option>").join("");
+  if (curRep && (curRep === "ALL" || dataTypes.some((t) => t.code === curRep))) rep.value = curRep;
+}
 function normHeader(h) { return String(h || "").trim().toLowerCase().replace(/\s+/g, " "); }
 function toIsoDate(v) {
   if (v instanceof Date && !isNaN(v)) {
@@ -1883,8 +2235,10 @@ async function loadTables() {
     const d = await api("/api/import/tables");
     $("tablesBody").innerHTML = (d.tables || []).map((t) => {
       const isH = t.table.startsWith("HHBG");
+      const tt = dataTypes.find((x) => x.code === t.code);
+      const typeName = tt ? tt.name : (isH ? "Hoa hồng bán gói" : "Tiền BCKH");
       const mm = t.table.match(/_(\d{2})(\d{2,4})$/);
-      return "<tr><td><code class='inl'>" + esc(t.table) + "</code></td><td>" + (isH ? "Hoa hồng bán gói" : "Tiền BCKH") + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (t.rows || 0).toLocaleString("vi-VN") + "</td>" +
+      return "<tr><td><code class='inl'>" + esc(t.table) + "</code></td><td>" + esc(typeName) + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (t.rows || 0).toLocaleString("vi-VN") + "</td>" +
         "<td style='white-space:nowrap'><button class='btn sm danger' data-del-table='" + esc(t.table) + "'>Xóa bảng</button></td></tr>";
     }).join("") || "<tr><td colspan='5'>Chưa import bảng nào.</td></tr>";
     $("tablesBody").querySelectorAll("[data-del-table]").forEach((b) => b.addEventListener("click", () => delTable(b.dataset.delTable)));
@@ -1902,12 +2256,13 @@ $("importForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const file = $("impFile").files[0];
   if (!file) { setMsg($("impMsg"), "Hãy chọn file Excel trước khi import.", false); return; }
-  const loai = $("impType").value;
+  const dtype = dataTypes.find((t) => t.code === $("impType").value) || dataTypes[0];
+  const loai = dtype.code;
   const mode = $("impMode").value;
   const thang = Number($("impMonth").value), nam = Number($("impYear").value);
   if (!thang || !nam) { setMsg($("impMsg"), "Hãy nhập tháng/năm import.", false); return; }
   const mm = String(thang).padStart(2, "0");
-  const tableName = loai === "HHBG" ? "HHBG_" + mm + nam : "BCKH_" + mm + String(nam).slice(-2);
+  const tableName = dtype.prefix + "_" + mm + (dtype.fmt === "MMYY" ? String(nam).slice(-2) : nam);
   if (mode === "replace" && !confirm("Chế độ THAY THẾ sẽ xóa toàn bộ dữ liệu hiện có trong bảng " + tableName + " rồi import lại từ file này.\nAnh có chắc chắn muốn tiếp tục?")) return;
   try {
     $("impBtn").disabled = true;
@@ -1917,20 +2272,19 @@ $("importForm").addEventListener("submit", async (e) => {
     const ws = wb.Sheets[wb.SheetNames[0]];
     const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
     if (!raw.length) throw new Error("File không có dòng dữ liệu nào.");
-    const map = HEADER_MAP[loai];
+    const map = buildHeaderMap(dtype);
+    const dateFields = dateFieldsOf(dtype);
     const ignored = new Set();
-    let mappedCols = 0;
     const rows = raw.map((r) => {
       const o = {};
       Object.keys(r).forEach((k) => {
-        const f = map[normHeader(k)] || (Object.values(map).includes(k.trim()) ? k.trim() : null);
-        if (f) o[f] = DATE_FIELDS.has(f) ? toIsoDate(r[k]) : r[k];
+        const f = map[normHeader(k)];
+        if (f) o[f] = dateFields.has(f) ? toIsoDate(r[k]) : r[k];
         else if (String(k).trim()) ignored.add(String(k).trim());
       });
       return o;
     }).filter((o) => Object.keys(o).length);
-    mappedCols = rows.length ? Object.keys(rows[0]).length : 0;
-    if (!rows.length || !mappedCols) throw new Error("Không có cột nào trong file khớp với mẫu dữ liệu " + loai + ". Hãy kiểm tra lại hàng tiêu đề của file Excel.");
+    if (!rows.length) throw new Error("Không có cột nào trong file khớp với mẫu dữ liệu của loại " + loai + ". Hãy kiểm tra lại hàng tiêu đề của file Excel.");
     setMsg($("impMsg"), "Đang import " + rows.length.toLocaleString("vi-VN") + " dòng lên D1 (" + (mode === "replace" ? "Thay thế" : "Cập nhật") + ")…");
     const d = await api("/api/import", { method: "POST", body: JSON.stringify({ loai, thang, nam, mode, rows }) });
     let msg = "Import thành công " + (d.inserted || 0).toLocaleString("vi-VN") + " dòng vào bảng " + d.table + " (chế độ " + (mode === "replace" ? "Thay thế" : "Cập nhật") + ").";
@@ -1941,16 +2295,122 @@ $("importForm").addEventListener("submit", async (e) => {
   finally { $("impBtn").disabled = false; }
 });
 
-/* ---------------- Bao cao thong ke ---------------- */
-function repParams() {
-  return { loai: $("repType").value, from: $("repFrom").value, to: $("repTo").value };
+/* ---------------- Quan ly loai du lieu (admin) ---------------- */
+function slugKey(s) {
+  return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
+function renderDtList() {
+  const el = $("dtList");
+  if (!el) return;
+  el.innerHTML = dataTypes.map((t) =>
+    "<div style='display:flex;gap:10px;align-items:center;border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:8px;flex-wrap:wrap'>" +
+    "<b>" + esc(t.name) + "</b><code class='inl'>" + esc(t.code) + "</code>" +
+    "<span style='color:var(--muted);font-size:13px'>Bảng tháng: " + esc(t.prefix) + (t.fmt === "MMYY" ? "_MMYY" : "_MMYYYY") + " · " + (t.columns || []).length + " cột</span>" +
+    (t.builtin
+      ? "<span class='pill user'>Mặc định</span>"
+      : "<span style='flex:1'></span><button class='btn sm danger' data-del-dt='" + t.id + "'>Xóa loại</button>") +
+    "</div>").join("");
+  el.querySelectorAll("[data-del-dt]").forEach((b) => b.addEventListener("click", async () => {
+    if (!confirm("Xóa loại dữ liệu này? (Các bảng dữ liệu tháng đã import của loại này vẫn giữ nguyên trên D1.)")) return;
+    try { await api("/api/datatypes/" + b.dataset.delDt, { method: "DELETE" }); setMsg($("dtMsg"), "Đã xóa loại dữ liệu."); loadDataTypes(); }
+    catch (e) { setMsg($("dtMsg"), e.message, false); }
+  }));
+}
+function dtColumnRow(label = "", key = "", type = "text") {
+  const div = document.createElement("div");
+  div.style.cssText = "display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap";
+  div.innerHTML =
+    '<input class="dtc-label" placeholder="Tên cột trong Excel, VD: Số Eload" style="flex:2;min-width:180px" value="' + esc(label) + '" />' +
+    '<input class="dtc-key" placeholder="khoa_du_lieu" style="flex:1;min-width:130px" value="' + esc(key) + '" />' +
+    '<select class="dtc-type" style="flex:1;min-width:110px"><option value="text">Chữ</option><option value="money">Số tiền</option><option value="number">Số</option><option value="date">Ngày giờ</option></select>' +
+    '<button class="btn sm danger dtc-del" type="button" title="Xóa cột này">×</button>';
+  div.querySelector(".dtc-type").value = type;
+  const keyInput = div.querySelector(".dtc-key");
+  div.querySelector(".dtc-label").addEventListener("input", (ev) => {
+    if (!keyInput.dataset.touched) keyInput.value = slugKey(ev.target.value);
+    dtRefreshRoleSelects();
+  });
+  keyInput.addEventListener("input", () => { keyInput.dataset.touched = "1"; dtRefreshRoleSelects(); });
+  div.querySelector(".dtc-type").addEventListener("change", dtRefreshRoleSelects);
+  div.querySelector(".dtc-del").addEventListener("click", () => { div.remove(); dtRefreshRoleSelects(); });
+  return div;
+}
+function dtGetColumns() {
+  return [...$("dtCols").querySelectorAll(":scope > div")].map((row) => ({
+    label: row.querySelector(".dtc-label").value.trim(),
+    key: row.querySelector(".dtc-key").value.trim(),
+    type: row.querySelector(".dtc-type").value,
+  })).filter((c) => c.label && c.key);
+}
+function dtRefreshRoleSelects() {
+  const cols = dtGetColumns();
+  const opts = (withEmpty) => (withEmpty ? '<option value="">— Không dùng —</option>' : "") +
+    cols.map((c) => '<option value="' + esc(c.key) + '">' + esc(c.label) + " (" + esc(c.key) + ")</option>").join("");
+  [["dtMoney", false], ["dtTime", false], ["dtEload", false], ["dtVi", true], ["dtSub", true], ["dtPkg", true], ["dtTrans", true], ["dtStatus", true], ["dtReason", true], ["dtTimeFb", true]].forEach(([id, withEmpty]) => {
+    const sel = $(id); const cur = sel.value;
+    sel.innerHTML = opts(withEmpty);
+    if (cols.some((c) => c.key === cur)) sel.value = cur;
+  });
+  // Goi y chon nhanh theo ten khoa pho bien
+  const guess = (id, keys) => { const sel = $(id); if (!sel.value) { const f = cols.find((c) => keys.includes(c.key)); if (f) sel.value = f.key; } };
+  guess("dtEload", ["so_eload"]); guess("dtVi", ["so_vi"]); guess("dtSub", ["so_thue_bao"]);
+  guess("dtTrans", ["ma_giao_dich"]); guess("dtStatus", ["trang_thai"]); guess("dtReason", ["nguyen_nhan_loi"]);
+  guess("dtPkg", ["ten_goi"]);
+  const money = cols.find((c) => c.type === "money"); if (money && !$("dtMoney").value) $("dtMoney").value = money.key;
+  const time = cols.find((c) => c.type === "date"); if (time && !$("dtTime").value) $("dtTime").value = time.key;
+}
+$("dtAddCol").addEventListener("click", () => { $("dtCols").appendChild(dtColumnRow()); });
+$("dtForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const columns = dtGetColumns();
+  const body = {
+    code: $("dtCode").value.trim().toUpperCase(), name: $("dtName").value.trim(), fmt: $("dtFmt").value,
+    columns,
+    money_col: $("dtMoney").value, time_col: $("dtTime").value, eload_col: $("dtEload").value,
+    vi_col: $("dtVi").value, sub_col: $("dtSub").value, pkg_col: $("dtPkg").value,
+    trans_col: $("dtTrans").value, status_col: $("dtStatus").value, reason_col: $("dtReason").value,
+    time_fallback_col: $("dtTimeFb").value,
+  };
+  if (!body.code || !body.name) { setMsg($("dtMsg"), "Hãy nhập mã và tên loại dữ liệu.", false); return; }
+  if (!columns.length) { setMsg($("dtMsg"), "Hãy khai báo ít nhất 1 cột dữ liệu.", false); return; }
+  if (!body.money_col || !body.time_col || !body.eload_col) { setMsg($("dtMsg"), "Bắt buộc chọn: Cột Số tiền, Cột Thời gian và Cột Số Eload (để map với người dùng).", false); return; }
+  try {
+    const d = await api("/api/datatypes", { method: "POST", body: JSON.stringify(body) });
+    setMsg($("dtMsg"), "Đã tạo loại dữ liệu " + d.code + ". Loại này đã xuất hiện trong ô chọn Loại dữ liệu ở phần import phía trên và trong Báo cáo thống kê — import được ngay.");
+    $("dtForm").reset(); $("dtCols").innerHTML = "";
+    ["Số Eload", "Số thuê bao", "Số tiền chi trả", "Thời gian chi trả"].forEach((l, i) => $("dtCols").appendChild(dtColumnRow(l, "", i === 2 ? "money" : i === 3 ? "date" : "text")));
+    dtRefreshRoleSelects();
+    loadDataTypes();
+  } catch (err) { setMsg($("dtMsg"), err.message, false); }
+});
+// Khoi tao san 4 dong cot goi y cho form tao loai du lieu
+["Số Eload", "Số thuê bao", "Số tiền chi trả", "Thời gian chi trả"].forEach((l, i) => $("dtCols").appendChild(dtColumnRow(l, "", i === 2 ? "money" : i === 3 ? "date" : "text")));
+dtRefreshRoleSelects();
+
+/* ---------------- Bao cao thong ke ---------------- */
+function repRange() {
+  if ($("repMode").value === "month") {
+    const v = $("repMonth").value; // YYYY-MM
+    if (!v) return null;
+    const [y, m] = v.split("-").map(Number);
+    const last = new Date(y, m, 0).getDate();
+    return { loai: $("repType").value, from: v + "-01", to: v + "-" + String(last).padStart(2, "0"), group: "day" };
+  }
+  if (!$("repFrom").value || !$("repTo").value) return null;
+  return { loai: $("repType").value, from: $("repFrom").value, to: $("repTo").value, group: "day" };
+}
+$("repMode").addEventListener("change", () => {
+  const month = $("repMode").value === "month";
+  $("repDayBox").classList.toggle("hidden", month);
+  $("repMonthBox").classList.toggle("hidden", !month);
+});
 $("repSummaryBtn").addEventListener("click", async () => {
-  const p = repParams();
-  if (!p.from || !p.to) { setMsg($("repMsg"), "Hãy chọn khoảng thời gian.", false); return; }
+  const p = repRange();
+  if (!p) { setMsg($("repMsg"), "Hãy chọn khoảng ngày hoặc tháng cần xem báo cáo.", false); return; }
   try {
     setMsg($("repMsg"), "Đang tải báo cáo…");
-    const d = await api("/api/reports/summary?" + new URLSearchParams({ ...p, group: $("repGroup").value }));
+    const d = await api("/api/reports/summary?" + new URLSearchParams(p));
     $("repHead").innerHTML = "<tr><th>Kỳ</th><th>Số giao dịch</th><th>Tổng tiền chi trả</th></tr>";
     $("repBody").innerHTML = (d.rows || []).map((r) => "<tr><td><b>" + esc(r.ky) + "</b></td><td>" + (r.so_giao_dich || 0).toLocaleString("vi-VN") + "</td><td>" + fmt(r.tong_tien) + "</td></tr>").join("") || "<tr><td colspan='3'>Không có dữ liệu trong khoảng đã chọn.</td></tr>";
     $("repTotalTx").textContent = (d.tong_giao_dich || 0).toLocaleString("vi-VN");
@@ -1959,8 +2419,8 @@ $("repSummaryBtn").addEventListener("click", async () => {
   } catch (e) { setMsg($("repMsg"), e.message, false); }
 });
 $("repDetailBtn").addEventListener("click", async () => {
-  const p = repParams();
-  if (!p.from || !p.to) { setMsg($("repMsg"), "Hãy chọn khoảng thời gian.", false); return; }
+  const p = repRange();
+  if (!p) { setMsg($("repMsg"), "Hãy chọn khoảng ngày hoặc tháng cần xem báo cáo.", false); return; }
   try {
     setMsg($("repMsg"), "Đang tải chi tiết…");
     const d = await api("/api/reports/detail?" + new URLSearchParams({ ...p, limit: 1000 }));
@@ -2014,6 +2474,7 @@ document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("clic
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
   const iso = (d) => d.toISOString().slice(0, 10);
   $("repFrom").value = iso(first); $("repTo").value = iso(now);
+  $("repMonth").value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
   $("impMonth").value = now.getMonth() + 1; $("impYear").value = now.getFullYear();
   refreshAuthUI();
   if (token && apiBase) {

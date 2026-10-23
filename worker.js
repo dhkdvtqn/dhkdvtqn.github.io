@@ -137,26 +137,110 @@ function toText(v) {
 }
 
 // ---------------------------------------------------------------------------
-// Dinh nghia cot cua 2 bang du lieu dau vao
+// Loai du lieu dau vao: 2 loai mac dinh (HHBG, BCKH) + cac loai admin tu tao.
+// Moi loai duoc luu trong bang loai_du_lieu tren D1 (so dang ky), gom:
+// - columns: danh sach cot [{key, label, type}] type: text | money | date
+// - cac cot "vai tro" de bao cao va phan quyen: money_col (so tien chi tra),
+//   time_col (thoi gian loc bao cao), eload_col / vi_col (map voi bang
+//   nguoi_dung qua so_eload / so_vi), sub_col, pkg_col, trans_col,
+//   status_col, reason_col.
 // ---------------------------------------------------------------------------
-const HHBG_COLUMNS = [
-  ["ten_eload", "TEXT"], ["so_eload", "TEXT"], ["so_vi", "TEXT"],
-  ["so_thue_bao", "TEXT"], ["loai_thue_bao", "TEXT"], ["chu_ky_chi_tra", "TEXT"],
-  ["ten_goi", "TEXT"], ["gia_goi", "REAL"], ["thoi_gian_giao_dich", "TEXT"],
-  ["trans_id", "TEXT"], ["kenh_thuc_hien", "TEXT"], ["thu_lao", "REAL"],
-  ["ma_giao_dich", "TEXT"], ["thoi_gian_chi_tra", "TEXT"], ["trang_thai", "TEXT"],
-  ["nguyen_nhan_loi", "TEXT"],
+const BUILTIN_TYPES = [
+  {
+    code: "HHBG", name: "Chi trả hoa hồng bán gói", prefix: "HHBG", fmt: "MMYYYY", builtin: 1,
+    columns: [
+      { key: "ten_eload", label: "Tên Eload", type: "text" },
+      { key: "so_eload", label: "Số Eload", type: "text" },
+      { key: "so_vi", label: "Số Ví", type: "text" },
+      { key: "so_thue_bao", label: "Số thuê bao", type: "text" },
+      { key: "loai_thue_bao", label: "Loại thuê bao", type: "text" },
+      { key: "chu_ky_chi_tra", label: "Chu kỳ chi trả", type: "text" },
+      { key: "ten_goi", label: "Tên gói cước", type: "text" },
+      { key: "gia_goi", label: "Giá gói cước", type: "money" },
+      { key: "thoi_gian_giao_dich", label: "Thời gian giao dịch", type: "date" },
+      { key: "trans_id", label: "Trans ID", type: "text" },
+      { key: "kenh_thuc_hien", label: "Kênh thực hiện", type: "text" },
+      { key: "thu_lao", label: "Thù lao chi trả", type: "money" },
+      { key: "ma_giao_dich", label: "Mã giao dịch", type: "text" },
+      { key: "thoi_gian_chi_tra", label: "Thời gian chi trả", type: "date" },
+      { key: "trang_thai", label: "Trạng thái chi trả", type: "text" },
+      { key: "nguyen_nhan_loi", label: "Nguyên nhân lỗi", type: "text" },
+    ],
+    money_col: "thu_lao", time_col: "thoi_gian_chi_tra", time_fallback_col: "thoi_gian_giao_dich",
+    eload_col: "so_eload", vi_col: "so_vi", sub_col: "so_thue_bao", pkg_col: "ten_goi",
+    trans_col: "ma_giao_dich", status_col: "trang_thai", reason_col: "nguyen_nhan_loi",
+  },
+  {
+    code: "BCKH", name: "Chi trả tiền BCKH", prefix: "BCKH", fmt: "MMYY", builtin: 1,
+    columns: [
+      { key: "so_eload", label: "Số Eload", type: "text" },
+      { key: "ten_eload", label: "Tên Eload", type: "text" },
+      { key: "so_thue_bao", label: "Số thuê bao", type: "text" },
+      { key: "thoi_gian_kich_hoat", label: "Thời gian kích hoạt", type: "date" },
+      { key: "hoa_hong_bckh", label: "Hoa hồng BCKH", type: "money" },
+      { key: "ma_giao_dich", label: "Mã giao dịch", type: "text" },
+      { key: "thoi_gian_chi_tra", label: "Thời gian chi trả", type: "date" },
+      { key: "trang_thai", label: "Trạng thái chi trả", type: "text" },
+      { key: "nguyen_nhan_loi", label: "Nguyên nhân lỗi", type: "text" },
+    ],
+    money_col: "hoa_hong_bckh", time_col: "thoi_gian_chi_tra", time_fallback_col: "",
+    eload_col: "so_eload", vi_col: "", sub_col: "so_thue_bao", pkg_col: "",
+    trans_col: "ma_giao_dich", status_col: "trang_thai", reason_col: "nguyen_nhan_loi",
+  },
 ];
-const BCKH_COLUMNS = [
-  ["so_eload", "TEXT"], ["ten_eload", "TEXT"], ["so_thue_bao", "TEXT"],
-  ["thoi_gian_kich_hoat", "TEXT"], ["hoa_hong_bckh", "REAL"],
-  ["ma_giao_dich", "TEXT"], ["thoi_gian_chi_tra", "TEXT"], ["trang_thai", "TEXT"],
-  ["nguyen_nhan_loi", "TEXT"],
-];
-function tableNameFor(loai, thang, nam) {
+async function ensureTypes(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS loai_du_lieu (" +
+    "id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, " +
+    "prefix TEXT NOT NULL, fmt TEXT NOT NULL DEFAULT 'MMYYYY', columns_json TEXT NOT NULL, " +
+    "money_col TEXT, time_col TEXT, time_fallback_col TEXT, eload_col TEXT, vi_col TEXT, " +
+    "sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, " +
+    "builtin INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)"
+  ).run();
+  const c = await env.DB.prepare("SELECT COUNT(*) AS n FROM loai_du_lieu").first();
+  if (c && c.n === 0) {
+    for (const t of BUILTIN_TYPES) {
+      await env.DB.prepare(
+        "INSERT OR IGNORE INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"
+      )
+        .bind(t.code, t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col)
+        .run();
+    }
+  }
+}
+async function getDataTypes(env) {
+  await ensureTypes(env);
+  const res = await env.DB.prepare("SELECT * FROM loai_du_lieu ORDER BY builtin DESC, code").all();
+  return (res.results || []).map((r) => {
+    let cols = [];
+    try { cols = JSON.parse(r.columns_json || "[]"); } catch (e) { cols = []; }
+    return { ...r, columns: cols, builtin: !!r.builtin };
+  });
+}
+function typeColumnsSQL(t) {
+  return (t.columns || []).map((c) => [c.key, c.type === "money" || c.type === "number" ? "REAL" : "TEXT"]);
+}
+// Dung "nguon bao cao" tu 1 loai du lieu: cot tien, cot thoi gian va dieu kien
+// phan quyen (user thuong chi thay dong co so_eload / so_vi cua chinh minh).
+function buildSource(t, meUser) {
+  const time = t.time_fallback_col
+    ? "COALESCE(NULLIF(" + t.time_col + ", ''), " + t.time_fallback_col + ")"
+    : t.time_col;
+  const ownParts = [], ownBinds = [];
+  if (t.eload_col) { ownParts.push(t.eload_col + " = ?"); ownBinds.push(meUser.so_eload || "__none__"); }
+  if (t.vi_col) { ownParts.push(t.vi_col + " = ?"); ownBinds.push(meUser.so_vi || "__none__"); }
+  return {
+    code: t.code, prefix: t.prefix, money: t.money_col, time,
+    own: ownParts.length ? "(" + ownParts.join(" OR ") + ")" : "(1 = 0)",
+    ownBinds,
+    eloadCol: t.eload_col || null, viCol: t.vi_col || null,
+    subCol: t.sub_col || null, pkgCol: t.pkg_col || null,
+    transCol: t.trans_col || null, statusCol: t.status_col || null, reasonCol: t.reason_col || null,
+  };
+}
+function tableNameForType(t, thang, nam) {
   const mm = String(thang).padStart(2, "0");
-  if (loai === "HHBG") return "HHBG_" + mm + nam; // HHBG_MMYYYY
-  return "BCKH_" + mm + String(nam).slice(-2);      // BCKH_MMYY
+  return t.prefix + "_" + mm + (t.fmt === "MMYY" ? String(nam).slice(-2) : nam);
 }
 function createTableSQL(table, columns) {
   const cols = columns.map(([n, t]) => '"' + n + '" ' + t).join(", ");
@@ -303,6 +387,44 @@ export default {
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
       }
+      // ---- Import nguoi dung tu Excel ----
+      if (path === "/api/users/import" && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi co quyen import nguoi dung", 403);
+        const b = await readBody(request);
+        const rows = Array.isArray(b.rows) ? b.rows : [];
+        if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
+        let created = 0, skipped = 0;
+        const errors = [];
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i] || {};
+          const username = toText(r.username);
+          const hoTen = toText(r.ho_ten);
+          if (!username || !hoTen) {
+            skipped++;
+            errors.push({ row: i + 2, reason: "Thieu User dang nhap hoac Ho va ten" });
+            continue;
+          }
+          const dup = await env.DB.prepare("SELECT id FROM nguoi_dung WHERE username = ?").bind(username).first();
+          if (dup) {
+            skipped++;
+            errors.push({ row: i + 2, reason: "User dang nhap da ton tai: " + username });
+            continue;
+          }
+          const salt = randomSalt();
+          const hash = await hashPassword(String(r.password || "Vnpt@2026"), salt);
+          await env.DB.prepare(
+            "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          )
+            .bind(
+              toText(r.ma_kenh), hoTen, username, hash, salt,
+              r.role === "admin" ? "admin" : "user",
+              toText(r.so_eload), toText(r.so_vi), r.can_import ? 1 : 0
+            )
+            .run();
+          created++;
+        }
+        return json({ ok: true, created, skipped, errors: errors.slice(0, 50) });
+      }
       const userMatch = path.match(/^\/api\/users\/(\d+)$/);
       if (userMatch && method === "PUT") {
         if (!isAdmin) return err("Chi admin moi co quyen sua nguoi dung", 403);
@@ -332,14 +454,69 @@ export default {
         return json({ ok: true });
       }
 
+      // ---- Quan ly loai du lieu dau vao ----
+      if (path === "/api/datatypes" && method === "GET") {
+        const types = await getDataTypes(env);
+        return json({ ok: true, types });
+      }
+      if (path === "/api/datatypes" && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi co quyen tao loai du lieu", 403);
+        const b = await readBody(request);
+        const code = String(b.code || "").trim().toUpperCase();
+        const name = toText(b.name);
+        const fmt = b.fmt === "MMYY" ? "MMYY" : "MMYYYY";
+        const columns = Array.isArray(b.columns) ? b.columns : [];
+        if (!/^[A-Z][A-Z0-9_]{1,11}$/.test(code)) return err("Ma loai du lieu khong hop le (2-12 ky tu, bat dau bang chu cai, chi gom chu/so/_)", 422);
+        if (!name) return err("Thieu ten loai du lieu", 422);
+        if (!columns.length) return err("Loai du lieu phai co it nhat 1 cot", 422);
+        const keys = new Set();
+        for (const c of columns) {
+          if (!/^[a-z][a-z0-9_]*$/.test(String(c.key || ""))) return err("Khoa cot khong hop le: " + (c.key || ""), 422);
+          if (keys.has(c.key)) return err("Trung khoa cot: " + c.key, 422);
+          keys.add(c.key);
+        }
+        const roleCols = ["money_col", "time_col", "eload_col"];
+        for (const rc of roleCols) {
+          if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
+        }
+        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col"]) {
+          if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
+        }
+        const exists = (await getDataTypes(env)).some((t) => t.code === code || t.prefix === code);
+        if (exists) return err("Ma loai du lieu da ton tai: " + code, 422);
+        const cleanCols = columns.map((c) => ({
+          key: String(c.key), label: toText(c.label) || String(c.key),
+          type: ["money", "number", "date"].includes(c.type) ? c.type : "text",
+        }));
+        const r = await env.DB.prepare(
+          "INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
+        )
+          .bind(code, name, code, fmt, JSON.stringify(cleanCols),
+            b.money_col, b.time_col, b.time_fallback_col || "", b.eload_col, b.vi_col || "",
+            b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "")
+          .run();
+        return json({ ok: true, id: r.meta.last_row_id, code });
+      }
+      const dtMatch = path.match(/^\/api\/datatypes\/(\d+)$/);
+      if (dtMatch && method === "DELETE") {
+        if (!isAdmin) return err("Chi admin moi co quyen xoa loai du lieu", 403);
+        const t = await env.DB.prepare("SELECT * FROM loai_du_lieu WHERE id = ?").bind(Number(dtMatch[1])).first();
+        if (!t) return err("Khong tim thay loai du lieu", 404);
+        if (t.builtin) return err("Khong the xoa loai du lieu mac dinh cua he thong", 422);
+        await env.DB.prepare("DELETE FROM loai_du_lieu WHERE id = ?").bind(Number(dtMatch[1])).run();
+        return json({ ok: true });
+      }
+
       // ---- Import du lieu dau vao tu Excel ----
       if (path === "/api/import/tables" && method === "GET") {
-        const hhbg = await listMonthlyTables(env, "HHBG");
-        const bckh = await listMonthlyTables(env, "BCKH");
+        const types = await getDataTypes(env);
         const out = [];
-        for (const t of [...hhbg, ...bckh]) {
-          const c = await env.DB.prepare('SELECT COUNT(*) AS n FROM "' + t + '"').first();
-          out.push({ table: t, rows: c ? c.n : 0 });
+        for (const t of types) {
+          const tables = await listMonthlyTables(env, t.prefix);
+          for (const name of tables) {
+            const c = await env.DB.prepare('SELECT COUNT(*) AS n FROM "' + name + '"').first();
+            out.push({ table: name, code: t.code, rows: c ? c.n : 0 });
+          }
         }
         return json({ ok: true, tables: out });
       }
@@ -348,18 +525,22 @@ export default {
       if (tblMatch && method === "DELETE") {
         if (!isAdmin && !me.can_import) return err("Tai khoan khong co quyen xoa bang du lieu", 403);
         const name = tblMatch[1];
-        if (!/^(HHBG|BCKH)_\d{4,6}$/.test(name)) return err("Ten bang khong hop le", 422);
+        const types = await getDataTypes(env);
+        const okName = types.some((t) => new RegExp("^" + t.prefix + "_\\d{4,6}$").test(name));
+        if (!okName) return err("Ten bang khong hop le", 422);
         await env.DB.prepare('DROP TABLE IF EXISTS "' + name + '"').run();
         return json({ ok: true, table: name });
       }
       if (path === "/api/import" && method === "POST") {
         if (!isAdmin && !me.can_import) return err("Tai khoan khong co quyen import du lieu", 403);
         const b = await readBody(request);
-        const loai = b.loai === "BCKH" ? "BCKH" : "HHBG";
+        const types = await getDataTypes(env);
+        const dtype = types.find((t) => t.code === String(b.loai || "").toUpperCase());
+        if (!dtype) return err("Loai du lieu khong ton tai: " + (b.loai || ""), 422);
         const mode = b.mode === "replace" ? "replace" : "append"; // append = Cap nhat, replace = Thay the
         const thang = Number(b.thang);
         const nam = Number(b.nam);
-        const columns = loai === "HHBG" ? HHBG_COLUMNS : BCKH_COLUMNS;
+        const columns = typeColumnsSQL(dtype);
         const colNames = columns.map(([n]) => n);
         // Chi giu cac truong khop voi bang map du lieu; dong rong bi loai bo.
         const rawRows = Array.isArray(b.rows) ? b.rows : [];
@@ -372,7 +553,7 @@ export default {
         });
         if (!thang || thang < 1 || thang > 12 || !nam) return err("Thang/nam import khong hop le", 422);
         if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
-        const table = tableNameFor(loai, thang, nam);
+        const table = tableNameForType(dtype, thang, nam);
         if (mode === "replace") {
           await env.DB.prepare('DROP TABLE IF EXISTS "' + table + '"').run();
         }
@@ -404,25 +585,23 @@ export default {
         const to = url.searchParams.get("to") || "9999-12-31";
         const group = url.searchParams.get("group") || "day";
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
-        const groupExpr =
-          group === "month"
-            ? "substr(tg, 1, 7)"
-            : group === "week"
-            ? "strftime('%Y-W%W', date(substr(tg, 1, 10)))"
-            : "substr(tg, 1, 10)";
+        const groupExpr = group === "month" ? "substr(tg, 1, 7)" : "substr(tg, 1, 10)";
+        const types = await getDataTypes(env);
+        const sources = types
+          .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col)
+          .map((t) => buildSource(t, me));
         const parts = [];
         const binds = [];
-        const sources = [];
-        if (loai === "ALL" || loai === "HHBG") sources.push({ prefix: "HHBG", money: "thu_lao", time: "COALESCE(NULLIF(thoi_gian_chi_tra, ''), thoi_gian_giao_dich)", own: "(so_eload = ? OR so_vi = ?)", ownBinds: [me.so_eload || "__none__", me.so_vi || "__none__"] });
-        if (loai === "ALL" || loai === "BCKH") sources.push({ prefix: "BCKH", money: "hoa_hong_bckh", time: "thoi_gian_chi_tra", own: "(so_eload = ?)", ownBinds: [me.so_eload || "__none__"] });
         for (const s of sources) {
           const tables = await listMonthlyTables(env, s.prefix);
           for (const t of tables) {
             if (!tableInRange(t, s.prefix, from, to)) continue;
+            const innerCols = [s.time + " AS tg", s.money + " AS tien"];
+            if (s.eloadCol) innerCols.push(s.eloadCol);
+            if (s.viCol) innerCols.push(s.viCol);
             let sql =
               'SELECT ' + groupExpr + ' AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT ' +
-              s.time + ' AS tg, ' + s.money + ' AS tien, so_eload' + (s.prefix === "HHBG" ? ", so_vi" : "") +
-              ' FROM "' + t + '") WHERE substr(tg, 1, 10) BETWEEN ? AND ?';
+              innerCols.join(", ") + ' FROM "' + t + '") WHERE substr(tg, 1, 10) BETWEEN ? AND ?';
             const localBinds = [from, to];
             if (!isAdmin) {
               sql += " AND " + s.own;
@@ -454,17 +633,27 @@ export default {
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
         const limit = Math.min(Number(url.searchParams.get("limit") || 500), 2000);
         const out = [];
-        const sources = [];
-        if (loai === "ALL" || loai === "HHBG") sources.push({ prefix: "HHBG", money: "thu_lao", time: "COALESCE(NULLIF(thoi_gian_chi_tra, ''), thoi_gian_giao_dich)", own: "(so_eload = ? OR so_vi = ?)", ownBinds: [me.so_eload || "__none__", me.so_vi || "__none__"], extra: ", ten_goi, gia_goi" });
-        if (loai === "ALL" || loai === "BCKH") sources.push({ prefix: "BCKH", money: "hoa_hong_bckh", time: "thoi_gian_chi_tra", own: "(so_eload = ?)", ownBinds: [me.so_eload || "__none__"], extra: ", '' AS ten_goi, 0 AS gia_goi" });
+        const types = await getDataTypes(env);
+        const sources = types
+          .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col)
+          .map((t) => buildSource(t, me));
         for (const s of sources) {
           const tables = await listMonthlyTables(env, s.prefix);
           for (const t of tables) {
             if (!tableInRange(t, s.prefix, from, to)) continue;
+            const sel = [
+              "'" + s.code + "' AS loai",
+              (s.subCol || "''") + " AS so_thue_bao",
+              (s.eloadCol || "''") + " AS so_eload",
+              s.money + " AS so_tien",
+              (s.transCol || "''") + " AS ma_giao_dich",
+              s.time + " AS thoi_gian",
+              (s.statusCol || "''") + " AS trang_thai",
+              (s.reasonCol || "''") + " AS nguyen_nhan_loi",
+              (s.pkgCol || "''") + " AS ten_goi",
+            ];
             let sql =
-              "SELECT '" + s.prefix + "' AS loai, so_thue_bao, so_eload, " + s.money + " AS so_tien, ma_giao_dich, " +
-              s.time + " AS thoi_gian, trang_thai, nguyen_nhan_loi" + s.extra +
-              ' FROM "' + t + '" WHERE substr(' + s.time + ", 1, 10) BETWEEN ? AND ?";
+              "SELECT " + sel.join(", ") + ' FROM "' + t + '" WHERE substr(' + s.time + ", 1, 10) BETWEEN ? AND ?";
             const binds = [from, to];
             if (!isAdmin) {
               sql += " AND " + s.own;
