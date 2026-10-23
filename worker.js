@@ -343,19 +343,40 @@ export default {
         }
         return json({ ok: true, tables: out });
       }
+      // ---- Xoa bang du lieu da import ----
+      const tblMatch = path.match(/^\/api\/import\/tables\/([A-Za-z0-9_]+)$/);
+      if (tblMatch && method === "DELETE") {
+        if (!isAdmin && !me.can_import) return err("Tai khoan khong co quyen xoa bang du lieu", 403);
+        const name = tblMatch[1];
+        if (!/^(HHBG|BCKH)_\d{4,6}$/.test(name)) return err("Ten bang khong hop le", 422);
+        await env.DB.prepare('DROP TABLE IF EXISTS "' + name + '"').run();
+        return json({ ok: true, table: name });
+      }
       if (path === "/api/import" && method === "POST") {
         if (!isAdmin && !me.can_import) return err("Tai khoan khong co quyen import du lieu", 403);
         const b = await readBody(request);
         const loai = b.loai === "BCKH" ? "BCKH" : "HHBG";
+        const mode = b.mode === "replace" ? "replace" : "append"; // append = Cap nhat, replace = Thay the
         const thang = Number(b.thang);
         const nam = Number(b.nam);
-        const rows = Array.isArray(b.rows) ? b.rows : [];
+        const columns = loai === "HHBG" ? HHBG_COLUMNS : BCKH_COLUMNS;
+        const colNames = columns.map(([n]) => n);
+        // Chi giu cac truong khop voi bang map du lieu; dong rong bi loai bo.
+        const rawRows = Array.isArray(b.rows) ? b.rows : [];
+        const rows = rawRows.filter((row) => {
+          if (!row || typeof row !== "object") return false;
+          return colNames.some((n) => {
+            const v = row[n];
+            return v !== null && v !== undefined && String(v).trim() !== "";
+          });
+        });
         if (!thang || thang < 1 || thang > 12 || !nam) return err("Thang/nam import khong hop le", 422);
         if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
-        const columns = loai === "HHBG" ? HHBG_COLUMNS : BCKH_COLUMNS;
         const table = tableNameFor(loai, thang, nam);
+        if (mode === "replace") {
+          await env.DB.prepare('DROP TABLE IF EXISTS "' + table + '"').run();
+        }
         await env.DB.prepare(createTableSQL(table, columns)).run();
-        const colNames = columns.map(([n]) => n);
         const numericCols = new Set(columns.filter(([, t]) => t === "REAL").map(([n]) => n));
         const sql =
           'INSERT INTO "' + table + '" (' + colNames.map((n) => '"' + n + '"').join(", ") +
@@ -374,7 +395,7 @@ export default {
           await env.DB.batch(batch);
           inserted += batch.length;
         }
-        return json({ ok: true, table, inserted });
+        return json({ ok: true, table, inserted, mode });
       }
 
       // ---- Bao cao thong ke ----

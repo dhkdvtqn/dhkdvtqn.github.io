@@ -802,16 +802,17 @@
         <!-- QUAN LY DU LIEU DAU VAO -->
         <section class="panel hidden" id="panel-import">
           <h2>Quản lý dữ liệu đầu vào</h2>
-          <p class="desc">Import dữ liệu chi trả từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng: <code class="inl">HHBG_MMYYYY</code> cho hoa hồng bán gói và <code class="inl">BCKH_MMYY</code> cho tiền BCKH. Tên cột trong file Excel cần trùng với tên trường quy định (không phân biệt hoa/thường).</p>
+          <p class="desc">Import dữ liệu chi trả từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng: <code class="inl">HHBG_MMYYYY</code> cho hoa hồng bán gói và <code class="inl">BCKH_MMYY</code> cho tiền BCKH. Khi import có 2 chế độ: <b>Cập nhật</b> (thêm dữ liệu mới vào bảng của tháng) hoặc <b>Thay thế</b> (xóa toàn bộ dữ liệu cũ của tháng rồi import lại). Các cột trong file không khớp với mẫu dữ liệu sẽ tự động bị loại bỏ, không import vào CSDL.</p>
           <form id="importForm" class="form-grid">
             <div><label>Loại dữ liệu</label><select id="impType"><option value="HHBG">Chi trả hoa hồng bán gói (HHBG)</option><option value="BCKH">Chi trả tiền BCKH (BCKH)</option></select></div>
             <div><label>Tháng / Năm import</label><div style="display:flex;gap:8px"><input type="number" id="impMonth" min="1" max="12" /><input type="number" id="impYear" min="2020" max="2100" /></div></div>
-            <div class="full"><label>File Excel dữ liệu</label><input type="file" id="impFile" accept=".xlsx,.xls,.csv" /></div>
+            <div><label>Chế độ import</label><select id="impMode"><option value="append">Cập nhật — thêm vào dữ liệu hiện có của tháng</option><option value="replace">Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu</option></select></div>
+            <div><label>File Excel dữ liệu</label><input type="file" id="impFile" accept=".xlsx,.xls,.csv" /></div>
             <div class="full"><button class="btn blue" type="submit" id="impBtn">Import lên D1</button></div>
           </form>
           <div id="impMsg"></div>
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Các bảng dữ liệu đã import</h3>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th></tr></thead><tbody id="tablesBody"><tr><td colspan="4">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th></th></tr></thead><tbody id="tablesBody"><tr><td colspan="5">Đang tải…</td></tr></tbody></table></div>
           <div class="note"><b>Trường dữ liệu HHBG:</b> Tên Eload, Số Eload, Số Ví, Số thuê bao, Loại thuê bao, Chu kỳ chi trả, Tên gói cước, Giá gói cước, Thời gian giao dịch, Trans ID, Kênh thực hiện, Thù lao chi trả, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.<br/><b>Trường dữ liệu BCKH:</b> Số Eload, Tên Eload, Số thuê bao, Thời gian kích hoạt, Hoa hồng BCKH, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.</div>
         </section>
 
@@ -1253,19 +1254,40 @@ export default {
         }
         return json({ ok: true, tables: out });
       }
+      // ---- Xoa bang du lieu da import ----
+      const tblMatch = path.match(/^\/api\/import\/tables\/([A-Za-z0-9_]+)$/);
+      if (tblMatch &amp;&amp; method === &quot;DELETE&quot;) {
+        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen xoa bang du lieu&quot;, 403);
+        const name = tblMatch[1];
+        if (!/^(HHBG|BCKH)_\d{4,6}$/.test(name)) return err(&quot;Ten bang khong hop le&quot;, 422);
+        await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + name + &#x27;&quot;&#x27;).run();
+        return json({ ok: true, table: name });
+      }
       if (path === &quot;/api/import&quot; &amp;&amp; method === &quot;POST&quot;) {
         if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
         const b = await readBody(request);
         const loai = b.loai === &quot;BCKH&quot; ? &quot;BCKH&quot; : &quot;HHBG&quot;;
+        const mode = b.mode === &quot;replace&quot; ? &quot;replace&quot; : &quot;append&quot;; // append = Cap nhat, replace = Thay the
         const thang = Number(b.thang);
         const nam = Number(b.nam);
-        const rows = Array.isArray(b.rows) ? b.rows : [];
+        const columns = loai === &quot;HHBG&quot; ? HHBG_COLUMNS : BCKH_COLUMNS;
+        const colNames = columns.map(([n]) =&gt; n);
+        // Chi giu cac truong khop voi bang map du lieu; dong rong bi loai bo.
+        const rawRows = Array.isArray(b.rows) ? b.rows : [];
+        const rows = rawRows.filter((row) =&gt; {
+          if (!row || typeof row !== &quot;object&quot;) return false;
+          return colNames.some((n) =&gt; {
+            const v = row[n];
+            return v !== null &amp;&amp; v !== undefined &amp;&amp; String(v).trim() !== &quot;&quot;;
+          });
+        });
         if (!thang || thang &lt; 1 || thang &gt; 12 || !nam) return err(&quot;Thang/nam import khong hop le&quot;, 422);
         if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
-        const columns = loai === &quot;HHBG&quot; ? HHBG_COLUMNS : BCKH_COLUMNS;
         const table = tableNameFor(loai, thang, nam);
+        if (mode === &quot;replace&quot;) {
+          await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + table + &#x27;&quot;&#x27;).run();
+        }
         await env.DB.prepare(createTableSQL(table, columns)).run();
-        const colNames = columns.map(([n]) =&gt; n);
         const numericCols = new Set(columns.filter(([, t]) =&gt; t === &quot;REAL&quot;).map(([n]) =&gt; n));
         const sql =
           &#x27;INSERT INTO &quot;&#x27; + table + &#x27;&quot; (&#x27; + colNames.map((n) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot;&#x27;).join(&quot;, &quot;) +
@@ -1284,7 +1306,7 @@ export default {
           await env.DB.batch(batch);
           inserted += batch.length;
         }
-        return json({ ok: true, table, inserted });
+        return json({ ok: true, table, inserted, mode });
       }
 
       // ---- Bao cao thong ke ----
@@ -1862,8 +1884,18 @@ async function loadTables() {
     $("tablesBody").innerHTML = (d.tables || []).map((t) => {
       const isH = t.table.startsWith("HHBG");
       const mm = t.table.match(/_(\d{2})(\d{2,4})$/);
-      return "<tr><td><code class='inl'>" + esc(t.table) + "</code></td><td>" + (isH ? "Hoa hồng bán gói" : "Tiền BCKH") + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (t.rows || 0).toLocaleString("vi-VN") + "</td></tr>";
-    }).join("") || "<tr><td colspan='4'>Chưa import bảng nào.</td></tr>";
+      return "<tr><td><code class='inl'>" + esc(t.table) + "</code></td><td>" + (isH ? "Hoa hồng bán gói" : "Tiền BCKH") + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (t.rows || 0).toLocaleString("vi-VN") + "</td>" +
+        "<td style='white-space:nowrap'><button class='btn sm danger' data-del-table='" + esc(t.table) + "'>Xóa bảng</button></td></tr>";
+    }).join("") || "<tr><td colspan='5'>Chưa import bảng nào.</td></tr>";
+    $("tablesBody").querySelectorAll("[data-del-table]").forEach((b) => b.addEventListener("click", () => delTable(b.dataset.delTable)));
+  } catch (e) { setMsg($("impMsg"), e.message, false); }
+}
+async function delTable(name) {
+  if (!confirm("Xóa hẳn bảng dữ liệu " + name + "?\nToàn bộ dữ liệu trong bảng sẽ bị xóa khỏi CSDL và không khôi phục được.")) return;
+  try {
+    await api("/api/import/tables/" + encodeURIComponent(name), { method: "DELETE" });
+    setMsg($("impMsg"), "Đã xóa bảng dữ liệu " + name + ".");
+    loadTables();
   } catch (e) { setMsg($("impMsg"), e.message, false); }
 }
 $("importForm").addEventListener("submit", async (e) => {
@@ -1871,8 +1903,12 @@ $("importForm").addEventListener("submit", async (e) => {
   const file = $("impFile").files[0];
   if (!file) { setMsg($("impMsg"), "Hãy chọn file Excel trước khi import.", false); return; }
   const loai = $("impType").value;
+  const mode = $("impMode").value;
   const thang = Number($("impMonth").value), nam = Number($("impYear").value);
   if (!thang || !nam) { setMsg($("impMsg"), "Hãy nhập tháng/năm import.", false); return; }
+  const mm = String(thang).padStart(2, "0");
+  const tableName = loai === "HHBG" ? "HHBG_" + mm + nam : "BCKH_" + mm + String(nam).slice(-2);
+  if (mode === "replace" && !confirm("Chế độ THAY THẾ sẽ xóa toàn bộ dữ liệu hiện có trong bảng " + tableName + " rồi import lại từ file này.\nAnh có chắc chắn muốn tiếp tục?")) return;
   try {
     $("impBtn").disabled = true;
     setMsg($("impMsg"), "Đang đọc file Excel…");
@@ -1882,17 +1918,24 @@ $("importForm").addEventListener("submit", async (e) => {
     const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
     if (!raw.length) throw new Error("File không có dòng dữ liệu nào.");
     const map = HEADER_MAP[loai];
+    const ignored = new Set();
+    let mappedCols = 0;
     const rows = raw.map((r) => {
       const o = {};
       Object.keys(r).forEach((k) => {
         const f = map[normHeader(k)] || (Object.values(map).includes(k.trim()) ? k.trim() : null);
         if (f) o[f] = DATE_FIELDS.has(f) ? toIsoDate(r[k]) : r[k];
+        else if (String(k).trim()) ignored.add(String(k).trim());
       });
       return o;
     }).filter((o) => Object.keys(o).length);
-    setMsg($("impMsg"), "Đang import " + rows.length.toLocaleString("vi-VN") + " dòng lên D1…");
-    const d = await api("/api/import", { method: "POST", body: JSON.stringify({ loai, thang, nam, rows }) });
-    setMsg($("impMsg"), "Import thành công " + (d.inserted || 0).toLocaleString("vi-VN") + " dòng vào bảng " + d.table + ".");
+    mappedCols = rows.length ? Object.keys(rows[0]).length : 0;
+    if (!rows.length || !mappedCols) throw new Error("Không có cột nào trong file khớp với mẫu dữ liệu " + loai + ". Hãy kiểm tra lại hàng tiêu đề của file Excel.");
+    setMsg($("impMsg"), "Đang import " + rows.length.toLocaleString("vi-VN") + " dòng lên D1 (" + (mode === "replace" ? "Thay thế" : "Cập nhật") + ")…");
+    const d = await api("/api/import", { method: "POST", body: JSON.stringify({ loai, thang, nam, mode, rows }) });
+    let msg = "Import thành công " + (d.inserted || 0).toLocaleString("vi-VN") + " dòng vào bảng " + d.table + " (chế độ " + (mode === "replace" ? "Thay thế" : "Cập nhật") + ").";
+    if (ignored.size) msg += " Đã tự động bỏ qua " + ignored.size + " cột không khớp với mẫu: " + [...ignored].join(", ") + ".";
+    setMsg($("impMsg"), msg);
     loadTables();
   } catch (err) { setMsg($("impMsg"), err.message, false); }
   finally { $("impBtn").disabled = false; }
