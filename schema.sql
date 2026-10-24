@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS don_vi (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2) Bang nguoi dung (admin va diem ban)
+-- 2) Bang nguoi dung (admin, subadmin va diem ban)
 CREATE TABLE IF NOT EXISTS nguoi_dung (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ma_kenh TEXT,
@@ -22,12 +22,23 @@ CREATE TABLE IF NOT EXISTS nguoi_dung (
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   salt TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'user',        -- 'admin' hoac 'user'
+  role TEXT NOT NULL DEFAULT 'user',        -- 'admin', 'subadmin' hoac 'user'
   so_eload TEXT,
   so_vi TEXT,
+  ten_nhan_vien TEXT,                       -- Ten nhan vien quan ly (co the de trong)
+  sdt_nhan_vien TEXT,                       -- So dien thoai nhan vien quan ly (co the de trong)
   can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
   active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2b) Bang log dang nhap (phuc vu module Thong ke dang nhap theo thang)
+CREATE TABLE IF NOT EXISTS dang_nhap_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  username TEXT,
+  ho_ten TEXT,
+  thoi_gian TEXT                            -- Gio Viet Nam (UTC+7), dang YYYY-MM-DD HH:mm:ss
 );
 
 -- 3) Tai khoan admin ban dau
@@ -39,6 +50,17 @@ VALUES
   ('ADMIN', 'Quan tri vien', 'admin',
    'dda8cd32c5dcab690f832bfceddf4d15eec944a2b5ade7349694a281b212a3ae',
    'vnpt-seed-2026', 'admin', 1);
+
+-- ============================================================================
+-- NANG CAP CHO CSDL DA TAO TU TRUOC (chi chay 1 lan, neu bao "duplicate
+-- column name" thi cot da co san - bo qua):
+--
+-- ALTER TABLE nguoi_dung ADD COLUMN ten_nhan_vien TEXT;
+-- ALTER TABLE nguoi_dung ADD COLUMN sdt_nhan_vien TEXT;
+--
+-- (Thuc te Worker se tu dong bo sung 2 cot nay khi chay, va tu tao bang
+--  dang_nhap_log o lan dang nhap dau tien, nen buoc nay khong bat buoc.)
+-- ============================================================================
 
 -- ============================================================================
 -- LUU Y ve bang du lieu import theo thang:
