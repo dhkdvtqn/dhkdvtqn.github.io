@@ -410,14 +410,18 @@ export default {
         const salt = randomSalt();
         const password = String(b.password || "Vnpt@2026");
         const hash = await hashPassword(password, salt);
+        // Phan quyen: chi admin moi duoc dat loai tai khoan va cap quyen import;
+        // SubAdmin tao nguoi dung thi mac dinh la user thuong, khong co quyen import.
+        const newRole = isAdmin ? (b.role === "admin" ? "admin" : b.role === "subadmin" ? "subadmin" : "user") : "user";
+        const newCanImport = isAdmin && b.can_import ? 1 : 0;
         const r = await env.DB.prepare(
           "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
-            b.role === "admin" ? "admin" : b.role === "subadmin" ? "subadmin" : "user",
+            newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien),
-            b.don_vi_id ? Number(b.don_vi_id) : null, b.can_import ? 1 : 0
+            b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -463,8 +467,8 @@ export default {
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
-              r.role === "admin" ? "admin" : r.role === "subadmin" ? "subadmin" : "user",
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, r.can_import ? 1 : 0
+              isAdmin ? (r.role === "admin" ? "admin" : r.role === "subadmin" ? "subadmin" : "user") : "user",
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, isAdmin && r.can_import ? 1 : 0
             )
             .run();
           created++;
@@ -475,13 +479,21 @@ export default {
       if (userMatch && method === "PUT") {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen sua nguoi dung", 403);
         const b = await readBody(request);
+        // Phan quyen: SubAdmin khong duoc thay doi loai tai khoan va quyen import
+        // cua nguoi dung -> giu nguyen gia tri dang co trong CSDL.
+        let newRole = b.role === "admin" ? "admin" : b.role === "subadmin" ? "subadmin" : "user";
+        let newCanImport = b.can_import ? 1 : 0;
+        if (!isAdmin) {
+          const cur = await env.DB.prepare("SELECT role, can_import FROM nguoi_dung WHERE id = ?").bind(Number(userMatch[1])).first();
+          if (cur) { newRole = cur.role; newCanImport = cur.can_import; }
+        }
         await env.DB.prepare(
           "UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, active = ? WHERE id = ?"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
             toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), b.don_vi_id ? Number(b.don_vi_id) : null,
-            b.can_import ? 1 : 0, b.role === "admin" ? "admin" : b.role === "subadmin" ? "subadmin" : "user",
+            newCanImport, newRole,
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
           .run();
@@ -570,7 +582,7 @@ export default {
       // ---- Xoa bang du lieu da import ----
       const tblMatch = path.match(/^\/api\/import\/tables\/([A-Za-z0-9_]+)$/);
       if (tblMatch && method === "DELETE") {
-        if (!isAdmin && !me.can_import) return err("Tai khoan khong co quyen xoa bang du lieu", 403);
+        if (!isAdmin && (isSubAdmin || !me.can_import)) return err("Tai khoan khong co quyen xoa bang du lieu (SubAdmin khong duoc phep xoa bang)", 403);
         const name = tblMatch[1];
         const types = await getDataTypes(env);
         const okName = types.some((t) => new RegExp("^" + t.prefix + "_\\d{4,6}$").test(name));

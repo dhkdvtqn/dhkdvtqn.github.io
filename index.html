@@ -1430,14 +1430,18 @@ export default {
         const salt = randomSalt();
         const password = String(b.password || &quot;Vnpt@2026&quot;);
         const hash = await hashPassword(password, salt);
+        // Phan quyen: chi admin moi duoc dat loai tai khoan va cap quyen import;
+        // SubAdmin tao nguoi dung thi mac dinh la user thuong, khong co quyen import.
+        const newRole = isAdmin ? (b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;) : &quot;user&quot;;
+        const newCanImport = isAdmin &amp;&amp; b.can_import ? 1 : 0;
         const r = await env.DB.prepare(
           &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
-            b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;,
+            newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien),
-            b.don_vi_id ? Number(b.don_vi_id) : null, b.can_import ? 1 : 0
+            b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -1483,8 +1487,8 @@ export default {
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
-              r.role === &quot;admin&quot; ? &quot;admin&quot; : r.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;,
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, r.can_import ? 1 : 0
+              isAdmin ? (r.role === &quot;admin&quot; ? &quot;admin&quot; : r.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;) : &quot;user&quot;,
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, isAdmin &amp;&amp; r.can_import ? 1 : 0
             )
             .run();
           created++;
@@ -1495,13 +1499,21 @@ export default {
       if (userMatch &amp;&amp; method === &quot;PUT&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen sua nguoi dung&quot;, 403);
         const b = await readBody(request);
+        // Phan quyen: SubAdmin khong duoc thay doi loai tai khoan va quyen import
+        // cua nguoi dung -&gt; giu nguyen gia tri dang co trong CSDL.
+        let newRole = b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;;
+        let newCanImport = b.can_import ? 1 : 0;
+        if (!isAdmin) {
+          const cur = await env.DB.prepare(&quot;SELECT role, can_import FROM nguoi_dung WHERE id = ?&quot;).bind(Number(userMatch[1])).first();
+          if (cur) { newRole = cur.role; newCanImport = cur.can_import; }
+        }
         await env.DB.prepare(
           &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, active = ? WHERE id = ?&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
             toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), b.don_vi_id ? Number(b.don_vi_id) : null,
-            b.can_import ? 1 : 0, b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;,
+            newCanImport, newRole,
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
           .run();
@@ -1590,7 +1602,7 @@ export default {
       // ---- Xoa bang du lieu da import ----
       const tblMatch = path.match(/^\/api\/import\/tables\/([A-Za-z0-9_]+)$/);
       if (tblMatch &amp;&amp; method === &quot;DELETE&quot;) {
-        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen xoa bang du lieu&quot;, 403);
+        if (!isAdmin &amp;&amp; (isSubAdmin || !me.can_import)) return err(&quot;Tai khoan khong co quyen xoa bang du lieu (SubAdmin khong duoc phep xoa bang)&quot;, 403);
         const name = tblMatch[1];
         const types = await getDataTypes(env);
         const okName = types.some((t) =&gt; new RegExp(&quot;^&quot; + t.prefix + &quot;_\\d{4,6}$&quot;).test(name));
@@ -2052,6 +2064,15 @@ function fillBanner() {
     }).catch(() => {});
   }
 }
+function applyUserFormPerms() {
+  if (!me) return;
+  const restricted = me.role === "subadmin";
+  $("uRole").disabled = restricted;
+  $("uCanImport").disabled = restricted;
+  const note = restricted ? "SubAdmin không được thay đổi loại tài khoản và không được cấp quyền import dữ liệu" : "";
+  $("uRole").title = note;
+  $("uCanImport").title = note;
+}
 function refreshAuthUI() {
   const logged = !!me;
   $("loginBtn").classList.toggle("hidden", logged);
@@ -2063,6 +2084,7 @@ function refreshAuthUI() {
     $("whoRole").textContent = (me.role === "admin" ? "Quản trị viên" : me.role === "subadmin" ? "SubAdmin" : "Điểm bán") + (me.ma_kenh ? " · " + me.ma_kenh : "");
     // Banner tieu de: thong tin diem ban / nguoi dung dang dang nhap
     fillBanner();
+    applyUserFormPerms();
     // Phan quyen menu
     document.querySelectorAll(".nav-btn").forEach((b) => {
       const p = b.dataset.panel;
@@ -2085,7 +2107,7 @@ function openPanel(panelId) {
   if (panelId === "panel-dashboard") { loadDataTypes(); loadDashboard(); }
   if (panelId === "panel-loginstats") loadLoginStats();
   if (panelId === "panel-units") loadUnits();
-  if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); }
+  if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); }
   if (panelId === "panel-import") { loadTables(); loadDataTypes(); }
   if (panelId === "panel-reports") loadDataTypes();
   if (panelId === "panel-config") $("cfgApiUrl").value = apiBase;
@@ -2486,13 +2508,14 @@ function toIsoDate(v) {
 async function loadTables() {
   try {
     const d = await api("/api/import/tables");
+    const canDelTable = !!me && (me.role === "admin" || (me.can_import && me.role !== "subadmin"));
     $("tablesBody").innerHTML = (d.tables || []).map((t) => {
       const isH = t.table.startsWith("HHBG");
       const tt = dataTypes.find((x) => x.code === t.code);
       const typeName = tt ? tt.name : (isH ? "Hoa hồng bán gói" : "Tiền BCKH");
       const mm = t.table.match(/_(\d{2})(\d{2,4})$/);
       return "<tr><td><code class='inl'>" + esc(t.table) + "</code></td><td>" + esc(typeName) + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (t.rows || 0).toLocaleString("vi-VN") + "</td>" +
-        "<td style='white-space:nowrap'><button class='btn sm danger' data-del-table='" + esc(t.table) + "'>Xóa bảng</button></td></tr>";
+        "<td style='white-space:nowrap'>" + (canDelTable ? "<button class='btn sm danger' data-del-table='" + esc(t.table) + "'>Xóa bảng</button>" : "") + "</td></tr>";
     }).join("") || "<tr><td colspan='5'>Chưa import bảng nào.</td></tr>";
     $("tablesBody").querySelectorAll("[data-del-table]").forEach((b) => b.addEventListener("click", () => delTable(b.dataset.delTable)));
   } catch (e) { setMsg($("impMsg"), e.message, false); }
