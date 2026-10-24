@@ -862,7 +862,7 @@
           <form id="importForm" class="form-grid">
             <div><label>Loại dữ liệu</label><select id="impType"><option value="HHBG">Chi trả hoa hồng bán gói (HHBG)</option><option value="BCKH">Chi trả tiền BCKH (BCKH)</option></select></div>
             <div><label>Tháng / Năm import</label><div style="display:flex;gap:8px"><input type="number" id="impMonth" min="1" max="12" /><input type="number" id="impYear" min="2020" max="2100" /></div></div>
-            <div><label>Chế độ import</label><select id="impMode"><option value="append">Cập nhật — thêm vào dữ liệu hiện có của tháng</option><option value="replace">Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu</option></select></div>
+            <div><label>Chế độ import</label><select id="impMode"><option value="create">Tạo mới — chỉ import khi tháng này chưa có dữ liệu (chặn import trùng)</option><option value="append">Cập nhật — thêm vào dữ liệu hiện có của tháng</option><option value="replace">Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu</option></select></div>
             <div><label>File Excel dữ liệu</label><input type="file" id="impFile" accept=".xlsx,.xls,.csv" /></div>
             <div class="full"><button class="btn blue" type="submit" id="impBtn">Import lên D1</button></div>
           </form>
@@ -1616,7 +1616,7 @@ export default {
         const types = await getDataTypes(env);
         const dtype = types.find((t) =&gt; t.code === String(b.loai || &quot;&quot;).toUpperCase());
         if (!dtype) return err(&quot;Loai du lieu khong ton tai: &quot; + (b.loai || &quot;&quot;), 422);
-        const mode = b.mode === &quot;replace&quot; ? &quot;replace&quot; : &quot;append&quot;; // append = Cap nhat, replace = Thay the
+        const mode = b.mode === &quot;replace&quot; ? &quot;replace&quot; : b.mode === &quot;create&quot; ? &quot;create&quot; : &quot;append&quot;; // append = Cap nhat, replace = Thay the, create = Tao moi
         const thang = Number(b.thang);
         const nam = Number(b.nam);
         const columns = typeColumnsSQL(dtype);
@@ -1633,6 +1633,12 @@ export default {
         if (!thang || thang &lt; 1 || thang &gt; 12 || !nam) return err(&quot;Thang/nam import khong hop le&quot;, 422);
         if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
         const table = tableNameForType(dtype, thang, nam);
+        if (mode === &quot;create&quot;) {
+          // Che do Tao moi: chi import khi bang thang nay chua ton tai,
+          // tranh import trung lam nhan doi so lieu.
+          const ex = await env.DB.prepare(&quot;SELECT name FROM sqlite_master WHERE type=&#x27;table&#x27; AND name = ?&quot;).bind(table).first();
+          if (ex) return err(&quot;Bang du lieu &quot; + table + &quot; da ton tai. Hay dung che do &#x27;Cap nhat&#x27; de nap them du lieu, hoac &#x27;Thay the&#x27; de xoa du lieu cu va nap lai tu dau.&quot;, 409);
+        }
         if (mode === &quot;replace&quot;) {
           await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + table + &#x27;&quot;&#x27;).run();
         }
@@ -2535,6 +2541,7 @@ $("importForm").addEventListener("submit", async (e) => {
   const dtype = dataTypes.find((t) => t.code === $("impType").value) || dataTypes[0];
   const loai = dtype.code;
   const mode = $("impMode").value;
+  const modeLabel = mode === "replace" ? "Thay thế" : mode === "create" ? "Tạo mới" : "Cập nhật";
   const thang = Number($("impMonth").value), nam = Number($("impYear").value);
   if (!thang || !nam) { setMsg($("impMsg"), "Hãy nhập tháng/năm import.", false); return; }
   const mm = String(thang).padStart(2, "0");
@@ -2561,9 +2568,9 @@ $("importForm").addEventListener("submit", async (e) => {
       return o;
     }).filter((o) => Object.keys(o).length);
     if (!rows.length) throw new Error("Không có cột nào trong file khớp với mẫu dữ liệu của loại " + loai + ". Hãy kiểm tra lại hàng tiêu đề của file Excel.");
-    setMsg($("impMsg"), "Đang import " + rows.length.toLocaleString("vi-VN") + " dòng lên D1 (" + (mode === "replace" ? "Thay thế" : "Cập nhật") + ")…");
+    setMsg($("impMsg"), "Đang import " + rows.length.toLocaleString("vi-VN") + " dòng lên D1 (" + modeLabel + ")…");
     const d = await api("/api/import", { method: "POST", body: JSON.stringify({ loai, thang, nam, mode, rows }) });
-    let msg = "Import thành công " + (d.inserted || 0).toLocaleString("vi-VN") + " dòng vào bảng " + d.table + " (chế độ " + (mode === "replace" ? "Thay thế" : "Cập nhật") + ").";
+    let msg = "Import thành công " + (d.inserted || 0).toLocaleString("vi-VN") + " dòng vào bảng " + d.table + " (chế độ " + modeLabel + ").";
     if (ignored.size) msg += " Đã tự động bỏ qua " + ignored.size + " cột không khớp với mẫu: " + [...ignored].join(", ") + ".";
     setMsg($("impMsg"), msg);
     loadTables();

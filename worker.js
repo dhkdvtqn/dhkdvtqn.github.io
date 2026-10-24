@@ -596,7 +596,7 @@ export default {
         const types = await getDataTypes(env);
         const dtype = types.find((t) => t.code === String(b.loai || "").toUpperCase());
         if (!dtype) return err("Loai du lieu khong ton tai: " + (b.loai || ""), 422);
-        const mode = b.mode === "replace" ? "replace" : "append"; // append = Cap nhat, replace = Thay the
+        const mode = b.mode === "replace" ? "replace" : b.mode === "create" ? "create" : "append"; // append = Cap nhat, replace = Thay the, create = Tao moi
         const thang = Number(b.thang);
         const nam = Number(b.nam);
         const columns = typeColumnsSQL(dtype);
@@ -613,6 +613,12 @@ export default {
         if (!thang || thang < 1 || thang > 12 || !nam) return err("Thang/nam import khong hop le", 422);
         if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
         const table = tableNameForType(dtype, thang, nam);
+        if (mode === "create") {
+          // Che do Tao moi: chi import khi bang thang nay chua ton tai,
+          // tranh import trung lam nhan doi so lieu.
+          const ex = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").bind(table).first();
+          if (ex) return err("Bang du lieu " + table + " da ton tai. Hay dung che do 'Cap nhat' de nap them du lieu, hoac 'Thay the' de xoa du lieu cu va nap lai tu dau.", 409);
+        }
         if (mode === "replace") {
           await env.DB.prepare('DROP TABLE IF EXISTS "' + table + '"').run();
         }
