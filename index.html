@@ -757,7 +757,7 @@
 <!-- ================= PHAN DANG NHAP: HE THONG QUAN LY ================= -->
 <div id="appView" class="hidden">
   <div class="wrap">
-    <div class="app-banner">
+    <div class="app-banner" style="background:linear-gradient(120deg,#003d73,#0057a8);color:#fff">
       <h1>VIỄN THÔNG QUẢNG NINH - HỆ THỐNG BÁO CÁO CHI TRẢ HOA HỒNG</h1>
       <div class="banner-info">
         <div><span>Tên điểm bán: </span><b id="bnName">—</b></div>
@@ -1860,7 +1860,7 @@ export default {
 <div id="loginModal" class="modal-back hidden">
   <div class="modal">
     <h2>Đăng nhập hệ thống</h2>
-    <p class="sub">Tài khoản admin và tài khoản điểm bán do admin cấp. Dữ liệu đăng nhập được kiểm tra trực tiếp trên CSDL Cloudflare D1.</p>
+    <p class="sub">+ Đăng nhập bằng số Eload của điểm bán (VD: 84912345678)<br />+ Mật khẩu mặc định: Vnpt@2026 (khuyến nghị Quý điểm bán đổi mật khẩu sau khi đăng nhập)</p>
     <div id="loginErr"></div>
     <form id="loginForm">
       <div class="field"><label>Tên đăng nhập</label><input id="loginUser" required autocomplete="username" /></div>
@@ -2036,6 +2036,22 @@ function setMsg(el, text, ok = true) {
 }
 
 /* ---------------- Dang nhap / dang xuat ---------------- */
+function fillBanner() {
+  if (!me) return;
+  const set = (id, v) => { const el = $(id); if (el) el.textContent = v || "—"; };
+  set("bnName", me.ho_ten);
+  set("bnEload", me.so_eload);
+  set("bnWallet", me.so_vi);
+  set("bnManager", me.ten_nhan_vien);
+  set("bnManagerPhone", me.sdt_nhan_vien);
+  set("bnUnit", "");
+  if (me.don_vi_id) {
+    api("/api/units").then((d) => {
+      const u = (d.units || []).find((x) => x.id === me.don_vi_id);
+      if (u) set("bnUnit", u.ten_don_vi);
+    }).catch(() => {});
+  }
+}
 function refreshAuthUI() {
   const logged = !!me;
   $("loginBtn").classList.toggle("hidden", logged);
@@ -2046,18 +2062,7 @@ function refreshAuthUI() {
     $("whoName").textContent = me.ho_ten;
     $("whoRole").textContent = (me.role === "admin" ? "Quản trị viên" : me.role === "subadmin" ? "SubAdmin" : "Điểm bán") + (me.ma_kenh ? " · " + me.ma_kenh : "");
     // Banner tieu de: thong tin diem ban / nguoi dung dang dang nhap
-    $("bnName").textContent = me.ho_ten || "—";
-    $("bnEload").textContent = me.so_eload || "—";
-    $("bnWallet").textContent = me.so_vi || "—";
-    $("bnManager").textContent = me.ten_nhan_vien || "—";
-    $("bnManagerPhone").textContent = me.sdt_nhan_vien || "—";
-    $("bnUnit").textContent = "—";
-    if (me.don_vi_id) {
-      api("/api/units").then((d) => {
-        const u = (d.units || []).find((x) => x.id === me.don_vi_id);
-        if (u) $("bnUnit").textContent = u.ten_don_vi;
-      }).catch(() => {});
-    }
+    fillBanner();
     // Phan quyen menu
     document.querySelectorAll(".nav-btn").forEach((b) => {
       const p = b.dataset.panel;
@@ -2076,6 +2081,7 @@ function refreshAuthUI() {
 function openPanel(panelId) {
   document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("hidden", p.id !== panelId));
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.panel === panelId));
+  fillBanner();
   if (panelId === "panel-dashboard") { loadDataTypes(); loadDashboard(); }
   if (panelId === "panel-loginstats") loadLoginStats();
   if (panelId === "panel-units") loadUnits();
