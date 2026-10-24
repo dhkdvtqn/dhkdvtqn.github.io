@@ -637,8 +637,10 @@ export default {
         const sources = types
           .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col)
           .map((t) => buildSource(t, me));
-        const parts = [];
-        const binds = [];
+        // Truy van tung bang thang roi cong don ket qua trong JS.
+        // (Cach cu ghep tat ca bang bang UNION ALL thanh 1 cau SQL khong lo
+        //  se vuot gioi han "too many terms in compound SELECT" cua D1.)
+        const agg = new Map();
         for (const s of sources) {
           const tables = await listMonthlyTables(env, s.prefix);
           for (const t of tables) {
@@ -655,18 +657,16 @@ export default {
               localBinds.push(...s.ownBinds);
             }
             sql += " GROUP BY ky";
-            parts.push(sql);
-            binds.push(...localBinds);
+            const res = await env.DB.prepare(sql).bind(...localBinds).all();
+            for (const r of res.results || []) {
+              const cur = agg.get(r.ky) || { ky: r.ky, so_giao_dich: 0, tong_tien: 0 };
+              cur.so_giao_dich += r.so_giao_dich || 0;
+              cur.tong_tien += r.tong_tien || 0;
+              agg.set(r.ky, cur);
+            }
           }
         }
-        if (!parts.length) return json({ ok: true, rows: [], tong_giao_dich: 0, tong_tien: 0 });
-        const union = parts.join(" UNION ALL ");
-        const res = await env.DB.prepare(
-          "SELECT ky, SUM(so_giao_dich) AS so_giao_dich, SUM(tong_tien) AS tong_tien FROM (" + union + ") GROUP BY ky ORDER BY ky"
-        )
-          .bind(...binds)
-          .all();
-        const rows = res.results || [];
+        const rows = [...agg.values()].sort((a, b) => String(a.ky || "").localeCompare(String(b.ky || "")));
         return json({
           ok: true,
           rows,
