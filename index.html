@@ -1617,6 +1617,9 @@ export default {
         const dtype = types.find((t) =&gt; t.code === String(b.loai || &quot;&quot;).toUpperCase());
         if (!dtype) return err(&quot;Loai du lieu khong ton tai: &quot; + (b.loai || &quot;&quot;), 422);
         const mode = b.mode === &quot;replace&quot; ? &quot;replace&quot; : b.mode === &quot;create&quot; ? &quot;create&quot; : &quot;append&quot;; // append = Cap nhat, replace = Thay the, create = Tao moi
+        // Phan quyen: che do Thay the (xoa du lieu cu cua thang) chi danh cho admin.
+        // SubAdmin va user co quyen import chi duoc dung Tao moi / Cap nhat.
+        if (mode === &quot;replace&quot; &amp;&amp; !isAdmin) return err(&quot;Chi admin moi duoc su dung che do &#x27;Thay the&#x27; (xoa du lieu cu cua thang). Tai khoan cua anh chi duoc dung che do &#x27;Tao moi&#x27; hoac &#x27;Cap nhat&#x27;.&quot;, 403);
         const thang = Number(b.thang);
         const nam = Number(b.nam);
         const columns = typeColumnsSQL(dtype);
@@ -2079,6 +2082,20 @@ function applyUserFormPerms() {
   $("uRole").title = note;
   $("uCanImport").title = note;
 }
+function applyImportPerms() {
+  if (!me) return;
+  const sel = $("impMode");
+  if (!sel) return;
+  const opt = sel.querySelector('option[value="replace"]');
+  const isAdm = me.role === "admin";
+  if (opt) {
+    opt.disabled = !isAdm;
+    opt.textContent = isAdm
+      ? "Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu"
+      : "Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu (chỉ admin)";
+  }
+  if (!isAdm && sel.value === "replace") sel.value = "create";
+}
 function refreshAuthUI() {
   const logged = !!me;
   $("loginBtn").classList.toggle("hidden", logged);
@@ -2091,6 +2108,7 @@ function refreshAuthUI() {
     // Banner tieu de: thong tin diem ban / nguoi dung dang dang nhap
     fillBanner();
     applyUserFormPerms();
+    applyImportPerms();
     // Phan quyen menu
     document.querySelectorAll(".nav-btn").forEach((b) => {
       const p = b.dataset.panel;
@@ -2114,7 +2132,7 @@ function openPanel(panelId) {
   if (panelId === "panel-loginstats") loadLoginStats();
   if (panelId === "panel-units") loadUnits();
   if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); }
-  if (panelId === "panel-import") { loadTables(); loadDataTypes(); }
+  if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); }
   if (panelId === "panel-reports") loadDataTypes();
   if (panelId === "panel-config") $("cfgApiUrl").value = apiBase;
 }

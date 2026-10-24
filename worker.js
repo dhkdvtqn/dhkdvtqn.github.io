@@ -597,6 +597,9 @@ export default {
         const dtype = types.find((t) => t.code === String(b.loai || "").toUpperCase());
         if (!dtype) return err("Loai du lieu khong ton tai: " + (b.loai || ""), 422);
         const mode = b.mode === "replace" ? "replace" : b.mode === "create" ? "create" : "append"; // append = Cap nhat, replace = Thay the, create = Tao moi
+        // Phan quyen: che do Thay the (xoa du lieu cu cua thang) chi danh cho admin.
+        // SubAdmin va user co quyen import chi duoc dung Tao moi / Cap nhat.
+        if (mode === "replace" && !isAdmin) return err("Chi admin moi duoc su dung che do 'Thay the' (xoa du lieu cu cua thang). Tai khoan cua anh chi duoc dung che do 'Tao moi' hoac 'Cap nhat'.", 403);
         const thang = Number(b.thang);
         const nam = Number(b.nam);
         const columns = typeColumnsSQL(dtype);
