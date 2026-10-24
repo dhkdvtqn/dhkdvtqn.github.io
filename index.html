@@ -824,6 +824,10 @@
           </form>
           <div id="userMsg"></div>
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Danh sách người dùng</h3>
+          <div class="form-grid" style="grid-template-columns:minmax(260px,380px) 1fr;align-items:end;margin-bottom:10px">
+            <div><label>Lọc theo đơn vị</label><select id="userUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
+            <div><span id="userCount" class="desc"></span></div>
+          </div>
           <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="11">Đang tải…</td></tr></tbody></table></div>
           <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import người dùng từ Excel</h3>
           <p class="desc">Tải file mẫu về, điền thông tin người dùng vào file rồi import lên hệ thống. User đăng nhập đã tồn tại sẽ tự động bị bỏ qua; mật khẩu để trống sẽ dùng mặc định <code class="inl">Vnpt@2026</code>.</p>
@@ -2225,13 +2229,27 @@ async function loadUnitOptions() {
     sel.innerHTML = '<option value="">— Chưa thuộc đơn vị —</option>' +
       (d.units || []).map((u) => '<option value="' + u.id + '">' + esc(u.ten_don_vi) + " (" + esc(u.ma_don_vi) + ")</option>").join("");
     sel.value = cur;
+    const fsel = $("userUnitFilter");
+    const fcur = fsel.value;
+    fsel.innerHTML = '<option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option>' +
+      (d.units || []).map((u) => '<option value="' + u.id + '">' + esc(u.ten_don_vi) + " (" + esc(u.ma_don_vi) + ")</option>").join("");
+    fsel.value = fcur;
   } catch (e) { /* bo qua */ }
 }
 async function loadUsers() {
   try {
     const d = await api("/api/users");
     usersCache = d.users || [];
-    $("usersBody").innerHTML = usersCache.map((u) =>
+    renderUsers();
+    setMsg($("userMsg"), "");
+  } catch (e) { setMsg($("userMsg"), e.message, false); }
+}
+function renderUsers() {
+  const fEl = $("userUnitFilter");
+  const f = fEl ? fEl.value : "";
+  const list = usersCache.filter((u) => (f === "" ? true : f === "none" ? !u.don_vi_id : String(u.don_vi_id) === String(f)));
+  if ($("userCount")) $("userCount").textContent = "Hiển thị " + list.length + " / " + usersCache.length + " người dùng";
+  $("usersBody").innerHTML = list.map((u) =>
       "<tr><td>" + esc(u.ma_kenh) + "</td><td><b>" + esc(u.ho_ten) + "</b></td><td>" + esc(u.username) + "</td>" +
       "<td><span class='pill " + (u.role === "admin" ? "admin" : u.role === "subadmin" ? "sub" : "user") + "'>" + (u.role === "admin" ? "Admin" : u.role === "subadmin" ? "SubAdmin" : "Điểm bán") + "</span></td>" +
       "<td>" + esc(u.so_eload) + "</td><td>" + esc(u.so_vi) + "</td>" +
@@ -2243,11 +2261,11 @@ async function loadUsers() {
         ? "<button class='btn sm gray' disabled title='Không thể tự xóa tài khoản đang đăng nhập'>Xóa</button>"
         : "<button class='btn sm danger' data-del-user='" + u.id + "'>Xóa</button>") +
       "</td></tr>").join("") ||
-      "<tr><td colspan='11'>Chưa có người dùng nào.</td></tr>";
-    $("usersBody").querySelectorAll("[data-edit-user]").forEach((b) => b.addEventListener("click", () => editUser(Number(b.dataset.editUser))));
-    $("usersBody").querySelectorAll("[data-del-user]").forEach((b) => b.addEventListener("click", () => delUser(Number(b.dataset.delUser))));
-  } catch (e) { setMsg($("userMsg"), e.message, false); }
+      "<tr><td colspan='11'>" + (usersCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
+  $("usersBody").querySelectorAll("[data-edit-user]").forEach((b) => b.addEventListener("click", () => editUser(Number(b.dataset.editUser))));
+  $("usersBody").querySelectorAll("[data-del-user]").forEach((b) => b.addEventListener("click", () => delUser(Number(b.dataset.delUser))));
 }
+$("userUnitFilter").addEventListener("change", renderUsers);
 function editUser(id) {
   const u = usersCache.find((x) => x.id === id);
   if (!u) return;
