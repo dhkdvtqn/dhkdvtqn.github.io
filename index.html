@@ -437,6 +437,11 @@
 #appRoot .pill {display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
 #appRoot .pill.admin {background:#ffe3c2;color:#8a4b00}
 #appRoot .pill.sub {background:#e2dcff;color:#46309e}
+#appRoot .app-banner {background:linear-gradient(120deg,var(--blue-dark),var(--blue));color:#fff;border-radius:16px;padding:20px 22px;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,30,60,.18)}
+#appRoot .app-banner h1 {margin:0 0 14px;text-align:center;font-size:clamp(17px,2.6vw,25px);letter-spacing:.4px;line-height:1.35}
+#appRoot .banner-info {display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px 26px;font-size:14.5px}
+#appRoot .banner-info div {background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:8px 12px}
+#appRoot .banner-info span {opacity:.85}
 #appRoot .pill.user {background:var(--blue-light);color:var(--blue-dark)}
 #appRoot .pill.ok {background:#d9f2e3;color:var(--ok)}
 #appRoot .pill.bad {background:#fbdcdc;color:var(--bad)}
@@ -752,6 +757,17 @@
 <!-- ================= PHAN DANG NHAP: HE THONG QUAN LY ================= -->
 <div id="appView" class="hidden">
   <div class="wrap">
+    <div class="app-banner">
+      <h1>VIỄN THÔNG QUẢNG NINH - HỆ THỐNG BÁO CÁO CHI TRẢ HOA HỒNG</h1>
+      <div class="banner-info">
+        <div><span>Tên điểm bán: </span><b id="bnName">—</b></div>
+        <div><span>Số tài khoản Eload: </span><b id="bnEload">—</b></div>
+        <div><span>Số Ví VNPT Money: </span><b id="bnWallet">—</b></div>
+        <div><span>Tên nhân viên quản lý: </span><b id="bnManager">—</b></div>
+        <div><span>Số điện thoại nhân viên quản lý: </span><b id="bnManagerPhone">—</b></div>
+        <div><span>Đơn vị trực thuộc: </span><b id="bnUnit">—</b></div>
+      </div>
+    </div>
     <div class="app">
       <aside class="sidebar">
         <div class="who"><b id="whoName">—</b><span id="whoRole">—</span></div>
@@ -2029,6 +2045,19 @@ function refreshAuthUI() {
     $("userChip").textContent = "👤 " + me.ho_ten + (me.role === "admin" ? " (Admin)" : me.role === "subadmin" ? " (SubAdmin)" : "");
     $("whoName").textContent = me.ho_ten;
     $("whoRole").textContent = (me.role === "admin" ? "Quản trị viên" : me.role === "subadmin" ? "SubAdmin" : "Điểm bán") + (me.ma_kenh ? " · " + me.ma_kenh : "");
+    // Banner tieu de: thong tin diem ban / nguoi dung dang dang nhap
+    $("bnName").textContent = me.ho_ten || "—";
+    $("bnEload").textContent = me.so_eload || "—";
+    $("bnWallet").textContent = me.so_vi || "—";
+    $("bnManager").textContent = me.ten_nhan_vien || "—";
+    $("bnManagerPhone").textContent = me.sdt_nhan_vien || "—";
+    $("bnUnit").textContent = "—";
+    if (me.don_vi_id) {
+      api("/api/units").then((d) => {
+        const u = (d.units || []).find((x) => x.id === me.don_vi_id);
+        if (u) $("bnUnit").textContent = u.ten_don_vi;
+      }).catch(() => {});
+    }
     // Phan quyen menu
     document.querySelectorAll(".nav-btn").forEach((b) => {
       const p = b.dataset.panel;
