@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS nguoi_dung (
   so_vi TEXT,
   ten_nhan_vien TEXT,                       -- Ten nhan vien quan ly (co the de trong)
   sdt_nhan_vien TEXT,                       -- So dien thoai nhan vien quan ly (co the de trong)
+  don_vi_id INTEGER,                        -- Don vi truc thuoc (lien ket bang don_vi, co the de trong)
   can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
   active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -57,6 +58,7 @@ VALUES
 --
 -- ALTER TABLE nguoi_dung ADD COLUMN ten_nhan_vien TEXT;
 -- ALTER TABLE nguoi_dung ADD COLUMN sdt_nhan_vien TEXT;
+-- ALTER TABLE nguoi_dung ADD COLUMN don_vi_id INTEGER;
 --
 -- (Thuc te Worker se tu dong bo sung 2 cot nay khi chay, va tu tao bang
 --  dang_nhap_log o lan dang nhap dau tien, nen buoc nay khong bat buoc.)

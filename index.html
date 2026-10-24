@@ -814,6 +814,8 @@
             <div><label>Mật khẩu (để trống = Vnpt@2026)</label><input id="uPassword" type="text" autocomplete="off" placeholder="Vnpt@2026" /></div>
             <div><label>Số tài khoản Eload</label><input id="uEload" /></div>
             <div><label>Số Ví VNPT Money</label><input id="uWallet" /></div>
+            <div><label>Đơn vị</label><select id="uUnit"><option value="">— Chưa thuộc đơn vị —</option></select></div>
+            <div></div>
             <div><label>Tên nhân viên quản lý (có thể để trống)</label><input id="uManager" /></div>
             <div><label>Số điện thoại nhân viên quản lý (có thể để trống)</label><input id="uManagerPhone" /></div>
             <div><label>Loại tài khoản</label><select id="uRole"><option value="user">User thường (điểm bán)</option><option value="subadmin">SubAdmin (xem toàn tỉnh + quản lý người dùng)</option><option value="admin">Admin</option></select></div>
@@ -822,7 +824,7 @@
           </form>
           <div id="userMsg"></div>
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Danh sách người dùng</h3>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="10">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="11">Đang tải…</td></tr></tbody></table></div>
           <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import người dùng từ Excel</h3>
           <p class="desc">Tải file mẫu về, điền thông tin người dùng vào file rồi import lên hệ thống. User đăng nhập đã tồn tại sẽ tự động bị bỏ qua; mật khẩu để trống sẽ dùng mặc định <code class="inl">Vnpt@2026</code>.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -929,6 +931,7 @@ CREATE TABLE IF NOT EXISTS nguoi_dung (
   so_vi TEXT,
   ten_nhan_vien TEXT,                       -- Ten nhan vien quan ly (co the de trong)
   sdt_nhan_vien TEXT,                       -- So dien thoai nhan vien quan ly (co the de trong)
+  don_vi_id INTEGER,                        -- Don vi truc thuoc (lien ket bang don_vi, co the de trong)
   can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
   active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -959,6 +962,7 @@ VALUES
 --
 -- ALTER TABLE nguoi_dung ADD COLUMN ten_nhan_vien TEXT;
 -- ALTER TABLE nguoi_dung ADD COLUMN sdt_nhan_vien TEXT;
+-- ALTER TABLE nguoi_dung ADD COLUMN don_vi_id INTEGER;
 --
 -- (Thuc te Worker se tu dong bo sung 2 cot nay khi chay, va tu tao bang
 --  dang_nhap_log o lan dang nhap dau tien, nen buoc nay khong bat buoc.)
@@ -1102,7 +1106,7 @@ async function requireAuth(request, env) {
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
   const user = await env.DB.prepare(
-    &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, can_import, active FROM nguoi_dung WHERE id = ?&quot;
+    &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, active FROM nguoi_dung WHERE id = ?&quot;
   )
     .bind(payload.sub)
     .first();
@@ -1120,6 +1124,8 @@ function publicUser(u) {
     so_vi: u.so_vi || &quot;&quot;,
     ten_nhan_vien: u.ten_nhan_vien || &quot;&quot;,
     sdt_nhan_vien: u.sdt_nhan_vien || &quot;&quot;,
+    don_vi_id: u.don_vi_id ?? null,
+    don_vi_ten: u.don_vi_ten || &quot;&quot;,
     can_import: !!u.can_import,
   };
 }
@@ -1130,6 +1136,7 @@ async function ensureUserColumns(env) {
     const cols = new Set((res.results || []).map((r) =&gt; r.name));
     if (!cols.has(&quot;ten_nhan_vien&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN ten_nhan_vien TEXT&quot;).run();
     if (!cols.has(&quot;sdt_nhan_vien&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN sdt_nhan_vien TEXT&quot;).run();
+    if (!cols.has(&quot;don_vi_id&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN don_vi_id INTEGER&quot;).run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -1342,13 +1349,13 @@ export default {
       }
 
       // ---- Cac API con lai deu can dang nhap ----
+      await ensureUserColumns(env); // dam bao cac cot bo sung da co truoc khi truy van
       const me = await requireAuth(request, env);
       if (!me) return err(&quot;Phien dang nhap khong hop le hoac da het han. Vui long dang nhap lai.&quot;, 401);
       const isAdmin = me.role === &quot;admin&quot;;
       const isSubAdmin = me.role === &quot;subadmin&quot;;
       const isPrivileged = isAdmin || isSubAdmin; // Admin &amp; SubAdmin: xem du lieu toan tinh
       const canManageUsers = isAdmin || isSubAdmin; // Admin &amp; SubAdmin: quan ly nguoi dung
-      await ensureUserColumns(env);
 
       if (path === &quot;/api/me&quot; &amp;&amp; method === &quot;GET&quot;) {
         return json({ ok: true, user: publicUser(me) });
@@ -1392,7 +1399,7 @@ export default {
       if (path === &quot;/api/users&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xem danh sach nguoi dung&quot;, 403);
         const res = await env.DB.prepare(
-          &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, can_import, active FROM nguoi_dung ORDER BY ho_ten&quot;
+          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten&quot;
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -1404,12 +1411,13 @@ export default {
         const password = String(b.password || &quot;Vnpt@2026&quot;);
         const hash = await hashPassword(password, salt);
         const r = await env.DB.prepare(
-          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;,
-            toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), b.can_import ? 1 : 0
+            toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien),
+            b.don_vi_id ? Number(b.don_vi_id) : null, b.can_import ? 1 : 0
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -1422,6 +1430,7 @@ export default {
         if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
         let created = 0, skipped = 0;
         const errors = [];
+        const warnings = [];
         for (let i = 0; i &lt; rows.length; i++) {
           const r = rows[i] || {};
           const username = toText(r.username);
@@ -1437,31 +1446,41 @@ export default {
             errors.push({ row: i + 2, reason: &quot;User dang nhap da ton tai: &quot; + username });
             continue;
           }
+          // Don vi: nhan id truc tiep, hoac tra theo ma/ten don vi trong file Excel
+          let donViId = null;
+          if (r.don_vi_id) donViId = Number(r.don_vi_id) || null;
+          else if (toText(r.don_vi)) {
+            const dv = await env.DB.prepare(&quot;SELECT id FROM don_vi WHERE ma_don_vi = ? OR ten_don_vi = ?&quot;)
+              .bind(toText(r.don_vi), toText(r.don_vi))
+              .first();
+            if (dv) donViId = dv.id;
+            else warnings.push({ row: i + 2, reason: &quot;Khong tim thay don vi &#x27;&quot; + toText(r.don_vi) + &quot;&#x27; — da de trong&quot; });
+          }
           const salt = randomSalt();
           const hash = await hashPassword(String(r.password || &quot;Vnpt@2026&quot;), salt);
           await env.DB.prepare(
-            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
               r.role === &quot;admin&quot; ? &quot;admin&quot; : r.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;,
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), r.can_import ? 1 : 0
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, r.can_import ? 1 : 0
             )
             .run();
           created++;
         }
-        return json({ ok: true, created, skipped, errors: errors.slice(0, 50) });
+        return json({ ok: true, created, skipped, errors: errors.slice(0, 50), warnings: warnings.slice(0, 50) });
       }
       const userMatch = path.match(/^\/api\/users\/(\d+)$/);
       if (userMatch &amp;&amp; method === &quot;PUT&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen sua nguoi dung&quot;, 403);
         const b = await readBody(request);
         await env.DB.prepare(
-          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, can_import = ?, role = ?, active = ? WHERE id = ?&quot;
+          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, active = ? WHERE id = ?&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
-            toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien),
+            toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), b.don_vi_id ? Number(b.don_vi_id) : null,
             b.can_import ? 1 : 0, b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;,
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
@@ -2027,7 +2046,7 @@ function openPanel(panelId) {
   if (panelId === "panel-dashboard") { loadDataTypes(); loadDashboard(); }
   if (panelId === "panel-loginstats") loadLoginStats();
   if (panelId === "panel-units") loadUnits();
-  if (panelId === "panel-users") loadUsers();
+  if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); }
   if (panelId === "panel-import") { loadTables(); loadDataTypes(); }
   if (panelId === "panel-reports") loadDataTypes();
   if (panelId === "panel-config") $("cfgApiUrl").value = apiBase;
@@ -2198,6 +2217,16 @@ async function delUnit(id) {
 
 /* ---------------- Quan ly nguoi dung ---------------- */
 let usersCache = [];
+async function loadUnitOptions() {
+  try {
+    const d = await api("/api/units");
+    const sel = $("uUnit");
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Chưa thuộc đơn vị —</option>' +
+      (d.units || []).map((u) => '<option value="' + u.id + '">' + esc(u.ten_don_vi) + " (" + esc(u.ma_don_vi) + ")</option>").join("");
+    sel.value = cur;
+  } catch (e) { /* bo qua */ }
+}
 async function loadUsers() {
   try {
     const d = await api("/api/users");
@@ -2206,6 +2235,7 @@ async function loadUsers() {
       "<tr><td>" + esc(u.ma_kenh) + "</td><td><b>" + esc(u.ho_ten) + "</b></td><td>" + esc(u.username) + "</td>" +
       "<td><span class='pill " + (u.role === "admin" ? "admin" : u.role === "subadmin" ? "sub" : "user") + "'>" + (u.role === "admin" ? "Admin" : u.role === "subadmin" ? "SubAdmin" : "Điểm bán") + "</span></td>" +
       "<td>" + esc(u.so_eload) + "</td><td>" + esc(u.so_vi) + "</td>" +
+      "<td>" + esc(u.don_vi_ten) + "</td>" +
       "<td>" + esc(u.ten_nhan_vien) + "</td><td>" + esc(u.sdt_nhan_vien) + "</td>" +
       "<td>" + (u.can_import ? "<span class='pill ok'>Có</span>" : "—") + "</td>" +
       "<td style='white-space:nowrap'><button class='btn sm gray' data-edit-user='" + u.id + "'>Sửa</button> " +
@@ -2213,7 +2243,7 @@ async function loadUsers() {
         ? "<button class='btn sm gray' disabled title='Không thể tự xóa tài khoản đang đăng nhập'>Xóa</button>"
         : "<button class='btn sm danger' data-del-user='" + u.id + "'>Xóa</button>") +
       "</td></tr>").join("") ||
-      "<tr><td colspan='10'>Chưa có người dùng nào.</td></tr>";
+      "<tr><td colspan='11'>Chưa có người dùng nào.</td></tr>";
     $("usersBody").querySelectorAll("[data-edit-user]").forEach((b) => b.addEventListener("click", () => editUser(Number(b.dataset.editUser))));
     $("usersBody").querySelectorAll("[data-del-user]").forEach((b) => b.addEventListener("click", () => delUser(Number(b.dataset.delUser))));
   } catch (e) { setMsg($("userMsg"), e.message, false); }
@@ -2224,6 +2254,7 @@ function editUser(id) {
   $("userId").value = u.id; $("uChannel").value = u.ma_kenh || ""; $("uName").value = u.ho_ten;
   $("uUsername").value = u.username; $("uUsername").disabled = true; $("uPassword").value = "";
   $("uEload").value = u.so_eload || ""; $("uWallet").value = u.so_vi || "";
+  $("uUnit").value = u.don_vi_id || "";
   $("uManager").value = u.ten_nhan_vien || ""; $("uManagerPhone").value = u.sdt_nhan_vien || "";
   $("uRole").value = u.role; $("uCanImport").checked = !!u.can_import;
   $("userSubmit").textContent = "Lưu thay đổi"; $("userCancel").classList.remove("hidden");
@@ -2238,6 +2269,7 @@ $("userForm").addEventListener("submit", async (e) => {
   const body = {
     ma_kenh: $("uChannel").value.trim(), ho_ten: $("uName").value.trim(), username: $("uUsername").value.trim(),
     password: $("uPassword").value, so_eload: $("uEload").value.trim(), so_vi: $("uWallet").value.trim(),
+    don_vi_id: $("uUnit").value ? Number($("uUnit").value) : null,
     ten_nhan_vien: $("uManager").value.trim(), sdt_nhan_vien: $("uManagerPhone").value.trim(),
     role: $("uRole").value, can_import: $("uCanImport").checked, active: true,
   };
@@ -2263,6 +2295,7 @@ const USER_HEADER_MAP = {
   "mật khẩu": "password", "password": "password",
   "số tài khoản eload": "so_eload", "số eload": "so_eload",
   "số ví vnpt money": "so_vi", "số ví": "so_vi",
+  "đơn vị": "don_vi", "mã đơn vị": "don_vi", "tên đơn vị": "don_vi", "đơn vị trực thuộc": "don_vi",
   "tên nhân viên quản lý": "ten_nhan_vien", "nhân viên quản lý": "ten_nhan_vien",
   "số điện thoại nhân viên quản lý": "sdt_nhan_vien", "sđt nhân viên quản lý": "sdt_nhan_vien", "số điện thoại": "sdt_nhan_vien",
   "quyền import dữ liệu": "can_import", "được quyền import dữ liệu": "can_import", "quyền import": "can_import",
@@ -2273,8 +2306,8 @@ function parseYesNo(v) {
 }
 $("uTemplateBtn").addEventListener("click", () => {
   try {
-    const headers = ["Mã kênh bán hàng", "Họ và tên người dùng/điểm bán", "User đăng nhập", "Mật khẩu", "Số tài khoản Eload", "Số Ví VNPT Money", "Tên nhân viên quản lý", "Số điện thoại nhân viên quản lý", "Quyền import dữ liệu", "Loại tài khoản"];
-    const sample = ["KBH-VDCT-001", "Điểm bán Minh Anh (ví dụ)", "minhanh.db", "", "0901234567", "0901234567", "Nguyễn Văn A", "0912345678", 0, "user"];
+    const headers = ["Mã kênh bán hàng", "Họ và tên người dùng/điểm bán", "User đăng nhập", "Mật khẩu", "Số tài khoản Eload", "Số Ví VNPT Money", "Đơn vị", "Tên nhân viên quản lý", "Số điện thoại nhân viên quản lý", "Quyền import dữ liệu", "Loại tài khoản"];
+    const sample = ["KBH-VDCT-001", "Điểm bán Minh Anh (ví dụ)", "minhanh.db", "", "0901234567", "0901234567", "VDCT", "Nguyễn Văn A", "0912345678", 0, "user"];
     const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
     ws["!cols"] = headers.map(() => ({ wch: 26 }));
     const wb = XLSX.utils.book_new();
@@ -2289,6 +2322,7 @@ $("uTemplateBtn").addEventListener("click", () => {
       ["6. Loại tài khoản: nhập user (điểm bán), subadmin hoặc admin."],
       ["7. Số tài khoản Eload và Số Ví VNPT Money: dùng để điểm bán xem báo cáo chi trả của chính mình."],
       ["8. Tên nhân viên quản lý và Số điện thoại nhân viên quản lý: có thể để trống."],
+      ["9. Đơn vị: nhập Mã đơn vị (hoặc đúng Tên đơn vị) đã tạo trong module Quản lý đơn vị, ví dụ VDCT. Để trống nếu chưa thuộc đơn vị nào; nếu mã/tên không tồn tại, hệ thống sẽ để trống và báo lại."],
     ];
     const ws2 = XLSX.utils.aoa_to_sheet(guide);
     ws2["!cols"] = [{ wch: 120 }];
@@ -2322,6 +2356,7 @@ $("uImpBtn").addEventListener("click", async () => {
     const d = await api("/api/users/import", { method: "POST", body: JSON.stringify({ rows }) });
     let msg = "Import xong: tạo mới " + (d.created || 0) + " người dùng, bỏ qua " + (d.skipped || 0) + " dòng.";
     if (d.errors && d.errors.length) msg += " Chi tiết bỏ qua: " + d.errors.slice(0, 8).map((x) => "Hàng " + x.row + ": " + x.reason).join("; ") + (d.errors.length > 8 ? "…" : "");
+    if (d.warnings && d.warnings.length) msg += " Lưu ý: " + d.warnings.slice(0, 8).map((x) => "Hàng " + x.row + ": " + x.reason).join("; ") + (d.warnings.length > 8 ? "…" : "");
     setMsg($("uImpMsg"), msg, true);
     loadUsers();
   } catch (err) { setMsg($("uImpMsg"), err.message, false); }

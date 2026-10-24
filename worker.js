@@ -106,7 +106,7 @@ async function requireAuth(request, env) {
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
   const user = await env.DB.prepare(
-    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, can_import, active FROM nguoi_dung WHERE id = ?"
+    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, active FROM nguoi_dung WHERE id = ?"
   )
     .bind(payload.sub)
     .first();
@@ -124,6 +124,8 @@ function publicUser(u) {
     so_vi: u.so_vi || "",
     ten_nhan_vien: u.ten_nhan_vien || "",
     sdt_nhan_vien: u.sdt_nhan_vien || "",
+    don_vi_id: u.don_vi_id ?? null,
+    don_vi_ten: u.don_vi_ten || "",
     can_import: !!u.can_import,
   };
 }
@@ -134,6 +136,7 @@ async function ensureUserColumns(env) {
     const cols = new Set((res.results || []).map((r) => r.name));
     if (!cols.has("ten_nhan_vien")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN ten_nhan_vien TEXT").run();
     if (!cols.has("sdt_nhan_vien")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN sdt_nhan_vien TEXT").run();
+    if (!cols.has("don_vi_id")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN don_vi_id INTEGER").run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -346,13 +349,13 @@ export default {
       }
 
       // ---- Cac API con lai deu can dang nhap ----
+      await ensureUserColumns(env); // dam bao cac cot bo sung da co truoc khi truy van
       const me = await requireAuth(request, env);
       if (!me) return err("Phien dang nhap khong hop le hoac da het han. Vui long dang nhap lai.", 401);
       const isAdmin = me.role === "admin";
       const isSubAdmin = me.role === "subadmin";
       const isPrivileged = isAdmin || isSubAdmin; // Admin & SubAdmin: xem du lieu toan tinh
       const canManageUsers = isAdmin || isSubAdmin; // Admin & SubAdmin: quan ly nguoi dung
-      await ensureUserColumns(env);
 
       if (path === "/api/me" && method === "GET") {
         return json({ ok: true, user: publicUser(me) });
@@ -396,7 +399,7 @@ export default {
       if (path === "/api/users" && method === "GET") {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen xem danh sach nguoi dung", 403);
         const res = await env.DB.prepare(
-          "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, can_import, active FROM nguoi_dung ORDER BY ho_ten"
+          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten"
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -408,12 +411,13 @@ export default {
         const password = String(b.password || "Vnpt@2026");
         const hash = await hashPassword(password, salt);
         const r = await env.DB.prepare(
-          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             b.role === "admin" ? "admin" : b.role === "subadmin" ? "subadmin" : "user",
-            toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), b.can_import ? 1 : 0
+            toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien),
+            b.don_vi_id ? Number(b.don_vi_id) : null, b.can_import ? 1 : 0
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -426,6 +430,7 @@ export default {
         if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
         let created = 0, skipped = 0;
         const errors = [];
+        const warnings = [];
         for (let i = 0; i < rows.length; i++) {
           const r = rows[i] || {};
           const username = toText(r.username);
@@ -441,31 +446,41 @@ export default {
             errors.push({ row: i + 2, reason: "User dang nhap da ton tai: " + username });
             continue;
           }
+          // Don vi: nhan id truc tiep, hoac tra theo ma/ten don vi trong file Excel
+          let donViId = null;
+          if (r.don_vi_id) donViId = Number(r.don_vi_id) || null;
+          else if (toText(r.don_vi)) {
+            const dv = await env.DB.prepare("SELECT id FROM don_vi WHERE ma_don_vi = ? OR ten_don_vi = ?")
+              .bind(toText(r.don_vi), toText(r.don_vi))
+              .first();
+            if (dv) donViId = dv.id;
+            else warnings.push({ row: i + 2, reason: "Khong tim thay don vi '" + toText(r.don_vi) + "' — da de trong" });
+          }
           const salt = randomSalt();
           const hash = await hashPassword(String(r.password || "Vnpt@2026"), salt);
           await env.DB.prepare(
-            "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
               r.role === "admin" ? "admin" : r.role === "subadmin" ? "subadmin" : "user",
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), r.can_import ? 1 : 0
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, r.can_import ? 1 : 0
             )
             .run();
           created++;
         }
-        return json({ ok: true, created, skipped, errors: errors.slice(0, 50) });
+        return json({ ok: true, created, skipped, errors: errors.slice(0, 50), warnings: warnings.slice(0, 50) });
       }
       const userMatch = path.match(/^\/api\/users\/(\d+)$/);
       if (userMatch && method === "PUT") {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen sua nguoi dung", 403);
         const b = await readBody(request);
         await env.DB.prepare(
-          "UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, can_import = ?, role = ?, active = ? WHERE id = ?"
+          "UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, active = ? WHERE id = ?"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
-            toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien),
+            toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), b.don_vi_id ? Number(b.don_vi_id) : null,
             b.can_import ? 1 : 0, b.role === "admin" ? "admin" : b.role === "subadmin" ? "subadmin" : "user",
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
