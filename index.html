@@ -441,6 +441,7 @@
 #appRoot .pkg-media {position:sticky;top:12px}
 #appRoot .pkg-media-box {aspect-ratio:9/16;background:var(--blue-light);border:1.5px solid var(--line);border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);font-size:14px;padding:12px}
 #appRoot .pkg-media-box img {width:100%;height:100%;object-fit:cover}
+#appRoot .pkg-media-box a {display:block;width:100%;height:100%}
 #appRoot .pkg-media-info {margin-top:8px;font-size:14.5px}
 #appRoot .pkg-media-info b {display:block;color:var(--blue-dark)}
 #appRoot .pkg-row {cursor:pointer}
@@ -710,6 +711,18 @@
             <div class="field">
               <label for="inSubs">Số thuê bao phát triển mới trong tháng</label>
               <input type="number" id="inSubs" min="0" step="1" value="30" inputmode="numeric" />
+            </div>
+            <div class="field">
+              <label for="estPkg">Chọn gói cước từ danh mục (tùy chọn)</label>
+              <select id="estPkg">
+                <option value="">— Tự nhập giá gói, chu kỳ gói —</option>
+              </select>
+              <div class="hint" id="estPkgHint">Đang tải danh mục gói cước…</div>
+            </div>
+            <div class="field" id="estCycleWrap" style="display:none">
+              <label for="estPkgCycle">Chu kỳ của gói đã chọn</label>
+              <select id="estPkgCycle"></select>
+              <div class="hint">Chọn chu kỳ để tự điền giá gói và chu kỳ vào ô bên dưới (vẫn sửa tay được sau đó).</div>
             </div>
             <div class="field">
               <label for="inPrice">Giá gói cước mỗi thuê bao mua (VNĐ)</label>
@@ -997,6 +1010,8 @@ CREATE TABLE IF NOT EXISTS goi_cuoc (
   gia_goi REAL NOT NULL DEFAULT 0,
   uu_dai TEXT,
   anh_key TEXT,                             -- Khoa anh tren R2 (VD: goi-cuoc/12-1729....jpg)
+  noi_bat INTEGER NOT NULL DEFAULT 0,       -- 1 = admin ghim len top 5 hien thi
+  noi_bat_at TEXT,                          -- Thoi diem ghim (de sap xep top 5)
   created_by TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT,
@@ -1379,8 +1394,12 @@ async function isTableLocked(env, name) {
 const GOI_CUOC_CYCLES = [&quot;1T&quot;, &quot;3T&quot;, &quot;6T&quot;, &quot;12T&quot;, &quot;18T&quot;, &quot;24T&quot;, &quot;36T&quot;];
 async function ensurePackages(env) {
   await env.DB.prepare(
-    &quot;CREATE TABLE IF NOT EXISTS goi_cuoc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_goi TEXT NOT NULL, chu_ky TEXT NOT NULL, gia_goi REAL NOT NULL DEFAULT 0, uu_dai TEXT, anh_key TEXT, created_by TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT, UNIQUE(ten_goi, chu_ky))&quot;
+    &quot;CREATE TABLE IF NOT EXISTS goi_cuoc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_goi TEXT NOT NULL, chu_ky TEXT NOT NULL, gia_goi REAL NOT NULL DEFAULT 0, uu_dai TEXT, anh_key TEXT, noi_bat INTEGER NOT NULL DEFAULT 0, noi_bat_at TEXT, created_by TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT, UNIQUE(ten_goi, chu_ky))&quot;
   ).run();
+  const cols = await env.DB.prepare(&quot;PRAGMA table_info(goi_cuoc)&quot;).all();
+  const names = new Set((cols.results || []).map((c) =&gt; c.name));
+  if (!names.has(&quot;noi_bat&quot;)) await env.DB.prepare(&quot;ALTER TABLE goi_cuoc ADD COLUMN noi_bat INTEGER NOT NULL DEFAULT 0&quot;).run();
+  if (!names.has(&quot;noi_bat_at&quot;)) await env.DB.prepare(&quot;ALTER TABLE goi_cuoc ADD COLUMN noi_bat_at TEXT&quot;).run();
 }
 async function uploadPackageImage(env, pkgId, file) {
   if (!env.ANH) throw new Error(&quot;Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker). Xem huong dan cau hinh R2 trong module Danh muc goi cuoc.&quot;);
@@ -1463,6 +1482,14 @@ export default {
           exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
         });
         return json({ ok: true, token, user: publicUser(user) });
+      }
+
+      // ---- Danh muc goi cuoc: cong khai, KHONG can dang nhap ----
+      // (cong cu Uoc tinh tren trang chu cong khai cung dung danh muc nay)
+      if (path === &quot;/api/packages&quot; &amp;&amp; method === &quot;GET&quot;) {
+        await ensurePackages(env);
+        const res = await env.DB.prepare(&quot;SELECT * FROM goi_cuoc ORDER BY ten_goi, chu_ky&quot;).all();
+        return json({ ok: true, packages: res.results || [] });
       }
 
       // ---- Anh truyen thong goi cuoc: phuc vu qua Worker, KHONG can dang nhap
@@ -1918,11 +1945,6 @@ export default {
       }
 
       // ---- Danh muc goi cuoc ----
-      if (path === &quot;/api/packages&quot; &amp;&amp; method === &quot;GET&quot;) {
-        await ensurePackages(env);
-        const res = await env.DB.prepare(&quot;SELECT * FROM goi_cuoc ORDER BY ten_goi, chu_ky&quot;).all();
-        return json({ ok: true, packages: res.results || [] });
-      }
       if (path === &quot;/api/packages&quot; &amp;&amp; method === &quot;POST&quot;) {
         if (!isAdmin) return err(&quot;Chi admin moi co quyen them goi cuoc&quot;, 403);
         await ensurePackages(env);
@@ -1939,7 +1961,15 @@ export default {
         const id = r.meta.last_row_id;
         if (f.file) {
           const key = await uploadPackageImage(env, id, f.file);
-          await env.DB.prepare(&quot;UPDATE goi_cuoc SET anh_key = ? WHERE id = ?&quot;).bind(key, id).run();
+          // Anh dung chung theo TEN GOI: cap nhat cho moi chu ky cung ten,
+          // dong thoi xoa cac anh cu cua ten goi nay khoi R2.
+          const olds = await env.DB.prepare(&quot;SELECT DISTINCT anh_key FROM goi_cuoc WHERE ten_goi = ? AND anh_key IS NOT NULL&quot;).bind(f.ten_goi).all();
+          await env.DB.prepare(&quot;UPDATE goi_cuoc SET anh_key = ? WHERE ten_goi = ?&quot;).bind(key, f.ten_goi).run();
+          if (env.ANH) for (const o of olds.results || []) { if (o.anh_key !== key) { try { await env.ANH.delete(o.anh_key); } catch (e) { /* bo qua */ } } }
+        } else {
+          // Khong tai anh moi: ke thua anh chung cua ten goi neu da co
+          const ex = await env.DB.prepare(&quot;SELECT anh_key FROM goi_cuoc WHERE ten_goi = ? AND anh_key IS NOT NULL LIMIT 1&quot;).bind(f.ten_goi).first();
+          if (ex) await env.DB.prepare(&quot;UPDATE goi_cuoc SET anh_key = ? WHERE id = ?&quot;).bind(ex.anh_key, id).run();
         }
         return json({ ok: true, id });
       }
@@ -1958,7 +1988,13 @@ export default {
         let anhKey = cur.anh_key;
         if (f.file) {
           const key = await uploadPackageImage(env, id, f.file);
-          if (cur.anh_key &amp;&amp; env.ANH) { try { await env.ANH.delete(cur.anh_key); } catch (e) { /* bo qua */ } }
+          // Anh dung chung theo TEN GOI: chi ap dung khi ten goi khong doi;
+          // neu doi ten thi anh moi chi gan cho dong nay.
+          if (f.ten_goi === cur.ten_goi) {
+            const olds = await env.DB.prepare(&quot;SELECT DISTINCT anh_key FROM goi_cuoc WHERE ten_goi = ? AND anh_key IS NOT NULL&quot;).bind(f.ten_goi).all();
+            await env.DB.prepare(&quot;UPDATE goi_cuoc SET anh_key = ? WHERE ten_goi = ?&quot;).bind(key, f.ten_goi).run();
+            if (env.ANH) for (const o of olds.results || []) { if (o.anh_key !== key) { try { await env.ANH.delete(o.anh_key); } catch (e) { /* bo qua */ } } }
+          }
           anhKey = key;
         }
         await env.DB.prepare(
@@ -1974,8 +2010,30 @@ export default {
         const id = Number(pkgMatch[1]);
         const cur = await env.DB.prepare(&quot;SELECT anh_key FROM goi_cuoc WHERE id = ?&quot;).bind(id).first();
         await env.DB.prepare(&quot;DELETE FROM goi_cuoc WHERE id = ?&quot;).bind(id).run();
-        if (cur &amp;&amp; cur.anh_key &amp;&amp; env.ANH) { try { await env.ANH.delete(cur.anh_key); } catch (e) { /* bo qua */ } }
+        // Anh dung chung theo ten goi: chi xoa file tren R2 khi khong con
+        // dong nao tham chieu toi anh_key nay.
+        if (cur &amp;&amp; cur.anh_key &amp;&amp; env.ANH) {
+          const ref = await env.DB.prepare(&quot;SELECT COUNT(*) AS n FROM goi_cuoc WHERE anh_key = ?&quot;).bind(cur.anh_key).first();
+          if (!ref || ref.n === 0) { try { await env.ANH.delete(cur.anh_key); } catch (e) { /* bo qua */ } }
+        }
         return json({ ok: true });
+      }
+      // ---- Admin ghim / bo ghim goi cuoc len top 5 hien thi ----
+      const nbMatch = path.match(/^\/api\/packages\/(\d+)\/noi-bat$/);
+      if (nbMatch &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen ghim goi cuoc hien thi&quot;, 403);
+        await ensurePackages(env);
+        const id = Number(nbMatch[1]);
+        const b = await readBody(request);
+        const want = !!b.noi_bat;
+        const cur = await env.DB.prepare(&quot;SELECT noi_bat FROM goi_cuoc WHERE id = ?&quot;).bind(id).first();
+        if (!cur) return err(&quot;Khong tim thay goi cuoc&quot;, 404);
+        if (want &amp;&amp; !cur.noi_bat) {
+          const c = await env.DB.prepare(&quot;SELECT COUNT(*) AS n FROM goi_cuoc WHERE noi_bat = 1&quot;).first();
+          if (c &amp;&amp; c.n &gt;= 5) return err(&quot;Da du 5 goi cuoc hien thi. Hay bo ghim 1 goi truoc khi ghim goi moi.&quot;, 409);
+        }
+        await env.DB.prepare(&quot;UPDATE goi_cuoc SET noi_bat = ?, noi_bat_at = ? WHERE id = ?&quot;).bind(want ? 1 : 0, want ? saigonNow() : null, id).run();
+        return json({ ok: true, id, noi_bat: want });
       }
       if (path === &quot;/api/packages/import&quot; &amp;&amp; method === &quot;POST&quot;) {
         if (!isAdmin) return err(&quot;Chi admin moi co quyen import danh sach goi cuoc&quot;, 403);
@@ -1993,10 +2051,12 @@ export default {
           if (!GOI_CUOC_CYCLES.includes(chuKy)) { skipped++; errors.push({ row: i + 2, reason: &quot;Chu ky khong hop le: &quot; + (r.chu_ky || &quot;&quot;) }); continue; }
           const dup = await env.DB.prepare(&quot;SELECT id FROM goi_cuoc WHERE ten_goi = ? AND chu_ky = ?&quot;).bind(tenGoi, chuKy).first();
           if (dup) { skipped++; errors.push({ row: i + 2, reason: &quot;Goi cuoc da ton tai: &quot; + tenGoi + &quot; (&quot; + chuKy + &quot;)&quot; }); continue; }
+          // Dong moi ke thua anh chung cua ten goi neu da co
+          const exKey = await env.DB.prepare(&quot;SELECT anh_key FROM goi_cuoc WHERE ten_goi = ? AND anh_key IS NOT NULL LIMIT 1&quot;).bind(tenGoi).first();
           await env.DB.prepare(
-            &quot;INSERT INTO goi_cuoc (ten_goi, chu_ky, gia_goi, uu_dai, created_by) VALUES (?, ?, ?, ?, ?)&quot;
+            &quot;INSERT INTO goi_cuoc (ten_goi, chu_ky, gia_goi, uu_dai, anh_key, created_by) VALUES (?, ?, ?, ?, ?, ?)&quot;
           )
-            .bind(tenGoi, chuKy, giaGoi, toText(r.uu_dai), me.username)
+            .bind(tenGoi, chuKy, giaGoi, toText(r.uu_dai), exKey ? exKey.anh_key : null, me.username)
             .run();
           created++;
         }
@@ -2067,16 +2127,15 @@ export default {
         <!-- DANH MUC GOI CUOC -->
         <section class="panel hidden" id="panel-packages">
           <h2>Danh mục gói cước</h2>
-          <p class="desc">Tra cứu các gói cước kèm hình ảnh truyền thông. Bấm vào một gói cước trong bảng để xem ảnh truyền thông (tỷ lệ 9:16) bên cạnh.</p>
-          <div class="form-grid" style="grid-template-columns:minmax(220px,340px) 200px 1fr;align-items:end">
-            <div><label>Tìm theo tên gói</label><input id="pkgSearch" placeholder="Nhập tên gói cước…" /></div>
-            <div><label>Chu kỳ gói</label><select id="pkgCycleFilter"><option value="">Tất cả chu kỳ</option><option>1T</option><option>3T</option><option>6T</option><option>12T</option><option>18T</option><option>24T</option><option>36T</option></select></div>
+          <p class="desc">Mặc định chỉ hiển thị top 5 gói cước do admin ghim. Chọn một tên gói trong hộp chọn phía trên để xem đầy đủ các chu kỳ của gói đó (cùng tên gói chỉ liệt kê một lần). Bấm vào một gói cước trong bảng để xem ảnh truyền thông (tỷ lệ 9:16) bên cạnh; bấm vào bức ảnh để xem ảnh gốc đầy đủ.</p>
+          <div class="form-grid" style="grid-template-columns:minmax(260px,420px) 1fr;align-items:end">
+            <div><label>Chọn gói cước</label><select id="pkgNameSelect"><option value="">— Gói cước nổi bật (top 5) —</option></select></div>
             <div><span id="pkgCount" class="desc"></span></div>
           </div>
           <div class="pkg-layout">
             <div class="tbl-wrap"><table class="data"><thead><tr><th>Tên gói cước</th><th>Chu kỳ</th><th>Giá gói</th><th>Ưu đãi</th><th></th></tr></thead><tbody id="pkgBody"><tr><td colspan="5">Đang tải…</td></tr></tbody></table></div>
             <div class="pkg-media">
-              <div class="pkg-media-box"><img id="pkgImg" class="hidden" alt="Ảnh truyền thông gói cước" /><div id="pkgImgEmpty">Chưa có ảnh truyền thông.<br />Hãy chọn một gói cước trong bảng để xem ảnh.</div></div>
+              <div class="pkg-media-box"><a id="pkgImgLink" href="#" target="_blank" rel="noopener" class="hidden" title="Bấm để xem ảnh gốc"><img id="pkgImg" alt="Ảnh truyền thông gói cước" /></a><div id="pkgImgEmpty">Chưa có ảnh truyền thông.<br />Hãy chọn một gói cước trong bảng để xem ảnh.</div></div>
               <div class="pkg-media-info"><b id="pkgSelName">—</b><span id="pkgSelPrice"></span></div>
             </div>
           </div>
@@ -2089,7 +2148,7 @@ export default {
               <div><label>Chu kỳ gói *</label><select id="pkgCycle"><option>1T</option><option>3T</option><option>6T</option><option>12T</option><option>18T</option><option>24T</option><option>36T</option></select></div>
               <div><label>Giá gói (đ) *</label><input id="pkgPrice" type="number" min="0" required /></div>
               <div><label>Ưu đãi của gói cước</label><textarea id="pkgOffer" rows="2"></textarea></div>
-              <div><label>Ảnh truyền thông (tỷ lệ 9:16, tối đa 5MB)</label><input type="file" id="pkgImage" accept="image/*" /></div>
+              <div><label>Ảnh truyền thông (tỷ lệ 9:16, tối đa 5MB — cùng tên gói dùng chung một ảnh)</label><input type="file" id="pkgImage" accept="image/*" /></div>
               <div style="display:flex;align-items:flex-end;gap:8px"><button class="btn blue" type="submit">Lưu gói cước</button><button class="btn gray" type="button" id="pkgCancel">Hủy</button></div>
             </form>
             <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Import danh sách gói cước từ file Excel (chỉ admin)</h3>
@@ -2292,6 +2351,65 @@ export default {
         });
         document.getElementById('calcForm').addEventListener('submit', function (e) { e.preventDefault(); });
         calc();
+      })();
+    </script>
+    <script>
+      // Drop box goi cuoc cho cong cu Uoc tinh (trang cong khai, khong can dang nhap).
+      // 2 phuong an: chon 1 goi trong danh muc (tu dien gia + chu ky) hoac tu nhap tay.
+      // Neu khong tai duoc danh muc thi an toan tro ve che do nhap tay.
+      (function () {
+        var WORKER_URL = 'https://co-che-duq.tuanha-qnh.workers.dev';
+        var pkgSel = document.getElementById('estPkg');
+        var cycWrap = document.getElementById('estCycleWrap');
+        var cycSel = document.getElementById('estPkgCycle');
+        var hint = document.getElementById('estPkgHint');
+        var priceEl = document.getElementById('inPrice');
+        var cycleEl = document.getElementById('inCycle');
+        var byName = {};
+        function fmtVnd(n) { return (Math.round(n) || 0).toLocaleString('vi-VN') + 'đ'; }
+        function monthsOf(c) { return parseInt(String(c).replace('T', ''), 10) || 0; }
+        function applyCycle() {
+          var opt = cycSel.options[cycSel.selectedIndex];
+          if (!opt) return;
+          var months = monthsOf(opt.value);
+          priceEl.value = opt.getAttribute('data-price');
+          if (!cycleEl.querySelector('option[value="' + months + '"]')) {
+            var o = document.createElement('option');
+            o.value = String(months); o.textContent = months + ' tháng';
+            cycleEl.appendChild(o);
+          }
+          cycleEl.value = String(months);
+          priceEl.dispatchEvent(new Event('input', { bubbles: true }));
+          cycleEl.dispatchEvent(new Event('input', { bubbles: true }));
+          cycleEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        function applyPkg() {
+          var name = pkgSel.value;
+          var cycles = (byName[name] || []).slice().sort(function (a, b) { return monthsOf(a.chu_ky) - monthsOf(b.chu_ky); });
+          if (!name || !cycles.length) { cycWrap.style.display = 'none'; return; }
+          cycWrap.style.display = '';
+          cycSel.innerHTML = cycles.map(function (p) {
+            return '<option value="' + p.chu_ky + '" data-price="' + p.gia_goi + '">' + p.chu_ky + ' — ' + fmtVnd(p.gia_goi) + '</option>';
+          }).join('');
+          applyCycle();
+        }
+        pkgSel.addEventListener('change', applyPkg);
+        cycSel.addEventListener('change', applyCycle);
+        fetch(WORKER_URL + '/api/packages').then(function (r) { return r.json(); }).then(function (d) {
+          var list = (d && d.packages) || [];
+          list.forEach(function (p) { (byName[p.ten_goi] = byName[p.ten_goi] || []).push(p); });
+          var names = Object.keys(byName).sort(function (a, b) { return a.localeCompare(b, 'vi'); });
+          names.forEach(function (n) { var o = document.createElement('option'); o.value = n; o.textContent = n; pkgSel.appendChild(o); });
+          if (names.length) {
+            hint.textContent = 'Chọn một gói cước để tự điền giá và chu kỳ (vẫn sửa tay được sau đó).';
+          } else {
+            hint.textContent = 'Chưa có gói cước nào trong danh mục.';
+            pkgSel.disabled = true;
+          }
+        }).catch(function () {
+          hint.textContent = 'Chưa tải được danh mục gói cước — anh vẫn nhập giá và chu kỳ bằng tay như bình thường.';
+          pkgSel.disabled = true;
+        });
       })();
     </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -3061,37 +3179,72 @@ async function loadPackages() {
   try {
     const d = await api("/api/packages");
     packagesCache = d.packages || [];
+    // Drop box: chi liet ke DISTINCT ten goi (cung ten, khac chu ky chi 1 lan)
+    const names = [...new Set(packagesCache.map((p) => p.ten_goi))].sort((a, b) => a.localeCompare(b, "vi"));
+    const sel = $("pkgNameSelect");
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Gói cước nổi bật (top 5) —</option>' +
+      names.map((n) => "<option value='" + esc(n) + "'>" + esc(n) + "</option>").join("") +
+      (me && me.role === "admin" ? "<option value='__ALL__'>— Tất cả gói cước (chỉ admin) —</option>" : "");
+    if (cur === "__ALL__" && !(me && me.role === "admin")) sel.value = "";
+    else if (names.includes(cur) || cur === "" || cur === "__ALL__") sel.value = cur;
     renderPackages();
   } catch (e) { setMsg($("pkgMsg"), e.message, false); }
 }
+function pkgCycleMonths(c) { return parseInt(String(c).replace("T", ""), 10) || 0; }
+function setPkgImage(url, nameText, priceText) {
+  $("pkgSelName").textContent = nameText || "—";
+  $("pkgSelPrice").textContent = priceText || "";
+  if (url) {
+    $("pkgImg").src = url;
+    $("pkgImgLink").href = url;
+    $("pkgImgLink").classList.remove("hidden");
+    $("pkgImgEmpty").classList.add("hidden");
+  } else {
+    $("pkgImgLink").classList.add("hidden");
+    $("pkgImgEmpty").classList.remove("hidden");
+  }
+}
 function renderPackages() {
-  const q = ($("pkgSearch").value || "").trim().toLowerCase();
-  const cyc = $("pkgCycleFilter").value;
-  const list = packagesCache.filter((p) => (!q || (p.ten_goi || "").toLowerCase().includes(q)) && (!cyc || p.chu_ky === cyc));
-  if ($("pkgCount")) $("pkgCount").textContent = "Hiển thị " + list.length + " / " + packagesCache.length + " gói cước";
+  const mode = $("pkgNameSelect").value;
+  let list;
+  if (mode === "__ALL__") {
+    list = [...packagesCache].sort((a, b) => a.ten_goi.localeCompare(b.ten_goi, "vi") || pkgCycleMonths(a.chu_ky) - pkgCycleMonths(b.chu_ky));
+    $("pkgCount").textContent = "Hiển thị " + list.length + " / " + packagesCache.length + " gói cước";
+  } else if (mode) {
+    list = packagesCache.filter((p) => p.ten_goi === mode).sort((a, b) => pkgCycleMonths(a.chu_ky) - pkgCycleMonths(b.chu_ky));
+    $("pkgCount").textContent = "Gói " + mode + " — " + list.length + " chu kỳ";
+    // Anh dung chung theo ten goi: chon ten la hien anh ngay, khong can bam dong
+    const withImg = list.find((p) => p.anh_key);
+    setPkgImage(withImg ? apiBase + "/api/packages/image/" + encodeURIComponent(withImg.anh_key) : null, mode, list.length + " chu kỳ");
+  } else {
+    // Mac dinh: chi top 5 goi do admin ghim hien thi
+    list = packagesCache.filter((p) => p.noi_bat).sort((a, b) => (a.noi_bat_at || "").localeCompare(b.noi_bat_at || "") || a.ten_goi.localeCompare(b.ten_goi, "vi"));
+    $("pkgCount").textContent = "Top " + list.length + " gói cước nổi bật do admin thiết lập";
+  }
   $("pkgBody").innerHTML = list.map((p) =>
     "<tr class='pkg-row" + (p.id === selectedPkgId ? " sel" : "") + "' data-pkg='" + p.id + "'><td><b>" + esc(p.ten_goi) + "</b></td><td>" + esc(p.chu_ky) + "</td><td>" + fmt(p.gia_goi) + "</td><td>" + esc(p.uu_dai) + "</td>" +
-    (me && me.role === "admin" ? "<td style='white-space:nowrap'><button class='btn sm gray' data-pkg-edit='" + p.id + "'>Sửa</button> <button class='btn sm danger' data-pkg-del='" + p.id + "'>Xóa</button></td>" : "<td></td>") +
-    "</tr>").join("") || "<tr><td colspan='5'>Chưa có gói cước nào.</td></tr>";
+    (me && me.role === "admin" ? "<td style='white-space:nowrap'><button class='btn sm " + (p.noi_bat ? "gray" : "blue") + "' data-pkg-pin='" + p.id + "' data-pinned='" + (p.noi_bat ? 1 : 0) + "'>" + (p.noi_bat ? "Bỏ ghim" : "Ghim") + "</button> <button class='btn sm gray' data-pkg-edit='" + p.id + "'>Sửa</button> <button class='btn sm danger' data-pkg-del='" + p.id + "'>Xóa</button></td>" : "<td></td>") +
+    "</tr>").join("") || "<tr><td colspan='5'>" + (mode === "" ? "Chưa có gói cước nổi bật nào được admin thiết lập." : "Chưa có gói cước nào.") + "</td></tr>";
   $("pkgBody").querySelectorAll("[data-pkg]").forEach((tr) => tr.addEventListener("click", () => selectPackage(Number(tr.dataset.pkg))));
   $("pkgBody").querySelectorAll("[data-pkg-edit]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); editPackage(Number(b.dataset.pkgEdit)); }));
   $("pkgBody").querySelectorAll("[data-pkg-del]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); delPackage(Number(b.dataset.pkgDel)); }));
+  $("pkgBody").querySelectorAll("[data-pkg-pin]").forEach((b) => b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const want = b.dataset.pinned !== "1";
+    try {
+      await api("/api/packages/" + b.dataset.pkgPin + "/noi-bat", { method: "POST", body: JSON.stringify({ noi_bat: want }) });
+      setMsg($("pkgMsg"), want ? "Đã ghim gói cước lên top hiển thị." : "Đã bỏ ghim gói cước khỏi top hiển thị.");
+      loadPackages();
+    } catch (err) { setMsg($("pkgMsg"), err.message, false); }
+  }));
 }
 function selectPackage(id) {
   const p = packagesCache.find((x) => x.id === id);
   if (!p) return;
   selectedPkgId = id;
   renderPackages();
-  $("pkgSelName").textContent = p.ten_goi + " (" + p.chu_ky + ")";
-  $("pkgSelPrice").textContent = fmt(p.gia_goi) + (p.uu_dai ? " — " + p.uu_dai : "");
-  if (p.anh_key) {
-    $("pkgImg").src = apiBase + "/api/packages/image/" + encodeURIComponent(p.anh_key);
-    $("pkgImg").classList.remove("hidden");
-    $("pkgImgEmpty").classList.add("hidden");
-  } else {
-    $("pkgImg").classList.add("hidden");
-    $("pkgImgEmpty").classList.remove("hidden");
-  }
+  setPkgImage(p.anh_key ? apiBase + "/api/packages/image/" + encodeURIComponent(p.anh_key) : null, p.ten_goi + " (" + p.chu_ky + ")", fmt(p.gia_goi) + (p.uu_dai ? " — " + p.uu_dai : ""));
 }
 function resetPkgForm() {
   $("pkgEditId").value = "";
@@ -3107,11 +3260,10 @@ function editPackage(id) {
 async function delPackage(id) {
   const p = packagesCache.find((x) => x.id === id);
   if (!p || !confirm("Xóa gói cước " + p.ten_goi + " (" + p.chu_ky + ") khỏi danh mục?")) return;
-  try { await api("/api/packages/" + id, { method: "DELETE" }); setMsg($("pkgMsg"), "Đã xóa gói cước."); if (selectedPkgId === id) { selectedPkgId = null; $("pkgSelName").textContent = "—"; $("pkgSelPrice").textContent = ""; $("pkgImg").classList.add("hidden"); $("pkgImgEmpty").classList.remove("hidden"); } loadPackages(); }
+  try { await api("/api/packages/" + id, { method: "DELETE" }); setMsg($("pkgMsg"), "Đã xóa gói cước."); if (selectedPkgId === id) { selectedPkgId = null; setPkgImage(null, "—", ""); } loadPackages(); }
   catch (e) { setMsg($("pkgMsg"), e.message, false); }
 }
-$("pkgSearch").addEventListener("input", renderPackages);
-$("pkgCycleFilter").addEventListener("change", renderPackages);
+$("pkgNameSelect").addEventListener("change", () => { selectedPkgId = null; renderPackages(); });
 $("pkgCancel").addEventListener("click", resetPkgForm);
 $("pkgForm").addEventListener("submit", async (e) => {
   e.preventDefault();

@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS goi_cuoc (
   gia_goi REAL NOT NULL DEFAULT 0,
   uu_dai TEXT,
   anh_key TEXT,                             -- Khoa anh tren R2 (VD: goi-cuoc/12-1729....jpg)
+  noi_bat INTEGER NOT NULL DEFAULT 0,       -- 1 = admin ghim len top 5 hien thi
+  noi_bat_at TEXT,                          -- Thoi diem ghim (de sap xep top 5)
   created_by TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT,

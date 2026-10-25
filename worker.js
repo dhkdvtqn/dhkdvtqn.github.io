@@ -322,8 +322,12 @@ async function isTableLocked(env, name) {
 const GOI_CUOC_CYCLES = ["1T", "3T", "6T", "12T", "18T", "24T", "36T"];
 async function ensurePackages(env) {
   await env.DB.prepare(
-    "CREATE TABLE IF NOT EXISTS goi_cuoc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_goi TEXT NOT NULL, chu_ky TEXT NOT NULL, gia_goi REAL NOT NULL DEFAULT 0, uu_dai TEXT, anh_key TEXT, created_by TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT, UNIQUE(ten_goi, chu_ky))"
+    "CREATE TABLE IF NOT EXISTS goi_cuoc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_goi TEXT NOT NULL, chu_ky TEXT NOT NULL, gia_goi REAL NOT NULL DEFAULT 0, uu_dai TEXT, anh_key TEXT, noi_bat INTEGER NOT NULL DEFAULT 0, noi_bat_at TEXT, created_by TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT, UNIQUE(ten_goi, chu_ky))"
   ).run();
+  const cols = await env.DB.prepare("PRAGMA table_info(goi_cuoc)").all();
+  const names = new Set((cols.results || []).map((c) => c.name));
+  if (!names.has("noi_bat")) await env.DB.prepare("ALTER TABLE goi_cuoc ADD COLUMN noi_bat INTEGER NOT NULL DEFAULT 0").run();
+  if (!names.has("noi_bat_at")) await env.DB.prepare("ALTER TABLE goi_cuoc ADD COLUMN noi_bat_at TEXT").run();
 }
 async function uploadPackageImage(env, pkgId, file) {
   if (!env.ANH) throw new Error("Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker). Xem huong dan cau hinh R2 trong module Danh muc goi cuoc.");
@@ -406,6 +410,14 @@ export default {
           exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
         });
         return json({ ok: true, token, user: publicUser(user) });
+      }
+
+      // ---- Danh muc goi cuoc: cong khai, KHONG can dang nhap ----
+      // (cong cu Uoc tinh tren trang chu cong khai cung dung danh muc nay)
+      if (path === "/api/packages" && method === "GET") {
+        await ensurePackages(env);
+        const res = await env.DB.prepare("SELECT * FROM goi_cuoc ORDER BY ten_goi, chu_ky").all();
+        return json({ ok: true, packages: res.results || [] });
       }
 
       // ---- Anh truyen thong goi cuoc: phuc vu qua Worker, KHONG can dang nhap
@@ -861,11 +873,6 @@ export default {
       }
 
       // ---- Danh muc goi cuoc ----
-      if (path === "/api/packages" && method === "GET") {
-        await ensurePackages(env);
-        const res = await env.DB.prepare("SELECT * FROM goi_cuoc ORDER BY ten_goi, chu_ky").all();
-        return json({ ok: true, packages: res.results || [] });
-      }
       if (path === "/api/packages" && method === "POST") {
         if (!isAdmin) return err("Chi admin moi co quyen them goi cuoc", 403);
         await ensurePackages(env);
@@ -882,7 +889,15 @@ export default {
         const id = r.meta.last_row_id;
         if (f.file) {
           const key = await uploadPackageImage(env, id, f.file);
-          await env.DB.prepare("UPDATE goi_cuoc SET anh_key = ? WHERE id = ?").bind(key, id).run();
+          // Anh dung chung theo TEN GOI: cap nhat cho moi chu ky cung ten,
+          // dong thoi xoa cac anh cu cua ten goi nay khoi R2.
+          const olds = await env.DB.prepare("SELECT DISTINCT anh_key FROM goi_cuoc WHERE ten_goi = ? AND anh_key IS NOT NULL").bind(f.ten_goi).all();
+          await env.DB.prepare("UPDATE goi_cuoc SET anh_key = ? WHERE ten_goi = ?").bind(key, f.ten_goi).run();
+          if (env.ANH) for (const o of olds.results || []) { if (o.anh_key !== key) { try { await env.ANH.delete(o.anh_key); } catch (e) { /* bo qua */ } } }
+        } else {
+          // Khong tai anh moi: ke thua anh chung cua ten goi neu da co
+          const ex = await env.DB.prepare("SELECT anh_key FROM goi_cuoc WHERE ten_goi = ? AND anh_key IS NOT NULL LIMIT 1").bind(f.ten_goi).first();
+          if (ex) await env.DB.prepare("UPDATE goi_cuoc SET anh_key = ? WHERE id = ?").bind(ex.anh_key, id).run();
         }
         return json({ ok: true, id });
       }
@@ -901,7 +916,13 @@ export default {
         let anhKey = cur.anh_key;
         if (f.file) {
           const key = await uploadPackageImage(env, id, f.file);
-          if (cur.anh_key && env.ANH) { try { await env.ANH.delete(cur.anh_key); } catch (e) { /* bo qua */ } }
+          // Anh dung chung theo TEN GOI: chi ap dung khi ten goi khong doi;
+          // neu doi ten thi anh moi chi gan cho dong nay.
+          if (f.ten_goi === cur.ten_goi) {
+            const olds = await env.DB.prepare("SELECT DISTINCT anh_key FROM goi_cuoc WHERE ten_goi = ? AND anh_key IS NOT NULL").bind(f.ten_goi).all();
+            await env.DB.prepare("UPDATE goi_cuoc SET anh_key = ? WHERE ten_goi = ?").bind(key, f.ten_goi).run();
+            if (env.ANH) for (const o of olds.results || []) { if (o.anh_key !== key) { try { await env.ANH.delete(o.anh_key); } catch (e) { /* bo qua */ } } }
+          }
           anhKey = key;
         }
         await env.DB.prepare(
@@ -917,8 +938,30 @@ export default {
         const id = Number(pkgMatch[1]);
         const cur = await env.DB.prepare("SELECT anh_key FROM goi_cuoc WHERE id = ?").bind(id).first();
         await env.DB.prepare("DELETE FROM goi_cuoc WHERE id = ?").bind(id).run();
-        if (cur && cur.anh_key && env.ANH) { try { await env.ANH.delete(cur.anh_key); } catch (e) { /* bo qua */ } }
+        // Anh dung chung theo ten goi: chi xoa file tren R2 khi khong con
+        // dong nao tham chieu toi anh_key nay.
+        if (cur && cur.anh_key && env.ANH) {
+          const ref = await env.DB.prepare("SELECT COUNT(*) AS n FROM goi_cuoc WHERE anh_key = ?").bind(cur.anh_key).first();
+          if (!ref || ref.n === 0) { try { await env.ANH.delete(cur.anh_key); } catch (e) { /* bo qua */ } }
+        }
         return json({ ok: true });
+      }
+      // ---- Admin ghim / bo ghim goi cuoc len top 5 hien thi ----
+      const nbMatch = path.match(/^\/api\/packages\/(\d+)\/noi-bat$/);
+      if (nbMatch && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi co quyen ghim goi cuoc hien thi", 403);
+        await ensurePackages(env);
+        const id = Number(nbMatch[1]);
+        const b = await readBody(request);
+        const want = !!b.noi_bat;
+        const cur = await env.DB.prepare("SELECT noi_bat FROM goi_cuoc WHERE id = ?").bind(id).first();
+        if (!cur) return err("Khong tim thay goi cuoc", 404);
+        if (want && !cur.noi_bat) {
+          const c = await env.DB.prepare("SELECT COUNT(*) AS n FROM goi_cuoc WHERE noi_bat = 1").first();
+          if (c && c.n >= 5) return err("Da du 5 goi cuoc hien thi. Hay bo ghim 1 goi truoc khi ghim goi moi.", 409);
+        }
+        await env.DB.prepare("UPDATE goi_cuoc SET noi_bat = ?, noi_bat_at = ? WHERE id = ?").bind(want ? 1 : 0, want ? saigonNow() : null, id).run();
+        return json({ ok: true, id, noi_bat: want });
       }
       if (path === "/api/packages/import" && method === "POST") {
         if (!isAdmin) return err("Chi admin moi co quyen import danh sach goi cuoc", 403);
@@ -936,10 +979,12 @@ export default {
           if (!GOI_CUOC_CYCLES.includes(chuKy)) { skipped++; errors.push({ row: i + 2, reason: "Chu ky khong hop le: " + (r.chu_ky || "") }); continue; }
           const dup = await env.DB.prepare("SELECT id FROM goi_cuoc WHERE ten_goi = ? AND chu_ky = ?").bind(tenGoi, chuKy).first();
           if (dup) { skipped++; errors.push({ row: i + 2, reason: "Goi cuoc da ton tai: " + tenGoi + " (" + chuKy + ")" }); continue; }
+          // Dong moi ke thua anh chung cua ten goi neu da co
+          const exKey = await env.DB.prepare("SELECT anh_key FROM goi_cuoc WHERE ten_goi = ? AND anh_key IS NOT NULL LIMIT 1").bind(tenGoi).first();
           await env.DB.prepare(
-            "INSERT INTO goi_cuoc (ten_goi, chu_ky, gia_goi, uu_dai, created_by) VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO goi_cuoc (ten_goi, chu_ky, gia_goi, uu_dai, anh_key, created_by) VALUES (?, ?, ?, ?, ?, ?)"
           )
-            .bind(tenGoi, chuKy, giaGoi, toText(r.uu_dai), me.username)
+            .bind(tenGoi, chuKy, giaGoi, toText(r.uu_dai), exKey ? exKey.anh_key : null, me.username)
             .run();
           created++;
         }
