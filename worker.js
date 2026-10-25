@@ -293,6 +293,66 @@ function tableInRange(name, loai, from, to) {
   return last >= from && first <= to;
 }
 
+// ---- Khoa bang thay the theo tung bang thang ----
+// Bang khoa_bang luu quyet dinh rieng cua admin (khoa = 1, mo = 0).
+// Neu chua co dong nao: mac dinh thang hien tai MO (duoc thay the),
+// cac thang truoc do KHOA (chi admin moi thay the).
+async function ensureTableLocks(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS khoa_bang (ten_bang TEXT PRIMARY KEY, khoa INTEGER NOT NULL DEFAULT 1, updated_by TEXT, updated_at TEXT)"
+  ).run();
+}
+function tableMonthKey(name) {
+  const m = name.match(/_(\d{2})(\d{2,4})$/);
+  if (!m) return null;
+  let year = parseInt(m[2], 10);
+  if (m[2].length === 2) year += 2000;
+  return year + "-" + m[1];
+}
+async function isTableLocked(env, name) {
+  await ensureTableLocks(env);
+  const row = await env.DB.prepare("SELECT khoa FROM khoa_bang WHERE ten_bang = ?").bind(name).first();
+  if (row) return !!row.khoa;
+  const mk = tableMonthKey(name);
+  if (!mk) return false;
+  return mk < saigonNow().slice(0, 7); // thang truoc thang hien tai: mac dinh khoa
+}
+
+// ---- Danh muc goi cuoc ----
+const GOI_CUOC_CYCLES = ["1T", "3T", "6T", "12T", "18T", "24T", "36T"];
+async function ensurePackages(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS goi_cuoc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_goi TEXT NOT NULL, chu_ky TEXT NOT NULL, gia_goi REAL NOT NULL DEFAULT 0, uu_dai TEXT, anh_key TEXT, created_by TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT, UNIQUE(ten_goi, chu_ky))"
+  ).run();
+}
+async function uploadPackageImage(env, pkgId, file) {
+  if (!env.ANH) throw new Error("Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker). Xem huong dan cau hinh R2 trong module Danh muc goi cuoc.");
+  const mime = file.type || "";
+  if (!mime.startsWith("image/")) throw new Error("File anh phai la dinh dang anh (jpg, png, webp, gif)");
+  if (file.size > 5 * 1024 * 1024) throw new Error("Anh vuot qua 5MB. Hay nen anh nho hon roi thu lai.");
+  const ext = mime === "image/jpeg" ? "jpg" : mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : mime === "image/gif" ? "gif" : "";
+  if (!ext) throw new Error("Dinh dang anh khong duoc ho tro (chi nhan jpg, png, webp, gif)");
+  const key = "goi-cuoc/" + pkgId + "-" + Date.now() + "." + ext;
+  await env.ANH.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: mime } });
+  return key;
+}
+async function readPackageForm(request) {
+  const ct = request.headers.get("content-type") || "";
+  if (ct.includes("multipart/form-data")) {
+    const fd = await request.formData();
+    const file = fd.get("anh");
+    return {
+      ten_goi: toText(fd.get("ten_goi")),
+      chu_ky: toText(fd.get("chu_ky")),
+      gia_goi: Number(fd.get("gia_goi")) || 0,
+      uu_dai: toText(fd.get("uu_dai")),
+      file: file && file.size > 0 ? file : null,
+    };
+  }
+  const b = await readBody(request);
+  return { ten_goi: toText(b.ten_goi), chu_ky: toText(b.chu_ky), gia_goi: Number(b.gia_goi) || 0, uu_dai: toText(b.uu_dai), file: null };
+}
+
 // ---------------------------------------------------------------------------
 // Xu ly chinh
 // ---------------------------------------------------------------------------
@@ -346,6 +406,23 @@ export default {
           exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
         });
         return json({ ok: true, token, user: publicUser(user) });
+      }
+
+      // ---- Anh truyen thong goi cuoc: phuc vu qua Worker, KHONG can dang nhap
+      // (the <img> khong gui duoc token Authorization, nen endpoint nay phai
+      //  dung truoc khoi yeu cau dang nhap phia duoi)
+      const imgMatch = path.match(/^\/api\/packages\/image\/(.+)$/);
+      if (imgMatch && method === "GET") {
+        const key = decodeURIComponent(imgMatch[1]);
+        if (!/^goi-cuoc\/[A-Za-z0-9._-]+$/.test(key)) return err("Anh khong hop le", 400);
+        if (!env.ANH) return err("Chua cau hinh R2 Object Storage", 501);
+        const obj = await env.ANH.get(key);
+        if (!obj) return err("Khong tim thay anh", 404);
+        const headers = new Headers();
+        obj.writeHttpMetadata(headers);
+        headers.set("Cache-Control", "public, max-age=86400");
+        headers.set("Access-Control-Allow-Origin", "*");
+        return new Response(obj.body, { headers });
       }
 
       // ---- Cac API con lai deu can dang nhap ----
@@ -574,7 +651,7 @@ export default {
           const tables = await listMonthlyTables(env, t.prefix);
           for (const name of tables) {
             const c = await env.DB.prepare('SELECT COUNT(*) AS n FROM "' + name + '"').first();
-            out.push({ table: name, code: t.code, rows: c ? c.n : 0 });
+            out.push({ table: name, code: t.code, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
           }
         }
         return json({ ok: true, tables: out });
@@ -590,6 +667,27 @@ export default {
         await env.DB.prepare('DROP TABLE IF EXISTS "' + name + '"').run();
         return json({ ok: true, table: name });
       }
+      // ---- Trang thai khoa thay the cua 1 bang thang ----
+      if (path === "/api/import/table-lock" && method === "GET") {
+        const name = url.searchParams.get("table") || "";
+        if (!name) return err("Thieu ten bang", 422);
+        const locked = await isTableLocked(env, name);
+        return json({ ok: true, table: name, locked, can_replace: isAdmin || !locked });
+      }
+      // ---- Admin khoa / mo khoa thay the cho 1 bang thang ----
+      if (path === "/api/table-locks" && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi co quyen khoa/mo khoa bang du lieu", 403);
+        const b = await readBody(request);
+        const name = toText(b.table);
+        if (!name) return err("Thieu ten bang", 422);
+        await ensureTableLocks(env);
+        await env.DB.prepare(
+          "INSERT INTO khoa_bang (ten_bang, khoa, updated_by, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(ten_bang) DO UPDATE SET khoa = excluded.khoa, updated_by = excluded.updated_by, updated_at = excluded.updated_at"
+        )
+          .bind(name, b.locked ? 1 : 0, me.username, saigonNow())
+          .run();
+        return json({ ok: true, table: name, locked: !!b.locked });
+      }
       if (path === "/api/import" && method === "POST") {
         if (!isAdmin && !me.can_import) return err("Tai khoan khong co quyen import du lieu", 403);
         const b = await readBody(request);
@@ -597,9 +695,6 @@ export default {
         const dtype = types.find((t) => t.code === String(b.loai || "").toUpperCase());
         if (!dtype) return err("Loai du lieu khong ton tai: " + (b.loai || ""), 422);
         const mode = b.mode === "replace" ? "replace" : b.mode === "create" ? "create" : "append"; // append = Cap nhat, replace = Thay the, create = Tao moi
-        // Phan quyen: che do Thay the (xoa du lieu cu cua thang) chi danh cho admin.
-        // SubAdmin va user co quyen import chi duoc dung Tao moi / Cap nhat.
-        if (mode === "replace" && !isAdmin) return err("Chi admin moi duoc su dung che do 'Thay the' (xoa du lieu cu cua thang). Tai khoan cua anh chi duoc dung che do 'Tao moi' hoac 'Cap nhat'.", 403);
         const thang = Number(b.thang);
         const nam = Number(b.nam);
         const columns = typeColumnsSQL(dtype);
@@ -616,6 +711,13 @@ export default {
         if (!thang || thang < 1 || thang > 12 || !nam) return err("Thang/nam import khong hop le", 422);
         if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
         const table = tableNameForType(dtype, thang, nam);
+        // Phan quyen thay the theo tung bang: admin luon duoc phep; user co quyen
+        // import chi duoc thay the khi bang KHONG bi khoa (mac dinh: thang hien
+        // tai mo, cac thang truoc do khoa tru khi admin mo khoa).
+        if (mode === "replace" && !isAdmin) {
+          const locked = await isTableLocked(env, table);
+          if (locked) return err("Bang du lieu " + table + " dang bi khoa thay the. Chi admin moi duoc thay the du lieu cua bang nay. Lien he admin de mo khoa neu can.", 403);
+        }
         if (mode === "create") {
           // Che do Tao moi: chi import khi bang thang nay chua ton tai,
           // tranh import trung lam nhan doi so lieu.
@@ -756,6 +858,92 @@ export default {
           tong_luot: rows.reduce((a, r) => a + (r.so_lan || 0), 0),
           tong_nguoi: rows.length,
         });
+      }
+
+      // ---- Danh muc goi cuoc ----
+      if (path === "/api/packages" && method === "GET") {
+        await ensurePackages(env);
+        const res = await env.DB.prepare("SELECT * FROM goi_cuoc ORDER BY ten_goi, chu_ky").all();
+        return json({ ok: true, packages: res.results || [] });
+      }
+      if (path === "/api/packages" && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi co quyen them goi cuoc", 403);
+        await ensurePackages(env);
+        const f = await readPackageForm(request);
+        if (!f.ten_goi) return err("Thieu ten goi cuoc", 422);
+        if (!GOI_CUOC_CYCLES.includes(f.chu_ky)) return err("Chu ky goi khong hop le (chi nhan 1T, 3T, 6T, 12T, 18T, 24T, 36T)", 422);
+        const dup = await env.DB.prepare("SELECT id FROM goi_cuoc WHERE ten_goi = ? AND chu_ky = ?").bind(f.ten_goi, f.chu_ky).first();
+        if (dup) return err("Goi cuoc '" + f.ten_goi + "' chu ky " + f.chu_ky + " da ton tai", 409);
+        const r = await env.DB.prepare(
+          "INSERT INTO goi_cuoc (ten_goi, chu_ky, gia_goi, uu_dai, created_by) VALUES (?, ?, ?, ?, ?)"
+        )
+          .bind(f.ten_goi, f.chu_ky, f.gia_goi, f.uu_dai, me.username)
+          .run();
+        const id = r.meta.last_row_id;
+        if (f.file) {
+          const key = await uploadPackageImage(env, id, f.file);
+          await env.DB.prepare("UPDATE goi_cuoc SET anh_key = ? WHERE id = ?").bind(key, id).run();
+        }
+        return json({ ok: true, id });
+      }
+      const pkgMatch = path.match(/^\/api\/packages\/(\d+)$/);
+      if (pkgMatch && method === "PUT") {
+        if (!isAdmin) return err("Chi admin moi co quyen sua goi cuoc", 403);
+        await ensurePackages(env);
+        const id = Number(pkgMatch[1]);
+        const cur = await env.DB.prepare("SELECT * FROM goi_cuoc WHERE id = ?").bind(id).first();
+        if (!cur) return err("Khong tim thay goi cuoc", 404);
+        const f = await readPackageForm(request);
+        if (!f.ten_goi) return err("Thieu ten goi cuoc", 422);
+        if (!GOI_CUOC_CYCLES.includes(f.chu_ky)) return err("Chu ky goi khong hop le (chi nhan 1T, 3T, 6T, 12T, 18T, 24T, 36T)", 422);
+        const dup = await env.DB.prepare("SELECT id FROM goi_cuoc WHERE ten_goi = ? AND chu_ky = ? AND id != ?").bind(f.ten_goi, f.chu_ky, id).first();
+        if (dup) return err("Goi cuoc '" + f.ten_goi + "' chu ky " + f.chu_ky + " da ton tai", 409);
+        let anhKey = cur.anh_key;
+        if (f.file) {
+          const key = await uploadPackageImage(env, id, f.file);
+          if (cur.anh_key && env.ANH) { try { await env.ANH.delete(cur.anh_key); } catch (e) { /* bo qua */ } }
+          anhKey = key;
+        }
+        await env.DB.prepare(
+          "UPDATE goi_cuoc SET ten_goi = ?, chu_ky = ?, gia_goi = ?, uu_dai = ?, anh_key = ?, updated_at = ? WHERE id = ?"
+        )
+          .bind(f.ten_goi, f.chu_ky, f.gia_goi, f.uu_dai, anhKey, saigonNow(), id)
+          .run();
+        return json({ ok: true, id });
+      }
+      if (pkgMatch && method === "DELETE") {
+        if (!isAdmin) return err("Chi admin moi co quyen xoa goi cuoc", 403);
+        await ensurePackages(env);
+        const id = Number(pkgMatch[1]);
+        const cur = await env.DB.prepare("SELECT anh_key FROM goi_cuoc WHERE id = ?").bind(id).first();
+        await env.DB.prepare("DELETE FROM goi_cuoc WHERE id = ?").bind(id).run();
+        if (cur && cur.anh_key && env.ANH) { try { await env.ANH.delete(cur.anh_key); } catch (e) { /* bo qua */ } }
+        return json({ ok: true });
+      }
+      if (path === "/api/packages/import" && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi co quyen import danh sach goi cuoc", 403);
+        await ensurePackages(env);
+        const b = await readBody(request);
+        const rows = Array.isArray(b.rows) ? b.rows : [];
+        let created = 0, skipped = 0;
+        const errors = [];
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i] || {};
+          const tenGoi = toText(r.ten_goi);
+          const chuKy = toText(r.chu_ky).toUpperCase();
+          const giaGoi = Number(r.gia_goi) || 0;
+          if (!tenGoi) { skipped++; errors.push({ row: i + 2, reason: "Thieu Ten goi cuoc" }); continue; }
+          if (!GOI_CUOC_CYCLES.includes(chuKy)) { skipped++; errors.push({ row: i + 2, reason: "Chu ky khong hop le: " + (r.chu_ky || "") }); continue; }
+          const dup = await env.DB.prepare("SELECT id FROM goi_cuoc WHERE ten_goi = ? AND chu_ky = ?").bind(tenGoi, chuKy).first();
+          if (dup) { skipped++; errors.push({ row: i + 2, reason: "Goi cuoc da ton tai: " + tenGoi + " (" + chuKy + ")" }); continue; }
+          await env.DB.prepare(
+            "INSERT INTO goi_cuoc (ten_goi, chu_ky, gia_goi, uu_dai, created_by) VALUES (?, ?, ?, ?, ?)"
+          )
+            .bind(tenGoi, chuKy, giaGoi, toText(r.uu_dai), me.username)
+            .run();
+          created++;
+        }
+        return json({ ok: true, created, skipped, errors: errors.slice(0, 50) });
       }
 
       // ---- Cai dat tai khoan ----

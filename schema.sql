@@ -42,6 +42,29 @@ CREATE TABLE IF NOT EXISTS dang_nhap_log (
   thoi_gian TEXT                            -- Gio Viet Nam (UTC+7), dang YYYY-MM-DD HH:mm:ss
 );
 
+-- 2c) Bang khoa thay the theo tung bang thang (admin khoa/mo khoa;
+--     neu chua co dong nao: thang hien tai mac dinh MO, cac thang truoc KHOA)
+CREATE TABLE IF NOT EXISTS khoa_bang (
+  ten_bang TEXT PRIMARY KEY,                -- VD: HHBG_102026, BCKH_1026
+  khoa INTEGER NOT NULL DEFAULT 1,          -- 1 = khoa thay the, 0 = mo
+  updated_by TEXT,
+  updated_at TEXT
+);
+
+-- 2d) Bang danh muc goi cuoc (module Danh muc goi cuoc)
+CREATE TABLE IF NOT EXISTS goi_cuoc (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ten_goi TEXT NOT NULL,
+  chu_ky TEXT NOT NULL,                     -- 1T, 3T, 6T, 12T, 18T, 24T, 36T
+  gia_goi REAL NOT NULL DEFAULT 0,
+  uu_dai TEXT,
+  anh_key TEXT,                             -- Khoa anh tren R2 (VD: goi-cuoc/12-1729....jpg)
+  created_by TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT,
+  UNIQUE(ten_goi, chu_ky)
+);
+
 -- 3) Tai khoan admin ban dau
 --    Ten dang nhap: admin  |  Mat khau: Vnpt@2026
 --    HAY DANG NHAP VA DOI MAT KHAU NGAY SAU KHI CAI DAT XONG!

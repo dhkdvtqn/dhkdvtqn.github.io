@@ -437,6 +437,19 @@
 #appRoot .pill {display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
 #appRoot .pill.admin {background:#ffe3c2;color:#8a4b00}
 #appRoot .pill.sub {background:#e2dcff;color:#46309e}
+#appRoot .pkg-layout {display:grid;grid-template-columns:1.7fr 1fr;gap:16px;align-items:start;margin-top:12px}
+#appRoot .pkg-media {position:sticky;top:12px}
+#appRoot .pkg-media-box {aspect-ratio:9/16;background:var(--blue-light);border:1.5px solid var(--line);border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);font-size:14px;padding:12px}
+#appRoot .pkg-media-box img {width:100%;height:100%;object-fit:cover}
+#appRoot .pkg-media-info {margin-top:8px;font-size:14.5px}
+#appRoot .pkg-media-info b {display:block;color:var(--blue-dark)}
+#appRoot .pkg-row {cursor:pointer}
+#appRoot .pkg-row.sel {background:var(--blue-light)}
+#appRoot .guide-box {border:1.5px solid var(--line);border-radius:14px;padding:14px 18px;margin-top:16px}
+#appRoot .guide-box summary {font-weight:700;cursor:pointer;color:var(--blue-dark)}
+@media(max-width:760px){
+#appRoot .pkg-layout {grid-template-columns:1fr}
+}
 #appRoot .app-banner {background:linear-gradient(120deg,var(--blue-dark),var(--blue));color:#fff;border-radius:16px;padding:20px 22px;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,30,60,.18)}
 #appRoot .app-banner h1 {margin:0 0 14px;text-align:center;font-size:clamp(17px,2.6vw,25px);letter-spacing:.4px;line-height:1.35}
 #appRoot .banner-info {display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px 26px;font-size:14.5px}
@@ -777,6 +790,7 @@
         <button class="nav-btn" data-panel="panel-import">📥 Quản lý dữ liệu đầu vào</button>
         <button class="nav-btn" data-panel="panel-config">🗄️ Cấu hình kết nối D1</button>
         <button class="nav-btn" data-panel="panel-reports">📊 Báo cáo thống kê</button>
+        <button class="nav-btn" data-panel="panel-packages">📦 Danh mục gói cước</button>
         <button class="nav-btn" data-panel="panel-loginstats">🔑 Thống kê đăng nhập</button>
         <button class="nav-btn" data-panel="panel-settings">⚙️ Cài đặt</button>
       </aside>
@@ -858,7 +872,7 @@
         <!-- QUAN LY DU LIEU DAU VAO -->
         <section class="panel hidden" id="panel-import">
           <h2>Quản lý dữ liệu đầu vào</h2>
-          <p class="desc">Import dữ liệu chi trả từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng: <code class="inl">HHBG_MMYYYY</code> cho hoa hồng bán gói và <code class="inl">BCKH_MMYY</code> cho tiền BCKH. Khi import có 2 chế độ: <b>Cập nhật</b> (thêm dữ liệu mới vào bảng của tháng) hoặc <b>Thay thế</b> (xóa toàn bộ dữ liệu cũ của tháng rồi import lại). Các cột trong file không khớp với mẫu dữ liệu sẽ tự động bị loại bỏ, không import vào CSDL.</p>
+          <p class="desc">Import dữ liệu chi trả từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng: <code class="inl">HHBG_MMYYYY</code> cho hoa hồng bán gói và <code class="inl">BCKH_MMYY</code> cho tiền BCKH. Khi import có 3 chế độ: <b>Tạo mới</b> (chỉ import khi tháng này chưa có dữ liệu — chặn import trùng), <b>Cập nhật</b> (thêm dữ liệu mới vào bảng của tháng) hoặc <b>Thay thế</b> (xóa toàn bộ dữ liệu cũ của tháng rồi import lại). Chế độ Thay thế tuân theo khóa bảng: bảng của tháng hiện tại mặc định mở, bảng của các tháng trước mặc định khóa (chỉ admin mới thay thế được); admin khóa/mở từng bảng trong danh sách bảng đã import bên dưới. Các cột trong file không khớp với mẫu dữ liệu sẽ tự động bị loại bỏ, không import vào CSDL.</p>
           <form id="importForm" class="form-grid">
             <div><label>Loại dữ liệu</label><select id="impType"><option value="HHBG">Chi trả hoa hồng bán gói (HHBG)</option><option value="BCKH">Chi trả tiền BCKH (BCKH)</option></select></div>
             <div><label>Tháng / Năm import</label><div style="display:flex;gap:8px"><input type="number" id="impMonth" min="1" max="12" /><input type="number" id="impYear" min="2020" max="2100" /></div></div>
@@ -868,7 +882,7 @@
           </form>
           <div id="impMsg"></div>
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Các bảng dữ liệu đã import</h3>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th></th></tr></thead><tbody id="tablesBody"><tr><td colspan="5">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th>Khóa thay thế</th><th></th></tr></thead><tbody id="tablesBody"><tr><td colspan="6">Đang tải…</td></tr></tbody></table></div>
           <div class="note"><b>Trường dữ liệu HHBG:</b> Tên Eload, Số Eload, Số Ví, Số thuê bao, Loại thuê bao, Chu kỳ chi trả, Tên gói cước, Giá gói cước, Thời gian giao dịch, Trans ID, Kênh thực hiện, Thù lao chi trả, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.<br/><b>Trường dữ liệu BCKH:</b> Số Eload, Tên Eload, Số thuê bao, Thời gian kích hoạt, Hoa hồng BCKH, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.</div>
 
           <div id="dtManager" class="hidden">
@@ -964,6 +978,29 @@ CREATE TABLE IF NOT EXISTS dang_nhap_log (
   username TEXT,
   ho_ten TEXT,
   thoi_gian TEXT                            -- Gio Viet Nam (UTC+7), dang YYYY-MM-DD HH:mm:ss
+);
+
+-- 2c) Bang khoa thay the theo tung bang thang (admin khoa/mo khoa;
+--     neu chua co dong nao: thang hien tai mac dinh MO, cac thang truoc KHOA)
+CREATE TABLE IF NOT EXISTS khoa_bang (
+  ten_bang TEXT PRIMARY KEY,                -- VD: HHBG_102026, BCKH_1026
+  khoa INTEGER NOT NULL DEFAULT 1,          -- 1 = khoa thay the, 0 = mo
+  updated_by TEXT,
+  updated_at TEXT
+);
+
+-- 2d) Bang danh muc goi cuoc (module Danh muc goi cuoc)
+CREATE TABLE IF NOT EXISTS goi_cuoc (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ten_goi TEXT NOT NULL,
+  chu_ky TEXT NOT NULL,                     -- 1T, 3T, 6T, 12T, 18T, 24T, 36T
+  gia_goi REAL NOT NULL DEFAULT 0,
+  uu_dai TEXT,
+  anh_key TEXT,                             -- Khoa anh tren R2 (VD: goi-cuoc/12-1729....jpg)
+  created_by TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT,
+  UNIQUE(ten_goi, chu_ky)
 );
 
 -- 3) Tai khoan admin ban dau
@@ -1313,6 +1350,66 @@ function tableInRange(name, loai, from, to) {
   return last &gt;= from &amp;&amp; first &lt;= to;
 }
 
+// ---- Khoa bang thay the theo tung bang thang ----
+// Bang khoa_bang luu quyet dinh rieng cua admin (khoa = 1, mo = 0).
+// Neu chua co dong nao: mac dinh thang hien tai MO (duoc thay the),
+// cac thang truoc do KHOA (chi admin moi thay the).
+async function ensureTableLocks(env) {
+  await env.DB.prepare(
+    &quot;CREATE TABLE IF NOT EXISTS khoa_bang (ten_bang TEXT PRIMARY KEY, khoa INTEGER NOT NULL DEFAULT 1, updated_by TEXT, updated_at TEXT)&quot;
+  ).run();
+}
+function tableMonthKey(name) {
+  const m = name.match(/_(\d{2})(\d{2,4})$/);
+  if (!m) return null;
+  let year = parseInt(m[2], 10);
+  if (m[2].length === 2) year += 2000;
+  return year + &quot;-&quot; + m[1];
+}
+async function isTableLocked(env, name) {
+  await ensureTableLocks(env);
+  const row = await env.DB.prepare(&quot;SELECT khoa FROM khoa_bang WHERE ten_bang = ?&quot;).bind(name).first();
+  if (row) return !!row.khoa;
+  const mk = tableMonthKey(name);
+  if (!mk) return false;
+  return mk &lt; saigonNow().slice(0, 7); // thang truoc thang hien tai: mac dinh khoa
+}
+
+// ---- Danh muc goi cuoc ----
+const GOI_CUOC_CYCLES = [&quot;1T&quot;, &quot;3T&quot;, &quot;6T&quot;, &quot;12T&quot;, &quot;18T&quot;, &quot;24T&quot;, &quot;36T&quot;];
+async function ensurePackages(env) {
+  await env.DB.prepare(
+    &quot;CREATE TABLE IF NOT EXISTS goi_cuoc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_goi TEXT NOT NULL, chu_ky TEXT NOT NULL, gia_goi REAL NOT NULL DEFAULT 0, uu_dai TEXT, anh_key TEXT, created_by TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT, UNIQUE(ten_goi, chu_ky))&quot;
+  ).run();
+}
+async function uploadPackageImage(env, pkgId, file) {
+  if (!env.ANH) throw new Error(&quot;Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker). Xem huong dan cau hinh R2 trong module Danh muc goi cuoc.&quot;);
+  const mime = file.type || &quot;&quot;;
+  if (!mime.startsWith(&quot;image/&quot;)) throw new Error(&quot;File anh phai la dinh dang anh (jpg, png, webp, gif)&quot;);
+  if (file.size &gt; 5 * 1024 * 1024) throw new Error(&quot;Anh vuot qua 5MB. Hay nen anh nho hon roi thu lai.&quot;);
+  const ext = mime === &quot;image/jpeg&quot; ? &quot;jpg&quot; : mime === &quot;image/png&quot; ? &quot;png&quot; : mime === &quot;image/webp&quot; ? &quot;webp&quot; : mime === &quot;image/gif&quot; ? &quot;gif&quot; : &quot;&quot;;
+  if (!ext) throw new Error(&quot;Dinh dang anh khong duoc ho tro (chi nhan jpg, png, webp, gif)&quot;);
+  const key = &quot;goi-cuoc/&quot; + pkgId + &quot;-&quot; + Date.now() + &quot;.&quot; + ext;
+  await env.ANH.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: mime } });
+  return key;
+}
+async function readPackageForm(request) {
+  const ct = request.headers.get(&quot;content-type&quot;) || &quot;&quot;;
+  if (ct.includes(&quot;multipart/form-data&quot;)) {
+    const fd = await request.formData();
+    const file = fd.get(&quot;anh&quot;);
+    return {
+      ten_goi: toText(fd.get(&quot;ten_goi&quot;)),
+      chu_ky: toText(fd.get(&quot;chu_ky&quot;)),
+      gia_goi: Number(fd.get(&quot;gia_goi&quot;)) || 0,
+      uu_dai: toText(fd.get(&quot;uu_dai&quot;)),
+      file: file &amp;&amp; file.size &gt; 0 ? file : null,
+    };
+  }
+  const b = await readBody(request);
+  return { ten_goi: toText(b.ten_goi), chu_ky: toText(b.chu_ky), gia_goi: Number(b.gia_goi) || 0, uu_dai: toText(b.uu_dai), file: null };
+}
+
 // ---------------------------------------------------------------------------
 // Xu ly chinh
 // ---------------------------------------------------------------------------
@@ -1366,6 +1463,23 @@ export default {
           exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
         });
         return json({ ok: true, token, user: publicUser(user) });
+      }
+
+      // ---- Anh truyen thong goi cuoc: phuc vu qua Worker, KHONG can dang nhap
+      // (the &lt;img&gt; khong gui duoc token Authorization, nen endpoint nay phai
+      //  dung truoc khoi yeu cau dang nhap phia duoi)
+      const imgMatch = path.match(/^\/api\/packages\/image\/(.+)$/);
+      if (imgMatch &amp;&amp; method === &quot;GET&quot;) {
+        const key = decodeURIComponent(imgMatch[1]);
+        if (!/^goi-cuoc\/[A-Za-z0-9._-]+$/.test(key)) return err(&quot;Anh khong hop le&quot;, 400);
+        if (!env.ANH) return err(&quot;Chua cau hinh R2 Object Storage&quot;, 501);
+        const obj = await env.ANH.get(key);
+        if (!obj) return err(&quot;Khong tim thay anh&quot;, 404);
+        const headers = new Headers();
+        obj.writeHttpMetadata(headers);
+        headers.set(&quot;Cache-Control&quot;, &quot;public, max-age=86400&quot;);
+        headers.set(&quot;Access-Control-Allow-Origin&quot;, &quot;*&quot;);
+        return new Response(obj.body, { headers });
       }
 
       // ---- Cac API con lai deu can dang nhap ----
@@ -1594,7 +1708,7 @@ export default {
           const tables = await listMonthlyTables(env, t.prefix);
           for (const name of tables) {
             const c = await env.DB.prepare(&#x27;SELECT COUNT(*) AS n FROM &quot;&#x27; + name + &#x27;&quot;&#x27;).first();
-            out.push({ table: name, code: t.code, rows: c ? c.n : 0 });
+            out.push({ table: name, code: t.code, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
           }
         }
         return json({ ok: true, tables: out });
@@ -1610,6 +1724,27 @@ export default {
         await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + name + &#x27;&quot;&#x27;).run();
         return json({ ok: true, table: name });
       }
+      // ---- Trang thai khoa thay the cua 1 bang thang ----
+      if (path === &quot;/api/import/table-lock&quot; &amp;&amp; method === &quot;GET&quot;) {
+        const name = url.searchParams.get(&quot;table&quot;) || &quot;&quot;;
+        if (!name) return err(&quot;Thieu ten bang&quot;, 422);
+        const locked = await isTableLocked(env, name);
+        return json({ ok: true, table: name, locked, can_replace: isAdmin || !locked });
+      }
+      // ---- Admin khoa / mo khoa thay the cho 1 bang thang ----
+      if (path === &quot;/api/table-locks&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen khoa/mo khoa bang du lieu&quot;, 403);
+        const b = await readBody(request);
+        const name = toText(b.table);
+        if (!name) return err(&quot;Thieu ten bang&quot;, 422);
+        await ensureTableLocks(env);
+        await env.DB.prepare(
+          &quot;INSERT INTO khoa_bang (ten_bang, khoa, updated_by, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(ten_bang) DO UPDATE SET khoa = excluded.khoa, updated_by = excluded.updated_by, updated_at = excluded.updated_at&quot;
+        )
+          .bind(name, b.locked ? 1 : 0, me.username, saigonNow())
+          .run();
+        return json({ ok: true, table: name, locked: !!b.locked });
+      }
       if (path === &quot;/api/import&quot; &amp;&amp; method === &quot;POST&quot;) {
         if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
         const b = await readBody(request);
@@ -1617,9 +1752,6 @@ export default {
         const dtype = types.find((t) =&gt; t.code === String(b.loai || &quot;&quot;).toUpperCase());
         if (!dtype) return err(&quot;Loai du lieu khong ton tai: &quot; + (b.loai || &quot;&quot;), 422);
         const mode = b.mode === &quot;replace&quot; ? &quot;replace&quot; : b.mode === &quot;create&quot; ? &quot;create&quot; : &quot;append&quot;; // append = Cap nhat, replace = Thay the, create = Tao moi
-        // Phan quyen: che do Thay the (xoa du lieu cu cua thang) chi danh cho admin.
-        // SubAdmin va user co quyen import chi duoc dung Tao moi / Cap nhat.
-        if (mode === &quot;replace&quot; &amp;&amp; !isAdmin) return err(&quot;Chi admin moi duoc su dung che do &#x27;Thay the&#x27; (xoa du lieu cu cua thang). Tai khoan cua anh chi duoc dung che do &#x27;Tao moi&#x27; hoac &#x27;Cap nhat&#x27;.&quot;, 403);
         const thang = Number(b.thang);
         const nam = Number(b.nam);
         const columns = typeColumnsSQL(dtype);
@@ -1636,6 +1768,13 @@ export default {
         if (!thang || thang &lt; 1 || thang &gt; 12 || !nam) return err(&quot;Thang/nam import khong hop le&quot;, 422);
         if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
         const table = tableNameForType(dtype, thang, nam);
+        // Phan quyen thay the theo tung bang: admin luon duoc phep; user co quyen
+        // import chi duoc thay the khi bang KHONG bi khoa (mac dinh: thang hien
+        // tai mo, cac thang truoc do khoa tru khi admin mo khoa).
+        if (mode === &quot;replace&quot; &amp;&amp; !isAdmin) {
+          const locked = await isTableLocked(env, table);
+          if (locked) return err(&quot;Bang du lieu &quot; + table + &quot; dang bi khoa thay the. Chi admin moi duoc thay the du lieu cua bang nay. Lien he admin de mo khoa neu can.&quot;, 403);
+        }
         if (mode === &quot;create&quot;) {
           // Che do Tao moi: chi import khi bang thang nay chua ton tai,
           // tranh import trung lam nhan doi so lieu.
@@ -1778,6 +1917,92 @@ export default {
         });
       }
 
+      // ---- Danh muc goi cuoc ----
+      if (path === &quot;/api/packages&quot; &amp;&amp; method === &quot;GET&quot;) {
+        await ensurePackages(env);
+        const res = await env.DB.prepare(&quot;SELECT * FROM goi_cuoc ORDER BY ten_goi, chu_ky&quot;).all();
+        return json({ ok: true, packages: res.results || [] });
+      }
+      if (path === &quot;/api/packages&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen them goi cuoc&quot;, 403);
+        await ensurePackages(env);
+        const f = await readPackageForm(request);
+        if (!f.ten_goi) return err(&quot;Thieu ten goi cuoc&quot;, 422);
+        if (!GOI_CUOC_CYCLES.includes(f.chu_ky)) return err(&quot;Chu ky goi khong hop le (chi nhan 1T, 3T, 6T, 12T, 18T, 24T, 36T)&quot;, 422);
+        const dup = await env.DB.prepare(&quot;SELECT id FROM goi_cuoc WHERE ten_goi = ? AND chu_ky = ?&quot;).bind(f.ten_goi, f.chu_ky).first();
+        if (dup) return err(&quot;Goi cuoc &#x27;&quot; + f.ten_goi + &quot;&#x27; chu ky &quot; + f.chu_ky + &quot; da ton tai&quot;, 409);
+        const r = await env.DB.prepare(
+          &quot;INSERT INTO goi_cuoc (ten_goi, chu_ky, gia_goi, uu_dai, created_by) VALUES (?, ?, ?, ?, ?)&quot;
+        )
+          .bind(f.ten_goi, f.chu_ky, f.gia_goi, f.uu_dai, me.username)
+          .run();
+        const id = r.meta.last_row_id;
+        if (f.file) {
+          const key = await uploadPackageImage(env, id, f.file);
+          await env.DB.prepare(&quot;UPDATE goi_cuoc SET anh_key = ? WHERE id = ?&quot;).bind(key, id).run();
+        }
+        return json({ ok: true, id });
+      }
+      const pkgMatch = path.match(/^\/api\/packages\/(\d+)$/);
+      if (pkgMatch &amp;&amp; method === &quot;PUT&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen sua goi cuoc&quot;, 403);
+        await ensurePackages(env);
+        const id = Number(pkgMatch[1]);
+        const cur = await env.DB.prepare(&quot;SELECT * FROM goi_cuoc WHERE id = ?&quot;).bind(id).first();
+        if (!cur) return err(&quot;Khong tim thay goi cuoc&quot;, 404);
+        const f = await readPackageForm(request);
+        if (!f.ten_goi) return err(&quot;Thieu ten goi cuoc&quot;, 422);
+        if (!GOI_CUOC_CYCLES.includes(f.chu_ky)) return err(&quot;Chu ky goi khong hop le (chi nhan 1T, 3T, 6T, 12T, 18T, 24T, 36T)&quot;, 422);
+        const dup = await env.DB.prepare(&quot;SELECT id FROM goi_cuoc WHERE ten_goi = ? AND chu_ky = ? AND id != ?&quot;).bind(f.ten_goi, f.chu_ky, id).first();
+        if (dup) return err(&quot;Goi cuoc &#x27;&quot; + f.ten_goi + &quot;&#x27; chu ky &quot; + f.chu_ky + &quot; da ton tai&quot;, 409);
+        let anhKey = cur.anh_key;
+        if (f.file) {
+          const key = await uploadPackageImage(env, id, f.file);
+          if (cur.anh_key &amp;&amp; env.ANH) { try { await env.ANH.delete(cur.anh_key); } catch (e) { /* bo qua */ } }
+          anhKey = key;
+        }
+        await env.DB.prepare(
+          &quot;UPDATE goi_cuoc SET ten_goi = ?, chu_ky = ?, gia_goi = ?, uu_dai = ?, anh_key = ?, updated_at = ? WHERE id = ?&quot;
+        )
+          .bind(f.ten_goi, f.chu_ky, f.gia_goi, f.uu_dai, anhKey, saigonNow(), id)
+          .run();
+        return json({ ok: true, id });
+      }
+      if (pkgMatch &amp;&amp; method === &quot;DELETE&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen xoa goi cuoc&quot;, 403);
+        await ensurePackages(env);
+        const id = Number(pkgMatch[1]);
+        const cur = await env.DB.prepare(&quot;SELECT anh_key FROM goi_cuoc WHERE id = ?&quot;).bind(id).first();
+        await env.DB.prepare(&quot;DELETE FROM goi_cuoc WHERE id = ?&quot;).bind(id).run();
+        if (cur &amp;&amp; cur.anh_key &amp;&amp; env.ANH) { try { await env.ANH.delete(cur.anh_key); } catch (e) { /* bo qua */ } }
+        return json({ ok: true });
+      }
+      if (path === &quot;/api/packages/import&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen import danh sach goi cuoc&quot;, 403);
+        await ensurePackages(env);
+        const b = await readBody(request);
+        const rows = Array.isArray(b.rows) ? b.rows : [];
+        let created = 0, skipped = 0;
+        const errors = [];
+        for (let i = 0; i &lt; rows.length; i++) {
+          const r = rows[i] || {};
+          const tenGoi = toText(r.ten_goi);
+          const chuKy = toText(r.chu_ky).toUpperCase();
+          const giaGoi = Number(r.gia_goi) || 0;
+          if (!tenGoi) { skipped++; errors.push({ row: i + 2, reason: &quot;Thieu Ten goi cuoc&quot; }); continue; }
+          if (!GOI_CUOC_CYCLES.includes(chuKy)) { skipped++; errors.push({ row: i + 2, reason: &quot;Chu ky khong hop le: &quot; + (r.chu_ky || &quot;&quot;) }); continue; }
+          const dup = await env.DB.prepare(&quot;SELECT id FROM goi_cuoc WHERE ten_goi = ? AND chu_ky = ?&quot;).bind(tenGoi, chuKy).first();
+          if (dup) { skipped++; errors.push({ row: i + 2, reason: &quot;Goi cuoc da ton tai: &quot; + tenGoi + &quot; (&quot; + chuKy + &quot;)&quot; }); continue; }
+          await env.DB.prepare(
+            &quot;INSERT INTO goi_cuoc (ten_goi, chu_ky, gia_goi, uu_dai, created_by) VALUES (?, ?, ?, ?, ?)&quot;
+          )
+            .bind(tenGoi, chuKy, giaGoi, toText(r.uu_dai), me.username)
+            .run();
+          created++;
+        }
+        return json({ ok: true, created, skipped, errors: errors.slice(0, 50) });
+      }
+
       // ---- Cai dat tai khoan ----
       if (path === &quot;/api/settings/password&quot; &amp;&amp; method === &quot;POST&quot;) {
         const b = await readBody(request);
@@ -1837,6 +2062,54 @@ export default {
           <div id="repMsg"></div>
           <div class="kpi-row"><div class="kpi"><b id="repTotalTx">—</b><span>Tổng số giao dịch</span></div><div class="kpi"><b id="repTotalMoney">—</b><span>Tổng số tiền chi trả</span></div></div>
           <div class="tbl-wrap"><table class="data"><thead id="repHead"><tr><th>Kỳ</th><th>Số giao dịch</th><th>Tổng tiền chi trả</th></tr></thead><tbody id="repBody"><tr><td colspan="3">Chưa có dữ liệu — hãy chọn khoảng thời gian và bấm báo cáo.</td></tr></tbody></table></div>
+        </section>
+
+        <!-- DANH MUC GOI CUOC -->
+        <section class="panel hidden" id="panel-packages">
+          <h2>Danh mục gói cước</h2>
+          <p class="desc">Tra cứu các gói cước kèm hình ảnh truyền thông. Bấm vào một gói cước trong bảng để xem ảnh truyền thông (tỷ lệ 9:16) bên cạnh.</p>
+          <div class="form-grid" style="grid-template-columns:minmax(220px,340px) 200px 1fr;align-items:end">
+            <div><label>Tìm theo tên gói</label><input id="pkgSearch" placeholder="Nhập tên gói cước…" /></div>
+            <div><label>Chu kỳ gói</label><select id="pkgCycleFilter"><option value="">Tất cả chu kỳ</option><option>1T</option><option>3T</option><option>6T</option><option>12T</option><option>18T</option><option>24T</option><option>36T</option></select></div>
+            <div><span id="pkgCount" class="desc"></span></div>
+          </div>
+          <div class="pkg-layout">
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Tên gói cước</th><th>Chu kỳ</th><th>Giá gói</th><th>Ưu đãi</th><th></th></tr></thead><tbody id="pkgBody"><tr><td colspan="5">Đang tải…</td></tr></tbody></table></div>
+            <div class="pkg-media">
+              <div class="pkg-media-box"><img id="pkgImg" class="hidden" alt="Ảnh truyền thông gói cước" /><div id="pkgImgEmpty">Chưa có ảnh truyền thông.<br />Hãy chọn một gói cước trong bảng để xem ảnh.</div></div>
+              <div class="pkg-media-info"><b id="pkgSelName">—</b><span id="pkgSelPrice"></span></div>
+            </div>
+          </div>
+          <div id="pkgMsg"></div>
+          <div id="pkgAdminBox" class="hidden">
+            <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Thêm / sửa gói cước (chỉ admin)</h3>
+            <form id="pkgForm" class="form-grid">
+              <input type="hidden" id="pkgEditId" />
+              <div><label>Tên gói cước *</label><input id="pkgName" required /></div>
+              <div><label>Chu kỳ gói *</label><select id="pkgCycle"><option>1T</option><option>3T</option><option>6T</option><option>12T</option><option>18T</option><option>24T</option><option>36T</option></select></div>
+              <div><label>Giá gói (đ) *</label><input id="pkgPrice" type="number" min="0" required /></div>
+              <div><label>Ưu đãi của gói cước</label><textarea id="pkgOffer" rows="2"></textarea></div>
+              <div><label>Ảnh truyền thông (tỷ lệ 9:16, tối đa 5MB)</label><input type="file" id="pkgImage" accept="image/*" /></div>
+              <div style="display:flex;align-items:flex-end;gap:8px"><button class="btn blue" type="submit">Lưu gói cước</button><button class="btn gray" type="button" id="pkgCancel">Hủy</button></div>
+            </form>
+            <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Import danh sách gói cước từ file Excel (chỉ admin)</h3>
+            <form id="pkgImportForm" class="form-grid" style="grid-template-columns:1fr auto auto;align-items:end">
+              <div><label>Chọn file Excel</label><input type="file" id="pkgImpFile" accept=".xlsx,.xls,.csv" /></div>
+              <div><button class="btn gray" type="button" id="pkgTplBtn">Tải file mẫu Excel</button></div>
+              <div><button class="btn blue" type="submit" id="pkgImpBtn">Import danh sách</button></div>
+            </form>
+            <div id="pkgImportMsg"></div>
+            <details class="guide-box"><summary>Hướng dẫn cấu hình R2 Object Storage để lưu ảnh truyền thông (dành cho admin)</summary>
+              <div style="margin-top:10px;font-size:14.5px;line-height:1.6">
+                <p><b>Bước 1 — Tạo bucket R2:</b> Vào <b>dash.cloudflare.com</b> → chọn tài khoản Cloudflare của anh → menu trái chọn <b>R2</b> → bấm <b>Create bucket</b> → <b>Bucket name</b> nhập <code class="inl">vnpt-goi-cuoc</code> → <b>Location</b> để <b>Automatic</b> → <b>Create bucket</b>.</p>
+                <p><b>Bước 2 — Gắn bucket vào Worker:</b> Vào <b>Workers &amp; Pages</b> → chọn Worker đang chạy của hệ thống → tab <b>Settings</b> → kéo xuống mục <b>Bindings</b> → <b>R2 Bucket Bindings</b> → <b>Add binding</b> → <b>Variable name</b> nhập đúng <code class="inl">ANH</code> (viết hoa) → <b>R2 bucket</b> chọn <code class="inl">vnpt-goi-cuoc</code> → <b>Save</b> rồi <b>Deploy</b> (Save and deploy).</p>
+                <p><b>Lưu ý quan trọng:</b> Tên biến phải đúng là <code class="inl">ANH</code> vì mã Worker mới nhất đã dùng sẵn tên này. Đặt tên khác thì khi tải ảnh hệ thống sẽ báo "Chưa cấu hình R2".</p>
+                <p><b>Không cần bật Public access cho bucket:</b> Ảnh được hệ thống lấy qua Worker (địa chỉ /api/packages/image/...) nên vẫn hiển thị cho người dùng đã đăng nhập mà không cần mở công khai bucket.</p>
+                <p><b>Bước 3 — Kiểm tra:</b> Đăng nhập tài khoản admin → module Danh mục gói cước → thêm 1 gói, chọn ảnh tỷ lệ 9:16 → Lưu → ảnh hiện ngay bên phải bảng. Nếu báo "Chưa cấu hình R2": kiểm tra lại bước 2 (binding đã Save + Deploy chưa, đúng tên biến ANH chưa).</p>
+                <p><b>Giới hạn:</b> Ảnh tối đa 5MB, chỉ nhận file ảnh (jpg, png, webp, gif). Khi admin tải ảnh mới cho cùng gói, ảnh cũ tự bị thay thế.</p>
+              </div>
+            </details>
+          </div>
         </section>
 
         <!-- THONG KE DANG NHAP -->
@@ -2087,15 +2360,33 @@ function applyImportPerms() {
   const sel = $("impMode");
   if (!sel) return;
   const opt = sel.querySelector('option[value="replace"]');
-  const isAdm = me.role === "admin";
-  if (opt) {
-    opt.disabled = !isAdm;
-    opt.textContent = isAdm
-      ? "Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu"
-      : "Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu (chỉ admin)";
+  if (!opt) return;
+  if (me.role === "admin") {
+    opt.disabled = false;
+    opt.textContent = "Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu";
+    return;
   }
-  if (!isAdm && sel.value === "replace") sel.value = "create";
+  // User khong phai admin: khoa/mo thay the theo trang thai khoa cua bang thang dang chon
+  const dtype = dataTypes.find((t) => t.code === $("impType").value) || dataTypes[0];
+  const thang = Number($("impMonth").value), nam = Number($("impYear").value);
+  if (!dtype || !thang || !nam) {
+    opt.disabled = false;
+    opt.textContent = "Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu";
+    return;
+  }
+  const mm = String(thang).padStart(2, "0");
+  const table = dtype.prefix + "_" + mm + (dtype.fmt === "MMYY" ? String(nam).slice(-2) : nam);
+  api("/api/import/table-lock?table=" + encodeURIComponent(table)).then((d) => {
+    opt.disabled = !!d.locked;
+    opt.textContent = d.locked
+      ? "Thay thế — bảng " + table + " đang bị khóa (chỉ admin)"
+      : "Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu";
+    if (d.locked && sel.value === "replace") sel.value = "create";
+  }).catch(() => { /* giu nguyen; may chu se chan neu bang bi khoa */ });
 }
+$("impType").addEventListener("change", applyImportPerms);
+$("impMonth").addEventListener("change", applyImportPerms);
+$("impYear").addEventListener("change", applyImportPerms);
 function refreshAuthUI() {
   const logged = !!me;
   $("loginBtn").classList.toggle("hidden", logged);
@@ -2130,6 +2421,7 @@ function openPanel(panelId) {
   fillBanner();
   if (panelId === "panel-dashboard") { loadDataTypes(); loadDashboard(); }
   if (panelId === "panel-loginstats") loadLoginStats();
+  if (panelId === "panel-packages") { $("pkgAdminBox").classList.toggle("hidden", !(me && me.role === "admin")); loadPackages(); }
   if (panelId === "panel-units") loadUnits();
   if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); }
   if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); }
@@ -2538,10 +2830,20 @@ async function loadTables() {
       const tt = dataTypes.find((x) => x.code === t.code);
       const typeName = tt ? tt.name : (isH ? "Hoa hồng bán gói" : "Tiền BCKH");
       const mm = t.table.match(/_(\d{2})(\d{2,4})$/);
-      return "<tr><td><code class='inl'>" + esc(t.table) + "</code></td><td>" + esc(typeName) + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (t.rows || 0).toLocaleString("vi-VN") + "</td>" +
+      const lockCell = me && me.role === "admin"
+        ? "<button class='btn sm " + (t.locked ? "gray" : "blue") + "' data-lock-table='" + esc(t.table) + "' data-locked='" + (t.locked ? 1 : 0) + "'>" + (t.locked ? "Mở khóa" : "Khóa") + "</button>"
+        : (t.locked ? "<span class='pill bad'>Đã khóa</span>" : "<span class='pill ok'>Mở</span>");
+      return "<tr><td><code class='inl'>" + esc(t.table) + "</code></td><td>" + esc(typeName) + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (t.rows || 0).toLocaleString("vi-VN") + "</td><td>" + lockCell + "</td>" +
         "<td style='white-space:nowrap'>" + (canDelTable ? "<button class='btn sm danger' data-del-table='" + esc(t.table) + "'>Xóa bảng</button>" : "") + "</td></tr>";
-    }).join("") || "<tr><td colspan='5'>Chưa import bảng nào.</td></tr>";
+    }).join("") || "<tr><td colspan='6'>Chưa import bảng nào.</td></tr>";
     $("tablesBody").querySelectorAll("[data-del-table]").forEach((b) => b.addEventListener("click", () => delTable(b.dataset.delTable)));
+    $("tablesBody").querySelectorAll("[data-lock-table]").forEach((b) => b.addEventListener("click", async () => {
+      const name = b.dataset.lockTable;
+      const toLocked = b.dataset.locked !== "1";
+      if (!confirm((toLocked ? "Khóa" : "Mở khóa") + " thay thế cho bảng " + name + "?\n" + (toLocked ? "Sau khi khóa, chỉ admin mới thay thế được dữ liệu của bảng này." : "Sau khi mở khóa, user có quyền import cũng được thay thế dữ liệu của bảng này."))) return;
+      try { await api("/api/table-locks", { method: "POST", body: JSON.stringify({ table: name, locked: toLocked }) }); loadTables(); }
+      catch (e) { setMsg($("impMsg"), e.message, false); }
+    }));
   } catch (e) { setMsg($("impMsg"), e.message, false); }
 }
 async function delTable(name) {
@@ -2751,6 +3053,134 @@ async function loadLoginStats() {
   } catch (e) { setMsg($("lsMsg"), e.message, false); }
 }
 $("lsForm").addEventListener("submit", (e) => { e.preventDefault(); loadLoginStats(); });
+
+/* ---------------- Danh muc goi cuoc ---------------- */
+let packagesCache = [];
+let selectedPkgId = null;
+async function loadPackages() {
+  try {
+    const d = await api("/api/packages");
+    packagesCache = d.packages || [];
+    renderPackages();
+  } catch (e) { setMsg($("pkgMsg"), e.message, false); }
+}
+function renderPackages() {
+  const q = ($("pkgSearch").value || "").trim().toLowerCase();
+  const cyc = $("pkgCycleFilter").value;
+  const list = packagesCache.filter((p) => (!q || (p.ten_goi || "").toLowerCase().includes(q)) && (!cyc || p.chu_ky === cyc));
+  if ($("pkgCount")) $("pkgCount").textContent = "Hiển thị " + list.length + " / " + packagesCache.length + " gói cước";
+  $("pkgBody").innerHTML = list.map((p) =>
+    "<tr class='pkg-row" + (p.id === selectedPkgId ? " sel" : "") + "' data-pkg='" + p.id + "'><td><b>" + esc(p.ten_goi) + "</b></td><td>" + esc(p.chu_ky) + "</td><td>" + fmt(p.gia_goi) + "</td><td>" + esc(p.uu_dai) + "</td>" +
+    (me && me.role === "admin" ? "<td style='white-space:nowrap'><button class='btn sm gray' data-pkg-edit='" + p.id + "'>Sửa</button> <button class='btn sm danger' data-pkg-del='" + p.id + "'>Xóa</button></td>" : "<td></td>") +
+    "</tr>").join("") || "<tr><td colspan='5'>Chưa có gói cước nào.</td></tr>";
+  $("pkgBody").querySelectorAll("[data-pkg]").forEach((tr) => tr.addEventListener("click", () => selectPackage(Number(tr.dataset.pkg))));
+  $("pkgBody").querySelectorAll("[data-pkg-edit]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); editPackage(Number(b.dataset.pkgEdit)); }));
+  $("pkgBody").querySelectorAll("[data-pkg-del]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); delPackage(Number(b.dataset.pkgDel)); }));
+}
+function selectPackage(id) {
+  const p = packagesCache.find((x) => x.id === id);
+  if (!p) return;
+  selectedPkgId = id;
+  renderPackages();
+  $("pkgSelName").textContent = p.ten_goi + " (" + p.chu_ky + ")";
+  $("pkgSelPrice").textContent = fmt(p.gia_goi) + (p.uu_dai ? " — " + p.uu_dai : "");
+  if (p.anh_key) {
+    $("pkgImg").src = apiBase + "/api/packages/image/" + encodeURIComponent(p.anh_key);
+    $("pkgImg").classList.remove("hidden");
+    $("pkgImgEmpty").classList.add("hidden");
+  } else {
+    $("pkgImg").classList.add("hidden");
+    $("pkgImgEmpty").classList.remove("hidden");
+  }
+}
+function resetPkgForm() {
+  $("pkgEditId").value = "";
+  $("pkgName").value = ""; $("pkgCycle").value = "1T"; $("pkgPrice").value = ""; $("pkgOffer").value = ""; $("pkgImage").value = "";
+}
+function editPackage(id) {
+  const p = packagesCache.find((x) => x.id === id);
+  if (!p) return;
+  $("pkgEditId").value = p.id;
+  $("pkgName").value = p.ten_goi; $("pkgCycle").value = p.chu_ky; $("pkgPrice").value = p.gia_goi || ""; $("pkgOffer").value = p.uu_dai || "";
+  $("pkgForm").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+async function delPackage(id) {
+  const p = packagesCache.find((x) => x.id === id);
+  if (!p || !confirm("Xóa gói cước " + p.ten_goi + " (" + p.chu_ky + ") khỏi danh mục?")) return;
+  try { await api("/api/packages/" + id, { method: "DELETE" }); setMsg($("pkgMsg"), "Đã xóa gói cước."); if (selectedPkgId === id) { selectedPkgId = null; $("pkgSelName").textContent = "—"; $("pkgSelPrice").textContent = ""; $("pkgImg").classList.add("hidden"); $("pkgImgEmpty").classList.remove("hidden"); } loadPackages(); }
+  catch (e) { setMsg($("pkgMsg"), e.message, false); }
+}
+$("pkgSearch").addEventListener("input", renderPackages);
+$("pkgCycleFilter").addEventListener("change", renderPackages);
+$("pkgCancel").addEventListener("click", resetPkgForm);
+$("pkgForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = $("pkgEditId").value;
+  const fd = new FormData();
+  fd.append("ten_goi", $("pkgName").value.trim());
+  fd.append("chu_ky", $("pkgCycle").value);
+  fd.append("gia_goi", $("pkgPrice").value);
+  fd.append("uu_dai", $("pkgOffer").value.trim());
+  const f = $("pkgImage").files[0];
+  if (f) fd.append("anh", f);
+  try {
+    setMsg($("pkgMsg"), "Đang lưu gói cước…");
+    const res = await fetch(apiBase + "/api/packages" + (id ? "/" + id : ""), { method: id ? "PUT" : "POST", headers: token ? { Authorization: "Bearer " + token } : {}, body: fd });
+    const d = await res.json();
+    if (!res.ok || d.ok === false) throw new Error(d.error || "Lỗi " + res.status);
+    setMsg($("pkgMsg"), "Đã lưu gói cước.");
+    resetPkgForm();
+    loadPackages();
+  } catch (err) { setMsg($("pkgMsg"), err.message, false); }
+});
+function downloadPkgTemplate() {
+  const headers = ["Tên gói cước", "Chu kỳ gói", "Giá gói (đ)", "Ưu đãi của gói cước"];
+  const sample = ["BIG90", "3T", 270000, "Tặng 30GB/tháng, miễn phí gọi nội mạng"];
+  const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+  ws["!cols"] = [{ wch: 22 }, { wch: 14 }, { wch: 16 }, { wch: 50 }];
+  const ws2 = XLSX.utils.aoa_to_sheet([
+    ["Hướng dẫn nhập danh sách gói cước"],
+    ["1. Điền thông tin vào sheet GoiCuoc, mỗi dòng là 1 gói cước."],
+    ["2. Tên gói cước: bắt buộc."],
+    ["3. Chu kỳ gói: chỉ nhận 1T, 3T, 6T, 12T, 18T, 24T, 36T."],
+    ["4. Giá gói: nhập số (đơn vị đồng), không nhập dấu phân tách."],
+    ["5. Trùng tên gói + chu kỳ đã có sẽ bị bỏ qua và báo lại."],
+    ["6. Ảnh truyền thông không nhập qua Excel — sau khi import, admin vào form thêm/sửa để tải ảnh lên cho từng gói."],
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "GoiCuoc");
+  XLSX.utils.book_append_sheet(wb, ws2, "HuongDan");
+  XLSX.writeFile(wb, "Mau_import_goi_cuoc.xlsx");
+}
+$("pkgTplBtn").addEventListener("click", downloadPkgTemplate);
+$("pkgImportForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const file = $("pkgImpFile").files[0];
+  if (!file) { setMsg($("pkgImportMsg"), "Hãy chọn file Excel trước khi import.", false); return; }
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array", cellDates: true });
+    const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+    if (!raw.length) throw new Error("File không có dòng dữ liệu nào.");
+    const rows = raw.map((r) => {
+      const o = {};
+      Object.keys(r).forEach((k) => {
+        const nk = String(k).trim().toLowerCase();
+        if (nk.includes("tên gói")) o.ten_goi = String(r[k]).trim();
+        else if (nk.includes("chu kỳ")) o.chu_ky = String(r[k]).trim().toUpperCase();
+        else if (nk.includes("giá gói")) o.gia_goi = Number(String(r[k]).replace(/[^\d.-]/g, "")) || 0;
+        else if (nk.includes("ưu đãi")) o.uu_dai = String(r[k]).trim();
+      });
+      return o;
+    }).filter((o) => o.ten_goi);
+    if (!rows.length) throw new Error("Không có dòng nào có Tên gói cước. Hãy kiểm tra lại hàng tiêu đề của file Excel.");
+    const d = await api("/api/packages/import", { method: "POST", body: JSON.stringify({ rows }) });
+    let msg = "Import xong: tạo mới " + (d.created || 0) + " gói cước, bỏ qua " + (d.skipped || 0) + " dòng.";
+    if (d.errors && d.errors.length) msg += " Chi tiết: " + d.errors.slice(0, 8).map((x) => "Hàng " + x.row + ": " + x.reason).join("; ") + (d.errors.length > 8 ? "…" : "");
+    setMsg($("pkgImportMsg"), msg);
+    loadPackages();
+  } catch (err) { setMsg($("pkgImportMsg"), err.message, false); }
+});
 
 /* ---------------- Cai dat tai khoan ---------------- */
 $("pwForm").addEventListener("submit", async (e) => {
