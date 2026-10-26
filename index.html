@@ -930,7 +930,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <!-- QUAN LY NGUOI DUNG -->
         <section class="panel hidden" id="panel-users">
           <h2>Quản lý người dùng</h2>
-          <p class="desc">Tạo tài khoản cho các điểm bán. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Tích chọn "Được quyền import dữ liệu" để tài khoản được dùng module Quản lý dữ liệu đầu vào.</p>
+          <p class="desc">Tạo tài khoản cho các điểm bán. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Tích chọn "Được quyền import dữ liệu" để tài khoản được dùng module Quản lý dữ liệu đầu vào. Admin thiết lập quyền sử dụng từng module cho mỗi tài khoản ở mục bên dưới (mặc định khi tạo mới: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt).</p>
           <form id="userForm" class="form-grid">
             <input type="hidden" id="userId" />
             <div><label>Mã kênh bán hàng</label><input id="uChannel" placeholder="VD: KBH-VDCT-001" /></div>
@@ -943,8 +943,24 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div></div>
             <div><label>Tên nhân viên quản lý (có thể để trống)</label><input id="uManager" /></div>
             <div><label>Số điện thoại nhân viên quản lý (có thể để trống)</label><input id="uManagerPhone" /></div>
-            <div><label>Loại tài khoản</label><select id="uRole"><option value="user">User thường (điểm bán)</option><option value="subadmin">SubAdmin (xem toàn tỉnh + quản lý người dùng)</option><option value="admin">Admin</option></select></div>
+            <div><label>Loại tài khoản</label><select id="uRole"><option value="user">User thường (điểm bán)</option><option value="leader">Lãnh đạo đơn vị (xem dữ liệu cùng đơn vị)</option><option value="subadmin">SubAdmin (xem toàn tỉnh + quản lý người dùng)</option><option value="admin">Admin</option></select></div>
             <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="uCanImport" /> Được quyền import dữ liệu</label></div>
+            <div class="full" id="uModulesBox">
+              <label>Quyền sử dụng module <span style="font-weight:500;color:var(--muted)">(chỉ admin thiết lập)</span></label>
+              <div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px">
+                <label class="checkline"><input type="checkbox" name="uModule" value="dashboard" checked /> Dashboard</label>
+                <label class="checkline"><input type="checkbox" name="uModule" value="units" /> Quản lý đơn vị</label>
+                <label class="checkline"><input type="checkbox" name="uModule" value="users" /> Quản lý người dùng</label>
+                <label class="checkline"><input type="checkbox" name="uModule" value="import" /> Quản lý dữ liệu đầu vào</label>
+                <label class="checkline"><input type="checkbox" name="uModule" value="config" /> Cấu hình kết nối D1</label>
+                <label class="checkline"><input type="checkbox" name="uModule" value="reports" checked /> Báo cáo thống kê</label>
+                <label class="checkline"><input type="checkbox" name="uModule" value="packages" checked /> Danh mục gói cước</label>
+                <label class="checkline"><input type="checkbox" name="uModule" value="loginstats" /> Thống kê đăng nhập</label>
+                <label class="checkline"><input type="checkbox" name="uModule" value="settings" checked /> Cài đặt</label>
+              </div>
+              <div class="desc" style="margin-top:6px">Tài khoản chưa thiết lập riêng vẫn dùng đủ module theo vai trò. Admin luôn dùng được mọi module.</div>
+              <div id="uLeaderHint" class="desc hidden" style="color:var(--orange-dark)">Lãnh đạo đơn vị cần chọn một đơn vị ở trên để xem được dữ liệu của đơn vị đó.</div>
+            </div>
             <div class="full" style="display:flex;gap:10px"><button class="btn blue" type="submit" id="userSubmit">Tạo người dùng</button><button class="btn gray hidden" type="button" id="userCancel">Hủy sửa</button></div>
           </form>
           <div id="userMsg"></div>
@@ -1055,13 +1071,14 @@ CREATE TABLE IF NOT EXISTS nguoi_dung (
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   salt TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT &#x27;user&#x27;,        -- &#x27;admin&#x27;, &#x27;subadmin&#x27; hoac &#x27;user&#x27;
+  role TEXT NOT NULL DEFAULT &#x27;user&#x27;,        -- &#x27;admin&#x27;, &#x27;subadmin&#x27;, &#x27;leader&#x27; hoac &#x27;user&#x27;
   so_eload TEXT,
   so_vi TEXT,
   ten_nhan_vien TEXT,                       -- Ten nhan vien quan ly (co the de trong)
   sdt_nhan_vien TEXT,                       -- So dien thoai nhan vien quan ly (co the de trong)
   don_vi_id INTEGER,                        -- Don vi truc thuoc (lien ket bang don_vi, co the de trong)
   can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
+  modules TEXT,                             -- JSON cac module duoc dung (NULL = chua thiet lap rieng, giu quyen theo vai tro)
   active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -1260,7 +1277,7 @@ async function requireAuth(request, env) {
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
   const user = await env.DB.prepare(
-    &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, active FROM nguoi_dung WHERE id = ?&quot;
+    &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, active FROM nguoi_dung WHERE id = ?&quot;
   )
     .bind(payload.sub)
     .first();
@@ -1281,6 +1298,7 @@ function publicUser(u) {
     don_vi_id: u.don_vi_id ?? null,
     don_vi_ten: u.don_vi_ten || &quot;&quot;,
     can_import: !!u.can_import,
+    modules: parseModules(u.modules),
   };
 }
 // Tu dong bo sung 2 cot nhan vien quan ly neu CSDL cu chua co (nang cap tai cho).
@@ -1291,6 +1309,7 @@ async function ensureUserColumns(env) {
     if (!cols.has(&quot;ten_nhan_vien&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN ten_nhan_vien TEXT&quot;).run();
     if (!cols.has(&quot;sdt_nhan_vien&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN sdt_nhan_vien TEXT&quot;).run();
     if (!cols.has(&quot;don_vi_id&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN don_vi_id INTEGER&quot;).run();
+    if (!cols.has(&quot;modules&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN modules TEXT&quot;).run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -1311,6 +1330,27 @@ function toNumber(v) {
 function toText(v) {
   if (v === null || v === undefined) return &quot;&quot;;
   return String(v).trim();
+}
+
+// ---- Phan quyen su dung module ----
+// modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
+// rieng -&gt; giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
+// phep dung moi module bat ke modules ghi gi.
+const MODULE_KEYS = [&quot;dashboard&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;];
+const DEFAULT_MODULES = [&quot;dashboard&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;settings&quot;];
+function parseModules(v) {
+  if (!v) return null;
+  try {
+    const arr = JSON.parse(v);
+    if (!Array.isArray(arr)) return null;
+    return arr.filter((k) =&gt; MODULE_KEYS.includes(k));
+  } catch (e) { return null; }
+}
+function hasModule(meUser, key) {
+  if (!meUser || meUser.role === &quot;admin&quot;) return true;
+  const mods = parseModules(meUser.modules);
+  if (!mods) return true;
+  return mods.includes(key);
 }
 
 // ---------------------------------------------------------------------------
@@ -1406,10 +1446,19 @@ function buildSource(t, meUser) {
   const ownParts = [], ownBinds = [];
   if (t.eload_col) { ownParts.push(t.eload_col + &quot; = ?&quot;); ownBinds.push(meUser.so_eload || &quot;__none__&quot;); }
   if (t.vi_col) { ownParts.push(t.vi_col + &quot; = ?&quot;); ownBinds.push(meUser.so_vi || &quot;__none__&quot;); }
+  // Loc theo don vi (danh cho Lanh dao don vi): cac giao dich cua user
+  // thuoc cung don vi, map qua so_eload / so_vi trong bang nguoi_dung.
+  const unitParts = [], unitBinds = [];
+  if (meUser.don_vi_id) {
+    if (t.eload_col) { unitParts.push(t.eload_col + &quot; IN (SELECT so_eload FROM nguoi_dung WHERE don_vi_id = ?)&quot;); unitBinds.push(meUser.don_vi_id); }
+    if (t.vi_col) { unitParts.push(t.vi_col + &quot; IN (SELECT so_vi FROM nguoi_dung WHERE don_vi_id = ?)&quot;); unitBinds.push(meUser.don_vi_id); }
+  }
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
     own: ownParts.length ? &quot;(&quot; + ownParts.join(&quot; OR &quot;) + &quot;)&quot; : &quot;(1 = 0)&quot;,
     ownBinds,
+    unit: unitParts.length ? &quot;(&quot; + unitParts.join(&quot; OR &quot;) + &quot;)&quot; : &quot;(1 = 0)&quot;,
+    unitBinds,
     eloadCol: t.eload_col || null, viCol: t.vi_col || null,
     subCol: t.sub_col || null, pkgCol: t.pkg_col || null,
     transCol: t.trans_col || null, statusCol: t.status_col || null, reasonCol: t.reason_col || null,
@@ -1597,6 +1646,10 @@ export default {
       if (!me) return err(&quot;Phien dang nhap khong hop le hoac da het han. Vui long dang nhap lai.&quot;, 401);
       const isAdmin = me.role === &quot;admin&quot;;
       const isSubAdmin = me.role === &quot;subadmin&quot;;
+      const isLeader = me.role === &quot;leader&quot;;
+      // Lanh dao don vi: chi xem du lieu cua cac user trong cung don vi cua minh
+      // (can don_vi_id; neu chua gan don vi thi tam xem du lieu cua chinh minh).
+      const isUnitScoped = isLeader &amp;&amp; !!me.don_vi_id;
       const isPrivileged = isAdmin || isSubAdmin; // Admin &amp; SubAdmin: xem du lieu toan tinh
       const canManageUsers = isAdmin || isSubAdmin; // Admin &amp; SubAdmin: quan ly nguoi dung
 
@@ -1641,13 +1694,15 @@ export default {
       // ---- Quan ly nguoi dung (admin &amp; subadmin) ----
       if (path === &quot;/api/users&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xem danh sach nguoi dung&quot;, 403);
+        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         const res = await env.DB.prepare(
-          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten&quot;
+          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.modules, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten&quot;
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
       if (path === &quot;/api/users&quot; &amp;&amp; method === &quot;POST&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen tao nguoi dung&quot;, 403);
+        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         const b = await readBody(request);
         if (!toText(b.ho_ten) || !toText(b.username)) return err(&quot;Thieu ho ten hoac user dang nhap&quot;, 422);
         const salt = randomSalt();
@@ -1655,16 +1710,21 @@ export default {
         const hash = await hashPassword(password, salt);
         // Phan quyen: chi admin moi duoc dat loai tai khoan va cap quyen import;
         // SubAdmin tao nguoi dung thi mac dinh la user thuong, khong co quyen import.
-        const newRole = isAdmin ? (b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;) : &quot;user&quot;;
+        const newRole = isAdmin ? (b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : b.role === &quot;leader&quot; ? &quot;leader&quot; : &quot;user&quot;) : &quot;user&quot;;
         const newCanImport = isAdmin &amp;&amp; b.can_import ? 1 : 0;
+        // Quyen module: chi admin moi duoc thiet lap; khong gui -&gt; mac dinh
+        // 4 module (Dashboard, Bao cao, Goi cuoc, Cai dat); tai khoan admin -&gt; NULL (khong gioi han).
+        let newModules = null;
+        if (isAdmin &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
+        else if (newRole !== &quot;admin&quot;) newModules = JSON.stringify(DEFAULT_MODULES);
         const r = await env.DB.prepare(
-          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien),
-            b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport
+            b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport, newModules
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -1672,6 +1732,7 @@ export default {
       // ---- Import nguoi dung tu Excel ----
       if (path === &quot;/api/users/import&quot; &amp;&amp; method === &quot;POST&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen import nguoi dung&quot;, 403);
+        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         const b = await readBody(request);
         const rows = Array.isArray(b.rows) ? b.rows : [];
         if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
@@ -1705,13 +1766,15 @@ export default {
           }
           const salt = randomSalt();
           const hash = await hashPassword(String(r.password || &quot;Vnpt@2026&quot;), salt);
+          const impRole = isAdmin ? (r.role === &quot;admin&quot; ? &quot;admin&quot; : r.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : r.role === &quot;leader&quot; ? &quot;leader&quot; : &quot;user&quot;) : &quot;user&quot;;
           await env.DB.prepare(
-            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
-              isAdmin ? (r.role === &quot;admin&quot; ? &quot;admin&quot; : r.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;) : &quot;user&quot;,
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, isAdmin &amp;&amp; r.can_import ? 1 : 0
+              impRole,
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, isAdmin &amp;&amp; r.can_import ? 1 : 0,
+              impRole === &quot;admin&quot; ? null : JSON.stringify(DEFAULT_MODULES)
             )
             .run();
           created++;
@@ -1721,22 +1784,30 @@ export default {
       const userMatch = path.match(/^\/api\/users\/(\d+)$/);
       if (userMatch &amp;&amp; method === &quot;PUT&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen sua nguoi dung&quot;, 403);
+        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         const b = await readBody(request);
-        // Phan quyen: SubAdmin khong duoc thay doi loai tai khoan va quyen import
-        // cua nguoi dung -&gt; giu nguyen gia tri dang co trong CSDL.
-        let newRole = b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : &quot;user&quot;;
+        // Phan quyen: SubAdmin khong duoc thay doi loai tai khoan, quyen import
+        // va quyen module cua nguoi dung -&gt; giu nguyen gia tri dang co trong CSDL.
+        let newRole = b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : b.role === &quot;leader&quot; ? &quot;leader&quot; : &quot;user&quot;;
         let newCanImport = b.can_import ? 1 : 0;
+        let newModules;
         if (!isAdmin) {
-          const cur = await env.DB.prepare(&quot;SELECT role, can_import FROM nguoi_dung WHERE id = ?&quot;).bind(Number(userMatch[1])).first();
-          if (cur) { newRole = cur.role; newCanImport = cur.can_import; }
+          const cur = await env.DB.prepare(&quot;SELECT role, can_import, modules FROM nguoi_dung WHERE id = ?&quot;).bind(Number(userMatch[1])).first();
+          if (cur) { newRole = cur.role; newCanImport = cur.can_import; newModules = cur.modules; }
+          else newModules = null;
+        } else if (Array.isArray(b.modules)) {
+          newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
+        } else {
+          const cur = await env.DB.prepare(&quot;SELECT modules FROM nguoi_dung WHERE id = ?&quot;).bind(Number(userMatch[1])).first();
+          newModules = cur ? cur.modules : null;
         }
         await env.DB.prepare(
-          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, active = ? WHERE id = ?&quot;
+          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, modules = ?, active = ? WHERE id = ?&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
             toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), b.don_vi_id ? Number(b.don_vi_id) : null,
-            newCanImport, newRole,
+            newCanImport, newRole, newModules,
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
           .run();
@@ -1751,6 +1822,7 @@ export default {
       }
       if (userMatch &amp;&amp; method === &quot;DELETE&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xoa nguoi dung&quot;, 403);
+        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         if (Number(userMatch[1]) === me.id) return err(&quot;Khong the tu xoa tai khoan dang dang nhap&quot;, 422);
         await env.DB.prepare(&quot;DELETE FROM nguoi_dung WHERE id = ?&quot;).bind(Number(userMatch[1])).run();
         return json({ ok: true });
@@ -1811,6 +1883,7 @@ export default {
 
       // ---- Import du lieu dau vao tu Excel ----
       if (path === &quot;/api/import/tables&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
         const types = await getDataTypes(env);
         const out = [];
         for (const t of types) {
@@ -1825,6 +1898,7 @@ export default {
       // ---- Xoa bang du lieu da import ----
       const tblMatch = path.match(/^\/api\/import\/tables\/([A-Za-z0-9_]+)$/);
       if (tblMatch &amp;&amp; method === &quot;DELETE&quot;) {
+        if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
         if (!isAdmin &amp;&amp; (isSubAdmin || !me.can_import)) return err(&quot;Tai khoan khong co quyen xoa bang du lieu (SubAdmin khong duoc phep xoa bang)&quot;, 403);
         const name = tblMatch[1];
         const types = await getDataTypes(env);
@@ -1835,6 +1909,7 @@ export default {
       }
       // ---- Trang thai khoa thay the cua 1 bang thang ----
       if (path === &quot;/api/import/table-lock&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
         const name = url.searchParams.get(&quot;table&quot;) || &quot;&quot;;
         if (!name) return err(&quot;Thieu ten bang&quot;, 422);
         const locked = await isTableLocked(env, name);
@@ -1856,6 +1931,7 @@ export default {
       }
       if (path === &quot;/api/import&quot; &amp;&amp; method === &quot;POST&quot;) {
         if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
         const b = await readBody(request);
         const types = await getDataTypes(env);
         const dtype = types.find((t) =&gt; t.code === String(b.loai || &quot;&quot;).toUpperCase());
@@ -1917,6 +1993,7 @@ export default {
 
       // ---- Bao cao thong ke ----
       if (path === &quot;/api/reports/summary&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;reports&quot;) &amp;&amp; !hasModule(me, &quot;dashboard&quot;)) return err(&quot;Tai khoan khong co quyen xem bao cao&quot;, 403);
         const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         const group = url.searchParams.get(&quot;group&quot;) || &quot;day&quot;;
@@ -1942,8 +2019,8 @@ export default {
               innerCols.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot;) WHERE substr(tg, 1, 10) BETWEEN ? AND ?&#x27;;
             const localBinds = [from, to];
             if (!isPrivileged) {
-              sql += &quot; AND &quot; + s.own;
-              localBinds.push(...s.ownBinds);
+              if (isUnitScoped) { sql += &quot; AND &quot; + s.unit; localBinds.push(...s.unitBinds); }
+              else { sql += &quot; AND &quot; + s.own; localBinds.push(...s.ownBinds); }
             }
             sql += &quot; GROUP BY ky&quot;;
             const res = await env.DB.prepare(sql).bind(...localBinds).all();
@@ -1964,6 +2041,7 @@ export default {
         });
       }
       if (path === &quot;/api/reports/detail&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;reports&quot;)) return err(&quot;Tai khoan khong co quyen xem bao cao&quot;, 403);
         const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;ALL&quot;).toUpperCase();
@@ -1992,8 +2070,8 @@ export default {
               &quot;SELECT &quot; + sel.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot; WHERE substr(&#x27; + s.time + &quot;, 1, 10) BETWEEN ? AND ?&quot;;
             const binds = [from, to];
             if (!isPrivileged) {
-              sql += &quot; AND &quot; + s.own;
-              binds.push(...s.ownBinds);
+              if (isUnitScoped) { sql += &quot; AND &quot; + s.unit; binds.push(...s.unitBinds); }
+              else { sql += &quot; AND &quot; + s.own; binds.push(...s.ownBinds); }
             }
             sql += &quot; ORDER BY thoi_gian DESC LIMIT ?&quot;;
             binds.push(limit);
@@ -2008,6 +2086,7 @@ export default {
       // ---- Thong ke dang nhap theo thang (admin &amp; subadmin) ----
       if (path === &quot;/api/login-stats&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!isPrivileged) return err(&quot;Chi admin/subadmin moi co quyen xem thong ke dang nhap&quot;, 403);
+        if (!hasModule(me, &quot;loginstats&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Thong ke dang nhap&quot;, 403);
         await ensureLoginLog(env);
         const month = url.searchParams.get(&quot;month&quot;) || saigonNow().slice(0, 7);
         if (!/^\d{4}-\d{2}$/.test(month)) return err(&quot;Thang khong hop le (YYYY-MM)&quot;, 422);
@@ -2595,7 +2674,34 @@ function applyUserFormPerms() {
   const note = restricted ? "SubAdmin không được thay đổi loại tài khoản và không được cấp quyền import dữ liệu" : "";
   $("uRole").title = note;
   $("uCanImport").title = note;
+  // Muc phan quyen module: chi admin moi duoc thiet lap
+  $("uModulesBox").classList.toggle("hidden", me.role !== "admin");
+  $("uLeaderHint").classList.toggle("hidden", !($("uRole").value === "leader" && !$("uUnit").value));
 }
+// Danh sach module + mac dinh khi tao moi (Dashboard, Bao cao, Goi cuoc, Cai dat)
+const MODULE_DEFS = [
+  ["dashboard", "Dashboard"], ["units", "Quản lý đơn vị"], ["users", "Quản lý người dùng"],
+  ["import", "Quản lý dữ liệu đầu vào"], ["config", "Cấu hình kết nối D1"], ["reports", "Báo cáo thống kê"],
+  ["packages", "Danh mục gói cước"], ["loginstats", "Thống kê đăng nhập"], ["settings", "Cài đặt"],
+];
+const PANEL_MODULES = {
+  "panel-dashboard": "dashboard", "panel-units": "units", "panel-users": "users", "panel-import": "import",
+  "panel-config": "config", "panel-reports": "reports", "panel-packages": "packages",
+  "panel-loginstats": "loginstats", "panel-settings": "settings",
+};
+const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
+function setModulesBoxes(list) {
+  document.querySelectorAll('input[name="uModule"]').forEach((c) => { c.checked = list.includes(c.value); });
+}
+function getModulesFromForm() {
+  return [...document.querySelectorAll('input[name="uModule"]:checked')].map((c) => c.value);
+}
+$("uRole").addEventListener("change", () => {
+  // Chon chuc danh Lanh dao don vi -> mac dinh dung 4 module cua chuc danh nay (admin van sua tay duoc sau do)
+  if ($("uRole").value === "leader") setModulesBoxes(DEFAULT_MODULES);
+  applyUserFormPerms();
+});
+$("uUnit").addEventListener("change", applyUserFormPerms);
 function applyImportPerms() {
   if (!me) return;
   const sel = $("impMode");
@@ -2634,20 +2740,29 @@ function refreshAuthUI() {
   $("logoutBtn").classList.toggle("hidden", !logged);
   $("userChip").classList.toggle("hidden", !logged);
   if (logged) {
-    $("userChip").textContent = "👤 " + me.ho_ten + (me.role === "admin" ? " (Admin)" : me.role === "subadmin" ? " (SubAdmin)" : "");
+    $("userChip").textContent = "👤 " + me.ho_ten + (me.role === "admin" ? " (Admin)" : me.role === "subadmin" ? " (SubAdmin)" : me.role === "leader" ? " (Lãnh đạo đơn vị)" : "");
     $("whoName").textContent = me.ho_ten;
-    $("whoRole").textContent = (me.role === "admin" ? "Quản trị viên" : me.role === "subadmin" ? "SubAdmin" : "Điểm bán") + (me.ma_kenh ? " · " + me.ma_kenh : "");
+    $("whoRole").textContent = (me.role === "admin" ? "Quản trị viên" : me.role === "subadmin" ? "SubAdmin" : me.role === "leader" ? "Lãnh đạo đơn vị" : "Điểm bán") + (me.ma_kenh ? " · " + me.ma_kenh : "");
+    // Pham vi so lieu tren Dashboard theo vai tro
+    const ds = $("dashScope");
+    if (ds) ds.textContent = (me.role === "admin" || me.role === "subadmin")
+      ? "Tổng hợp số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng hiện tại và lũy kế từ đầu năm, trong phạm vi toàn tỉnh, từ toàn bộ các loại dữ liệu đã import lên D1."
+      : me.role === "leader"
+      ? "Tổng hợp số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng hiện tại và lũy kế từ đầu năm, trong phạm vi đơn vị của bạn, từ toàn bộ các loại dữ liệu đã import lên D1."
+      : "Tổng hợp số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng hiện tại và lũy kế từ đầu năm, của chính bạn, từ toàn bộ các loại dữ liệu đã import lên D1.";
     // Banner tieu de: thong tin diem ban / nguoi dung dang dang nhap
     fillBanner();
     applyUserFormPerms();
     applyImportPerms();
-    // Phan quyen menu
+    // Phan quyen menu: theo vai tro + theo quyen module (khi admin da thiet lap rieng)
     document.querySelectorAll(".nav-btn").forEach((b) => {
       const p = b.dataset.panel;
       let show = true;
       if (p === "panel-units" || p === "panel-config") show = me.role === "admin";
       if (p === "panel-users" || p === "panel-loginstats") show = me.role === "admin" || me.role === "subadmin";
       if (p === "panel-import") show = me.role === "admin" || me.can_import;
+      const key = PANEL_MODULES[p];
+      if (show && me.role !== "admin" && me.modules && key && !me.modules.includes(key)) show = false;
       b.classList.toggle("hidden", !show);
     });
     $("setEload").value = me.so_eload || "";
@@ -2865,7 +2980,7 @@ function renderUsers() {
   if ($("userCount")) $("userCount").textContent = "Hiển thị " + list.length + " / " + usersCache.length + " người dùng";
   $("usersBody").innerHTML = list.map((u) =>
       "<tr><td>" + esc(u.ma_kenh) + "</td><td><b>" + esc(u.ho_ten) + "</b></td><td>" + esc(u.username) + "</td>" +
-      "<td><span class='pill " + (u.role === "admin" ? "admin" : u.role === "subadmin" ? "sub" : "user") + "'>" + (u.role === "admin" ? "Admin" : u.role === "subadmin" ? "SubAdmin" : "Điểm bán") + "</span></td>" +
+      "<td><span class='pill " + (u.role === "admin" ? "admin" : u.role === "subadmin" || u.role === "leader" ? "sub" : "user") + "'>" + (u.role === "admin" ? "Admin" : u.role === "subadmin" ? "SubAdmin" : u.role === "leader" ? "Lãnh đạo đơn vị" : "Điểm bán") + "</span></td>" +
       "<td>" + esc(u.so_eload) + "</td><td>" + esc(u.so_vi) + "</td>" +
       "<td>" + esc(u.don_vi_ten) + "</td>" +
       "<td>" + esc(u.ten_nhan_vien) + "</td><td>" + esc(u.sdt_nhan_vien) + "</td>" +
@@ -2889,11 +3004,15 @@ function editUser(id) {
   $("uUnit").value = u.don_vi_id || "";
   $("uManager").value = u.ten_nhan_vien || ""; $("uManagerPhone").value = u.sdt_nhan_vien || "";
   $("uRole").value = u.role; $("uCanImport").checked = !!u.can_import;
+  // Quyen module: da thiet lap rieng thi hien dung danh sach do; chua thiet lap (null) thi hien du (theo vai tro)
+  setModulesBoxes(u.modules || MODULE_DEFS.map((m) => m[0]));
+  applyUserFormPerms();
   $("userSubmit").textContent = "Lưu thay đổi"; $("userCancel").classList.remove("hidden");
 }
 $("userCancel").addEventListener("click", () => {
   $("userForm").reset(); $("userId").value = ""; $("uUsername").disabled = false;
   $("userSubmit").textContent = "Tạo người dùng"; $("userCancel").classList.add("hidden");
+  applyUserFormPerms();
 });
 $("userForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -2904,6 +3023,7 @@ $("userForm").addEventListener("submit", async (e) => {
     don_vi_id: $("uUnit").value ? Number($("uUnit").value) : null,
     ten_nhan_vien: $("uManager").value.trim(), sdt_nhan_vien: $("uManagerPhone").value.trim(),
     role: $("uRole").value, can_import: $("uCanImport").checked, active: true,
+    ...(me && me.role === "admin" ? { modules: getModulesFromForm() } : {}),
   };
   try {
     if (id) await api("/api/users/" + id, { method: "PUT", body: JSON.stringify(body) });
@@ -2951,7 +3071,7 @@ $("uTemplateBtn").addEventListener("click", () => {
       ["3. Họ và tên người dùng/điểm bán: bắt buộc."],
       ["4. Mật khẩu: để trống thì hệ thống dùng mật khẩu mặc định Vnpt@2026."],
       ["5. Quyền import dữ liệu: nhập 1 nếu cho phép dùng module Quản lý dữ liệu đầu vào, nhập 0 nếu không."],
-      ["6. Loại tài khoản: nhập user (điểm bán), subadmin hoặc admin."],
+      ["6. Loại tài khoản: nhập user (điểm bán), leader (lãnh đạo đơn vị), subadmin hoặc admin."],
       ["7. Số tài khoản Eload và Số Ví VNPT Money: dùng để điểm bán xem báo cáo chi trả của chính mình."],
       ["8. Tên nhân viên quản lý và Số điện thoại nhân viên quản lý: có thể để trống."],
       ["9. Đơn vị: nhập Mã đơn vị (hoặc đúng Tên đơn vị) đã tạo trong module Quản lý đơn vị, ví dụ VDCT. Để trống nếu chưa thuộc đơn vị nào; nếu mã/tên không tồn tại, hệ thống sẽ để trống và báo lại."],
@@ -3502,7 +3622,7 @@ document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("clic
   $("impMonth").value = now.getMonth() + 1; $("impYear").value = now.getFullYear();
   refreshAuthUI();
   if (token && apiBase) {
-    api("/api/me").then((d) => { me = d.user; refreshAuthUI(); openPanel("panel-dashboard"); })
+    api("/api/me").then((d) => { me = d.user; refreshAuthUI(); const first = [...document.querySelectorAll(".nav-btn")].find((b) => !b.classList.contains("hidden")); openPanel(first ? first.dataset.panel : "panel-dashboard"); })
       .catch(() => { token = ""; sessionStorage.removeItem("vnpt_token"); refreshAuthUI(); });
   }
 })();

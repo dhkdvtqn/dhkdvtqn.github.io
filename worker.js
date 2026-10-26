@@ -106,7 +106,7 @@ async function requireAuth(request, env) {
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
   const user = await env.DB.prepare(
-    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, active FROM nguoi_dung WHERE id = ?"
+    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, active FROM nguoi_dung WHERE id = ?"
   )
     .bind(payload.sub)
     .first();
@@ -127,6 +127,7 @@ function publicUser(u) {
     don_vi_id: u.don_vi_id ?? null,
     don_vi_ten: u.don_vi_ten || "",
     can_import: !!u.can_import,
+    modules: parseModules(u.modules),
   };
 }
 // Tu dong bo sung 2 cot nhan vien quan ly neu CSDL cu chua co (nang cap tai cho).
@@ -137,6 +138,7 @@ async function ensureUserColumns(env) {
     if (!cols.has("ten_nhan_vien")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN ten_nhan_vien TEXT").run();
     if (!cols.has("sdt_nhan_vien")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN sdt_nhan_vien TEXT").run();
     if (!cols.has("don_vi_id")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN don_vi_id INTEGER").run();
+    if (!cols.has("modules")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN modules TEXT").run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -157,6 +159,27 @@ function toNumber(v) {
 function toText(v) {
   if (v === null || v === undefined) return "";
   return String(v).trim();
+}
+
+// ---- Phan quyen su dung module ----
+// modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
+// rieng -> giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
+// phep dung moi module bat ke modules ghi gi.
+const MODULE_KEYS = ["dashboard", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings"];
+const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
+function parseModules(v) {
+  if (!v) return null;
+  try {
+    const arr = JSON.parse(v);
+    if (!Array.isArray(arr)) return null;
+    return arr.filter((k) => MODULE_KEYS.includes(k));
+  } catch (e) { return null; }
+}
+function hasModule(meUser, key) {
+  if (!meUser || meUser.role === "admin") return true;
+  const mods = parseModules(meUser.modules);
+  if (!mods) return true;
+  return mods.includes(key);
 }
 
 // ---------------------------------------------------------------------------
@@ -252,10 +275,19 @@ function buildSource(t, meUser) {
   const ownParts = [], ownBinds = [];
   if (t.eload_col) { ownParts.push(t.eload_col + " = ?"); ownBinds.push(meUser.so_eload || "__none__"); }
   if (t.vi_col) { ownParts.push(t.vi_col + " = ?"); ownBinds.push(meUser.so_vi || "__none__"); }
+  // Loc theo don vi (danh cho Lanh dao don vi): cac giao dich cua user
+  // thuoc cung don vi, map qua so_eload / so_vi trong bang nguoi_dung.
+  const unitParts = [], unitBinds = [];
+  if (meUser.don_vi_id) {
+    if (t.eload_col) { unitParts.push(t.eload_col + " IN (SELECT so_eload FROM nguoi_dung WHERE don_vi_id = ?)"); unitBinds.push(meUser.don_vi_id); }
+    if (t.vi_col) { unitParts.push(t.vi_col + " IN (SELECT so_vi FROM nguoi_dung WHERE don_vi_id = ?)"); unitBinds.push(meUser.don_vi_id); }
+  }
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
     own: ownParts.length ? "(" + ownParts.join(" OR ") + ")" : "(1 = 0)",
     ownBinds,
+    unit: unitParts.length ? "(" + unitParts.join(" OR ") + ")" : "(1 = 0)",
+    unitBinds,
     eloadCol: t.eload_col || null, viCol: t.vi_col || null,
     subCol: t.sub_col || null, pkgCol: t.pkg_col || null,
     transCol: t.trans_col || null, statusCol: t.status_col || null, reasonCol: t.reason_col || null,
@@ -443,6 +475,10 @@ export default {
       if (!me) return err("Phien dang nhap khong hop le hoac da het han. Vui long dang nhap lai.", 401);
       const isAdmin = me.role === "admin";
       const isSubAdmin = me.role === "subadmin";
+      const isLeader = me.role === "leader";
+      // Lanh dao don vi: chi xem du lieu cua cac user trong cung don vi cua minh
+      // (can don_vi_id; neu chua gan don vi thi tam xem du lieu cua chinh minh).
+      const isUnitScoped = isLeader && !!me.don_vi_id;
       const isPrivileged = isAdmin || isSubAdmin; // Admin & SubAdmin: xem du lieu toan tinh
       const canManageUsers = isAdmin || isSubAdmin; // Admin & SubAdmin: quan ly nguoi dung
 
@@ -487,13 +523,15 @@ export default {
       // ---- Quan ly nguoi dung (admin & subadmin) ----
       if (path === "/api/users" && method === "GET") {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen xem danh sach nguoi dung", 403);
+        if (!hasModule(me, "users")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
         const res = await env.DB.prepare(
-          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten"
+          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.modules, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten"
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
       if (path === "/api/users" && method === "POST") {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen tao nguoi dung", 403);
+        if (!hasModule(me, "users")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
         const b = await readBody(request);
         if (!toText(b.ho_ten) || !toText(b.username)) return err("Thieu ho ten hoac user dang nhap", 422);
         const salt = randomSalt();
@@ -501,16 +539,21 @@ export default {
         const hash = await hashPassword(password, salt);
         // Phan quyen: chi admin moi duoc dat loai tai khoan va cap quyen import;
         // SubAdmin tao nguoi dung thi mac dinh la user thuong, khong co quyen import.
-        const newRole = isAdmin ? (b.role === "admin" ? "admin" : b.role === "subadmin" ? "subadmin" : "user") : "user";
+        const newRole = isAdmin ? (b.role === "admin" ? "admin" : b.role === "subadmin" ? "subadmin" : b.role === "leader" ? "leader" : "user") : "user";
         const newCanImport = isAdmin && b.can_import ? 1 : 0;
+        // Quyen module: chi admin moi duoc thiet lap; khong gui -> mac dinh
+        // 4 module (Dashboard, Bao cao, Goi cuoc, Cai dat); tai khoan admin -> NULL (khong gioi han).
+        let newModules = null;
+        if (isAdmin && Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) => MODULE_KEYS.includes(k)));
+        else if (newRole !== "admin") newModules = JSON.stringify(DEFAULT_MODULES);
         const r = await env.DB.prepare(
-          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien),
-            b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport
+            b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport, newModules
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -518,6 +561,7 @@ export default {
       // ---- Import nguoi dung tu Excel ----
       if (path === "/api/users/import" && method === "POST") {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen import nguoi dung", 403);
+        if (!hasModule(me, "users")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
         const b = await readBody(request);
         const rows = Array.isArray(b.rows) ? b.rows : [];
         if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
@@ -551,13 +595,15 @@ export default {
           }
           const salt = randomSalt();
           const hash = await hashPassword(String(r.password || "Vnpt@2026"), salt);
+          const impRole = isAdmin ? (r.role === "admin" ? "admin" : r.role === "subadmin" ? "subadmin" : r.role === "leader" ? "leader" : "user") : "user";
           await env.DB.prepare(
-            "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
-              isAdmin ? (r.role === "admin" ? "admin" : r.role === "subadmin" ? "subadmin" : "user") : "user",
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, isAdmin && r.can_import ? 1 : 0
+              impRole,
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, isAdmin && r.can_import ? 1 : 0,
+              impRole === "admin" ? null : JSON.stringify(DEFAULT_MODULES)
             )
             .run();
           created++;
@@ -567,22 +613,30 @@ export default {
       const userMatch = path.match(/^\/api\/users\/(\d+)$/);
       if (userMatch && method === "PUT") {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen sua nguoi dung", 403);
+        if (!hasModule(me, "users")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
         const b = await readBody(request);
-        // Phan quyen: SubAdmin khong duoc thay doi loai tai khoan va quyen import
-        // cua nguoi dung -> giu nguyen gia tri dang co trong CSDL.
-        let newRole = b.role === "admin" ? "admin" : b.role === "subadmin" ? "subadmin" : "user";
+        // Phan quyen: SubAdmin khong duoc thay doi loai tai khoan, quyen import
+        // va quyen module cua nguoi dung -> giu nguyen gia tri dang co trong CSDL.
+        let newRole = b.role === "admin" ? "admin" : b.role === "subadmin" ? "subadmin" : b.role === "leader" ? "leader" : "user";
         let newCanImport = b.can_import ? 1 : 0;
+        let newModules;
         if (!isAdmin) {
-          const cur = await env.DB.prepare("SELECT role, can_import FROM nguoi_dung WHERE id = ?").bind(Number(userMatch[1])).first();
-          if (cur) { newRole = cur.role; newCanImport = cur.can_import; }
+          const cur = await env.DB.prepare("SELECT role, can_import, modules FROM nguoi_dung WHERE id = ?").bind(Number(userMatch[1])).first();
+          if (cur) { newRole = cur.role; newCanImport = cur.can_import; newModules = cur.modules; }
+          else newModules = null;
+        } else if (Array.isArray(b.modules)) {
+          newModules = JSON.stringify(b.modules.filter((k) => MODULE_KEYS.includes(k)));
+        } else {
+          const cur = await env.DB.prepare("SELECT modules FROM nguoi_dung WHERE id = ?").bind(Number(userMatch[1])).first();
+          newModules = cur ? cur.modules : null;
         }
         await env.DB.prepare(
-          "UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, active = ? WHERE id = ?"
+          "UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, modules = ?, active = ? WHERE id = ?"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
             toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), b.don_vi_id ? Number(b.don_vi_id) : null,
-            newCanImport, newRole,
+            newCanImport, newRole, newModules,
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
           .run();
@@ -597,6 +651,7 @@ export default {
       }
       if (userMatch && method === "DELETE") {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen xoa nguoi dung", 403);
+        if (!hasModule(me, "users")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
         if (Number(userMatch[1]) === me.id) return err("Khong the tu xoa tai khoan dang dang nhap", 422);
         await env.DB.prepare("DELETE FROM nguoi_dung WHERE id = ?").bind(Number(userMatch[1])).run();
         return json({ ok: true });
@@ -657,6 +712,7 @@ export default {
 
       // ---- Import du lieu dau vao tu Excel ----
       if (path === "/api/import/tables" && method === "GET") {
+        if (!hasModule(me, "import")) return err("Tai khoan khong co quyen su dung module Quan ly du lieu dau vao", 403);
         const types = await getDataTypes(env);
         const out = [];
         for (const t of types) {
@@ -671,6 +727,7 @@ export default {
       // ---- Xoa bang du lieu da import ----
       const tblMatch = path.match(/^\/api\/import\/tables\/([A-Za-z0-9_]+)$/);
       if (tblMatch && method === "DELETE") {
+        if (!hasModule(me, "import")) return err("Tai khoan khong co quyen su dung module Quan ly du lieu dau vao", 403);
         if (!isAdmin && (isSubAdmin || !me.can_import)) return err("Tai khoan khong co quyen xoa bang du lieu (SubAdmin khong duoc phep xoa bang)", 403);
         const name = tblMatch[1];
         const types = await getDataTypes(env);
@@ -681,6 +738,7 @@ export default {
       }
       // ---- Trang thai khoa thay the cua 1 bang thang ----
       if (path === "/api/import/table-lock" && method === "GET") {
+        if (!hasModule(me, "import")) return err("Tai khoan khong co quyen su dung module Quan ly du lieu dau vao", 403);
         const name = url.searchParams.get("table") || "";
         if (!name) return err("Thieu ten bang", 422);
         const locked = await isTableLocked(env, name);
@@ -702,6 +760,7 @@ export default {
       }
       if (path === "/api/import" && method === "POST") {
         if (!isAdmin && !me.can_import) return err("Tai khoan khong co quyen import du lieu", 403);
+        if (!hasModule(me, "import")) return err("Tai khoan khong co quyen su dung module Quan ly du lieu dau vao", 403);
         const b = await readBody(request);
         const types = await getDataTypes(env);
         const dtype = types.find((t) => t.code === String(b.loai || "").toUpperCase());
@@ -763,6 +822,7 @@ export default {
 
       // ---- Bao cao thong ke ----
       if (path === "/api/reports/summary" && method === "GET") {
+        if (!hasModule(me, "reports") && !hasModule(me, "dashboard")) return err("Tai khoan khong co quyen xem bao cao", 403);
         const from = url.searchParams.get("from") || "0000-01-01";
         const to = url.searchParams.get("to") || "9999-12-31";
         const group = url.searchParams.get("group") || "day";
@@ -788,8 +848,8 @@ export default {
               innerCols.join(", ") + ' FROM "' + t + '") WHERE substr(tg, 1, 10) BETWEEN ? AND ?';
             const localBinds = [from, to];
             if (!isPrivileged) {
-              sql += " AND " + s.own;
-              localBinds.push(...s.ownBinds);
+              if (isUnitScoped) { sql += " AND " + s.unit; localBinds.push(...s.unitBinds); }
+              else { sql += " AND " + s.own; localBinds.push(...s.ownBinds); }
             }
             sql += " GROUP BY ky";
             const res = await env.DB.prepare(sql).bind(...localBinds).all();
@@ -810,6 +870,7 @@ export default {
         });
       }
       if (path === "/api/reports/detail" && method === "GET") {
+        if (!hasModule(me, "reports")) return err("Tai khoan khong co quyen xem bao cao", 403);
         const from = url.searchParams.get("from") || "0000-01-01";
         const to = url.searchParams.get("to") || "9999-12-31";
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
@@ -838,8 +899,8 @@ export default {
               "SELECT " + sel.join(", ") + ' FROM "' + t + '" WHERE substr(' + s.time + ", 1, 10) BETWEEN ? AND ?";
             const binds = [from, to];
             if (!isPrivileged) {
-              sql += " AND " + s.own;
-              binds.push(...s.ownBinds);
+              if (isUnitScoped) { sql += " AND " + s.unit; binds.push(...s.unitBinds); }
+              else { sql += " AND " + s.own; binds.push(...s.ownBinds); }
             }
             sql += " ORDER BY thoi_gian DESC LIMIT ?";
             binds.push(limit);
@@ -854,6 +915,7 @@ export default {
       // ---- Thong ke dang nhap theo thang (admin & subadmin) ----
       if (path === "/api/login-stats" && method === "GET") {
         if (!isPrivileged) return err("Chi admin/subadmin moi co quyen xem thong ke dang nhap", 403);
+        if (!hasModule(me, "loginstats")) return err("Tai khoan khong co quyen su dung module Thong ke dang nhap", 403);
         await ensureLoginLog(env);
         const month = url.searchParams.get("month") || saigonNow().slice(0, 7);
         if (!/^\d{4}-\d{2}$/.test(month)) return err("Thang khong hop le (YYYY-MM)", 422);

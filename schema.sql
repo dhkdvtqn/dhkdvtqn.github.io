@@ -22,13 +22,14 @@ CREATE TABLE IF NOT EXISTS nguoi_dung (
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   salt TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'user',        -- 'admin', 'subadmin' hoac 'user'
+  role TEXT NOT NULL DEFAULT 'user',        -- 'admin', 'subadmin', 'leader' hoac 'user'
   so_eload TEXT,
   so_vi TEXT,
   ten_nhan_vien TEXT,                       -- Ten nhan vien quan ly (co the de trong)
   sdt_nhan_vien TEXT,                       -- So dien thoai nhan vien quan ly (co the de trong)
   don_vi_id INTEGER,                        -- Don vi truc thuoc (lien ket bang don_vi, co the de trong)
   can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
+  modules TEXT,                             -- JSON cac module duoc dung (NULL = chua thiet lap rieng, giu quyen theo vai tro)
   active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
