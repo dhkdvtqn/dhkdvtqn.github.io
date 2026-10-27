@@ -276,11 +276,15 @@ function buildSource(t, meUser) {
   if (t.eload_col) { ownParts.push(t.eload_col + " = ?"); ownBinds.push(meUser.so_eload || "__none__"); }
   if (t.vi_col) { ownParts.push(t.vi_col + " = ?"); ownBinds.push(meUser.so_vi || "__none__"); }
   // Loc theo don vi (danh cho Lanh dao don vi): cac giao dich cua user
-  // thuoc cung don vi, map qua so_eload / so_vi trong bang nguoi_dung.
+  // thuoc don vi cua lanh dao VA MOI DON VI TRUC THUOC trong cay don vi
+  // (don_vi.parent_id) — vi du lanh dao cap tinh thay toan tinh, lanh dao
+  // cap khu vuc chi thay khu vuc do + cac don vi con cua no. Map qua
+  // so_eload / so_vi trong bang nguoi_dung.
   const unitParts = [], unitBinds = [];
   if (meUser.don_vi_id) {
-    if (t.eload_col) { unitParts.push(t.eload_col + " IN (SELECT so_eload FROM nguoi_dung WHERE don_vi_id = ?)"); unitBinds.push(meUser.don_vi_id); }
-    if (t.vi_col) { unitParts.push(t.vi_col + " IN (SELECT so_vi FROM nguoi_dung WHERE don_vi_id = ?)"); unitBinds.push(meUser.don_vi_id); }
+    const subtree = "WITH RECURSIVE subtree(id) AS (SELECT ? UNION ALL SELECT d.id FROM don_vi d JOIN subtree s ON d.parent_id = s.id)";
+    if (t.eload_col) { unitParts.push(t.eload_col + " IN (" + subtree + " SELECT so_eload FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(meUser.don_vi_id); }
+    if (t.vi_col) { unitParts.push(t.vi_col + " IN (" + subtree + " SELECT so_vi FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(meUser.don_vi_id); }
   }
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
@@ -476,8 +480,9 @@ export default {
       const isAdmin = me.role === "admin";
       const isSubAdmin = me.role === "subadmin";
       const isLeader = me.role === "leader";
-      // Lanh dao don vi: chi xem du lieu cua cac user trong cung don vi cua minh
-      // (can don_vi_id; neu chua gan don vi thi tam xem du lieu cua chinh minh).
+      // Lanh dao don vi: xem du lieu cua cac user trong don vi cua minh VA
+      // cac don vi truc thuoc (cay don_vi qua parent_id); neu chua gan don
+      // vi thi tam xem du lieu cua chinh minh.
       const isUnitScoped = isLeader && !!me.don_vi_id;
       const isPrivileged = isAdmin || isSubAdmin; // Admin & SubAdmin: xem du lieu toan tinh
       const canManageUsers = isAdmin || isSubAdmin; // Admin & SubAdmin: quan ly nguoi dung
