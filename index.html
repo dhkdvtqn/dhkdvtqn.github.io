@@ -909,6 +909,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Chi tiết tháng hiện tại theo loại dữ liệu</h3>
           <div class="tbl-wrap"><table class="data"><thead><tr><th>Loại dữ liệu</th><th>Số giao dịch</th><th>Số tiền chi trả</th></tr></thead><tbody id="dashTypeBody"><tr><td colspan="3">Đang tải…</td></tr></tbody></table></div>
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Số liệu theo từng tháng trong năm</h3>
+          <div style="margin-bottom:10px"><label>Lọc bảng theo loại chi trả: </label><select id="dashYearType"><option value="ALL">Tất cả các loại chi trả</option></select></div>
           <div class="tbl-wrap"><table class="data"><thead><tr><th>Tháng</th><th>Số giao dịch</th><th>Số tiền chi trả</th></tr></thead><tbody id="dashYearBody"><tr><td colspan="3">Đang tải…</td></tr></tbody></table></div>
         </section>
 
@@ -1496,6 +1497,19 @@ const BUILTIN_TYPES = [
     key_col: &quot;ma_hrm_sdt_smcs&quot;,
   },
 ];
+
+// Dinh dang cu cua cac loai du lieu, de bao cao van doc duoc bang thang cu sau
+// khi dinh nghia loai doi sang mau moi (VD: BCKH doi sang 18 truong moi thang
+// 10/2026, cac bang BCKH thang cu van theo 9 truong cu). Khi truy van 1 bang
+// theo dinh nghia moi that bai (thieu cot), bao cao thu lai theo dinh dang cu;
+// chi bo qua bang khi ca hai dinh dang deu khong doc duoc. Khong sua du lieu.
+const LEGACY_SCHEMAS = {
+  BCKH: {
+    money_col: &quot;hoa_hong_bckh&quot;, time_col: &quot;thoi_gian_chi_tra&quot;, time_fallback_col: &quot;&quot;,
+    eload_col: &quot;so_eload&quot;, vi_col: &quot;&quot;, sub_col: &quot;so_thue_bao&quot;, pkg_col: &quot;&quot;,
+    trans_col: &quot;ma_giao_dich&quot;, status_col: &quot;trang_thai&quot;, reason_col: &quot;nguyen_nhan_loi&quot;, key_col: &quot;&quot;,
+  },
+};
 async function ensureTypes(env) {
   await env.DB.prepare(
     &quot;CREATE TABLE IF NOT EXISTS loai_du_lieu (&quot; +
@@ -1598,6 +1612,7 @@ function buildSource(t, meUser) {
   }
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
+    type: t,
     own: ownParts.length ? &quot;(&quot; + ownParts.join(&quot; OR &quot;) + &quot;)&quot; : &quot;(1 = 0)&quot;,
     ownBinds,
     unit: unitParts.length ? &quot;(&quot; + unitParts.join(&quot; OR &quot;) + &quot;)&quot; : &quot;(1 = 0)&quot;,
@@ -2179,29 +2194,40 @@ export default {
         // (Cach cu ghep tat ca bang bang UNION ALL thanh 1 cau SQL khong lo
         //  se vuot gioi han &quot;too many terms in compound SELECT&quot; cua D1.)
         const agg = new Map();
-        // Bang thang cu khong khop dinh nghia moi (thieu cot) thi bo qua co bao cao,
-        // thay vi lam hong toan bo bao cao — VD: bang BCKH thang cu theo mau cu.
+        // Bang thang cu khong khop dinh nghia moi thi thu doc theo dinh dang cu
+        // (VD: bang BCKH thang cu theo mau cu) — chi bo qua co bao cao khi ca
+        // hai dinh dang deu khong doc duoc, thay vi lam hong toan bo bao cao.
         const skippedTables = [];
+        const legacyTables = [];
         for (const s of sources) {
           const tables = await listMonthlyTables(env, s.prefix);
           for (const t of tables) {
             if (!tableInRange(t, s.prefix, from, to)) continue;
-            const innerCols = [s.time + &quot; AS tg&quot;, s.money + &quot; AS tien&quot;];
-            if (s.eloadCol) innerCols.push(s.eloadCol);
-            if (s.viCol) innerCols.push(s.viCol);
-            if (s.keyCol) innerCols.push(s.keyCol);
-            let sql =
-              &#x27;SELECT &#x27; + groupExpr + &#x27; AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT &#x27; +
-              innerCols.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot;) WHERE substr(tg, 1, 10) BETWEEN ? AND ?&#x27;;
-            const localBinds = [from, to];
-            if (!isPrivileged) {
-              if (isUnitScoped) { sql += &quot; AND &quot; + s.unit; localBinds.push(...s.unitBinds); }
-              else { sql += &quot; AND &quot; + s.own; localBinds.push(...s.ownBinds); }
+            const runSummaryTable = async (src) =&gt; {
+              const innerCols = [src.time + &quot; AS tg&quot;, src.money + &quot; AS tien&quot;];
+              if (src.eloadCol) innerCols.push(src.eloadCol);
+              if (src.viCol) innerCols.push(src.viCol);
+              if (src.keyCol) innerCols.push(src.keyCol);
+              let sql =
+                &#x27;SELECT &#x27; + groupExpr + &#x27; AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT &#x27; +
+                innerCols.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot;) WHERE substr(tg, 1, 10) BETWEEN ? AND ?&#x27;;
+              const localBinds = [from, to];
+              if (!isPrivileged) {
+                if (isUnitScoped) { sql += &quot; AND &quot; + src.unit; localBinds.push(...src.unitBinds); }
+                else { sql += &quot; AND &quot; + src.own; localBinds.push(...src.ownBinds); }
+              }
+              sql += &quot; GROUP BY ky&quot;;
+              return env.DB.prepare(sql).bind(...localBinds).all();
+            };
+            let res, usedLegacy = false;
+            try { res = await runSummaryTable(s); }
+            catch (e) {
+              const legacy = LEGACY_SCHEMAS[s.code];
+              if (!legacy || !s.type) { skippedTables.push(t); continue; }
+              try { res = await runSummaryTable(buildSource({ ...s.type, ...legacy }, me)); usedLegacy = true; }
+              catch (e2) { skippedTables.push(t); continue; }
             }
-            sql += &quot; GROUP BY ky&quot;;
-            let res;
-            try { res = await env.DB.prepare(sql).bind(...localBinds).all(); }
-            catch (e) { skippedTables.push(t); continue; }
+            if (usedLegacy) legacyTables.push(t);
             for (const r of res.results || []) {
               const cur = agg.get(r.ky) || { ky: r.ky, so_giao_dich: 0, tong_tien: 0 };
               cur.so_giao_dich += r.so_giao_dich || 0;
@@ -2217,6 +2243,7 @@ export default {
           tong_giao_dich: rows.reduce((a, r) =&gt; a + (r.so_giao_dich || 0), 0),
           tong_tien: rows.reduce((a, r) =&gt; a + (r.tong_tien || 0), 0),
           skipped_tables: skippedTables,
+          legacy_tables: legacyTables,
         });
       }
       if (path === &quot;/api/reports/detail&quot; &amp;&amp; method === &quot;GET&quot;) {
@@ -2227,6 +2254,7 @@ export default {
         const limit = Math.min(Number(url.searchParams.get(&quot;limit&quot;) || 500), 2000);
         const out = [];
         const skippedTables = [];
+        const legacyTables = [];
         const types = await getDataTypes(env);
         const sources = types
           .filter((t) =&gt; (loai === &quot;ALL&quot; || t.code === loai) &amp;&amp; t.money_col &amp;&amp; t.time_col)
@@ -2235,34 +2263,43 @@ export default {
           const tables = await listMonthlyTables(env, s.prefix);
           for (const t of tables) {
             if (!tableInRange(t, s.prefix, from, to)) continue;
-            const sel = [
-              &quot;&#x27;&quot; + s.code + &quot;&#x27; AS loai&quot;,
-              (s.subCol || &quot;&#x27;&#x27;&quot;) + &quot; AS so_thue_bao&quot;,
-              (s.eloadCol || &quot;&#x27;&#x27;&quot;) + &quot; AS so_eload&quot;,
-              s.money + &quot; AS so_tien&quot;,
-              (s.transCol || &quot;&#x27;&#x27;&quot;) + &quot; AS ma_giao_dich&quot;,
-              s.time + &quot; AS thoi_gian&quot;,
-              (s.statusCol || &quot;&#x27;&#x27;&quot;) + &quot; AS trang_thai&quot;,
-              (s.reasonCol || &quot;&#x27;&#x27;&quot;) + &quot; AS nguyen_nhan_loi&quot;,
-              (s.pkgCol || &quot;&#x27;&#x27;&quot;) + &quot; AS ten_goi&quot;,
-            ];
-            let sql =
-              &quot;SELECT &quot; + sel.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot; WHERE substr(&#x27; + s.time + &quot;, 1, 10) BETWEEN ? AND ?&quot;;
-            const binds = [from, to];
-            if (!isPrivileged) {
-              if (isUnitScoped) { sql += &quot; AND &quot; + s.unit; binds.push(...s.unitBinds); }
-              else { sql += &quot; AND &quot; + s.own; binds.push(...s.ownBinds); }
+            const runDetailTable = async (src) =&gt; {
+              const sel = [
+                &quot;&#x27;&quot; + src.code + &quot;&#x27; AS loai&quot;,
+                (src.subCol || &quot;&#x27;&#x27;&quot;) + &quot; AS so_thue_bao&quot;,
+                (src.eloadCol || &quot;&#x27;&#x27;&quot;) + &quot; AS so_eload&quot;,
+                src.money + &quot; AS so_tien&quot;,
+                (src.transCol || &quot;&#x27;&#x27;&quot;) + &quot; AS ma_giao_dich&quot;,
+                src.time + &quot; AS thoi_gian&quot;,
+                (src.statusCol || &quot;&#x27;&#x27;&quot;) + &quot; AS trang_thai&quot;,
+                (src.reasonCol || &quot;&#x27;&#x27;&quot;) + &quot; AS nguyen_nhan_loi&quot;,
+                (src.pkgCol || &quot;&#x27;&#x27;&quot;) + &quot; AS ten_goi&quot;,
+              ];
+              let sql =
+                &quot;SELECT &quot; + sel.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot; WHERE substr(&#x27; + src.time + &quot;, 1, 10) BETWEEN ? AND ?&quot;;
+              const binds = [from, to];
+              if (!isPrivileged) {
+                if (isUnitScoped) { sql += &quot; AND &quot; + src.unit; binds.push(...src.unitBinds); }
+                else { sql += &quot; AND &quot; + src.own; binds.push(...src.ownBinds); }
+              }
+              sql += &quot; ORDER BY thoi_gian DESC LIMIT ?&quot;;
+              binds.push(limit);
+              return env.DB.prepare(sql).bind(...binds).all();
+            };
+            let res, usedLegacy = false;
+            try { res = await runDetailTable(s); }
+            catch (e) {
+              const legacy = LEGACY_SCHEMAS[s.code];
+              if (!legacy || !s.type) { skippedTables.push(t); continue; }
+              try { res = await runDetailTable(buildSource({ ...s.type, ...legacy }, me)); usedLegacy = true; }
+              catch (e2) { skippedTables.push(t); continue; }
             }
-            sql += &quot; ORDER BY thoi_gian DESC LIMIT ?&quot;;
-            binds.push(limit);
-            let res;
-            try { res = await env.DB.prepare(sql).bind(...binds).all(); }
-            catch (e) { skippedTables.push(t); continue; }
+            if (usedLegacy) legacyTables.push(t);
             out.push(...(res.results || []));
           }
         }
         out.sort((a, b) =&gt; String(b.thoi_gian || &quot;&quot;).localeCompare(String(a.thoi_gian || &quot;&quot;)));
-        return json({ ok: true, rows: out.slice(0, limit), skipped_tables: skippedTables });
+        return json({ ok: true, rows: out.slice(0, limit), skipped_tables: skippedTables, legacy_tables: legacyTables });
       }
 
       // ---- Thong ke dang nhap theo thang (admin &amp; subadmin) ----
@@ -3300,8 +3337,13 @@ async function loadDashboard() {
   $("dashMonthLabel").textContent = "Tháng " + (mo + 1) + "/" + y + " (tháng hiện tại)";
   $("dashYearLabel").textContent = "Lũy kế từ đầu năm " + y;
   $("dashScope").textContent = me && me.role === "user"
-    ? "Số liệu của chính điểm bán của anh (theo số Eload / số Ví đã khai báo), tổng hợp từ các loại dữ liệu đã import lên D1."
+    ? "Số liệu của chính điểm bán của anh (theo số Eload / số Ví / mã HRM-SĐT đã khai báo), tổng hợp từ các loại dữ liệu đã import lên D1."
     : "Tổng hợp toàn tỉnh: số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng hiện tại và lũy kế từ đầu năm, từ toàn bộ các loại dữ liệu đã import lên D1.";
+  // Nap lua chon loc loai chi tra cho bang theo thang (mac dinh: tat ca).
+  const dys = $("dashYearType"), curY = dys.value || "ALL";
+  dys.innerHTML = '<option value="ALL">Tất cả các loại chi trả</option>' +
+    dataTypes.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + " (" + esc(t.code) + ")</option>").join("");
+  dys.value = [...dys.options].some((o) => o.value === curY) ? curY : "ALL";
   try {
     const [dm, dy] = await Promise.all([
       api("/api/reports/summary?" + new URLSearchParams({ loai: "ALL", from: mFrom, to: mTo, group: "day" })),
@@ -3315,7 +3357,8 @@ async function loadDashboard() {
       const parts = String(r.ky || "").split("-");
       return "<tr><td><b>Tháng " + (parts[1] || "") + "/" + (parts[0] || "") + "</b></td><td>" + (r.so_giao_dich || 0).toLocaleString("vi-VN") + "</td><td>" + fmt(r.tong_tien) + "</td></tr>";
     }).join("") || "<tr><td colspan='3'>Chưa có dữ liệu trong năm nay.</td></tr>";
-    setMsg($("dashMsg"), "");
+    const skipped = [...new Set([...(dm.skipped_tables || []), ...(dy.skipped_tables || [])])];
+    setMsg($("dashMsg"), skipped.length ? "Lưu ý: các bảng tháng sau không đọc được theo cả mẫu mới lẫn mẫu cũ nên không tính vào Dashboard: " + skipped.join(", ") + "." : "");
   } catch (e) { setMsg($("dashMsg"), e.message, false); }
   try {
     const per = await Promise.all(dataTypes.map(async (t) => {
@@ -3327,6 +3370,20 @@ async function loadDashboard() {
     $("dashTypeBody").innerHTML = per.map((r) => "<tr><td>" + esc(r.name) + "</td><td>" + r.tx.toLocaleString("vi-VN") + "</td><td>" + fmt(r.money) + "</td></tr>").join("");
   } catch (e) { /* bo qua */ }
 }
+
+async function loadDashYearTable(loai) {
+  const now = new Date(); const y = now.getFullYear();
+  const p2 = (x) => String(x).padStart(2, "0");
+  const yFrom = y + "-01-01", yTo = y + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate());
+  try {
+    const d = await api("/api/reports/summary?" + new URLSearchParams({ loai, from: yFrom, to: yTo, group: "month" }));
+    $("dashYearBody").innerHTML = (d.rows || []).map((r) => {
+      const parts = String(r.ky || "").split("-");
+      return "<tr><td><b>Tháng " + (parts[1] || "") + "/" + (parts[0] || "") + "</b></td><td>" + (r.so_giao_dich || 0).toLocaleString("vi-VN") + "</td><td>" + fmt(r.tong_tien) + "</td></tr>";
+    }).join("") || "<tr><td colspan='3'>Chưa có dữ liệu trong năm nay.</td></tr>";
+  } catch (e) { $("dashYearBody").innerHTML = "<tr><td colspan='3'>" + esc(e.message) + "</td></tr>"; }
+}
+$("dashYearType").addEventListener("change", () => { loadDashYearTable($("dashYearType").value || "ALL"); });
 
 /* ---------------- Quan ly don vi (cay) ---------------- */
 let unitsCache = [];

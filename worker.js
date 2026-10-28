@@ -281,6 +281,19 @@ const BUILTIN_TYPES = [
     key_col: "ma_hrm_sdt_smcs",
   },
 ];
+
+// Dinh dang cu cua cac loai du lieu, de bao cao van doc duoc bang thang cu sau
+// khi dinh nghia loai doi sang mau moi (VD: BCKH doi sang 18 truong moi thang
+// 10/2026, cac bang BCKH thang cu van theo 9 truong cu). Khi truy van 1 bang
+// theo dinh nghia moi that bai (thieu cot), bao cao thu lai theo dinh dang cu;
+// chi bo qua bang khi ca hai dinh dang deu khong doc duoc. Khong sua du lieu.
+const LEGACY_SCHEMAS = {
+  BCKH: {
+    money_col: "hoa_hong_bckh", time_col: "thoi_gian_chi_tra", time_fallback_col: "",
+    eload_col: "so_eload", vi_col: "", sub_col: "so_thue_bao", pkg_col: "",
+    trans_col: "ma_giao_dich", status_col: "trang_thai", reason_col: "nguyen_nhan_loi", key_col: "",
+  },
+};
 async function ensureTypes(env) {
   await env.DB.prepare(
     "CREATE TABLE IF NOT EXISTS loai_du_lieu (" +
@@ -383,6 +396,7 @@ function buildSource(t, meUser) {
   }
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
+    type: t,
     own: ownParts.length ? "(" + ownParts.join(" OR ") + ")" : "(1 = 0)",
     ownBinds,
     unit: unitParts.length ? "(" + unitParts.join(" OR ") + ")" : "(1 = 0)",
@@ -964,29 +978,40 @@ export default {
         // (Cach cu ghep tat ca bang bang UNION ALL thanh 1 cau SQL khong lo
         //  se vuot gioi han "too many terms in compound SELECT" cua D1.)
         const agg = new Map();
-        // Bang thang cu khong khop dinh nghia moi (thieu cot) thi bo qua co bao cao,
-        // thay vi lam hong toan bo bao cao — VD: bang BCKH thang cu theo mau cu.
+        // Bang thang cu khong khop dinh nghia moi thi thu doc theo dinh dang cu
+        // (VD: bang BCKH thang cu theo mau cu) — chi bo qua co bao cao khi ca
+        // hai dinh dang deu khong doc duoc, thay vi lam hong toan bo bao cao.
         const skippedTables = [];
+        const legacyTables = [];
         for (const s of sources) {
           const tables = await listMonthlyTables(env, s.prefix);
           for (const t of tables) {
             if (!tableInRange(t, s.prefix, from, to)) continue;
-            const innerCols = [s.time + " AS tg", s.money + " AS tien"];
-            if (s.eloadCol) innerCols.push(s.eloadCol);
-            if (s.viCol) innerCols.push(s.viCol);
-            if (s.keyCol) innerCols.push(s.keyCol);
-            let sql =
-              'SELECT ' + groupExpr + ' AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT ' +
-              innerCols.join(", ") + ' FROM "' + t + '") WHERE substr(tg, 1, 10) BETWEEN ? AND ?';
-            const localBinds = [from, to];
-            if (!isPrivileged) {
-              if (isUnitScoped) { sql += " AND " + s.unit; localBinds.push(...s.unitBinds); }
-              else { sql += " AND " + s.own; localBinds.push(...s.ownBinds); }
+            const runSummaryTable = async (src) => {
+              const innerCols = [src.time + " AS tg", src.money + " AS tien"];
+              if (src.eloadCol) innerCols.push(src.eloadCol);
+              if (src.viCol) innerCols.push(src.viCol);
+              if (src.keyCol) innerCols.push(src.keyCol);
+              let sql =
+                'SELECT ' + groupExpr + ' AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT ' +
+                innerCols.join(", ") + ' FROM "' + t + '") WHERE substr(tg, 1, 10) BETWEEN ? AND ?';
+              const localBinds = [from, to];
+              if (!isPrivileged) {
+                if (isUnitScoped) { sql += " AND " + src.unit; localBinds.push(...src.unitBinds); }
+                else { sql += " AND " + src.own; localBinds.push(...src.ownBinds); }
+              }
+              sql += " GROUP BY ky";
+              return env.DB.prepare(sql).bind(...localBinds).all();
+            };
+            let res, usedLegacy = false;
+            try { res = await runSummaryTable(s); }
+            catch (e) {
+              const legacy = LEGACY_SCHEMAS[s.code];
+              if (!legacy || !s.type) { skippedTables.push(t); continue; }
+              try { res = await runSummaryTable(buildSource({ ...s.type, ...legacy }, me)); usedLegacy = true; }
+              catch (e2) { skippedTables.push(t); continue; }
             }
-            sql += " GROUP BY ky";
-            let res;
-            try { res = await env.DB.prepare(sql).bind(...localBinds).all(); }
-            catch (e) { skippedTables.push(t); continue; }
+            if (usedLegacy) legacyTables.push(t);
             for (const r of res.results || []) {
               const cur = agg.get(r.ky) || { ky: r.ky, so_giao_dich: 0, tong_tien: 0 };
               cur.so_giao_dich += r.so_giao_dich || 0;
@@ -1002,6 +1027,7 @@ export default {
           tong_giao_dich: rows.reduce((a, r) => a + (r.so_giao_dich || 0), 0),
           tong_tien: rows.reduce((a, r) => a + (r.tong_tien || 0), 0),
           skipped_tables: skippedTables,
+          legacy_tables: legacyTables,
         });
       }
       if (path === "/api/reports/detail" && method === "GET") {
@@ -1012,6 +1038,7 @@ export default {
         const limit = Math.min(Number(url.searchParams.get("limit") || 500), 2000);
         const out = [];
         const skippedTables = [];
+        const legacyTables = [];
         const types = await getDataTypes(env);
         const sources = types
           .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col)
@@ -1020,34 +1047,43 @@ export default {
           const tables = await listMonthlyTables(env, s.prefix);
           for (const t of tables) {
             if (!tableInRange(t, s.prefix, from, to)) continue;
-            const sel = [
-              "'" + s.code + "' AS loai",
-              (s.subCol || "''") + " AS so_thue_bao",
-              (s.eloadCol || "''") + " AS so_eload",
-              s.money + " AS so_tien",
-              (s.transCol || "''") + " AS ma_giao_dich",
-              s.time + " AS thoi_gian",
-              (s.statusCol || "''") + " AS trang_thai",
-              (s.reasonCol || "''") + " AS nguyen_nhan_loi",
-              (s.pkgCol || "''") + " AS ten_goi",
-            ];
-            let sql =
-              "SELECT " + sel.join(", ") + ' FROM "' + t + '" WHERE substr(' + s.time + ", 1, 10) BETWEEN ? AND ?";
-            const binds = [from, to];
-            if (!isPrivileged) {
-              if (isUnitScoped) { sql += " AND " + s.unit; binds.push(...s.unitBinds); }
-              else { sql += " AND " + s.own; binds.push(...s.ownBinds); }
+            const runDetailTable = async (src) => {
+              const sel = [
+                "'" + src.code + "' AS loai",
+                (src.subCol || "''") + " AS so_thue_bao",
+                (src.eloadCol || "''") + " AS so_eload",
+                src.money + " AS so_tien",
+                (src.transCol || "''") + " AS ma_giao_dich",
+                src.time + " AS thoi_gian",
+                (src.statusCol || "''") + " AS trang_thai",
+                (src.reasonCol || "''") + " AS nguyen_nhan_loi",
+                (src.pkgCol || "''") + " AS ten_goi",
+              ];
+              let sql =
+                "SELECT " + sel.join(", ") + ' FROM "' + t + '" WHERE substr(' + src.time + ", 1, 10) BETWEEN ? AND ?";
+              const binds = [from, to];
+              if (!isPrivileged) {
+                if (isUnitScoped) { sql += " AND " + src.unit; binds.push(...src.unitBinds); }
+                else { sql += " AND " + src.own; binds.push(...src.ownBinds); }
+              }
+              sql += " ORDER BY thoi_gian DESC LIMIT ?";
+              binds.push(limit);
+              return env.DB.prepare(sql).bind(...binds).all();
+            };
+            let res, usedLegacy = false;
+            try { res = await runDetailTable(s); }
+            catch (e) {
+              const legacy = LEGACY_SCHEMAS[s.code];
+              if (!legacy || !s.type) { skippedTables.push(t); continue; }
+              try { res = await runDetailTable(buildSource({ ...s.type, ...legacy }, me)); usedLegacy = true; }
+              catch (e2) { skippedTables.push(t); continue; }
             }
-            sql += " ORDER BY thoi_gian DESC LIMIT ?";
-            binds.push(limit);
-            let res;
-            try { res = await env.DB.prepare(sql).bind(...binds).all(); }
-            catch (e) { skippedTables.push(t); continue; }
+            if (usedLegacy) legacyTables.push(t);
             out.push(...(res.results || []));
           }
         }
         out.sort((a, b) => String(b.thoi_gian || "").localeCompare(String(a.thoi_gian || "")));
-        return json({ ok: true, rows: out.slice(0, limit), skipped_tables: skippedTables });
+        return json({ ok: true, rows: out.slice(0, limit), skipped_tables: skippedTables, legacy_tables: legacyTables });
       }
 
       // ---- Thong ke dang nhap theo thang (admin & subadmin) ----
