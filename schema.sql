@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS nguoi_dung (
   so_vi TEXT,
   ten_nhan_vien TEXT,                       -- Ten nhan vien quan ly (co the de trong)
   sdt_nhan_vien TEXT,                       -- So dien thoai nhan vien quan ly (co the de trong)
+  ma_hrm TEXT,                              -- Ma HRM cua nhan vien quan ly (co the de trong)
   don_vi_id INTEGER,                        -- Don vi truc thuoc (lien ket bang don_vi, co the de trong)
   can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
   modules TEXT,                             -- JSON cac module duoc dung (NULL = chua thiet lap rieng, giu quyen theo vai tro)

@@ -944,6 +944,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div></div>
             <div><label>Tên nhân viên quản lý (có thể để trống)</label><input id="uManager" /></div>
             <div><label>Số điện thoại nhân viên quản lý (có thể để trống)</label><input id="uManagerPhone" /></div>
+            <div><label>Mã HRM nhân viên quản lý (có thể để trống)</label><input id="uHrm" placeholder="VD: HRM-01234" /></div>
             <div class="full" style="border:1px solid var(--line);border-radius:12px;padding:12px">
               <label>Vị trí điểm bán (tọa độ GPS)</label>
               <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
@@ -980,7 +981,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div><label>Lọc theo đơn vị</label><select id="userUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
             <div><span id="userCount" class="desc"></span></div>
           </div>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Tọa độ điểm bán</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="12">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Tọa độ điểm bán</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Mã HRM</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="13">Đang tải…</td></tr></tbody></table></div>
           <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import người dùng từ Excel</h3>
           <p class="desc">Tải file mẫu về, điền thông tin người dùng vào file rồi import lên hệ thống. User đăng nhập đã tồn tại sẽ tự động bị bỏ qua; mật khẩu để trống sẽ dùng mặc định <code class="inl">Vnpt@2026</code>.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -1087,6 +1088,7 @@ CREATE TABLE IF NOT EXISTS nguoi_dung (
   so_vi TEXT,
   ten_nhan_vien TEXT,                       -- Ten nhan vien quan ly (co the de trong)
   sdt_nhan_vien TEXT,                       -- So dien thoai nhan vien quan ly (co the de trong)
+  ma_hrm TEXT,                              -- Ma HRM cua nhan vien quan ly (co the de trong)
   don_vi_id INTEGER,                        -- Don vi truc thuoc (lien ket bang don_vi, co the de trong)
   can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
   modules TEXT,                             -- JSON cac module duoc dung (NULL = chua thiet lap rieng, giu quyen theo vai tro)
@@ -1349,6 +1351,7 @@ async function ensureUserColumns(env) {
     const cols = new Set((res.results || []).map((r) =&gt; r.name));
     if (!cols.has(&quot;ten_nhan_vien&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN ten_nhan_vien TEXT&quot;).run();
     if (!cols.has(&quot;sdt_nhan_vien&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN sdt_nhan_vien TEXT&quot;).run();
+    if (!cols.has(&quot;ma_hrm&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN ma_hrm TEXT&quot;).run();
     if (!cols.has(&quot;don_vi_id&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN don_vi_id INTEGER&quot;).run();
     if (!cols.has(&quot;modules&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN modules TEXT&quot;).run();
     if (!cols.has(&quot;lat&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN lat REAL&quot;).run();
@@ -1782,7 +1785,7 @@ export default {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xem danh sach nguoi dung&quot;, 403);
         if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         const res = await env.DB.prepare(
-          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten&quot;
+          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten&quot;
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -1809,12 +1812,12 @@ export default {
         const lngP = parseCoordField(b.lng, -180, 180);
         if (lngP.error) return err(&quot;Kinh do diem ban khong hop le (tu -180 den 180)&quot;, 422);
         const r = await env.DB.prepare(
-          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
-            toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien),
+            toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm),
             b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport, newModules, latP.val, lngP.val
           )
           .run();
@@ -1867,12 +1870,12 @@ export default {
           if (impLngP.error) warnings.push({ row: i + 2, reason: &quot;Kinh do khong hop le — da de trong&quot; });
           else impLng = impLngP.val;
           await env.DB.prepare(
-            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
               impRole,
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, isAdmin &amp;&amp; r.can_import ? 1 : 0,
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViId, isAdmin &amp;&amp; r.can_import ? 1 : 0,
               impRole === &quot;admin&quot; ? null : JSON.stringify(impRole === &quot;leader&quot; ? LEADER_MODULES : DEFAULT_MODULES),
               impLat, impLng
             )
@@ -1906,11 +1909,11 @@ export default {
         const lngP = parseCoordField(b.lng, -180, 180);
         if (lngP.error) return err(&quot;Kinh do diem ban khong hop le (tu -180 den 180)&quot;, 422);
         await env.DB.prepare(
-          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, modules = ?, lat = ?, lng = ?, active = ? WHERE id = ?&quot;
+          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, ma_hrm = ?, don_vi_id = ?, can_import = ?, role = ?, modules = ?, lat = ?, lng = ?, active = ? WHERE id = ?&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
-            toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), b.don_vi_id ? Number(b.don_vi_id) : null,
+            toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm), b.don_vi_id ? Number(b.don_vi_id) : null,
             newCanImport, newRole, newModules, latP.val, lngP.val,
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
@@ -2347,6 +2350,24 @@ export default {
         ).bind(toText(b.ten_dot), toText(b.ghi_chu), me.id, me.ho_ten, saigonNow()).run();
         return json({ ok: true, id: r.meta.last_row_id });
       }
+      const careBatchMatch = path.match(/^\/api\/care\/batches\/(\d+)$/);
+      if (careBatchMatch &amp;&amp; method === &quot;DELETE&quot;) {
+        if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
+        await ensureCareTables(env);
+        const batch = await env.DB.prepare(&quot;SELECT * FROM dot_cham_soc WHERE id = ?&quot;).bind(Number(careBatchMatch[1])).first();
+        if (!batch) return err(&quot;Khong tim thay dot cham soc&quot;, 404);
+        // Admin xoa duoc dot cua moi user; user thuong chi xoa duoc dot do chinh minh tao.
+        if (!isAdmin &amp;&amp; batch.nguoi_tao_id !== me.id) return err(&quot;Ban chi duoc xoa dot cham soc do chinh minh tao&quot;, 403);
+        // Xoa anh R2 cua cac luot cham soc trong dot (co gang het suc, loi thi bo qua),
+        // roi xoa luot cham soc va dot.
+        if (env.ANH) {
+          const keys = await env.DB.prepare(&quot;SELECT anh_key FROM cham_soc WHERE dot_id = ? AND anh_key IS NOT NULL&quot;).bind(batch.id).all();
+          for (const row of (keys.results || [])) { try { await env.ANH.delete(row.anh_key); } catch (e) { /* bo qua */ } }
+        }
+        const del = await env.DB.prepare(&quot;DELETE FROM cham_soc WHERE dot_id = ?&quot;).bind(batch.id).run();
+        await env.DB.prepare(&quot;DELETE FROM dot_cham_soc WHERE id = ?&quot;).bind(batch.id).run();
+        return json({ ok: true, deleted_records: del.meta ? del.meta.changes : 0 });
+      }
       // Diem ban trong ban kinh 20m quanh vi tri thiet bi (khong co vi tri -&gt; khong tra diem nao)
       if (path === &quot;/api/care/nearby&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
@@ -2450,6 +2471,10 @@ export default {
         const headers = new Headers();
         obj.writeHttpMetadata(headers);
         headers.set(&quot;Cache-Control&quot;, &quot;private, max-age=3600&quot;);
+        // Bat buoc phai co header nay thi trinh duyet moi cho trang web (GitHub
+        // Pages, Vercel, ...) doc duoc anh tra ve tu Worker — thieu no, fetch
+        // se bi chan va bao &quot;Failed to fetch&quot; du Worker van tra anh binh thuong.
+        headers.set(&quot;Access-Control-Allow-Origin&quot;, &quot;*&quot;);
         return new Response(obj.body, { headers });
       }
       // ---- Bao cao cham soc diem ban (trong muc Bao cao thong ke) ----
@@ -2461,19 +2486,20 @@ export default {
         await ensureCareTables(env);
         const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
-        if (isLeader &amp;&amp; !me.don_vi_id) return json({ ok: true, tong_luot: 0, tong_diem: 0, theo_dot: [], theo_nguoi: [], theo_diem: [] });
+        if (isLeader &amp;&amp; !me.don_vi_id) return json({ ok: true, tong_luot: 0, tong_diem: 0, theo_dot: [], theo_nguoi: [], theo_don_vi: [], theo_diem: [] });
         const prefix = isLeader ? unitSubtreeCTE() + &quot; &quot; : &quot;&quot;;
         const scopeSql = isLeader ? &quot; AND p.don_vi_id IN (SELECT id FROM subtree)&quot; : &quot;&quot;;
         const runQ = async (sql, extraBinds) =&gt; {
           const binds = isLeader ? [me.don_vi_id, ...extraBinds] : extraBinds;
           return (await env.DB.prepare(prefix + sql).bind(...binds).all()).results || [];
         };
-        const base = &quot;FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?&quot; + scopeSql;
+        const base = &quot;FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id LEFT JOIN don_vi dv ON dv.id = p.don_vi_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?&quot; + scopeSql;
         const tot = await runQ(&quot;SELECT COUNT(*) AS luot, COUNT(DISTINCT c.pos_user_id) AS diem &quot; + base, [from, to]);
         const theoDot = await runQ(&quot;SELECT dt.ten_dot AS ten, COUNT(*) AS luot, COUNT(DISTINCT c.pos_user_id) AS diem &quot; + base + &quot; GROUP BY c.dot_id ORDER BY luot DESC&quot;, [from, to]);
         const theoNguoi = await runQ(&quot;SELECT c.caregiver_ten AS ten, COUNT(*) AS luot, COUNT(DISTINCT c.pos_user_id) AS diem &quot; + base + &quot; GROUP BY c.caregiver_id ORDER BY luot DESC&quot;, [from, to]);
+        const theoDonVi = await runQ(&quot;SELECT COALESCE(dv.ten_don_vi, &#x27;Chưa thuộc đơn vị&#x27;) AS ten, COUNT(*) AS luot, COUNT(DISTINCT c.pos_user_id) AS diem &quot; + base + &quot; GROUP BY p.don_vi_id ORDER BY luot DESC&quot;, [from, to]);
         const theoDiem = await runQ(&quot;SELECT p.ho_ten AS ten, COUNT(*) AS luot, MAX(c.thoi_gian) AS lan_cuoi &quot; + base + &quot; GROUP BY c.pos_user_id ORDER BY luot DESC LIMIT 200&quot;, [from, to]);
-        return json({ ok: true, tong_luot: tot[0] ? tot[0].luot : 0, tong_diem: tot[0] ? tot[0].diem : 0, theo_dot: theoDot, theo_nguoi: theoNguoi, theo_diem: theoDiem });
+        return json({ ok: true, tong_luot: tot[0] ? tot[0].luot : 0, tong_diem: tot[0] ? tot[0].diem : 0, theo_dot: theoDot, theo_nguoi: theoNguoi, theo_don_vi: theoDonVi, theo_diem: theoDiem });
       }
       if (path === &quot;/api/care/reports/detail&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!isPrivileged &amp;&amp; !isLeader) return err(&quot;Chi admin/subadmin va Lanh dao don vi moi xem duoc bao cao cham soc&quot;, 403);
@@ -2524,7 +2550,8 @@ export default {
     }
   },
 };
-</pre></div>
+</pre>
+            <div class="copy-row"><button class="btn sm gray" type="button" data-copy="workerCode">Sao chép mã Worker</button></div></div>
 
           <div class="guide-step"><h3>Bước 5 — Gắn (Bind) Worker với CSDL D1</h3>
             <ol><li>Trong trang quản lý Worker, vào <b>Settings → Bindings → Add → D1 database</b>.</li><li>Đặt <b>Variable name</b> đúng là <code class="inl">DB</code> (bắt buộc), chọn database <code class="inl">vnpt-chi-tra</code> đã tạo ở Bước 2, bấm <b>Save</b> rồi <b>Deploy</b> lại Worker.</li></ol></div>
@@ -3317,14 +3344,14 @@ function renderUsers() {
       "<td>" + esc(u.so_eload) + "</td><td>" + esc(u.so_vi) + "</td>" +
       "<td>" + esc(u.don_vi_ten) + "</td>" +
       "<td>" + ((u.lat == null || u.lng == null) ? "—" : Number(u.lat).toFixed(5) + ", " + Number(u.lng).toFixed(5)) + "</td>" +
-      "<td>" + esc(u.ten_nhan_vien) + "</td><td>" + esc(u.sdt_nhan_vien) + "</td>" +
+      "<td>" + esc(u.ten_nhan_vien) + "</td><td>" + esc(u.sdt_nhan_vien) + "</td><td>" + esc(u.ma_hrm) + "</td>" +
       "<td>" + (u.can_import ? "<span class='pill ok'>Có</span>" : "—") + "</td>" +
       "<td style='white-space:nowrap'><button class='btn sm gray' data-edit-user='" + u.id + "'>Sửa</button> " +
       (me && u.id === me.id
         ? "<button class='btn sm gray' disabled title='Không thể tự xóa tài khoản đang đăng nhập'>Xóa</button>"
         : "<button class='btn sm danger' data-del-user='" + u.id + "'>Xóa</button>") +
       "</td></tr>").join("") ||
-      "<tr><td colspan='12'>" + (usersCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
+      "<tr><td colspan='13'>" + (usersCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
   $("usersBody").querySelectorAll("[data-edit-user]").forEach((b) => b.addEventListener("click", () => editUser(Number(b.dataset.editUser))));
   $("usersBody").querySelectorAll("[data-del-user]").forEach((b) => b.addEventListener("click", () => delUser(Number(b.dataset.delUser))));
 }
@@ -3336,7 +3363,7 @@ function editUser(id) {
   $("uUsername").value = u.username; $("uUsername").disabled = true; $("uPassword").value = "";
   $("uEload").value = u.so_eload || ""; $("uWallet").value = u.so_vi || "";
   $("uUnit").value = u.don_vi_id || "";
-  $("uManager").value = u.ten_nhan_vien || ""; $("uManagerPhone").value = u.sdt_nhan_vien || "";
+  $("uManager").value = u.ten_nhan_vien || ""; $("uManagerPhone").value = u.sdt_nhan_vien || ""; $("uHrm").value = u.ma_hrm || "";
   $("uLat").value = u.lat == null ? "" : u.lat; $("uLng").value = u.lng == null ? "" : u.lng;
   $("uRole").value = u.role; $("uCanImport").checked = !!u.can_import;
   // Quyen module: da thiet lap rieng thi hien dung danh sach do; chua thiet lap (null) thi hien du (theo vai tro)
@@ -3361,7 +3388,7 @@ $("userForm").addEventListener("submit", async (e) => {
     ma_kenh: $("uChannel").value.trim(), ho_ten: $("uName").value.trim(), username: $("uUsername").value.trim(),
     password: $("uPassword").value, so_eload: $("uEload").value.trim(), so_vi: $("uWallet").value.trim(),
     don_vi_id: $("uUnit").value ? Number($("uUnit").value) : null,
-    ten_nhan_vien: $("uManager").value.trim(), sdt_nhan_vien: $("uManagerPhone").value.trim(),
+    ten_nhan_vien: $("uManager").value.trim(), sdt_nhan_vien: $("uManagerPhone").value.trim(), ma_hrm: $("uHrm").value.trim(),
     lat: latNum, lng: lngNum,
     role: $("uRole").value, can_import: $("uCanImport").checked, active: true,
     ...(me && me.role === "admin" ? { modules: getModulesFromForm() } : {}),
@@ -3391,6 +3418,7 @@ const USER_HEADER_MAP = {
   "đơn vị": "don_vi", "mã đơn vị": "don_vi", "tên đơn vị": "don_vi", "đơn vị trực thuộc": "don_vi",
   "tên nhân viên quản lý": "ten_nhan_vien", "nhân viên quản lý": "ten_nhan_vien",
   "số điện thoại nhân viên quản lý": "sdt_nhan_vien", "sđt nhân viên quản lý": "sdt_nhan_vien", "số điện thoại": "sdt_nhan_vien",
+  "mã hrm nhân viên quản lý": "ma_hrm", "mã hrm": "ma_hrm", "hrm": "ma_hrm",
   "quyền import dữ liệu": "can_import", "được quyền import dữ liệu": "can_import", "quyền import": "can_import",
   "loại tài khoản": "role", "vai trò": "role",
   "vĩ độ (lat)": "lat", "vĩ độ": "lat", "lat": "lat",
@@ -3401,8 +3429,8 @@ function parseYesNo(v) {
 }
 $("uTemplateBtn").addEventListener("click", () => {
   try {
-    const headers = ["Mã kênh bán hàng", "Họ và tên người dùng/điểm bán", "User đăng nhập", "Mật khẩu", "Số tài khoản Eload", "Số Ví VNPT Money", "Đơn vị", "Tên nhân viên quản lý", "Số điện thoại nhân viên quản lý", "Quyền import dữ liệu", "Loại tài khoản", "Vĩ độ (Lat)", "Kinh độ (Lng)"];
-    const sample = ["KBH-VDCT-001", "Điểm bán Minh Anh (ví dụ)", "minhanh.db", "", "0901234567", "0901234567", "VDCT", "Nguyễn Văn A", "0912345678", 0, "user", 21.0278, 107.2921];
+    const headers = ["Mã kênh bán hàng", "Họ và tên người dùng/điểm bán", "User đăng nhập", "Mật khẩu", "Số tài khoản Eload", "Số Ví VNPT Money", "Đơn vị", "Tên nhân viên quản lý", "Số điện thoại nhân viên quản lý", "Mã HRM nhân viên quản lý", "Quyền import dữ liệu", "Loại tài khoản", "Vĩ độ (Lat)", "Kinh độ (Lng)"];
+    const sample = ["KBH-VDCT-001", "Điểm bán Minh Anh (ví dụ)", "minhanh.db", "", "0901234567", "0901234567", "VDCT", "Nguyễn Văn A", "0912345678", "", 0, "user", 21.0278, 107.2921];
     const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
     ws["!cols"] = headers.map(() => ({ wch: 26 }));
     const wb = XLSX.utils.book_new();
@@ -3419,6 +3447,7 @@ $("uTemplateBtn").addEventListener("click", () => {
       ["8. Tên nhân viên quản lý và Số điện thoại nhân viên quản lý: có thể để trống."],
       ["9. Đơn vị: nhập Mã đơn vị (hoặc đúng Tên đơn vị) đã tạo trong module Quản lý đơn vị, ví dụ VDCT. Để trống nếu chưa thuộc đơn vị nào; nếu mã/tên không tồn tại, hệ thống sẽ để trống và báo lại."],
       ["10. Vĩ độ (Lat) và Kinh độ (Lng): tọa độ điểm bán (hệ WGS84, số thập phân). Để trống nếu chưa khai báo; nhập sai khoảng (Lat -90..90, Lng -180..180) thì hệ thống để trống và báo lại. Tọa độ dùng cho module Chăm sóc điểm bán."],
+      ["11. Mã HRM nhân viên quản lý: mã HRM của nhân viên VNPT đang quản lý điểm bán, có thể để trống."],
     ];
     const ws2 = XLSX.utils.aoa_to_sheet(guide);
     ws2["!cols"] = [{ wch: 120 }];
@@ -3779,9 +3808,20 @@ async function loadCareBatches() {
       "<tr><td><b>" + esc(b.ten_dot) + "</b>" + (b.ghi_chu ? "<br /><span class='desc'>" + esc(b.ghi_chu) + "</span>" : "") + "</td>" +
       "<td>" + esc(b.nguoi_tao_ten) + "</td><td>" + esc(b.created_at) + "</td>" +
       "<td>" + (b.so_luot || 0) + "</td><td>" + (b.so_diem || 0) + "</td>" +
-      "<td style='white-space:nowrap'><button class='btn sm blue' data-care-open='" + b.id + "' data-care-name=\"" + esc(b.ten_dot) + "\">Mở đợt</button></td></tr>").join("") ||
+      "<td style='white-space:nowrap'><button class='btn sm blue' data-care-open='" + b.id + "' data-care-name=\"" + esc(b.ten_dot) + "\">Mở đợt</button>" +
+      ((me && (me.role === "admin" || b.nguoi_tao_id === me.id)) ? " <button class='btn sm danger' data-care-del='" + b.id + "' data-care-del-name=\"" + esc(b.ten_dot) + "\">Xóa</button>" : "") + "</td></tr>").join("") ||
       "<tr><td colspan='6'>Chưa có đợt chăm sóc nào.</td></tr>";
     $("careBatchBody").querySelectorAll("[data-care-open]").forEach((btn) => btn.addEventListener("click", () => openCareBatch(Number(btn.dataset.careOpen), btn.dataset.careName)));
+    $("careBatchBody").querySelectorAll("[data-care-del]").forEach((btn) => btn.addEventListener("click", () => delCareBatch(Number(btn.dataset.careDel), btn.dataset.careDelName)));
+  } catch (e) { setMsg($("careBatchMsg"), e.message, false); }
+}
+async function delCareBatch(id, name) {
+  if (!confirm("Xóa đợt chăm sóc \"" + name + "\"? Toàn bộ lượt chăm sóc và ảnh trong đợt này cũng sẽ bị xóa và không khôi phục được.")) return;
+  try {
+    await api("/api/care/batches/" + id, { method: "DELETE" });
+    if (careBatchId === id) { careBatchId = null; $("careBatchDetail").classList.add("hidden"); }
+    setMsg($("careBatchMsg"), "Đã xóa đợt chăm sóc \"" + name + "\".");
+    loadCareBatches();
   } catch (e) { setMsg($("careBatchMsg"), e.message, false); }
 }
 $("careBatchForm").addEventListener("submit", async (e) => {
@@ -3865,26 +3905,45 @@ $("carePhotoInput").addEventListener("change", async () => {
       im.onerror = () => reject(new Error("Không đọc được file ảnh"));
       im.src = URL.createObjectURL(file);
     });
+    // Ve anh + dong dau (toa do, thoi gian chup) len canvas theo he so scaleMul.
     const MAX = 1600;
-    const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-    const cv = document.createElement("canvas");
-    cv.width = Math.round(img.width * scale);
-    cv.height = Math.round(img.height * scale);
-    const ctx = cv.getContext("2d");
-    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    const baseScale = Math.min(1, MAX / Math.max(img.width, img.height));
+    function makeStampedCanvas(scaleMul) {
+      const cv = document.createElement("canvas");
+      cv.width = Math.max(1, Math.round(img.width * baseScale * scaleMul));
+      cv.height = Math.max(1, Math.round(img.height * baseScale * scaleMul));
+      const ctx = cv.getContext("2d");
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
+      const barH = Math.max(46, Math.round(cv.height * 0.1));
+      ctx.fillStyle = "rgba(0,0,0,0.62)";
+      ctx.fillRect(0, cv.height - barH, cv.width, barH);
+      ctx.fillStyle = "#fff";
+      ctx.font = Math.max(15, Math.round(barH * 0.3)) + "px sans-serif";
+      ctx.fillText("Lat: " + loc.lat.toFixed(6) + "   Lng: " + loc.lng.toFixed(6), 12, cv.height - barH + Math.round(barH * 0.42));
+      ctx.fillText("Thời gian chụp: " + fmtDT(photoTime), 12, cv.height - Math.round(barH * 0.16));
+      return cv;
+    }
+    // Nen anh xuong duoi 1MB: giam dan chat luong JPEG roi thu nho kich thuoc,
+    // giu ban dau tien dat < 1MB; neu khong ban nao dat thi lay ban nho nhat
+    // (van duoi gioi han 5MB cua may chu).
+    const MAX_BYTES = 1000 * 1000;
+    const attempts = [
+      { s: 1, q: 0.85 }, { s: 1, q: 0.7 }, { s: 1, q: 0.55 },
+      { s: 0.75, q: 0.7 }, { s: 0.75, q: 0.55 },
+      { s: 0.5, q: 0.6 }, { s: 0.5, q: 0.45 }, { s: 0.35, q: 0.5 },
+    ];
+    let blob = null;
+    for (const a of attempts) {
+      const b = await new Promise((resolve) => makeStampedCanvas(a.s).toBlob(resolve, "image/jpeg", a.q));
+      if (!b) continue;
+      blob = b;
+      if (b.size < MAX_BYTES) break;
+    }
     URL.revokeObjectURL(img.src);
-    const barH = Math.max(46, Math.round(cv.height * 0.1));
-    ctx.fillStyle = "rgba(0,0,0,0.62)";
-    ctx.fillRect(0, cv.height - barH, cv.width, barH);
-    ctx.fillStyle = "#fff";
-    ctx.font = Math.max(15, Math.round(barH * 0.3)) + "px sans-serif";
-    ctx.fillText("Lat: " + loc.lat.toFixed(6) + "   Lng: " + loc.lng.toFixed(6), 12, cv.height - barH + Math.round(barH * 0.42));
-    ctx.fillText("Thời gian chụp: " + fmtDT(photoTime), 12, cv.height - Math.round(barH * 0.16));
-    const blob = await new Promise((resolve) => cv.toBlob(resolve, "image/jpeg", 0.85));
     if (!blob) throw new Error("Không xử lý được ảnh");
     careStamped = { blob, lat: loc.lat, lng: loc.lng, photoTime: photoTime.toISOString() };
     $("carePhotoPreview").innerHTML = "<img src='" + URL.createObjectURL(blob) + "' style='max-width:100%;border-radius:12px' alt='Ảnh điểm bán đã đóng dấu' />";
-    $("carePhotoInfo").textContent = "Đã đóng dấu: Lat " + loc.lat.toFixed(6) + ", Lng " + loc.lng.toFixed(6) + " — Thời gian chụp " + fmtDT(photoTime) + ".";
+    $("carePhotoInfo").textContent = "Đã đóng dấu: Lat " + loc.lat.toFixed(6) + ", Lng " + loc.lng.toFixed(6) + " — Thời gian chụp " + fmtDT(photoTime) + ". Dung lượng sau nén: " + (blob.size / 1024).toFixed(0) + " KB.";
     $("careSaveBtn").disabled = false;
   } catch (e) {
     careStamped = null;
@@ -3983,8 +4042,12 @@ $("careRepSummaryBtn").addEventListener("click", async () => {
     $("careRepPos").textContent = (d.tong_diem || 0).toLocaleString("vi-VN");
     $("careRepHead").innerHTML = "<tr><th>Đợt chăm sóc</th><th>Số lượt</th><th>Số điểm</th></tr>";
     let rows = (d.theo_dot || []).map((r) => "<tr><td><b>" + esc(r.ten) + "</b></td><td>" + r.luot + "</td><td>" + r.diem + "</td></tr>").join("");
+    if ((d.theo_don_vi || []).length) {
+      rows += "<tr><td colspan='3' style='background:var(--blue-light)'><b>Tổng hợp theo đơn vị</b></td></tr>";
+      rows += (d.theo_don_vi || []).map((r) => "<tr><td>" + esc(r.ten) + "</td><td>" + r.luot + "</td><td>" + r.diem + "</td></tr>").join("");
+    }
     if ((d.theo_nguoi || []).length) {
-      rows += "<tr><td colspan='3' style='background:var(--blue-light)'><b>Theo người chăm sóc</b></td></tr>";
+      rows += "<tr><td colspan='3' style='background:var(--blue-light)'><b>Tổng hợp theo Lãnh đạo đơn vị</b></td></tr>";
       rows += (d.theo_nguoi || []).map((r) => "<tr><td>" + esc(r.ten) + "</td><td>" + r.luot + "</td><td>" + r.diem + "</td></tr>").join("");
     }
     $("careRepBody").innerHTML = rows || "<tr><td colspan='3'>Không có dữ liệu trong khoảng đã chọn.</td></tr>";
@@ -4219,7 +4282,8 @@ $("cfgForm").addEventListener("submit", (e) => {
 });
 document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
   const t = $(b.dataset.copy).textContent;
-  try { await navigator.clipboard.writeText(t); b.textContent = "Đã sao chép ✔"; setTimeout(() => (b.textContent = "Sao chép"), 1600); }
+  const orig = b.textContent;
+  try { await navigator.clipboard.writeText(t); b.textContent = "Đã sao chép ✔"; setTimeout(() => (b.textContent = orig), 1600); }
   catch (e) { alert("Không sao chép tự động được, hãy bôi đen và sao chép thủ công."); }
 }));
 
