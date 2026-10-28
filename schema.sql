@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS nguoi_dung (
   don_vi_id INTEGER,                        -- Don vi truc thuoc (lien ket bang don_vi, co the de trong)
   can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
   modules TEXT,                             -- JSON cac module duoc dung (NULL = chua thiet lap rieng, giu quyen theo vai tro)
+  lat REAL,                                 -- Vi do diem ban (WGS84, khai bao o module Quan ly nguoi dung)
+  lng REAL,                                 -- Kinh do diem ban (WGS84)
   active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -115,3 +117,29 @@ VALUES
 --   imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP
 -- );
 -- ============================================================================
+
+===========================================================================
+-- 5) Cham soc diem ban (Worker tu tao neu chua co; ghi o day de khoi tao tay)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS dot_cham_soc (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ten_dot TEXT NOT NULL,
+  ghi_chu TEXT,
+  nguoi_tao_id INTEGER,
+  nguoi_tao_ten TEXT,
+  created_at TEXT
+);
+CREATE TABLE IF NOT EXISTS cham_soc (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  dot_id INTEGER NOT NULL,
+  pos_user_id INTEGER NOT NULL,             -- diem ban duoc cham soc (nguoi_dung role='user')
+  caregiver_id INTEGER,                     -- nguoi thuc hien cham soc (lanh dao don vi)
+  caregiver_ten TEXT,
+  thoi_gian TEXT,                           -- log ngay gio cham soc (gio VN, lay tu may chu)
+  lat REAL,                                 -- vi tri thiet bi luc chup anh
+  lng REAL,
+  khoang_cach_m REAL,                       -- khoang cach luc ghi nhan toi diem ban (<= 5m)
+  anh_key TEXT,                             -- anh da dong dau toa do + thoi gian chup, luu tren R2
+  anh_thoi_gian TEXT,                       -- thoi gian chup anh (gio thiet bi)
+  ghi_chu TEXT                              -- ghi chu ket qua cham soc
+);

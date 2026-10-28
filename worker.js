@@ -106,7 +106,7 @@ async function requireAuth(request, env) {
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
   const user = await env.DB.prepare(
-    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, active FROM nguoi_dung WHERE id = ?"
+    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?"
   )
     .bind(payload.sub)
     .first();
@@ -128,6 +128,8 @@ function publicUser(u) {
     don_vi_ten: u.don_vi_ten || "",
     can_import: !!u.can_import,
     modules: parseModules(u.modules),
+    lat: u.lat ?? null,
+    lng: u.lng ?? null,
   };
 }
 // Tu dong bo sung 2 cot nhan vien quan ly neu CSDL cu chua co (nang cap tai cho).
@@ -139,6 +141,8 @@ async function ensureUserColumns(env) {
     if (!cols.has("sdt_nhan_vien")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN sdt_nhan_vien TEXT").run();
     if (!cols.has("don_vi_id")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN don_vi_id INTEGER").run();
     if (!cols.has("modules")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN modules TEXT").run();
+    if (!cols.has("lat")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN lat REAL").run();
+    if (!cols.has("lng")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN lng REAL").run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -165,8 +169,10 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -> giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = ["dashboard", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings"];
+const MODULE_KEYS = ["dashboard", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care"];
 const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
+// Lanh dao don vi mac dinh them module Cham soc diem ban
+const LEADER_MODULES = [...DEFAULT_MODULES, "care"];
 function parseModules(v) {
   if (!v) return null;
   try {
@@ -180,6 +186,33 @@ function hasModule(meUser, key) {
   const mods = parseModules(meUser.modules);
   if (!mods) return true;
   return mods.includes(key);
+}
+// Quyen dung module Cham soc diem ban: chi admin hoac Lanh dao don vi
+// (kem quyen module "care"; lanh dao chua thiet lap rieng thi duoc dung).
+function canUseCare(meUser) {
+  if (!meUser) return false;
+  if (meUser.role !== "admin" && meUser.role !== "leader") return false;
+  return hasModule(meUser, "care");
+}
+// Khoang cach (met) giua 2 toa do WGS84 theo cong thuc haversine
+function haversineM(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const p1 = lat1 * Math.PI / 180, p2 = lat2 * Math.PI / 180;
+  const dPhi = (lat2 - lat1) * Math.PI / 180;
+  const dLam = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dPhi / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dLam / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+// Parse 1 toa do: tra {val, error}; rong -> null (khong khai bao)
+function parseCoordField(v, min, max) {
+  if (v === null || v === undefined || v === "") return { val: null, error: null };
+  const n = Number(v);
+  if (!isFinite(n) || n < min || n > max) return { val: null, error: "toa do khong hop le" };
+  return { val: n, error: null };
+}
+// Cau lenh CTE lay cay don vi (don vi goc + moi don vi truc thuoc qua parent_id)
+function unitSubtreeCTE() {
+  return "WITH RECURSIVE subtree(id) AS (SELECT ? UNION ALL SELECT d.id FROM don_vi d JOIN subtree s ON d.parent_id = s.id)";
 }
 
 // ---------------------------------------------------------------------------
@@ -365,6 +398,15 @@ async function ensurePackages(env) {
   if (!names.has("noi_bat")) await env.DB.prepare("ALTER TABLE goi_cuoc ADD COLUMN noi_bat INTEGER NOT NULL DEFAULT 0").run();
   if (!names.has("noi_bat_at")) await env.DB.prepare("ALTER TABLE goi_cuoc ADD COLUMN noi_bat_at TEXT").run();
 }
+// ---- Cham soc diem ban: dot cham soc + log cham soc (kem anh dong dau) ----
+async function ensureCareTables(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS dot_cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_dot TEXT NOT NULL, ghi_chu TEXT, nguoi_tao_id INTEGER, nguoi_tao_ten TEXT, created_at TEXT)"
+  ).run();
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT)"
+  ).run();
+}
 async function uploadPackageImage(env, pkgId, file) {
   if (!env.ANH) throw new Error("Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker). Xem huong dan cau hinh R2 trong module Danh muc goi cuoc.");
   const mime = file.type || "";
@@ -530,7 +572,7 @@ export default {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen xem danh sach nguoi dung", 403);
         if (!hasModule(me, "users")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
         const res = await env.DB.prepare(
-          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.modules, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten"
+          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten"
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -547,18 +589,23 @@ export default {
         const newRole = isAdmin ? (b.role === "admin" ? "admin" : b.role === "subadmin" ? "subadmin" : b.role === "leader" ? "leader" : "user") : "user";
         const newCanImport = isAdmin && b.can_import ? 1 : 0;
         // Quyen module: chi admin moi duoc thiet lap; khong gui -> mac dinh
-        // 4 module (Dashboard, Bao cao, Goi cuoc, Cai dat); tai khoan admin -> NULL (khong gioi han).
+        // 4 module (Dashboard, Bao cao, Goi cuoc, Cai dat); lanh dao don vi
+        // mac dinh them module Cham soc diem ban; tai khoan admin -> NULL (khong gioi han).
         let newModules = null;
         if (isAdmin && Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) => MODULE_KEYS.includes(k)));
-        else if (newRole !== "admin") newModules = JSON.stringify(DEFAULT_MODULES);
+        else if (newRole !== "admin") newModules = JSON.stringify(newRole === "leader" ? LEADER_MODULES : DEFAULT_MODULES);
+        const latP = parseCoordField(b.lat, -90, 90);
+        if (latP.error) return err("Vi do diem ban khong hop le (tu -90 den 90)", 422);
+        const lngP = parseCoordField(b.lng, -180, 180);
+        if (lngP.error) return err("Kinh do diem ban khong hop le (tu -180 den 180)", 422);
         const r = await env.DB.prepare(
-          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien),
-            b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport, newModules
+            b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport, newModules, latP.val, lngP.val
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -601,14 +648,23 @@ export default {
           const salt = randomSalt();
           const hash = await hashPassword(String(r.password || "Vnpt@2026"), salt);
           const impRole = isAdmin ? (r.role === "admin" ? "admin" : r.role === "subadmin" ? "subadmin" : r.role === "leader" ? "leader" : "user") : "user";
+          // Toa do: khong hop le thi de trong + bao lai (khong bo dong)
+          let impLat = null, impLng = null;
+          const impLatP = parseCoordField(r.lat, -90, 90);
+          const impLngP = parseCoordField(r.lng, -180, 180);
+          if (impLatP.error) warnings.push({ row: i + 2, reason: "Vi do khong hop le — da de trong" });
+          else impLat = impLatP.val;
+          if (impLngP.error) warnings.push({ row: i + 2, reason: "Kinh do khong hop le — da de trong" });
+          else impLng = impLngP.val;
           await env.DB.prepare(
-            "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
               impRole,
               toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, isAdmin && r.can_import ? 1 : 0,
-              impRole === "admin" ? null : JSON.stringify(DEFAULT_MODULES)
+              impRole === "admin" ? null : JSON.stringify(impRole === "leader" ? LEADER_MODULES : DEFAULT_MODULES),
+              impLat, impLng
             )
             .run();
           created++;
@@ -635,13 +691,17 @@ export default {
           const cur = await env.DB.prepare("SELECT modules FROM nguoi_dung WHERE id = ?").bind(Number(userMatch[1])).first();
           newModules = cur ? cur.modules : null;
         }
+        const latP = parseCoordField(b.lat, -90, 90);
+        if (latP.error) return err("Vi do diem ban khong hop le (tu -90 den 90)", 422);
+        const lngP = parseCoordField(b.lng, -180, 180);
+        if (lngP.error) return err("Kinh do diem ban khong hop le (tu -180 den 180)", 422);
         await env.DB.prepare(
-          "UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, modules = ?, active = ? WHERE id = ?"
+          "UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, modules = ?, lat = ?, lng = ?, active = ? WHERE id = ?"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
             toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), b.don_vi_id ? Number(b.don_vi_id) : null,
-            newCanImport, newRole, newModules,
+            newCanImport, newRole, newModules, latP.val, lngP.val,
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
           .run();
@@ -1056,6 +1116,174 @@ export default {
           created++;
         }
         return json({ ok: true, created, skipped, errors: errors.slice(0, 50) });
+      }
+
+      // ---- Cham soc diem ban (admin & Lanh dao don vi) ----
+      if (path === "/api/care/batches" && method === "GET") {
+        if (!canUseCare(me)) return err("Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban", 403);
+        await ensureCareTables(env);
+        const res = await env.DB.prepare(
+          "SELECT d.*, (SELECT COUNT(*) FROM cham_soc c WHERE c.dot_id = d.id) AS so_luot, (SELECT COUNT(DISTINCT c.pos_user_id) FROM cham_soc c WHERE c.dot_id = d.id) AS so_diem FROM dot_cham_soc d ORDER BY d.id DESC"
+        ).all();
+        return json({ ok: true, batches: res.results || [] });
+      }
+      if (path === "/api/care/batches" && method === "POST") {
+        if (!canUseCare(me)) return err("Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban", 403);
+        await ensureCareTables(env);
+        const b = await readBody(request);
+        if (!toText(b.ten_dot)) return err("Thieu ten dot cham soc", 422);
+        const r = await env.DB.prepare(
+          "INSERT INTO dot_cham_soc (ten_dot, ghi_chu, nguoi_tao_id, nguoi_tao_ten, created_at) VALUES (?, ?, ?, ?, ?)"
+        ).bind(toText(b.ten_dot), toText(b.ghi_chu), me.id, me.ho_ten, saigonNow()).run();
+        return json({ ok: true, id: r.meta.last_row_id });
+      }
+      // Diem ban trong ban kinh 5m quanh vi tri thiet bi (khong co vi tri -> khong tra diem nao)
+      if (path === "/api/care/nearby" && method === "GET") {
+        if (!canUseCare(me)) return err("Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban", 403);
+        await ensureCareTables(env);
+        const lat = Number(url.searchParams.get("lat"));
+        const lng = Number(url.searchParams.get("lng"));
+        if (!isFinite(lat) || !isFinite(lng)) return json({ ok: true, pos: [], reason: "no_location" });
+        if (isLeader && !me.don_vi_id) return json({ ok: true, pos: [], reason: "no_unit" });
+        const base = "SELECT u.id, u.ho_ten, u.ma_kenh, u.lat, u.lng, u.don_vi_id, d.ten_don_vi AS don_vi_ten FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = 'user' AND u.active = 1 AND u.lat IS NOT NULL AND u.lng IS NOT NULL";
+        let rows;
+        if (isAdmin) {
+          rows = (await env.DB.prepare(base).all()).results || [];
+        } else {
+          rows = (await env.DB.prepare(unitSubtreeCTE() + " " + base + " AND u.don_vi_id IN (SELECT id FROM subtree)").bind(me.don_vi_id).all()).results || [];
+        }
+        const pos = rows
+          .map((u) => ({ id: u.id, ho_ten: u.ho_ten, ma_kenh: u.ma_kenh, lat: u.lat, lng: u.lng, don_vi_ten: u.don_vi_ten, khoang_cach_m: Math.round(haversineM(lat, lng, u.lat, u.lng) * 10) / 10 }))
+          .filter((u) => u.khoang_cach_m <= 5)
+          .sort((a, b) => a.khoang_cach_m - b.khoang_cach_m)
+          .slice(0, 100);
+        return json({ ok: true, pos });
+      }
+      // Ghi nhan cham soc: bat buoc co anh (anh da dong dau toa do + thoi gian chup o client)
+      if (path === "/api/care/records" && method === "POST") {
+        if (!canUseCare(me)) return err("Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban", 403);
+        await ensureCareTables(env);
+        const ct = request.headers.get("content-type") || "";
+        if (!ct.includes("multipart/form-data")) return err("Du lieu gui len phai la multipart", 422);
+        const fd = await request.formData();
+        const dotId = Number(fd.get("dot_id"));
+        const posId = Number(fd.get("pos_user_id"));
+        const lat = Number(fd.get("lat"));
+        const lng = Number(fd.get("lng"));
+        const photoTime = toText(fd.get("photo_time"));
+        const ghiChu = toText(fd.get("ghi_chu"));
+        const file = fd.get("anh");
+        if (!dotId || !posId) return err("Thieu dot cham soc hoac diem ban", 422);
+        if (!isFinite(lat) || !isFinite(lng)) return err("Thieu vi tri chup anh", 422);
+        if (!file || !file.size) return err("Chua co anh diem ban", 422);
+        const dot = await env.DB.prepare("SELECT id FROM dot_cham_soc WHERE id = ?").bind(dotId).first();
+        if (!dot) return err("Khong tim thay dot cham soc", 404);
+        const pos = await env.DB.prepare("SELECT id, ho_ten, don_vi_id, lat, lng FROM nguoi_dung WHERE id = ? AND role = 'user'").bind(posId).first();
+        if (!pos || pos.lat === null || pos.lng === null) return err("Diem ban khong co toa do khai bao", 422);
+        if (isLeader) {
+          const inScope = await env.DB.prepare(unitSubtreeCTE() + " SELECT 1 FROM nguoi_dung WHERE id = ? AND don_vi_id IN (SELECT id FROM subtree)").bind(me.don_vi_id, posId).first();
+          if (!inScope) return err("Diem ban khong thuoc pham vi don vi cua ban", 403);
+        }
+        const dist = haversineM(lat, lng, pos.lat, pos.lng);
+        if (dist > 5) return err("Vi tri chup anh cach diem ban " + (Math.round(dist * 10) / 10) + "m, vuot qua ban kinh 5m cho phep", 403);
+        if (!env.ANH) return err("Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker)", 501);
+        const mime = file.type || "";
+        if (!mime.startsWith("image/")) return err("File anh phai la dinh dang anh", 422);
+        if (file.size > 5 * 1024 * 1024) return err("Anh vuot qua 5MB", 422);
+        const ext = mime === "image/jpeg" ? "jpg" : mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : mime === "image/gif" ? "gif" : "";
+        if (!ext) return err("Dinh dang anh khong duoc ho tro (chi nhan jpg, png, webp, gif)", 422);
+        const key = "cham-soc/" + posId + "-" + Date.now() + "." + ext;
+        await env.ANH.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: mime } });
+        const r = await env.DB.prepare(
+          "INSERT INTO cham_soc (dot_id, pos_user_id, caregiver_id, caregiver_ten, thoi_gian, lat, lng, khoang_cach_m, anh_key, anh_thoi_gian, ghi_chu) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ).bind(dotId, posId, me.id, me.ho_ten, saigonNow(), lat, lng, Math.round(dist * 10) / 10, key, photoTime || null, ghiChu).run();
+        return json({ ok: true, id: r.meta.last_row_id, khoang_cach_m: Math.round(dist * 10) / 10 });
+      }
+      if (path === "/api/care/records" && method === "GET") {
+        if (!canUseCare(me)) return err("Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban", 403);
+        await ensureCareTables(env);
+        const dotId = url.searchParams.get("dot_id");
+        const from = url.searchParams.get("from") || "0000-01-01";
+        const to = url.searchParams.get("to") || "9999-12-31";
+        const limit = Math.min(1000, Number(url.searchParams.get("limit")) || 200);
+        const base = "SELECT c.*, p.ho_ten AS pos_ten, p.ma_kenh AS pos_ma, d.ten_don_vi AS don_vi_ten, dt.ten_dot FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN don_vi d ON d.id = p.don_vi_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?";
+        let sql = base;
+        let binds = [from, to];
+        if (dotId) { sql += " AND c.dot_id = ?"; binds.push(Number(dotId)); }
+        if (isLeader) {
+          sql = unitSubtreeCTE() + " " + sql + " AND p.don_vi_id IN (SELECT id FROM subtree)";
+          binds = [me.don_vi_id, ...binds];
+        }
+        sql += " ORDER BY c.thoi_gian DESC LIMIT ?";
+        binds.push(limit);
+        const res = await env.DB.prepare(sql).bind(...binds).all();
+        return json({ ok: true, records: res.results || [] });
+      }
+      // Xem anh cham soc (xac thuc + dung pham vi; anh khong phuc vu cong khai nhu anh goi cuoc)
+      const careImgMatch = path.match(/^\/api\/care\/records\/(\d+)\/image$/);
+      if (careImgMatch && method === "GET") {
+        if (!hasModule(me, "care") && !hasModule(me, "reports")) return err("Tai khoan khong co quyen xem anh cham soc", 403);
+        await ensureCareTables(env);
+        const rec = await env.DB.prepare("SELECT c.*, p.don_vi_id AS pos_don_vi FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id WHERE c.id = ?").bind(Number(careImgMatch[1])).first();
+        if (!rec || !rec.anh_key) return err("Khong tim thay anh", 404);
+        if (!isPrivileged) {
+          let allowed = rec.caregiver_id === me.id;
+          if (!allowed && isLeader && me.don_vi_id) {
+            const ok = await env.DB.prepare(unitSubtreeCTE() + " SELECT 1 FROM nguoi_dung WHERE id = ? AND don_vi_id IN (SELECT id FROM subtree)").bind(me.don_vi_id, rec.pos_user_id).first();
+            allowed = !!ok;
+          }
+          if (!allowed) return err("Anh khong thuoc pham vi cua ban", 403);
+        }
+        if (!env.ANH) return err("Chua cau hinh R2 Object Storage", 501);
+        const obj = await env.ANH.get(rec.anh_key);
+        if (!obj) return err("Khong tim thay anh", 404);
+        const headers = new Headers();
+        obj.writeHttpMetadata(headers);
+        headers.set("Cache-Control", "private, max-age=3600");
+        return new Response(obj.body, { headers });
+      }
+      // ---- Bao cao cham soc diem ban (trong muc Bao cao thong ke) ----
+      // Chi admin/subadmin/lanh dao don vi duoc xem (diem ban thuong khong duoc,
+      // ke ca khi modules NULL) — pham vi: lanh dao chi thay cay don vi cua minh.
+      if (path === "/api/care/reports/summary" && method === "GET") {
+        if (!isPrivileged && !isLeader) return err("Chi admin/subadmin va Lanh dao don vi moi xem duoc bao cao cham soc", 403);
+        if (!hasModule(me, "reports")) return err("Tai khoan khong co quyen xem bao cao", 403);
+        await ensureCareTables(env);
+        const from = url.searchParams.get("from") || "0000-01-01";
+        const to = url.searchParams.get("to") || "9999-12-31";
+        if (isLeader && !me.don_vi_id) return json({ ok: true, tong_luot: 0, tong_diem: 0, theo_dot: [], theo_nguoi: [], theo_diem: [] });
+        const prefix = isLeader ? unitSubtreeCTE() + " " : "";
+        const scopeSql = isLeader ? " AND p.don_vi_id IN (SELECT id FROM subtree)" : "";
+        const runQ = async (sql, extraBinds) => {
+          const binds = isLeader ? [me.don_vi_id, ...extraBinds] : extraBinds;
+          return (await env.DB.prepare(prefix + sql).bind(...binds).all()).results || [];
+        };
+        const base = "FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?" + scopeSql;
+        const tot = await runQ("SELECT COUNT(*) AS luot, COUNT(DISTINCT c.pos_user_id) AS diem " + base, [from, to]);
+        const theoDot = await runQ("SELECT dt.ten_dot AS ten, COUNT(*) AS luot, COUNT(DISTINCT c.pos_user_id) AS diem " + base + " GROUP BY c.dot_id ORDER BY luot DESC", [from, to]);
+        const theoNguoi = await runQ("SELECT c.caregiver_ten AS ten, COUNT(*) AS luot, COUNT(DISTINCT c.pos_user_id) AS diem " + base + " GROUP BY c.caregiver_id ORDER BY luot DESC", [from, to]);
+        const theoDiem = await runQ("SELECT p.ho_ten AS ten, COUNT(*) AS luot, MAX(c.thoi_gian) AS lan_cuoi " + base + " GROUP BY c.pos_user_id ORDER BY luot DESC LIMIT 200", [from, to]);
+        return json({ ok: true, tong_luot: tot[0] ? tot[0].luot : 0, tong_diem: tot[0] ? tot[0].diem : 0, theo_dot: theoDot, theo_nguoi: theoNguoi, theo_diem: theoDiem });
+      }
+      if (path === "/api/care/reports/detail" && method === "GET") {
+        if (!isPrivileged && !isLeader) return err("Chi admin/subadmin va Lanh dao don vi moi xem duoc bao cao cham soc", 403);
+        if (!hasModule(me, "reports")) return err("Tai khoan khong co quyen xem bao cao", 403);
+        await ensureCareTables(env);
+        const from = url.searchParams.get("from") || "0000-01-01";
+        const to = url.searchParams.get("to") || "9999-12-31";
+        const limit = Math.min(1000, Number(url.searchParams.get("limit")) || 1000);
+        if (isLeader && !me.don_vi_id) return json({ ok: true, records: [] });
+        const base = "SELECT c.id, c.thoi_gian, dt.ten_dot, p.ho_ten AS pos_ten, d.ten_don_vi AS don_vi_ten, c.caregiver_ten, c.khoang_cach_m, c.ghi_chu FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN don_vi d ON d.id = p.don_vi_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?";
+        let sql = base;
+        let binds = [from, to];
+        if (isLeader) {
+          sql = unitSubtreeCTE() + " " + base + " AND p.don_vi_id IN (SELECT id FROM subtree)";
+          binds = [me.don_vi_id, from, to];
+        }
+        sql += " ORDER BY c.thoi_gian DESC LIMIT ?";
+        binds.push(limit);
+        const res = await env.DB.prepare(sql).bind(...binds).all();
+        return json({ ok: true, records: res.results || [] });
       }
 
       // ---- Cai dat tai khoan ----

@@ -886,6 +886,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <button class="nav-btn" data-panel="panel-config">🗄️ Cấu hình kết nối D1</button>
         <button class="nav-btn" data-panel="panel-reports">📊 Báo cáo thống kê</button>
         <button class="nav-btn" data-panel="panel-packages">📦 Danh mục gói cước</button>
+        <button class="nav-btn" data-panel="panel-care">🧭 Chăm sóc điểm bán</button>
         <button class="nav-btn" data-panel="panel-loginstats">🔑 Thống kê đăng nhập</button>
         <button class="nav-btn" data-panel="panel-settings">⚙️ Cài đặt</button>
       </aside>
@@ -930,7 +931,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <!-- QUAN LY NGUOI DUNG -->
         <section class="panel hidden" id="panel-users">
           <h2>Quản lý người dùng</h2>
-          <p class="desc">Tạo tài khoản cho các điểm bán. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Tích chọn "Được quyền import dữ liệu" để tài khoản được dùng module Quản lý dữ liệu đầu vào. Admin thiết lập quyền sử dụng từng module cho mỗi tài khoản ở mục bên dưới (mặc định khi tạo mới: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt).</p>
+          <p class="desc">Tạo tài khoản cho các điểm bán. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Tích chọn "Được quyền import dữ liệu" để tài khoản được dùng module Quản lý dữ liệu đầu vào. Admin thiết lập quyền sử dụng từng module cho mỗi tài khoản ở mục bên dưới (mặc định khi tạo mới: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt; Lãnh đạo đơn vị mặc định thêm Chăm sóc điểm bán). Khai báo tọa độ điểm bán để dùng cho module Chăm sóc điểm bán (nhận diện điểm trong bán kính 5m).</p>
           <form id="userForm" class="form-grid">
             <input type="hidden" id="userId" />
             <div><label>Mã kênh bán hàng</label><input id="uChannel" placeholder="VD: KBH-VDCT-001" /></div>
@@ -943,6 +944,15 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div></div>
             <div><label>Tên nhân viên quản lý (có thể để trống)</label><input id="uManager" /></div>
             <div><label>Số điện thoại nhân viên quản lý (có thể để trống)</label><input id="uManagerPhone" /></div>
+            <div class="full" style="border:1px solid var(--line);border-radius:12px;padding:12px">
+              <label>Vị trí điểm bán (tọa độ GPS)</label>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+                <div style="flex:1;min-width:150px"><label>Vĩ độ (Lat)</label><input id="uLat" inputmode="decimal" placeholder="VD: 21.027800" /></div>
+                <div style="flex:1;min-width:150px"><label>Kinh độ (Lng)</label><input id="uLng" inputmode="decimal" placeholder="VD: 107.292100" /></div>
+                <div style="display:flex;align-items:flex-end"><button class="btn gray" type="button" id="uMapBtn">🗺️ Chọn trên bản đồ</button></div>
+              </div>
+              <div class="desc" style="margin-top:6px">Nhập tay tọa độ, hoặc bấm “Chọn trên bản đồ” để chấm vị trí trên bản đồ OpenStreetMap (miễn phí, không cần API key). Tọa độ dùng để module Chăm sóc điểm bán nhận diện điểm bán trong bán kính 5m.</div>
+            </div>
             <div><label>Loại tài khoản</label><select id="uRole"><option value="user">User thường (điểm bán)</option><option value="leader">Lãnh đạo đơn vị (xem dữ liệu đơn vị và các đơn vị trực thuộc)</option><option value="subadmin">SubAdmin (xem toàn tỉnh + quản lý người dùng)</option><option value="admin">Admin</option></select></div>
             <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="uCanImport" /> Được quyền import dữ liệu</label></div>
             <div class="full" id="uModulesBox">
@@ -956,6 +966,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
                 <label class="checkline"><input type="checkbox" name="uModule" value="reports" checked /> Báo cáo thống kê</label>
                 <label class="checkline"><input type="checkbox" name="uModule" value="packages" checked /> Danh mục gói cước</label>
                 <label class="checkline"><input type="checkbox" name="uModule" value="loginstats" /> Thống kê đăng nhập</label>
+                <label class="checkline"><input type="checkbox" name="uModule" value="care" /> Chăm sóc điểm bán</label>
                 <label class="checkline"><input type="checkbox" name="uModule" value="settings" checked /> Cài đặt</label>
               </div>
               <div class="desc" style="margin-top:6px">Tài khoản chưa thiết lập riêng vẫn dùng đủ module theo vai trò. Admin luôn dùng được mọi module.</div>
@@ -969,7 +980,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div><label>Lọc theo đơn vị</label><select id="userUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
             <div><span id="userCount" class="desc"></span></div>
           </div>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="11">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Tọa độ điểm bán</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="12">Đang tải…</td></tr></tbody></table></div>
           <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import người dùng từ Excel</h3>
           <p class="desc">Tải file mẫu về, điền thông tin người dùng vào file rồi import lên hệ thống. User đăng nhập đã tồn tại sẽ tự động bị bỏ qua; mật khẩu để trống sẽ dùng mặc định <code class="inl">Vnpt@2026</code>.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -1079,6 +1090,8 @@ CREATE TABLE IF NOT EXISTS nguoi_dung (
   don_vi_id INTEGER,                        -- Don vi truc thuoc (lien ket bang don_vi, co the de trong)
   can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
   modules TEXT,                             -- JSON cac module duoc dung (NULL = chua thiet lap rieng, giu quyen theo vai tro)
+  lat REAL,                                 -- Vi do diem ban (WGS84, khai bao o module Quan ly nguoi dung)
+  lng REAL,                                 -- Kinh do diem ban (WGS84)
   active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -1164,6 +1177,32 @@ VALUES
 --   imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP
 -- );
 -- ============================================================================
+
+===========================================================================
+-- 5) Cham soc diem ban (Worker tu tao neu chua co; ghi o day de khoi tao tay)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS dot_cham_soc (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ten_dot TEXT NOT NULL,
+  ghi_chu TEXT,
+  nguoi_tao_id INTEGER,
+  nguoi_tao_ten TEXT,
+  created_at TEXT
+);
+CREATE TABLE IF NOT EXISTS cham_soc (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  dot_id INTEGER NOT NULL,
+  pos_user_id INTEGER NOT NULL,             -- diem ban duoc cham soc (nguoi_dung role=&#x27;user&#x27;)
+  caregiver_id INTEGER,                     -- nguoi thuc hien cham soc (lanh dao don vi)
+  caregiver_ten TEXT,
+  thoi_gian TEXT,                           -- log ngay gio cham soc (gio VN, lay tu may chu)
+  lat REAL,                                 -- vi tri thiet bi luc chup anh
+  lng REAL,
+  khoang_cach_m REAL,                       -- khoang cach luc ghi nhan toi diem ban (&lt;= 5m)
+  anh_key TEXT,                             -- anh da dong dau toa do + thoi gian chup, luu tren R2
+  anh_thoi_gian TEXT,                       -- thoi gian chup anh (gio thiet bi)
+  ghi_chu TEXT                              -- ghi chu ket qua cham soc
+);
 </pre></div>
 
           <div class="guide-step"><h3>Bước 4 — Tạo Worker kết nối</h3>
@@ -1277,7 +1316,7 @@ async function requireAuth(request, env) {
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
   const user = await env.DB.prepare(
-    &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, active FROM nguoi_dung WHERE id = ?&quot;
+    &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?&quot;
   )
     .bind(payload.sub)
     .first();
@@ -1299,6 +1338,8 @@ function publicUser(u) {
     don_vi_ten: u.don_vi_ten || &quot;&quot;,
     can_import: !!u.can_import,
     modules: parseModules(u.modules),
+    lat: u.lat ?? null,
+    lng: u.lng ?? null,
   };
 }
 // Tu dong bo sung 2 cot nhan vien quan ly neu CSDL cu chua co (nang cap tai cho).
@@ -1310,6 +1351,8 @@ async function ensureUserColumns(env) {
     if (!cols.has(&quot;sdt_nhan_vien&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN sdt_nhan_vien TEXT&quot;).run();
     if (!cols.has(&quot;don_vi_id&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN don_vi_id INTEGER&quot;).run();
     if (!cols.has(&quot;modules&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN modules TEXT&quot;).run();
+    if (!cols.has(&quot;lat&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN lat REAL&quot;).run();
+    if (!cols.has(&quot;lng&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN lng REAL&quot;).run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -1336,8 +1379,10 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -&gt; giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = [&quot;dashboard&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;];
+const MODULE_KEYS = [&quot;dashboard&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;];
 const DEFAULT_MODULES = [&quot;dashboard&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;settings&quot;];
+// Lanh dao don vi mac dinh them module Cham soc diem ban
+const LEADER_MODULES = [...DEFAULT_MODULES, &quot;care&quot;];
 function parseModules(v) {
   if (!v) return null;
   try {
@@ -1351,6 +1396,33 @@ function hasModule(meUser, key) {
   const mods = parseModules(meUser.modules);
   if (!mods) return true;
   return mods.includes(key);
+}
+// Quyen dung module Cham soc diem ban: chi admin hoac Lanh dao don vi
+// (kem quyen module &quot;care&quot;; lanh dao chua thiet lap rieng thi duoc dung).
+function canUseCare(meUser) {
+  if (!meUser) return false;
+  if (meUser.role !== &quot;admin&quot; &amp;&amp; meUser.role !== &quot;leader&quot;) return false;
+  return hasModule(meUser, &quot;care&quot;);
+}
+// Khoang cach (met) giua 2 toa do WGS84 theo cong thuc haversine
+function haversineM(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const p1 = lat1 * Math.PI / 180, p2 = lat2 * Math.PI / 180;
+  const dPhi = (lat2 - lat1) * Math.PI / 180;
+  const dLam = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dPhi / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dLam / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+// Parse 1 toa do: tra {val, error}; rong -&gt; null (khong khai bao)
+function parseCoordField(v, min, max) {
+  if (v === null || v === undefined || v === &quot;&quot;) return { val: null, error: null };
+  const n = Number(v);
+  if (!isFinite(n) || n &lt; min || n &gt; max) return { val: null, error: &quot;toa do khong hop le&quot; };
+  return { val: n, error: null };
+}
+// Cau lenh CTE lay cay don vi (don vi goc + moi don vi truc thuoc qua parent_id)
+function unitSubtreeCTE() {
+  return &quot;WITH RECURSIVE subtree(id) AS (SELECT ? UNION ALL SELECT d.id FROM don_vi d JOIN subtree s ON d.parent_id = s.id)&quot;;
 }
 
 // ---------------------------------------------------------------------------
@@ -1536,6 +1608,15 @@ async function ensurePackages(env) {
   if (!names.has(&quot;noi_bat&quot;)) await env.DB.prepare(&quot;ALTER TABLE goi_cuoc ADD COLUMN noi_bat INTEGER NOT NULL DEFAULT 0&quot;).run();
   if (!names.has(&quot;noi_bat_at&quot;)) await env.DB.prepare(&quot;ALTER TABLE goi_cuoc ADD COLUMN noi_bat_at TEXT&quot;).run();
 }
+// ---- Cham soc diem ban: dot cham soc + log cham soc (kem anh dong dau) ----
+async function ensureCareTables(env) {
+  await env.DB.prepare(
+    &quot;CREATE TABLE IF NOT EXISTS dot_cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_dot TEXT NOT NULL, ghi_chu TEXT, nguoi_tao_id INTEGER, nguoi_tao_ten TEXT, created_at TEXT)&quot;
+  ).run();
+  await env.DB.prepare(
+    &quot;CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT)&quot;
+  ).run();
+}
 async function uploadPackageImage(env, pkgId, file) {
   if (!env.ANH) throw new Error(&quot;Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker). Xem huong dan cau hinh R2 trong module Danh muc goi cuoc.&quot;);
   const mime = file.type || &quot;&quot;;
@@ -1701,7 +1782,7 @@ export default {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xem danh sach nguoi dung&quot;, 403);
         if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         const res = await env.DB.prepare(
-          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.modules, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten&quot;
+          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten&quot;
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -1718,18 +1799,23 @@ export default {
         const newRole = isAdmin ? (b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : b.role === &quot;leader&quot; ? &quot;leader&quot; : &quot;user&quot;) : &quot;user&quot;;
         const newCanImport = isAdmin &amp;&amp; b.can_import ? 1 : 0;
         // Quyen module: chi admin moi duoc thiet lap; khong gui -&gt; mac dinh
-        // 4 module (Dashboard, Bao cao, Goi cuoc, Cai dat); tai khoan admin -&gt; NULL (khong gioi han).
+        // 4 module (Dashboard, Bao cao, Goi cuoc, Cai dat); lanh dao don vi
+        // mac dinh them module Cham soc diem ban; tai khoan admin -&gt; NULL (khong gioi han).
         let newModules = null;
         if (isAdmin &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
-        else if (newRole !== &quot;admin&quot;) newModules = JSON.stringify(DEFAULT_MODULES);
+        else if (newRole !== &quot;admin&quot;) newModules = JSON.stringify(newRole === &quot;leader&quot; ? LEADER_MODULES : DEFAULT_MODULES);
+        const latP = parseCoordField(b.lat, -90, 90);
+        if (latP.error) return err(&quot;Vi do diem ban khong hop le (tu -90 den 90)&quot;, 422);
+        const lngP = parseCoordField(b.lng, -180, 180);
+        if (lngP.error) return err(&quot;Kinh do diem ban khong hop le (tu -180 den 180)&quot;, 422);
         const r = await env.DB.prepare(
-          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien),
-            b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport, newModules
+            b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport, newModules, latP.val, lngP.val
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -1772,14 +1858,23 @@ export default {
           const salt = randomSalt();
           const hash = await hashPassword(String(r.password || &quot;Vnpt@2026&quot;), salt);
           const impRole = isAdmin ? (r.role === &quot;admin&quot; ? &quot;admin&quot; : r.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : r.role === &quot;leader&quot; ? &quot;leader&quot; : &quot;user&quot;) : &quot;user&quot;;
+          // Toa do: khong hop le thi de trong + bao lai (khong bo dong)
+          let impLat = null, impLng = null;
+          const impLatP = parseCoordField(r.lat, -90, 90);
+          const impLngP = parseCoordField(r.lng, -180, 180);
+          if (impLatP.error) warnings.push({ row: i + 2, reason: &quot;Vi do khong hop le — da de trong&quot; });
+          else impLat = impLatP.val;
+          if (impLngP.error) warnings.push({ row: i + 2, reason: &quot;Kinh do khong hop le — da de trong&quot; });
+          else impLng = impLngP.val;
           await env.DB.prepare(
-            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
               impRole,
               toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), donViId, isAdmin &amp;&amp; r.can_import ? 1 : 0,
-              impRole === &quot;admin&quot; ? null : JSON.stringify(DEFAULT_MODULES)
+              impRole === &quot;admin&quot; ? null : JSON.stringify(impRole === &quot;leader&quot; ? LEADER_MODULES : DEFAULT_MODULES),
+              impLat, impLng
             )
             .run();
           created++;
@@ -1806,13 +1901,17 @@ export default {
           const cur = await env.DB.prepare(&quot;SELECT modules FROM nguoi_dung WHERE id = ?&quot;).bind(Number(userMatch[1])).first();
           newModules = cur ? cur.modules : null;
         }
+        const latP = parseCoordField(b.lat, -90, 90);
+        if (latP.error) return err(&quot;Vi do diem ban khong hop le (tu -90 den 90)&quot;, 422);
+        const lngP = parseCoordField(b.lng, -180, 180);
+        if (lngP.error) return err(&quot;Kinh do diem ban khong hop le (tu -180 den 180)&quot;, 422);
         await env.DB.prepare(
-          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, modules = ?, active = ? WHERE id = ?&quot;
+          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, don_vi_id = ?, can_import = ?, role = ?, modules = ?, lat = ?, lng = ?, active = ? WHERE id = ?&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
             toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), b.don_vi_id ? Number(b.don_vi_id) : null,
-            newCanImport, newRole, newModules,
+            newCanImport, newRole, newModules, latP.val, lngP.val,
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
           .run();
@@ -2229,6 +2328,174 @@ export default {
         return json({ ok: true, created, skipped, errors: errors.slice(0, 50) });
       }
 
+      // ---- Cham soc diem ban (admin &amp; Lanh dao don vi) ----
+      if (path === &quot;/api/care/batches&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
+        await ensureCareTables(env);
+        const res = await env.DB.prepare(
+          &quot;SELECT d.*, (SELECT COUNT(*) FROM cham_soc c WHERE c.dot_id = d.id) AS so_luot, (SELECT COUNT(DISTINCT c.pos_user_id) FROM cham_soc c WHERE c.dot_id = d.id) AS so_diem FROM dot_cham_soc d ORDER BY d.id DESC&quot;
+        ).all();
+        return json({ ok: true, batches: res.results || [] });
+      }
+      if (path === &quot;/api/care/batches&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
+        await ensureCareTables(env);
+        const b = await readBody(request);
+        if (!toText(b.ten_dot)) return err(&quot;Thieu ten dot cham soc&quot;, 422);
+        const r = await env.DB.prepare(
+          &quot;INSERT INTO dot_cham_soc (ten_dot, ghi_chu, nguoi_tao_id, nguoi_tao_ten, created_at) VALUES (?, ?, ?, ?, ?)&quot;
+        ).bind(toText(b.ten_dot), toText(b.ghi_chu), me.id, me.ho_ten, saigonNow()).run();
+        return json({ ok: true, id: r.meta.last_row_id });
+      }
+      // Diem ban trong ban kinh 5m quanh vi tri thiet bi (khong co vi tri -&gt; khong tra diem nao)
+      if (path === &quot;/api/care/nearby&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
+        await ensureCareTables(env);
+        const lat = Number(url.searchParams.get(&quot;lat&quot;));
+        const lng = Number(url.searchParams.get(&quot;lng&quot;));
+        if (!isFinite(lat) || !isFinite(lng)) return json({ ok: true, pos: [], reason: &quot;no_location&quot; });
+        if (isLeader &amp;&amp; !me.don_vi_id) return json({ ok: true, pos: [], reason: &quot;no_unit&quot; });
+        const base = &quot;SELECT u.id, u.ho_ten, u.ma_kenh, u.lat, u.lng, u.don_vi_id, d.ten_don_vi AS don_vi_ten FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = &#x27;user&#x27; AND u.active = 1 AND u.lat IS NOT NULL AND u.lng IS NOT NULL&quot;;
+        let rows;
+        if (isAdmin) {
+          rows = (await env.DB.prepare(base).all()).results || [];
+        } else {
+          rows = (await env.DB.prepare(unitSubtreeCTE() + &quot; &quot; + base + &quot; AND u.don_vi_id IN (SELECT id FROM subtree)&quot;).bind(me.don_vi_id).all()).results || [];
+        }
+        const pos = rows
+          .map((u) =&gt; ({ id: u.id, ho_ten: u.ho_ten, ma_kenh: u.ma_kenh, lat: u.lat, lng: u.lng, don_vi_ten: u.don_vi_ten, khoang_cach_m: Math.round(haversineM(lat, lng, u.lat, u.lng) * 10) / 10 }))
+          .filter((u) =&gt; u.khoang_cach_m &lt;= 5)
+          .sort((a, b) =&gt; a.khoang_cach_m - b.khoang_cach_m)
+          .slice(0, 100);
+        return json({ ok: true, pos });
+      }
+      // Ghi nhan cham soc: bat buoc co anh (anh da dong dau toa do + thoi gian chup o client)
+      if (path === &quot;/api/care/records&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
+        await ensureCareTables(env);
+        const ct = request.headers.get(&quot;content-type&quot;) || &quot;&quot;;
+        if (!ct.includes(&quot;multipart/form-data&quot;)) return err(&quot;Du lieu gui len phai la multipart&quot;, 422);
+        const fd = await request.formData();
+        const dotId = Number(fd.get(&quot;dot_id&quot;));
+        const posId = Number(fd.get(&quot;pos_user_id&quot;));
+        const lat = Number(fd.get(&quot;lat&quot;));
+        const lng = Number(fd.get(&quot;lng&quot;));
+        const photoTime = toText(fd.get(&quot;photo_time&quot;));
+        const ghiChu = toText(fd.get(&quot;ghi_chu&quot;));
+        const file = fd.get(&quot;anh&quot;);
+        if (!dotId || !posId) return err(&quot;Thieu dot cham soc hoac diem ban&quot;, 422);
+        if (!isFinite(lat) || !isFinite(lng)) return err(&quot;Thieu vi tri chup anh&quot;, 422);
+        if (!file || !file.size) return err(&quot;Chua co anh diem ban&quot;, 422);
+        const dot = await env.DB.prepare(&quot;SELECT id FROM dot_cham_soc WHERE id = ?&quot;).bind(dotId).first();
+        if (!dot) return err(&quot;Khong tim thay dot cham soc&quot;, 404);
+        const pos = await env.DB.prepare(&quot;SELECT id, ho_ten, don_vi_id, lat, lng FROM nguoi_dung WHERE id = ? AND role = &#x27;user&#x27;&quot;).bind(posId).first();
+        if (!pos || pos.lat === null || pos.lng === null) return err(&quot;Diem ban khong co toa do khai bao&quot;, 422);
+        if (isLeader) {
+          const inScope = await env.DB.prepare(unitSubtreeCTE() + &quot; SELECT 1 FROM nguoi_dung WHERE id = ? AND don_vi_id IN (SELECT id FROM subtree)&quot;).bind(me.don_vi_id, posId).first();
+          if (!inScope) return err(&quot;Diem ban khong thuoc pham vi don vi cua ban&quot;, 403);
+        }
+        const dist = haversineM(lat, lng, pos.lat, pos.lng);
+        if (dist &gt; 5) return err(&quot;Vi tri chup anh cach diem ban &quot; + (Math.round(dist * 10) / 10) + &quot;m, vuot qua ban kinh 5m cho phep&quot;, 403);
+        if (!env.ANH) return err(&quot;Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker)&quot;, 501);
+        const mime = file.type || &quot;&quot;;
+        if (!mime.startsWith(&quot;image/&quot;)) return err(&quot;File anh phai la dinh dang anh&quot;, 422);
+        if (file.size &gt; 5 * 1024 * 1024) return err(&quot;Anh vuot qua 5MB&quot;, 422);
+        const ext = mime === &quot;image/jpeg&quot; ? &quot;jpg&quot; : mime === &quot;image/png&quot; ? &quot;png&quot; : mime === &quot;image/webp&quot; ? &quot;webp&quot; : mime === &quot;image/gif&quot; ? &quot;gif&quot; : &quot;&quot;;
+        if (!ext) return err(&quot;Dinh dang anh khong duoc ho tro (chi nhan jpg, png, webp, gif)&quot;, 422);
+        const key = &quot;cham-soc/&quot; + posId + &quot;-&quot; + Date.now() + &quot;.&quot; + ext;
+        await env.ANH.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: mime } });
+        const r = await env.DB.prepare(
+          &quot;INSERT INTO cham_soc (dot_id, pos_user_id, caregiver_id, caregiver_ten, thoi_gian, lat, lng, khoang_cach_m, anh_key, anh_thoi_gian, ghi_chu) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+        ).bind(dotId, posId, me.id, me.ho_ten, saigonNow(), lat, lng, Math.round(dist * 10) / 10, key, photoTime || null, ghiChu).run();
+        return json({ ok: true, id: r.meta.last_row_id, khoang_cach_m: Math.round(dist * 10) / 10 });
+      }
+      if (path === &quot;/api/care/records&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
+        await ensureCareTables(env);
+        const dotId = url.searchParams.get(&quot;dot_id&quot;);
+        const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
+        const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
+        const limit = Math.min(1000, Number(url.searchParams.get(&quot;limit&quot;)) || 200);
+        const base = &quot;SELECT c.*, p.ho_ten AS pos_ten, p.ma_kenh AS pos_ma, d.ten_don_vi AS don_vi_ten, dt.ten_dot FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN don_vi d ON d.id = p.don_vi_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?&quot;;
+        let sql = base;
+        let binds = [from, to];
+        if (dotId) { sql += &quot; AND c.dot_id = ?&quot;; binds.push(Number(dotId)); }
+        if (isLeader) {
+          sql = unitSubtreeCTE() + &quot; &quot; + sql + &quot; AND p.don_vi_id IN (SELECT id FROM subtree)&quot;;
+          binds = [me.don_vi_id, ...binds];
+        }
+        sql += &quot; ORDER BY c.thoi_gian DESC LIMIT ?&quot;;
+        binds.push(limit);
+        const res = await env.DB.prepare(sql).bind(...binds).all();
+        return json({ ok: true, records: res.results || [] });
+      }
+      // Xem anh cham soc (xac thuc + dung pham vi; anh khong phuc vu cong khai nhu anh goi cuoc)
+      const careImgMatch = path.match(/^\/api\/care\/records\/(\d+)\/image$/);
+      if (careImgMatch &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;care&quot;) &amp;&amp; !hasModule(me, &quot;reports&quot;)) return err(&quot;Tai khoan khong co quyen xem anh cham soc&quot;, 403);
+        await ensureCareTables(env);
+        const rec = await env.DB.prepare(&quot;SELECT c.*, p.don_vi_id AS pos_don_vi FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id WHERE c.id = ?&quot;).bind(Number(careImgMatch[1])).first();
+        if (!rec || !rec.anh_key) return err(&quot;Khong tim thay anh&quot;, 404);
+        if (!isPrivileged) {
+          let allowed = rec.caregiver_id === me.id;
+          if (!allowed &amp;&amp; isLeader &amp;&amp; me.don_vi_id) {
+            const ok = await env.DB.prepare(unitSubtreeCTE() + &quot; SELECT 1 FROM nguoi_dung WHERE id = ? AND don_vi_id IN (SELECT id FROM subtree)&quot;).bind(me.don_vi_id, rec.pos_user_id).first();
+            allowed = !!ok;
+          }
+          if (!allowed) return err(&quot;Anh khong thuoc pham vi cua ban&quot;, 403);
+        }
+        if (!env.ANH) return err(&quot;Chua cau hinh R2 Object Storage&quot;, 501);
+        const obj = await env.ANH.get(rec.anh_key);
+        if (!obj) return err(&quot;Khong tim thay anh&quot;, 404);
+        const headers = new Headers();
+        obj.writeHttpMetadata(headers);
+        headers.set(&quot;Cache-Control&quot;, &quot;private, max-age=3600&quot;);
+        return new Response(obj.body, { headers });
+      }
+      // ---- Bao cao cham soc diem ban (trong muc Bao cao thong ke) ----
+      // Chi admin/subadmin/lanh dao don vi duoc xem (diem ban thuong khong duoc,
+      // ke ca khi modules NULL) — pham vi: lanh dao chi thay cay don vi cua minh.
+      if (path === &quot;/api/care/reports/summary&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!isPrivileged &amp;&amp; !isLeader) return err(&quot;Chi admin/subadmin va Lanh dao don vi moi xem duoc bao cao cham soc&quot;, 403);
+        if (!hasModule(me, &quot;reports&quot;)) return err(&quot;Tai khoan khong co quyen xem bao cao&quot;, 403);
+        await ensureCareTables(env);
+        const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
+        const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
+        if (isLeader &amp;&amp; !me.don_vi_id) return json({ ok: true, tong_luot: 0, tong_diem: 0, theo_dot: [], theo_nguoi: [], theo_diem: [] });
+        const prefix = isLeader ? unitSubtreeCTE() + &quot; &quot; : &quot;&quot;;
+        const scopeSql = isLeader ? &quot; AND p.don_vi_id IN (SELECT id FROM subtree)&quot; : &quot;&quot;;
+        const runQ = async (sql, extraBinds) =&gt; {
+          const binds = isLeader ? [me.don_vi_id, ...extraBinds] : extraBinds;
+          return (await env.DB.prepare(prefix + sql).bind(...binds).all()).results || [];
+        };
+        const base = &quot;FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?&quot; + scopeSql;
+        const tot = await runQ(&quot;SELECT COUNT(*) AS luot, COUNT(DISTINCT c.pos_user_id) AS diem &quot; + base, [from, to]);
+        const theoDot = await runQ(&quot;SELECT dt.ten_dot AS ten, COUNT(*) AS luot, COUNT(DISTINCT c.pos_user_id) AS diem &quot; + base + &quot; GROUP BY c.dot_id ORDER BY luot DESC&quot;, [from, to]);
+        const theoNguoi = await runQ(&quot;SELECT c.caregiver_ten AS ten, COUNT(*) AS luot, COUNT(DISTINCT c.pos_user_id) AS diem &quot; + base + &quot; GROUP BY c.caregiver_id ORDER BY luot DESC&quot;, [from, to]);
+        const theoDiem = await runQ(&quot;SELECT p.ho_ten AS ten, COUNT(*) AS luot, MAX(c.thoi_gian) AS lan_cuoi &quot; + base + &quot; GROUP BY c.pos_user_id ORDER BY luot DESC LIMIT 200&quot;, [from, to]);
+        return json({ ok: true, tong_luot: tot[0] ? tot[0].luot : 0, tong_diem: tot[0] ? tot[0].diem : 0, theo_dot: theoDot, theo_nguoi: theoNguoi, theo_diem: theoDiem });
+      }
+      if (path === &quot;/api/care/reports/detail&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!isPrivileged &amp;&amp; !isLeader) return err(&quot;Chi admin/subadmin va Lanh dao don vi moi xem duoc bao cao cham soc&quot;, 403);
+        if (!hasModule(me, &quot;reports&quot;)) return err(&quot;Tai khoan khong co quyen xem bao cao&quot;, 403);
+        await ensureCareTables(env);
+        const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
+        const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
+        const limit = Math.min(1000, Number(url.searchParams.get(&quot;limit&quot;)) || 1000);
+        if (isLeader &amp;&amp; !me.don_vi_id) return json({ ok: true, records: [] });
+        const base = &quot;SELECT c.id, c.thoi_gian, dt.ten_dot, p.ho_ten AS pos_ten, d.ten_don_vi AS don_vi_ten, c.caregiver_ten, c.khoang_cach_m, c.ghi_chu FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN don_vi d ON d.id = p.don_vi_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?&quot;;
+        let sql = base;
+        let binds = [from, to];
+        if (isLeader) {
+          sql = unitSubtreeCTE() + &quot; &quot; + base + &quot; AND p.don_vi_id IN (SELECT id FROM subtree)&quot;;
+          binds = [me.don_vi_id, from, to];
+        }
+        sql += &quot; ORDER BY c.thoi_gian DESC LIMIT ?&quot;;
+        binds.push(limit);
+        const res = await env.DB.prepare(sql).bind(...binds).all();
+        return json({ ok: true, records: res.results || [] });
+      }
+
       // ---- Cai dat tai khoan ----
       if (path === &quot;/api/settings/password&quot; &amp;&amp; method === &quot;POST&quot;) {
         const b = await readBody(request);
@@ -2288,6 +2555,14 @@ export default {
           <div id="repMsg"></div>
           <div class="kpi-row"><div class="kpi"><b id="repTotalTx">—</b><span>Tổng số giao dịch</span></div><div class="kpi"><b id="repTotalMoney">—</b><span>Tổng số tiền chi trả</span></div></div>
           <div class="tbl-wrap"><table class="data"><thead id="repHead"><tr><th>Kỳ</th><th>Số giao dịch</th><th>Tổng tiền chi trả</th></tr></thead><tbody id="repBody"><tr><td colspan="3">Chưa có dữ liệu — hãy chọn khoảng thời gian và bấm báo cáo.</td></tr></tbody></table></div>
+          <div id="careRepSection">
+          <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Báo cáo chăm sóc điểm bán</h3>
+          <p class="desc">Tổng hợp và chi tiết công tác chăm sóc kênh bán trong cùng khoảng ngày/tháng đã chọn ở trên. Lãnh đạo đơn vị chỉ thấy số liệu của các điểm bán trong cây đơn vị của mình.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn blue" type="button" id="careRepSummaryBtn">Báo cáo tổng hợp chăm sóc</button><button class="btn gray" type="button" id="careRepDetailBtn">Báo cáo chi tiết chăm sóc</button></div>
+          <div id="careRepMsg"></div>
+          <div class="kpi-row"><div class="kpi"><b id="careRepTotal">—</b><span>Tổng lượt chăm sóc</span></div><div class="kpi"><b id="careRepPos">—</b><span>Số điểm đã chăm sóc</span></div></div>
+          <div class="tbl-wrap"><table class="data"><thead id="careRepHead"><tr><th>Đợt chăm sóc</th><th>Số lượt</th><th>Số điểm</th></tr></thead><tbody id="careRepBody"><tr><td colspan="3">Chưa có dữ liệu — hãy chọn khoảng thời gian và bấm báo cáo.</td></tr></tbody></table></div>
+          </div>
         </section>
 
         <!-- DANH MUC GOI CUOC -->
@@ -2338,6 +2613,31 @@ export default {
         </section>
 
         <!-- THONG KE DANG NHAP -->
+        <!-- CHAM SOC DIEM BAN -->
+        <section class="panel hidden" id="panel-care">
+          <h2>Chăm sóc điểm bán</h2>
+          <p class="desc">Dành cho Lãnh đạo đơn vị đi thực địa. Quy trình: tạo đợt chăm sóc → bấm “Lấy vị trí hiện tại” → hệ thống chỉ hiện các điểm bán trong bán kính 5m quanh vị trí thiết bị (không lấy được vị trí thì không hiện điểm nào) → chọn điểm bán, chụp ảnh, hệ thống tự đóng dấu tọa độ + thời gian chụp vào ảnh rồi mới cho lưu kết quả. Phạm vi điểm bán theo cây đơn vị của lãnh đạo (đơn vị mình + các đơn vị trực thuộc).</p>
+          <h3 style="margin:14px 0 8px;color:var(--blue-dark)">Tạo đợt chăm sóc</h3>
+          <form id="careBatchForm" class="form-grid">
+            <div><label>Tên đợt chăm sóc *</label><input id="careBatchName" required placeholder="VD: Đợt chăm sóc tháng 11/2026" /></div>
+            <div><label>Ghi chú</label><input id="careBatchNote" /></div>
+            <div class="full"><button class="btn blue" type="submit">Tạo đợt</button></div>
+          </form>
+          <div id="careBatchMsg"></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Tên đợt</th><th>Người tạo</th><th>Ngày tạo</th><th>Số lượt</th><th>Số điểm</th><th></th></tr></thead><tbody id="careBatchBody"><tr><td colspan="6">Đang tải…</td></tr></tbody></table></div>
+          <div id="careBatchDetail" class="hidden">
+            <h3 id="careBatchTitle" style="margin:20px 0 8px;color:var(--blue-dark)"></h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <button class="btn blue" type="button" id="careLocBtn">📍 Lấy vị trí hiện tại</button>
+              <span id="careLocText" class="desc"></span>
+            </div>
+            <div id="careNearbyMsg"></div>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Điểm bán</th><th>Đơn vị</th><th>Khoảng cách tới bạn</th><th></th></tr></thead><tbody id="careNearbyBody"><tr><td colspan="4">Hãy bấm “Lấy vị trí hiện tại” để hiển thị các điểm bán trong bán kính 5m.</td></tr></tbody></table></div>
+            <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Lịch sử chăm sóc trong đợt</h3>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Thời gian chăm sóc</th><th>Điểm bán</th><th>Người chăm sóc</th><th>Khoảng cách</th><th>Ghi chú</th><th>Ảnh</th></tr></thead><tbody id="careHistBody"><tr><td colspan="6">Chưa có lượt chăm sóc nào trong đợt này.</td></tr></tbody></table></div>
+          </div>
+        </section>
+
         <section class="panel hidden" id="panel-loginstats">
           <h2>Thống kê đăng nhập</h2>
           <p class="desc">Thống kê số lượt đăng nhập hệ thống của người dùng theo từng tháng. Chỉ admin và SubAdmin được xem module này. Số liệu được ghi lại tự động mỗi khi có người đăng nhập thành công (tính từ khi chức năng này được bật).</p>
@@ -2392,6 +2692,31 @@ export default {
       <button class="btn gray sm" type="button" id="bootTest">Kiểm tra kết nối</button>
       <span id="bootMsg" style="font-size:13px;margin-left:8px"></span>
     </div>
+  </div>
+</div>
+
+<!-- ================= MODAL CHON VI TRI TREN BAN DO (OpenStreetMap) ================= -->
+<div id="mapModalBack" class="modal-back hidden">
+  <div class="modal" style="max-width:640px">
+    <h2>Chọn vị trí điểm bán</h2>
+    <p class="sub">Bấm vào bản đồ để đặt ghim, hoặc kéo ghim tới vị trí đúng. Bản đồ OpenStreetMap (miễn phí, không cần API key).</p>
+    <div id="mapPicker" style="height:360px;border-radius:12px;overflow:hidden"></div>
+    <div id="mapPickText" class="desc" style="margin-top:8px">Chưa chọn vị trí.</div>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap"><button class="btn gray" type="button" id="mapMyLocBtn">📍 Vị trí của tôi</button><button class="btn blue" type="button" id="mapConfirmBtn">Xác nhận vị trí</button><button class="btn gray" type="button" id="mapCloseBtn">Đóng</button></div>
+  </div>
+</div>
+
+<!-- ================= MODAL CHAM SOC DIEM BAN (chup anh + dong dau) ================= -->
+<div id="careModalBack" class="modal-back hidden">
+  <div class="modal" style="max-width:520px">
+    <h2>Chăm sóc điểm bán</h2>
+    <p class="sub" id="careModalPos"></p>
+    <div class="field"><label>Ảnh điểm bán *</label><input type="file" id="carePhotoInput" accept="image/*" capture="environment" /></div>
+    <div id="carePhotoPreview" style="margin-top:8px"></div>
+    <div id="carePhotoInfo" class="desc" style="margin-top:6px">Chưa có ảnh. Hãy chụp ảnh điểm bán — hệ thống sẽ tự đóng dấu tọa độ và thời gian chụp vào ảnh.</div>
+    <div class="field" style="margin-top:10px"><label>Ghi chú kết quả chăm sóc</label><input id="careNote" placeholder="VD: Đã kiểm tra biển hiệu, bổ sung tờ rơi gói mới" /></div>
+    <div style="display:flex;gap:10px;margin-top:14px"><button class="btn blue" type="button" id="careSaveBtn" disabled>Lưu kết quả</button><button class="btn gray" type="button" id="careCancelBtn">Đóng</button></div>
+    <div id="careModalMsg"></div>
   </div>
 </div>
 </div>
@@ -2687,14 +3012,15 @@ function applyUserFormPerms() {
 const MODULE_DEFS = [
   ["dashboard", "Dashboard"], ["units", "Quản lý đơn vị"], ["users", "Quản lý người dùng"],
   ["import", "Quản lý dữ liệu đầu vào"], ["config", "Cấu hình kết nối D1"], ["reports", "Báo cáo thống kê"],
-  ["packages", "Danh mục gói cước"], ["loginstats", "Thống kê đăng nhập"], ["settings", "Cài đặt"],
+  ["packages", "Danh mục gói cước"], ["loginstats", "Thống kê đăng nhập"], ["care", "Chăm sóc điểm bán"], ["settings", "Cài đặt"],
 ];
 const PANEL_MODULES = {
   "panel-dashboard": "dashboard", "panel-units": "units", "panel-users": "users", "panel-import": "import",
   "panel-config": "config", "panel-reports": "reports", "panel-packages": "packages",
-  "panel-loginstats": "loginstats", "panel-settings": "settings",
+  "panel-loginstats": "loginstats", "panel-care": "care", "panel-settings": "settings",
 };
 const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
+const LEADER_MODULES = [...DEFAULT_MODULES, "care"];
 function setModulesBoxes(list) {
   document.querySelectorAll('input[name="uModule"]').forEach((c) => { c.checked = list.includes(c.value); });
 }
@@ -2702,8 +3028,8 @@ function getModulesFromForm() {
   return [...document.querySelectorAll('input[name="uModule"]:checked')].map((c) => c.value);
 }
 $("uRole").addEventListener("change", () => {
-  // Chon chuc danh Lanh dao don vi -> mac dinh dung 4 module cua chuc danh nay (admin van sua tay duoc sau do)
-  if ($("uRole").value === "leader") setModulesBoxes(DEFAULT_MODULES);
+  // Chon chuc danh Lanh dao don vi -> mac dinh dung 5 module cua chuc danh nay (4 module chung + Cham soc diem ban; admin van sua tay duoc sau do)
+  if ($("uRole").value === "leader") setModulesBoxes(LEADER_MODULES);
   applyUserFormPerms();
 });
 $("uUnit").addEventListener("change", applyUserFormPerms);
@@ -2766,6 +3092,7 @@ function refreshAuthUI() {
       if (p === "panel-units" || p === "panel-config") show = me.role === "admin";
       if (p === "panel-users" || p === "panel-loginstats") show = me.role === "admin" || me.role === "subadmin";
       if (p === "panel-import") show = me.role === "admin" || me.can_import;
+      if (p === "panel-care") show = me.role === "admin" || me.role === "leader";
       const key = PANEL_MODULES[p];
       if (show && me.role !== "admin" && me.modules && key && !me.modules.includes(key)) show = false;
       b.classList.toggle("hidden", !show);
@@ -2786,7 +3113,8 @@ function openPanel(panelId) {
   if (panelId === "panel-units") loadUnits();
   if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); }
   if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); }
-  if (panelId === "panel-reports") loadDataTypes();
+  if (panelId === "panel-reports") { loadDataTypes(); const crs = $("careRepSection"); if (crs) crs.classList.toggle("hidden", !(me && (me.role === "admin" || me.role === "subadmin" || me.role === "leader"))); }
+  if (panelId === "panel-care") loadCareBatches();
   if (panelId === "panel-config") $("cfgApiUrl").value = apiBase;
 }
 document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel)));
@@ -2988,6 +3316,7 @@ function renderUsers() {
       "<td><span class='pill " + (u.role === "admin" ? "admin" : u.role === "subadmin" || u.role === "leader" ? "sub" : "user") + "'>" + (u.role === "admin" ? "Admin" : u.role === "subadmin" ? "SubAdmin" : u.role === "leader" ? "Lãnh đạo đơn vị" : "Điểm bán") + "</span></td>" +
       "<td>" + esc(u.so_eload) + "</td><td>" + esc(u.so_vi) + "</td>" +
       "<td>" + esc(u.don_vi_ten) + "</td>" +
+      "<td>" + ((u.lat == null || u.lng == null) ? "—" : Number(u.lat).toFixed(5) + ", " + Number(u.lng).toFixed(5)) + "</td>" +
       "<td>" + esc(u.ten_nhan_vien) + "</td><td>" + esc(u.sdt_nhan_vien) + "</td>" +
       "<td>" + (u.can_import ? "<span class='pill ok'>Có</span>" : "—") + "</td>" +
       "<td style='white-space:nowrap'><button class='btn sm gray' data-edit-user='" + u.id + "'>Sửa</button> " +
@@ -2995,7 +3324,7 @@ function renderUsers() {
         ? "<button class='btn sm gray' disabled title='Không thể tự xóa tài khoản đang đăng nhập'>Xóa</button>"
         : "<button class='btn sm danger' data-del-user='" + u.id + "'>Xóa</button>") +
       "</td></tr>").join("") ||
-      "<tr><td colspan='11'>" + (usersCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
+      "<tr><td colspan='12'>" + (usersCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
   $("usersBody").querySelectorAll("[data-edit-user]").forEach((b) => b.addEventListener("click", () => editUser(Number(b.dataset.editUser))));
   $("usersBody").querySelectorAll("[data-del-user]").forEach((b) => b.addEventListener("click", () => delUser(Number(b.dataset.delUser))));
 }
@@ -3008,6 +3337,7 @@ function editUser(id) {
   $("uEload").value = u.so_eload || ""; $("uWallet").value = u.so_vi || "";
   $("uUnit").value = u.don_vi_id || "";
   $("uManager").value = u.ten_nhan_vien || ""; $("uManagerPhone").value = u.sdt_nhan_vien || "";
+  $("uLat").value = u.lat == null ? "" : u.lat; $("uLng").value = u.lng == null ? "" : u.lng;
   $("uRole").value = u.role; $("uCanImport").checked = !!u.can_import;
   // Quyen module: da thiet lap rieng thi hien dung danh sach do; chua thiet lap (null) thi hien du (theo vai tro)
   setModulesBoxes(u.modules || MODULE_DEFS.map((m) => m[0]));
@@ -3022,11 +3352,17 @@ $("userCancel").addEventListener("click", () => {
 $("userForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = $("userId").value;
+  // Kiem tra toa do truoc khi gui (Worker cung chan lai bang 422)
+  const latRaw = $("uLat").value.trim(), lngRaw = $("uLng").value.trim();
+  const latNum = latRaw === "" ? null : Number(latRaw), lngNum = lngRaw === "" ? null : Number(lngRaw);
+  if (latNum !== null && (!isFinite(latNum) || latNum < -90 || latNum > 90)) { setMsg($("userMsg"), "Vĩ độ không hợp lệ (từ -90 đến 90).", false); return; }
+  if (lngNum !== null && (!isFinite(lngNum) || lngNum < -180 || lngNum > 180)) { setMsg($("userMsg"), "Kinh độ không hợp lệ (từ -180 đến 180).", false); return; }
   const body = {
     ma_kenh: $("uChannel").value.trim(), ho_ten: $("uName").value.trim(), username: $("uUsername").value.trim(),
     password: $("uPassword").value, so_eload: $("uEload").value.trim(), so_vi: $("uWallet").value.trim(),
     don_vi_id: $("uUnit").value ? Number($("uUnit").value) : null,
     ten_nhan_vien: $("uManager").value.trim(), sdt_nhan_vien: $("uManagerPhone").value.trim(),
+    lat: latNum, lng: lngNum,
     role: $("uRole").value, can_import: $("uCanImport").checked, active: true,
     ...(me && me.role === "admin" ? { modules: getModulesFromForm() } : {}),
   };
@@ -3057,14 +3393,16 @@ const USER_HEADER_MAP = {
   "số điện thoại nhân viên quản lý": "sdt_nhan_vien", "sđt nhân viên quản lý": "sdt_nhan_vien", "số điện thoại": "sdt_nhan_vien",
   "quyền import dữ liệu": "can_import", "được quyền import dữ liệu": "can_import", "quyền import": "can_import",
   "loại tài khoản": "role", "vai trò": "role",
+  "vĩ độ (lat)": "lat", "vĩ độ": "lat", "lat": "lat",
+  "kinh độ (lng)": "lng", "kinh độ": "lng", "lng": "lng",
 };
 function parseYesNo(v) {
   return ["1", "có", "co", "true", "x", "yes", "được", "duoc"].includes(String(v ?? "").trim().toLowerCase());
 }
 $("uTemplateBtn").addEventListener("click", () => {
   try {
-    const headers = ["Mã kênh bán hàng", "Họ và tên người dùng/điểm bán", "User đăng nhập", "Mật khẩu", "Số tài khoản Eload", "Số Ví VNPT Money", "Đơn vị", "Tên nhân viên quản lý", "Số điện thoại nhân viên quản lý", "Quyền import dữ liệu", "Loại tài khoản"];
-    const sample = ["KBH-VDCT-001", "Điểm bán Minh Anh (ví dụ)", "minhanh.db", "", "0901234567", "0901234567", "VDCT", "Nguyễn Văn A", "0912345678", 0, "user"];
+    const headers = ["Mã kênh bán hàng", "Họ và tên người dùng/điểm bán", "User đăng nhập", "Mật khẩu", "Số tài khoản Eload", "Số Ví VNPT Money", "Đơn vị", "Tên nhân viên quản lý", "Số điện thoại nhân viên quản lý", "Quyền import dữ liệu", "Loại tài khoản", "Vĩ độ (Lat)", "Kinh độ (Lng)"];
+    const sample = ["KBH-VDCT-001", "Điểm bán Minh Anh (ví dụ)", "minhanh.db", "", "0901234567", "0901234567", "VDCT", "Nguyễn Văn A", "0912345678", 0, "user", 21.0278, 107.2921];
     const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
     ws["!cols"] = headers.map(() => ({ wch: 26 }));
     const wb = XLSX.utils.book_new();
@@ -3080,6 +3418,7 @@ $("uTemplateBtn").addEventListener("click", () => {
       ["7. Số tài khoản Eload và Số Ví VNPT Money: dùng để điểm bán xem báo cáo chi trả của chính mình."],
       ["8. Tên nhân viên quản lý và Số điện thoại nhân viên quản lý: có thể để trống."],
       ["9. Đơn vị: nhập Mã đơn vị (hoặc đúng Tên đơn vị) đã tạo trong module Quản lý đơn vị, ví dụ VDCT. Để trống nếu chưa thuộc đơn vị nào; nếu mã/tên không tồn tại, hệ thống sẽ để trống và báo lại."],
+      ["10. Vĩ độ (Lat) và Kinh độ (Lng): tọa độ điểm bán (hệ WGS84, số thập phân). Để trống nếu chưa khai báo; nhập sai khoảng (Lat -90..90, Lng -180..180) thì hệ thống để trống và báo lại. Tọa độ dùng cho module Chăm sóc điểm bán."],
     ];
     const ws2 = XLSX.utils.aoa_to_sheet(guide);
     ws2["!cols"] = [{ wch: 120 }];
@@ -3357,6 +3696,236 @@ $("dtForm").addEventListener("submit", async (e) => {
 ["Số Eload", "Số thuê bao", "Số tiền chi trả", "Thời gian chi trả"].forEach((l, i) => $("dtCols").appendChild(dtColumnRow(l, "", i === 2 ? "money" : i === 3 ? "date" : "text")));
 dtRefreshRoleSelects();
 
+/* ---------------- Chon vi tri tren ban do (OpenStreetMap + Leaflet, mien phi) ---------------- */
+let leafletReady = null, mapObj = null, mapMarker = null, mapPick = null;
+function loadLeaflet() {
+  if (leafletReady) return leafletReady;
+  leafletReady = new Promise((resolve, reject) => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css";
+    document.head.appendChild(link);
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Không tải được thư viện bản đồ"));
+    document.head.appendChild(s);
+  });
+  return leafletReady;
+}
+function updateMapPick(lat, lng) {
+  mapPick = { lat, lng };
+  $("mapPickText").textContent = "Đã chọn: Vĩ độ " + lat.toFixed(6) + " — Kinh độ " + lng.toFixed(6);
+}
+function placeMapMarker(lat, lng) {
+  if (mapMarker) mapMarker.setLatLng([lat, lng]);
+  else {
+    mapMarker = L.marker([lat, lng], { draggable: true }).addTo(mapObj);
+    mapMarker.on("dragend", () => { const p = mapMarker.getLatLng(); updateMapPick(p.lat, p.lng); });
+  }
+  updateMapPick(lat, lng);
+}
+$("uMapBtn").addEventListener("click", async () => {
+  try { await loadLeaflet(); }
+  catch (e) { setMsg($("userMsg"), e.message + " — hãy nhập tay tọa độ.", false); return; }
+  $("mapModalBack").classList.remove("hidden");
+  const lat = parseFloat($("uLat").value), lng = parseFloat($("uLng").value);
+  const start = (isFinite(lat) && isFinite(lng)) ? [lat, lng] : [21.0, 107.3];
+  if (!mapObj) {
+    mapObj = L.map("mapPicker").setView(start, 12);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap contributors" }).addTo(mapObj);
+    mapObj.on("click", (e) => placeMapMarker(e.latlng.lat, e.latlng.lng));
+  }
+  mapObj.setView(start, 12);
+  if (isFinite(lat) && isFinite(lng)) placeMapMarker(lat, lng);
+  setTimeout(() => mapObj.invalidateSize(), 50);
+});
+$("mapCloseBtn").addEventListener("click", () => $("mapModalBack").classList.add("hidden"));
+$("mapConfirmBtn").addEventListener("click", () => {
+  if (!mapPick) return;
+  $("uLat").value = mapPick.lat.toFixed(6);
+  $("uLng").value = mapPick.lng.toFixed(6);
+  $("mapModalBack").classList.add("hidden");
+});
+
+/* ---------------- Dinh vi thiet bi ---------------- */
+function fetchDeviceLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error("Thiết bị không hỗ trợ định vị"));
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+      (e) => reject(new Error(e.message || "Không lấy được vị trí")),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  });
+}
+function fmtDT(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear() + " " + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+}
+$("mapMyLocBtn").addEventListener("click", async () => {
+  try {
+    const loc = await fetchDeviceLocation();
+    mapObj.setView([loc.lat, loc.lng], 17);
+    placeMapMarker(loc.lat, loc.lng);
+  } catch (e) { $("mapPickText").textContent = "Không lấy được vị trí hiện tại: " + e.message; }
+});
+
+/* ---------------- Cham soc diem ban ---------------- */
+let careBatchId = null, carePos = null, careStamped = null;
+async function loadCareBatches() {
+  try {
+    const d = await api("/api/care/batches");
+    $("careBatchBody").innerHTML = (d.batches || []).map((b) =>
+      "<tr><td><b>" + esc(b.ten_dot) + "</b>" + (b.ghi_chu ? "<br /><span class='desc'>" + esc(b.ghi_chu) + "</span>" : "") + "</td>" +
+      "<td>" + esc(b.nguoi_tao_ten) + "</td><td>" + esc(b.created_at) + "</td>" +
+      "<td>" + (b.so_luot || 0) + "</td><td>" + (b.so_diem || 0) + "</td>" +
+      "<td style='white-space:nowrap'><button class='btn sm blue' data-care-open='" + b.id + "' data-care-name=\"" + esc(b.ten_dot) + "\">Mở đợt</button></td></tr>").join("") ||
+      "<tr><td colspan='6'>Chưa có đợt chăm sóc nào.</td></tr>";
+    $("careBatchBody").querySelectorAll("[data-care-open]").forEach((btn) => btn.addEventListener("click", () => openCareBatch(Number(btn.dataset.careOpen), btn.dataset.careName)));
+  } catch (e) { setMsg($("careBatchMsg"), e.message, false); }
+}
+$("careBatchForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/api/care/batches", { method: "POST", body: JSON.stringify({ ten_dot: $("careBatchName").value.trim(), ghi_chu: $("careBatchNote").value.trim() }) });
+    setMsg($("careBatchMsg"), "Đã tạo đợt chăm sóc.");
+    $("careBatchName").value = ""; $("careBatchNote").value = "";
+    loadCareBatches();
+  } catch (err) { setMsg($("careBatchMsg"), err.message, false); }
+});
+function openCareBatch(id, name) {
+  careBatchId = id;
+  $("careBatchTitle").textContent = "Đợt: " + name;
+  $("careBatchDetail").classList.remove("hidden");
+  $("careNearbyBody").innerHTML = "<tr><td colspan='4'>Hãy bấm “Lấy vị trí hiện tại” để hiển thị các điểm bán trong bán kính 5m.</td></tr>";
+  $("careLocText").textContent = "";
+  loadCareHistory();
+}
+async function loadCareHistory() {
+  try {
+    const d = await api("/api/care/records?dot_id=" + careBatchId + "&limit=200");
+    $("careHistBody").innerHTML = (d.records || []).map((r) =>
+      "<tr><td>" + esc(r.thoi_gian) + "</td><td><b>" + esc(r.pos_ten) + "</b></td><td>" + esc(r.caregiver_ten) + "</td>" +
+      "<td>" + (r.khoang_cach_m == null ? "—" : r.khoang_cach_m + "m") + "</td><td>" + esc(r.ghi_chu) + "</td>" +
+      "<td><button class='btn sm gray' data-care-img='" + r.id + "'>Xem ảnh</button></td></tr>").join("") ||
+      "<tr><td colspan='6'>Chưa có lượt chăm sóc nào trong đợt này.</td></tr>";
+    $("careHistBody").querySelectorAll("[data-care-img]").forEach((b) => b.addEventListener("click", () => viewCarePhoto(Number(b.dataset.careImg))));
+  } catch (e) { setMsg($("careNearbyMsg"), e.message, false); }
+}
+$("careLocBtn").addEventListener("click", async () => {
+  try {
+    setMsg($("careNearbyMsg"), "Đang lấy vị trí thiết bị…");
+    const loc = await fetchDeviceLocation();
+    $("careLocText").textContent = "Vị trí hiện tại: " + loc.lat.toFixed(6) + ", " + loc.lng.toFixed(6) + " (±" + Math.round(loc.accuracy) + "m)";
+    setMsg($("careNearbyMsg"), "");
+    const d = await api("/api/care/nearby?lat=" + loc.lat + "&lng=" + loc.lng);
+    if (d.reason === "no_unit") {
+      $("careNearbyBody").innerHTML = "<tr><td colspan='4'>Tài khoản của bạn chưa được gắn đơn vị nên chưa xác định được phạm vi điểm bán.</td></tr>";
+      return;
+    }
+    $("careNearbyBody").innerHTML = (d.pos || []).map((p) =>
+      "<tr><td><b>" + esc(p.ho_ten) + "</b>" + (p.ma_kenh ? "<br /><span class='desc'>" + esc(p.ma_kenh) + "</span>" : "") + "</td>" +
+      "<td>" + esc(p.don_vi_ten) + "</td><td><b>" + p.khoang_cach_m + "m</b></td>" +
+      "<td><button class='btn sm blue' data-care-pos='" + p.id + "'>Chăm sóc</button></td></tr>").join("") ||
+      "<tr><td colspan='4'>Không có điểm bán nào trong bán kính 5m quanh vị trí hiện tại. Hãy đứng sát điểm bán rồi bấm lại “Lấy vị trí hiện tại”.</td></tr>";
+    $("careNearbyBody").querySelectorAll("[data-care-pos]").forEach((b) => b.addEventListener("click", () => {
+      const p = (d.pos || []).find((x) => x.id === Number(b.dataset.carePos));
+      if (p) openCareModal(p);
+    }));
+  } catch (e) {
+    // Khong co vi tri thiet bi -> khong hien diem ban (dung yeu cau)
+    $("careLocText").textContent = "Không lấy được vị trí thiết bị.";
+    $("careNearbyBody").innerHTML = "<tr><td colspan='4'>Thiết bị không trả về vị trí nên không hiển thị điểm bán để chăm sóc. Hãy bật định vị và thử lại.</td></tr>";
+    setMsg($("careNearbyMsg"), e.message, false);
+  }
+});
+function openCareModal(pos) {
+  carePos = pos; careStamped = null;
+  $("careModalPos").textContent = "Điểm bán: " + pos.ho_ten + (pos.don_vi_ten ? " — " + pos.don_vi_ten : "") + " (cách bạn " + pos.khoang_cach_m + "m)";
+  $("carePhotoInput").value = "";
+  $("carePhotoPreview").innerHTML = "";
+  $("carePhotoInfo").textContent = "Chưa có ảnh. Hãy chụp ảnh điểm bán — hệ thống sẽ tự đóng dấu tọa độ và thời gian chụp vào ảnh.";
+  $("careNote").value = "";
+  $("careSaveBtn").disabled = true;
+  setMsg($("careModalMsg"), "");
+  $("careModalBack").classList.remove("hidden");
+}
+$("careCancelBtn").addEventListener("click", () => $("careModalBack").classList.add("hidden"));
+$("carePhotoInput").addEventListener("change", async () => {
+  const file = $("carePhotoInput").files[0];
+  if (!file) return;
+  $("carePhotoInfo").textContent = "Đang xử lý ảnh và lấy vị trí lúc chụp…";
+  $("careSaveBtn").disabled = true;
+  try {
+    const loc = await fetchDeviceLocation();
+    const photoTime = new Date();
+    const img = await new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = () => reject(new Error("Không đọc được file ảnh"));
+      im.src = URL.createObjectURL(file);
+    });
+    const MAX = 1600;
+    const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+    const cv = document.createElement("canvas");
+    cv.width = Math.round(img.width * scale);
+    cv.height = Math.round(img.height * scale);
+    const ctx = cv.getContext("2d");
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    URL.revokeObjectURL(img.src);
+    const barH = Math.max(46, Math.round(cv.height * 0.1));
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
+    ctx.fillRect(0, cv.height - barH, cv.width, barH);
+    ctx.fillStyle = "#fff";
+    ctx.font = Math.max(15, Math.round(barH * 0.3)) + "px sans-serif";
+    ctx.fillText("Lat: " + loc.lat.toFixed(6) + "   Lng: " + loc.lng.toFixed(6), 12, cv.height - barH + Math.round(barH * 0.42));
+    ctx.fillText("Thời gian chụp: " + fmtDT(photoTime), 12, cv.height - Math.round(barH * 0.16));
+    const blob = await new Promise((resolve) => cv.toBlob(resolve, "image/jpeg", 0.85));
+    if (!blob) throw new Error("Không xử lý được ảnh");
+    careStamped = { blob, lat: loc.lat, lng: loc.lng, photoTime: photoTime.toISOString() };
+    $("carePhotoPreview").innerHTML = "<img src='" + URL.createObjectURL(blob) + "' style='max-width:100%;border-radius:12px' alt='Ảnh điểm bán đã đóng dấu' />";
+    $("carePhotoInfo").textContent = "Đã đóng dấu: Lat " + loc.lat.toFixed(6) + ", Lng " + loc.lng.toFixed(6) + " — Thời gian chụp " + fmtDT(photoTime) + ".";
+    $("careSaveBtn").disabled = false;
+  } catch (e) {
+    careStamped = null;
+    $("carePhotoInfo").textContent = "Chưa đóng dấu được ảnh: " + e.message + ". Hãy bật định vị và chọn lại ảnh.";
+    $("careSaveBtn").disabled = true;
+  }
+});
+$("careSaveBtn").addEventListener("click", async () => {
+  if (!careStamped || !carePos || !careBatchId) return;
+  $("careSaveBtn").disabled = true;
+  try {
+    const fd = new FormData();
+    fd.append("dot_id", careBatchId);
+    fd.append("pos_user_id", carePos.id);
+    fd.append("lat", careStamped.lat);
+    fd.append("lng", careStamped.lng);
+    fd.append("photo_time", careStamped.photoTime);
+    fd.append("ghi_chu", $("careNote").value.trim());
+    fd.append("anh", careStamped.blob, "cham-soc.jpg");
+    const res = await fetch(apiBase + "/api/care/records", { method: "POST", headers: token ? { Authorization: "Bearer " + token } : {}, body: fd });
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* bo qua */ }
+    if (!res.ok || data.ok === false) throw new Error(data.error || ("Lỗi " + res.status));
+    setMsg($("careModalMsg"), "Đã lưu kết quả chăm sóc (cách điểm bán " + data.khoang_cach_m + "m).");
+    $("careModalBack").classList.add("hidden");
+    loadCareHistory();
+    loadCareBatches();
+  } catch (e) {
+    setMsg($("careModalMsg"), e.message, false);
+    $("careSaveBtn").disabled = false;
+  }
+});
+async function viewCarePhoto(recordId) {
+  try {
+    const res = await fetch(apiBase + "/api/care/records/" + recordId + "/image", { headers: token ? { Authorization: "Bearer " + token } : {} });
+    if (!res.ok) throw new Error("Không tải được ảnh");
+    const blob = await res.blob();
+    window.open(URL.createObjectURL(blob), "_blank");
+  } catch (e) { alert("Không xem được ảnh: " + e.message); }
+}
+
 /* ---------------- Bao cao thong ke ---------------- */
 function repRange() {
   if ($("repMode").value === "month") {
@@ -3401,6 +3970,44 @@ $("repDetailBtn").addEventListener("click", async () => {
     $("repTotalMoney").textContent = fmt((d.rows || []).reduce((a, r) => a + (Number(r.so_tien) || 0), 0));
     setMsg($("repMsg"), "");
   } catch (e) { setMsg($("repMsg"), e.message, false); }
+});
+
+/* ---------------- Bao cao cham soc diem ban ---------------- */
+$("careRepSummaryBtn").addEventListener("click", async () => {
+  const p = repRange();
+  if (!p) { setMsg($("careRepMsg"), "Hãy chọn khoảng ngày hoặc tháng cần xem báo cáo.", false); return; }
+  try {
+    setMsg($("careRepMsg"), "Đang tải báo cáo…");
+    const d = await api("/api/care/reports/summary?from=" + p.from + "&to=" + p.to);
+    $("careRepTotal").textContent = (d.tong_luot || 0).toLocaleString("vi-VN");
+    $("careRepPos").textContent = (d.tong_diem || 0).toLocaleString("vi-VN");
+    $("careRepHead").innerHTML = "<tr><th>Đợt chăm sóc</th><th>Số lượt</th><th>Số điểm</th></tr>";
+    let rows = (d.theo_dot || []).map((r) => "<tr><td><b>" + esc(r.ten) + "</b></td><td>" + r.luot + "</td><td>" + r.diem + "</td></tr>").join("");
+    if ((d.theo_nguoi || []).length) {
+      rows += "<tr><td colspan='3' style='background:var(--blue-light)'><b>Theo người chăm sóc</b></td></tr>";
+      rows += (d.theo_nguoi || []).map((r) => "<tr><td>" + esc(r.ten) + "</td><td>" + r.luot + "</td><td>" + r.diem + "</td></tr>").join("");
+    }
+    $("careRepBody").innerHTML = rows || "<tr><td colspan='3'>Không có dữ liệu trong khoảng đã chọn.</td></tr>";
+    setMsg($("careRepMsg"), "");
+  } catch (e) { setMsg($("careRepMsg"), e.message, false); }
+});
+$("careRepDetailBtn").addEventListener("click", async () => {
+  const p = repRange();
+  if (!p) { setMsg($("careRepMsg"), "Hãy chọn khoảng ngày hoặc tháng cần xem báo cáo.", false); return; }
+  try {
+    setMsg($("careRepMsg"), "Đang tải chi tiết…");
+    const d = await api("/api/care/reports/detail?from=" + p.from + "&to=" + p.to + "&limit=1000");
+    $("careRepHead").innerHTML = "<tr><th>Thời gian</th><th>Đợt</th><th>Điểm bán</th><th>Đơn vị</th><th>Người chăm sóc</th><th>Khoảng cách</th><th>Ghi chú</th><th>Ảnh</th></tr>";
+    $("careRepBody").innerHTML = (d.records || []).map((r) =>
+      "<tr><td>" + esc(r.thoi_gian) + "</td><td>" + esc(r.ten_dot) + "</td><td><b>" + esc(r.pos_ten) + "</b></td><td>" + esc(r.don_vi_ten) + "</td><td>" + esc(r.caregiver_ten) + "</td>" +
+      "<td>" + (r.khoang_cach_m == null ? "—" : r.khoang_cach_m + "m") + "</td><td>" + esc(r.ghi_chu) + "</td>" +
+      "<td><button class='btn sm gray' data-care-rep-img='" + r.id + "'>Xem ảnh</button></td></tr>").join("") ||
+      "<tr><td colspan='8'>Không có dữ liệu trong khoảng đã chọn.</td></tr>";
+    $("careRepTotal").textContent = (d.records || []).length.toLocaleString("vi-VN");
+    $("careRepPos").textContent = new Set((d.records || []).map((r) => r.pos_ten)).size.toLocaleString("vi-VN");
+    $("careRepBody").querySelectorAll("[data-care-rep-img]").forEach((b) => b.addEventListener("click", () => viewCarePhoto(Number(b.dataset.careRepImg))));
+    setMsg($("careRepMsg"), "");
+  } catch (e) { setMsg($("careRepMsg"), e.message, false); }
 });
 
 /* ---------------- Thong ke dang nhap ---------------- */
