@@ -1037,7 +1037,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
               <div><label>Cột Thời gian dự phòng (nếu cột thời gian chính trống)</label><select id="dtTimeFb"></select></div>
               <div><label>Cột khóa map báo cáo (VD: Mã HRM/SĐT SMCS — để map dữ liệu với người dùng)</label><select id="dtKey"></select></div>
               <div><label>Cột Mã kênh (map báo cáo theo mã kênh của người dùng)</label><select id="dtKenh"></select></div>
-              <div class="full"><button class="btn blue" type="submit">Tạo loại dữ liệu</button></div>
+              <div class="full"><button class="btn blue" type="submit" id="dtSubmitBtn">Tạo loại dữ liệu</button> <button class="btn gray hidden" type="button" id="dtCancelBtn">Hủy sửa</button></div>
             </form>
             <div id="dtMsg"></div>
           </div>
@@ -1628,6 +1628,17 @@ function buildSource(t, meUser, overrideUnitId) {
     }
     if (t.kenh_col) { unitParts.push(t.kenh_col + &quot; IN (&quot; + subtree + &quot; SELECT ma_kenh FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))&quot;); unitBinds.push(unitRoot); }
   }
+  // Loc &quot;Chua xac dinh&quot; (don_vi ao, chi admin/subadmin): cac dong KHONG map
+  // duoc voi bat ky user nao co don vi (user chua gan don vi hoac dong khong
+  // khop dinh danh nao). Moi chieu map deu chan NULL/rong de tranh kieu
+  // 3 gia tri cua SQL lam mat dong (vd: dong chi co ma_kenh khong khop van
+  // phai roi vao &quot;Chua xac dinh&quot; du so_vi cua no la NULL).
+  const unmappedParts = [];
+  if (t.eload_col) unmappedParts.push(&quot;(&quot; + t.eload_col + &quot; IS NOT NULL AND &quot; + t.eload_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.eload_col + &quot; IN (SELECT so_eload FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND so_eload IS NOT NULL AND so_eload &lt;&gt; &#x27;&#x27;))&quot;);
+  if (t.vi_col) unmappedParts.push(&quot;(&quot; + t.vi_col + &quot; IS NOT NULL AND &quot; + t.vi_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.vi_col + &quot; IN (SELECT so_vi FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND so_vi IS NOT NULL AND so_vi &lt;&gt; &#x27;&#x27;))&quot;);
+  if (t.key_col) unmappedParts.push(&quot;((&quot; + t.key_col + &quot; IS NOT NULL AND &quot; + t.key_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.key_col + &quot; IN (SELECT ma_hrm FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND ma_hrm IS NOT NULL AND ma_hrm &lt;&gt; &#x27;&#x27;)) OR (&quot; + t.key_col + &quot; IS NOT NULL AND &quot; + t.key_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.key_col + &quot; IN (SELECT sdt_nhan_vien FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND sdt_nhan_vien IS NOT NULL AND sdt_nhan_vien &lt;&gt; &#x27;&#x27;)))&quot;);
+  if (t.kenh_col) unmappedParts.push(&quot;(&quot; + t.kenh_col + &quot; IS NOT NULL AND &quot; + t.kenh_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.kenh_col + &quot; IN (SELECT ma_kenh FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND ma_kenh IS NOT NULL AND ma_kenh &lt;&gt; &#x27;&#x27;))&quot;);
+  const unmapped = unmappedParts.length ? &quot;NOT (&quot; + unmappedParts.join(&quot; OR &quot;) + &quot;)&quot; : &quot;1=1&quot;;
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
     type: t,
@@ -1639,6 +1650,7 @@ function buildSource(t, meUser, overrideUnitId) {
     subCol: t.sub_col || null, pkgCol: t.pkg_col || null,
     transCol: t.trans_col || null, statusCol: t.status_col || null, reasonCol: t.reason_col || null,
     keyCol: t.key_col || null, kenhCol: t.kenh_col || null,
+    unmapped,
   };
 }
 
@@ -1647,6 +1659,13 @@ function buildSource(t, meUser, overrideUnitId) {
 // duoc loc. Tra ve { ok, unit } — unit null nghia la khong loc.
 async function resolveScopeUnit(env, me, isLeader, isPrivileged, donViParam) {
   if (donViParam === null || donViParam === undefined || donViParam === &quot;&quot;) return { ok: true, unit: null };
+  // Don vi ao &quot;Chua xac dinh&quot; (don_vi=0): so lieu chua map duoc voi don vi
+  // nao — chi admin/subadmin moi xem duoc vi so lieu nay nam ngoai moi cay
+  // don vi cua lanh dao.
+  if (donViParam === &quot;0&quot; || donViParam === 0) {
+    if (!isPrivileged) return { ok: false, msg: &quot;So lieu chua xac dinh don vi chi admin/subadmin moi xem duoc&quot;, code: 403 };
+    return { ok: true, unit: 0 };
+  }
   const id = Number(donViParam);
   if (!id) return { ok: false, msg: &quot;Don vi loc khong hop le&quot;, code: 422 };
   const unit = await env.DB.prepare(&quot;SELECT id FROM don_vi WHERE id = ?&quot;).bind(id).first();
@@ -1690,7 +1709,10 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
           &#x27;SELECT &#x27; + groupExpr + &#x27; AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT &#x27; +
           innerCols.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot;) WHERE substr(tg, 1, 10) BETWEEN ? AND ?&#x27;;
         const localBinds = [from, to];
-        if (scopeUnit) { sql += &quot; AND &quot; + src.unit; localBinds.push(...src.unitBinds); }
+        if (scopeUnit != null) {
+          if (scopeUnit === 0) { sql += &quot; AND &quot; + src.unmapped; }
+          else { sql += &quot; AND &quot; + src.unit; localBinds.push(...src.unitBinds); }
+        }
         else if (!isPrivileged) {
           if (isUnitScoped) { sql += &quot; AND &quot; + src.unit; localBinds.push(...src.unitBinds); }
           else { sql += &quot; AND &quot; + src.own; localBinds.push(...src.ownBinds); }
@@ -2179,6 +2201,46 @@ export default {
           .run();
         return json({ ok: true, id: r.meta.last_row_id, code });
       }
+      // Sua loai du lieu TU TAO (admin): doi duoc ten, danh sach cot va cac
+      // cot vai tro. Khong doi duoc ma (dinh danh), dinh dang ten bang
+      // (fmt) va khong sua duoc loai mac dinh — doi fmt sau khi da co bang
+      // thang se lam mo coi cac bang cu.
+      const dtPutMatch = path.match(/^\/api\/datatypes\/(\d+)$/);
+      if (dtPutMatch &amp;&amp; method === &quot;PUT&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi co quyen sua loai du lieu&quot;, 403);
+        const b = await readBody(request);
+        const row = await env.DB.prepare(&quot;SELECT * FROM loai_du_lieu WHERE id = ?&quot;).bind(Number(dtPutMatch[1])).first();
+        if (!row) return err(&quot;Loai du lieu khong ton tai&quot;, 404);
+        if (row.builtin) return err(&quot;Khong sua duoc loai du lieu mac dinh&quot;, 403);
+        const name = toText(b.name);
+        const columns = Array.isArray(b.columns) ? b.columns : [];
+        if (!name) return err(&quot;Thieu ten loai du lieu&quot;, 422);
+        if (!columns.length) return err(&quot;Loai du lieu phai co it nhat 1 cot&quot;, 422);
+        const keys = new Set();
+        for (const c of columns) {
+          if (!/^[a-z][a-z0-9_]*$/.test(String(c.key || &quot;&quot;))) return err(&quot;Khoa cot khong hop le: &quot; + (c.key || &quot;&quot;), 422);
+          if (keys.has(c.key)) return err(&quot;Trung khoa cot: &quot; + c.key, 422);
+          keys.add(c.key);
+        }
+        for (const rc of [&quot;money_col&quot;, &quot;time_col&quot;, &quot;eload_col&quot;]) {
+          if (!b[rc] || !keys.has(b[rc])) return err(&quot;Chua chon cot vai tro bat buoc: &quot; + rc, 422);
+        }
+        for (const rc of [&quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;]) {
+          if (b[rc] &amp;&amp; !keys.has(b[rc])) return err(&quot;Cot vai tro khong nam trong danh sach cot: &quot; + rc, 422);
+        }
+        const cleanCols = columns.map((c) =&gt; ({
+          key: String(c.key), label: toText(c.label) || String(c.key),
+          type: [&quot;money&quot;, &quot;number&quot;, &quot;date&quot;].includes(c.type) ? c.type : &quot;text&quot;,
+        }));
+        await env.DB.prepare(
+          &quot;UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ? WHERE id = ?&quot;
+        )
+          .bind(name, JSON.stringify(cleanCols),
+            b.money_col, b.time_col, b.time_fallback_col || &quot;&quot;, b.eload_col, b.vi_col || &quot;&quot;,
+            b.sub_col || &quot;&quot;, b.pkg_col || &quot;&quot;, b.trans_col || &quot;&quot;, b.status_col || &quot;&quot;, b.reason_col || &quot;&quot;, b.key_col || &quot;&quot;, b.kenh_col || &quot;&quot;, row.id)
+          .run();
+        return json({ ok: true, code: row.code });
+      }
       const dtMatch = path.match(/^\/api\/datatypes\/(\d+)$/);
       if (dtMatch &amp;&amp; method === &quot;DELETE&quot;) {
         if (!isAdmin) return err(&quot;Chi admin moi co quyen xoa loai du lieu&quot;, 403);
@@ -2368,7 +2430,10 @@ export default {
               let sql =
                 &quot;SELECT &quot; + sel.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot; WHERE substr(&#x27; + src.time + &quot;, 1, 10) BETWEEN ? AND ?&quot;;
               const binds = [from, to];
-              if (scopeUnit) { sql += &quot; AND &quot; + src.unit; binds.push(...src.unitBinds); }
+              if (scopeUnit != null) {
+                if (scopeUnit === 0) { sql += &quot; AND &quot; + src.unmapped; }
+                else { sql += &quot; AND &quot; + src.unit; binds.push(...src.unitBinds); }
+              }
               else if (!isPrivileged) {
                 if (isUnitScoped) { sql += &quot; AND &quot; + src.unit; binds.push(...src.unitBinds); }
                 else { sql += &quot; AND &quot; + src.own; binds.push(...src.ownBinds); }
@@ -3476,6 +3541,7 @@ async function loadDashUnitOptions() {
   try {
     const d = await api("/api/units");
     let units = d.units || [];
+    const isPriv = me.role === "admin" || me.role === "subadmin";
     if (me.role === "leader" && me.don_vi_id) {
       const kids = new Map();
       units.forEach((u) => { if (u.parent_id) { if (!kids.has(u.parent_id)) kids.set(u.parent_id, []); kids.get(u.parent_id).push(u.id); } });
@@ -3483,9 +3549,28 @@ async function loadDashUnitOptions() {
       while (stack.length) { const cur = stack.pop(); (kids.get(cur) || []).forEach((c) => { if (!keep.has(c)) { keep.add(c); stack.push(c); } }); }
       units = units.filter((u) => keep.has(u.id));
     }
+    // Sap xep theo cay don vi: don vi cap cha hien len dau, don vi cap con
+    // hien ngay ben duoi cha va thut them 1 cap (tien to "↳ " moi cap).
+    const byId = new Map(units.map((u) => [u.id, u]));
+    const kids = new Map();
+    units.forEach((u) => { if (u.parent_id) { if (!kids.has(u.parent_id)) kids.set(u.parent_id, []); kids.get(u.parent_id).push(u); } });
+    const byCode = (a, b) => String(a.ma_don_vi || "").localeCompare(String(b.ma_don_vi || ""));
+    kids.forEach((arr) => arr.sort(byCode));
+    const ordered = [];
+    const walk = (u, depth) => { ordered.push({ ...u, depth }); (kids.get(u.id) || []).forEach((c) => walk(c, depth + 1)); };
+    units.filter((u) => !u.parent_id || !byId.has(u.parent_id)).sort(byCode).forEach((r) => walk(r, 0));
+    // Don vi khong toi duoc tu goc (VD: vong tron parent_id) van hien o cuoi
+    // de khong mat lua chon.
+    const seen = new Set(ordered.map((u) => u.id));
+    units.filter((u) => !seen.has(u.id)).sort(byCode).forEach((u) => ordered.push({ ...u, depth: 0 }));
     const cur = sel.value;
-    sel.innerHTML = '<option value="">Tất cả đơn vị trong phạm vi của bạn</option>' +
-      units.map((u) => '<option value="' + u.id + '">' + esc(u.ten_don_vi) + " (" + esc(u.ma_don_vi) + ")</option>").join("");
+    let opts = '<option value="">Tất cả đơn vị trong phạm vi của bạn</option>';
+    // Don vi ao "Chua xac dinh" (chi admin/subadmin): so lieu chua map duoc
+    // voi don vi nao; coi nhu don vi cap cha, xep ngang hang cac cap cha khac
+    // va hien dau tien trong nhom cap cha de de thay.
+    if (isPriv) opts += '<option value="0">Chưa xác định (số liệu chưa map được đơn vị)</option>';
+    opts += ordered.map((u) => '<option value="' + u.id + '">' + "↳ ".repeat(u.depth) + esc(u.ten_don_vi) + " (" + esc(u.ma_don_vi) + ")</option>").join("");
+    sel.innerHTML = opts;
     sel.value = [...sel.options].some((o) => o.value === cur) ? cur : "";
   } catch (e) { row.classList.add("hidden"); }
 }
@@ -3941,8 +4026,12 @@ function renderDtList() {
     "<span style='color:var(--muted);font-size:13px'>Bảng tháng: " + esc(t.prefix) + (t.fmt === "MMYY" ? "_MMYY" : "_MMYYYY") + " · " + (t.columns || []).length + " cột</span>" +
     (t.builtin
       ? "<span class='pill user'>Mặc định</span>"
-      : "<span style='flex:1'></span><button class='btn sm danger' data-del-dt='" + t.id + "'>Xóa loại</button>") +
+      : "<span style='flex:1'></span><button class='btn sm gray' data-edit-dt='" + t.id + "'>Sửa</button><button class='btn sm danger' data-del-dt='" + t.id + "'>Xóa loại</button>") +
     "</div>").join("");
+  el.querySelectorAll("[data-edit-dt]").forEach((b) => b.addEventListener("click", () => {
+    const t = dataTypes.find((x) => x.id === Number(b.dataset.editDt));
+    if (t) startDtEdit(t);
+  }));
   el.querySelectorAll("[data-del-dt]").forEach((b) => b.addEventListener("click", async () => {
     if (!confirm("Xóa loại dữ liệu này? (Các bảng dữ liệu tháng đã import của loại này vẫn giữ nguyên trên D1.)")) return;
     try { await api("/api/datatypes/" + b.dataset.delDt, { method: "DELETE" }); setMsg($("dtMsg"), "Đã xóa loại dữ liệu."); loadDataTypes(); }
@@ -3994,6 +4083,37 @@ function dtRefreshRoleSelects() {
   const money = cols.find((c) => c.type === "money"); if (money && !$("dtMoney").value) $("dtMoney").value = money.key;
   const time = cols.find((c) => c.type === "date"); if (time && !$("dtTime").value) $("dtTime").value = time.key;
 }
+/* ---------------- Sua loai du lieu tu tao (admin) ---------------- */
+let dtEditId = null;
+function resetDtForm() {
+  dtEditId = null;
+  $("dtForm").reset();
+  $("dtCode").disabled = false; $("dtFmt").disabled = false;
+  $("dtCols").innerHTML = "";
+  ["Số Eload", "Số thuê bao", "Số tiền chi trả", "Thời gian chi trả"].forEach((l, i) => $("dtCols").appendChild(dtColumnRow(l, "", i === 2 ? "money" : i === 3 ? "date" : "text")));
+  dtRefreshRoleSelects();
+  $("dtSubmitBtn").textContent = "Tạo loại dữ liệu";
+  $("dtCancelBtn").classList.add("hidden");
+}
+function startDtEdit(t) {
+  dtEditId = t.id;
+  $("dtCode").value = t.code; $("dtCode").disabled = true;
+  $("dtName").value = t.name;
+  $("dtFmt").value = t.fmt; $("dtFmt").disabled = true;
+  $("dtCols").innerHTML = "";
+  (t.columns || []).forEach((c) => {
+    const row = dtColumnRow(c.label, c.key, c.type);
+    row.querySelector(".dtc-key").dataset.touched = "1";
+    $("dtCols").appendChild(row);
+  });
+  dtRefreshRoleSelects();
+  [["dtMoney", t.money_col], ["dtTime", t.time_col], ["dtEload", t.eload_col], ["dtVi", t.vi_col], ["dtSub", t.sub_col], ["dtPkg", t.pkg_col], ["dtTrans", t.trans_col], ["dtStatus", t.status_col], ["dtReason", t.reason_col], ["dtTimeFb", t.time_fallback_col], ["dtKey", t.key_col], ["dtKenh", t.kenh_col]].forEach(([id, v]) => { const s = $(id); if (v) s.value = v; });
+  $("dtSubmitBtn").textContent = "Lưu thay đổi";
+  $("dtCancelBtn").classList.remove("hidden");
+  setMsg($("dtMsg"), "Đang sửa loại \"" + t.name + "\" (" + t.code + "). Mã loại và định dạng tên bảng không đổi được sau khi tạo; các bảng tháng đã import giữ nguyên schema cũ.");
+  $("dtForm").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$("dtCancelBtn").addEventListener("click", () => { resetDtForm(); setMsg($("dtMsg"), ""); });
 $("dtAddCol").addEventListener("click", () => { $("dtCols").appendChild(dtColumnRow()); });
 $("dtForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -4010,11 +4130,14 @@ $("dtForm").addEventListener("submit", async (e) => {
   if (!columns.length) { setMsg($("dtMsg"), "Hãy khai báo ít nhất 1 cột dữ liệu.", false); return; }
   if (!body.money_col || !body.time_col || !body.eload_col) { setMsg($("dtMsg"), "Bắt buộc chọn: Cột Số tiền, Cột Thời gian và Cột Số Eload (để map với người dùng).", false); return; }
   try {
-    const d = await api("/api/datatypes", { method: "POST", body: JSON.stringify(body) });
-    setMsg($("dtMsg"), "Đã tạo loại dữ liệu " + d.code + ". Loại này đã xuất hiện trong ô chọn Loại dữ liệu ở phần import phía trên và trong Báo cáo thống kê — import được ngay.");
-    $("dtForm").reset(); $("dtCols").innerHTML = "";
-    ["Số Eload", "Số thuê bao", "Số tiền chi trả", "Thời gian chi trả"].forEach((l, i) => $("dtCols").appendChild(dtColumnRow(l, "", i === 2 ? "money" : i === 3 ? "date" : "text")));
-    dtRefreshRoleSelects();
+    if (dtEditId) {
+      const d = await api("/api/datatypes/" + dtEditId, { method: "PUT", body: JSON.stringify(body) });
+      setMsg($("dtMsg"), "Đã lưu thay đổi cho loại dữ liệu " + d.code + ". Loại này áp dụng ngay cho import và báo cáo từ nay về sau; các bảng tháng đã import giữ nguyên schema cũ.");
+    } else {
+      const d = await api("/api/datatypes", { method: "POST", body: JSON.stringify(body) });
+      setMsg($("dtMsg"), "Đã tạo loại dữ liệu " + d.code + ". Loại này đã xuất hiện trong ô chọn Loại dữ liệu ở phần import phía trên và trong Báo cáo thống kê — import được ngay.");
+    }
+    resetDtForm();
     loadDataTypes();
   } catch (err) { setMsg($("dtMsg"), err.message, false); }
 });

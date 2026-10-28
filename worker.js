@@ -409,6 +409,17 @@ function buildSource(t, meUser, overrideUnitId) {
     }
     if (t.kenh_col) { unitParts.push(t.kenh_col + " IN (" + subtree + " SELECT ma_kenh FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(unitRoot); }
   }
+  // Loc "Chua xac dinh" (don_vi ao, chi admin/subadmin): cac dong KHONG map
+  // duoc voi bat ky user nao co don vi (user chua gan don vi hoac dong khong
+  // khop dinh danh nao). Moi chieu map deu chan NULL/rong de tranh kieu
+  // 3 gia tri cua SQL lam mat dong (vd: dong chi co ma_kenh khong khop van
+  // phai roi vao "Chua xac dinh" du so_vi cua no la NULL).
+  const unmappedParts = [];
+  if (t.eload_col) unmappedParts.push("(" + t.eload_col + " IS NOT NULL AND " + t.eload_col + " <> '' AND " + t.eload_col + " IN (SELECT so_eload FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND so_eload IS NOT NULL AND so_eload <> ''))");
+  if (t.vi_col) unmappedParts.push("(" + t.vi_col + " IS NOT NULL AND " + t.vi_col + " <> '' AND " + t.vi_col + " IN (SELECT so_vi FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND so_vi IS NOT NULL AND so_vi <> ''))");
+  if (t.key_col) unmappedParts.push("((" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT ma_hrm FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND ma_hrm IS NOT NULL AND ma_hrm <> '')) OR (" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT sdt_nhan_vien FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND sdt_nhan_vien IS NOT NULL AND sdt_nhan_vien <> '')))");
+  if (t.kenh_col) unmappedParts.push("(" + t.kenh_col + " IS NOT NULL AND " + t.kenh_col + " <> '' AND " + t.kenh_col + " IN (SELECT ma_kenh FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND ma_kenh IS NOT NULL AND ma_kenh <> ''))");
+  const unmapped = unmappedParts.length ? "NOT (" + unmappedParts.join(" OR ") + ")" : "1=1";
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
     type: t,
@@ -420,6 +431,7 @@ function buildSource(t, meUser, overrideUnitId) {
     subCol: t.sub_col || null, pkgCol: t.pkg_col || null,
     transCol: t.trans_col || null, statusCol: t.status_col || null, reasonCol: t.reason_col || null,
     keyCol: t.key_col || null, kenhCol: t.kenh_col || null,
+    unmapped,
   };
 }
 
@@ -428,6 +440,13 @@ function buildSource(t, meUser, overrideUnitId) {
 // duoc loc. Tra ve { ok, unit } — unit null nghia la khong loc.
 async function resolveScopeUnit(env, me, isLeader, isPrivileged, donViParam) {
   if (donViParam === null || donViParam === undefined || donViParam === "") return { ok: true, unit: null };
+  // Don vi ao "Chua xac dinh" (don_vi=0): so lieu chua map duoc voi don vi
+  // nao — chi admin/subadmin moi xem duoc vi so lieu nay nam ngoai moi cay
+  // don vi cua lanh dao.
+  if (donViParam === "0" || donViParam === 0) {
+    if (!isPrivileged) return { ok: false, msg: "So lieu chua xac dinh don vi chi admin/subadmin moi xem duoc", code: 403 };
+    return { ok: true, unit: 0 };
+  }
   const id = Number(donViParam);
   if (!id) return { ok: false, msg: "Don vi loc khong hop le", code: 422 };
   const unit = await env.DB.prepare("SELECT id FROM don_vi WHERE id = ?").bind(id).first();
@@ -471,7 +490,10 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
           'SELECT ' + groupExpr + ' AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT ' +
           innerCols.join(", ") + ' FROM "' + t + '") WHERE substr(tg, 1, 10) BETWEEN ? AND ?';
         const localBinds = [from, to];
-        if (scopeUnit) { sql += " AND " + src.unit; localBinds.push(...src.unitBinds); }
+        if (scopeUnit != null) {
+          if (scopeUnit === 0) { sql += " AND " + src.unmapped; }
+          else { sql += " AND " + src.unit; localBinds.push(...src.unitBinds); }
+        }
         else if (!isPrivileged) {
           if (isUnitScoped) { sql += " AND " + src.unit; localBinds.push(...src.unitBinds); }
           else { sql += " AND " + src.own; localBinds.push(...src.ownBinds); }
@@ -960,6 +982,46 @@ export default {
           .run();
         return json({ ok: true, id: r.meta.last_row_id, code });
       }
+      // Sua loai du lieu TU TAO (admin): doi duoc ten, danh sach cot va cac
+      // cot vai tro. Khong doi duoc ma (dinh danh), dinh dang ten bang
+      // (fmt) va khong sua duoc loai mac dinh — doi fmt sau khi da co bang
+      // thang se lam mo coi cac bang cu.
+      const dtPutMatch = path.match(/^\/api\/datatypes\/(\d+)$/);
+      if (dtPutMatch && method === "PUT") {
+        if (!isAdmin) return err("Chi admin moi co quyen sua loai du lieu", 403);
+        const b = await readBody(request);
+        const row = await env.DB.prepare("SELECT * FROM loai_du_lieu WHERE id = ?").bind(Number(dtPutMatch[1])).first();
+        if (!row) return err("Loai du lieu khong ton tai", 404);
+        if (row.builtin) return err("Khong sua duoc loai du lieu mac dinh", 403);
+        const name = toText(b.name);
+        const columns = Array.isArray(b.columns) ? b.columns : [];
+        if (!name) return err("Thieu ten loai du lieu", 422);
+        if (!columns.length) return err("Loai du lieu phai co it nhat 1 cot", 422);
+        const keys = new Set();
+        for (const c of columns) {
+          if (!/^[a-z][a-z0-9_]*$/.test(String(c.key || ""))) return err("Khoa cot khong hop le: " + (c.key || ""), 422);
+          if (keys.has(c.key)) return err("Trung khoa cot: " + c.key, 422);
+          keys.add(c.key);
+        }
+        for (const rc of ["money_col", "time_col", "eload_col"]) {
+          if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
+        }
+        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col"]) {
+          if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
+        }
+        const cleanCols = columns.map((c) => ({
+          key: String(c.key), label: toText(c.label) || String(c.key),
+          type: ["money", "number", "date"].includes(c.type) ? c.type : "text",
+        }));
+        await env.DB.prepare(
+          "UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ? WHERE id = ?"
+        )
+          .bind(name, JSON.stringify(cleanCols),
+            b.money_col, b.time_col, b.time_fallback_col || "", b.eload_col, b.vi_col || "",
+            b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "", b.kenh_col || "", row.id)
+          .run();
+        return json({ ok: true, code: row.code });
+      }
       const dtMatch = path.match(/^\/api\/datatypes\/(\d+)$/);
       if (dtMatch && method === "DELETE") {
         if (!isAdmin) return err("Chi admin moi co quyen xoa loai du lieu", 403);
@@ -1149,7 +1211,10 @@ export default {
               let sql =
                 "SELECT " + sel.join(", ") + ' FROM "' + t + '" WHERE substr(' + src.time + ", 1, 10) BETWEEN ? AND ?";
               const binds = [from, to];
-              if (scopeUnit) { sql += " AND " + src.unit; binds.push(...src.unitBinds); }
+              if (scopeUnit != null) {
+                if (scopeUnit === 0) { sql += " AND " + src.unmapped; }
+                else { sql += " AND " + src.unit; binds.push(...src.unitBinds); }
+              }
               else if (!isPrivileged) {
                 if (isUnitScoped) { sql += " AND " + src.unit; binds.push(...src.unitBinds); }
                 else { sql += " AND " + src.own; binds.push(...src.ownBinds); }
