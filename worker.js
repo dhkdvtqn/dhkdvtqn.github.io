@@ -124,8 +124,11 @@ function publicUser(u) {
     so_vi: u.so_vi || "",
     ten_nhan_vien: u.ten_nhan_vien || "",
     sdt_nhan_vien: u.sdt_nhan_vien || "",
+    ma_hrm: u.ma_hrm || "",
     don_vi_id: u.don_vi_id ?? null,
     don_vi_ten: u.don_vi_ten || "",
+    leader_id: u.leader_id ?? null,
+    leader_ten: u.leader_ten || "",
     can_import: !!u.can_import,
     modules: parseModules(u.modules),
     lat: u.lat ?? null,
@@ -144,6 +147,7 @@ async function ensureUserColumns(env) {
     if (!cols.has("modules")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN modules TEXT").run();
     if (!cols.has("lat")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN lat REAL").run();
     if (!cols.has("lng")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN lng REAL").run();
+    if (!cols.has("leader_id")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN leader_id INTEGER").run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -249,6 +253,7 @@ const BUILTIN_TYPES = [
     money_col: "thu_lao", time_col: "thoi_gian_chi_tra", time_fallback_col: "thoi_gian_giao_dich",
     eload_col: "so_eload", vi_col: "so_vi", sub_col: "so_thue_bao", pkg_col: "ten_goi",
     trans_col: "ma_giao_dich", status_col: "trang_thai", reason_col: "nguyen_nhan_loi",
+    key_col: "", kenh_col: "",
   },
   {
     code: "BCKH", name: "Chi trả tiền BCKH", prefix: "BCKH", fmt: "MMYY", builtin: 1,
@@ -279,6 +284,9 @@ const BUILTIN_TYPES = [
     // ma_hrm / sdt_nhan_vien cua user), KHONG lam PRIMARY KEY — bang thang
     // van dung id tu tang de import du het cac dong ke ca khi khoa trung nhau.
     key_col: "ma_hrm_sdt_smcs",
+    // Cot Ma kenh: map bao cao theo ma_kenh cua user (dinh danh diem ban on
+    // dinh nhat, co san ca o tai khoan cu chua co so_vi/ma_hrm).
+    kenh_col: "ma_kenh",
   },
 ];
 
@@ -291,7 +299,7 @@ const LEGACY_SCHEMAS = {
   BCKH: {
     money_col: "hoa_hong_bckh", time_col: "thoi_gian_chi_tra", time_fallback_col: "",
     eload_col: "so_eload", vi_col: "", sub_col: "so_thue_bao", pkg_col: "",
-    trans_col: "ma_giao_dich", status_col: "trang_thai", reason_col: "nguyen_nhan_loi", key_col: "",
+    trans_col: "ma_giao_dich", status_col: "trang_thai", reason_col: "nguyen_nhan_loi", key_col: "", kenh_col: "",
   },
 };
 async function ensureTypes(env) {
@@ -300,23 +308,23 @@ async function ensureTypes(env) {
     "id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, " +
     "prefix TEXT NOT NULL, fmt TEXT NOT NULL DEFAULT 'MMYYYY', columns_json TEXT NOT NULL, " +
     "money_col TEXT, time_col TEXT, time_fallback_col TEXT, eload_col TEXT, vi_col TEXT, " +
-    "sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, key_col TEXT, " +
+    "sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, key_col TEXT, kenh_col TEXT, " +
     "builtin INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)"
   ).run();
-  // CSDL cu co the chua co cot key_col (them sau) — bo sung neu thieu.
+  // CSDL cu co the chua co cot key_col / kenh_col (them sau) — bo sung neu thieu.
   try {
     const info = await env.DB.prepare("PRAGMA table_info(loai_du_lieu)").all();
-    if (!(info.results || []).some((c) => c.name === "key_col")) {
-      await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN key_col TEXT").run();
-    }
+    const names = new Set((info.results || []).map((c) => c.name));
+    if (!names.has("key_col")) await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN key_col TEXT").run();
+    if (!names.has("kenh_col")) await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN kenh_col TEXT").run();
   } catch (e) { /* PRAGMA khong co thi bo qua, cot se duoc them o lan tao bang sau */ }
   const c = await env.DB.prepare("SELECT COUNT(*) AS n FROM loai_du_lieu").first();
   if (c && c.n === 0) {
     for (const t of BUILTIN_TYPES) {
       await env.DB.prepare(
-        "INSERT OR IGNORE INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"
+        "INSERT OR IGNORE INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"
       )
-        .bind(t.code, t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col, t.key_col || "")
+        .bind(t.code, t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col, t.key_col || "", t.kenh_col || "")
         .run();
     }
   }
@@ -328,9 +336,9 @@ async function ensureTypes(env) {
     const cur = await env.DB.prepare("SELECT * FROM loai_du_lieu WHERE code = ?").bind(t.code).first();
     if (!cur) {
       await env.DB.prepare(
-        "INSERT OR IGNORE INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"
+        "INSERT OR IGNORE INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"
       )
-        .bind(t.code, t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col, t.key_col || "")
+        .bind(t.code, t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col, t.key_col || "", t.kenh_col || "")
         .run();
     } else if (cur.builtin) {
       const same =
@@ -341,12 +349,13 @@ async function ensureTypes(env) {
         (cur.eload_col || "") === (t.eload_col || "") && (cur.vi_col || "") === (t.vi_col || "") &&
         (cur.sub_col || "") === (t.sub_col || "") && (cur.pkg_col || "") === (t.pkg_col || "") &&
         (cur.trans_col || "") === (t.trans_col || "") && (cur.status_col || "") === (t.status_col || "") &&
-        (cur.reason_col || "") === (t.reason_col || "") && (cur.key_col || "") === (t.key_col || "");
+        (cur.reason_col || "") === (t.reason_col || "") && (cur.key_col || "") === (t.key_col || "") &&
+        (cur.kenh_col || "") === (t.kenh_col || "");
       if (!same) {
         await env.DB.prepare(
-          "UPDATE loai_du_lieu SET name = ?, prefix = ?, fmt = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ? WHERE code = ?"
+          "UPDATE loai_du_lieu SET name = ?, prefix = ?, fmt = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ? WHERE code = ?"
         )
-          .bind(t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col, t.key_col || "", t.code)
+          .bind(t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col, t.key_col || "", t.kenh_col || "", t.code)
           .run();
       }
     }
@@ -379,6 +388,8 @@ function buildSource(t, meUser) {
     ownParts.push("(" + t.key_col + " = ? OR " + t.key_col + " = ?)");
     ownBinds.push(meUser.ma_hrm || "__none__", meUser.sdt_nhan_vien || "__none__");
   }
+  // Cot Ma kenh: dinh danh diem ban on dinh nhat (co san ca o tai khoan cu).
+  if (t.kenh_col) { ownParts.push(t.kenh_col + " = ?"); ownBinds.push(meUser.ma_kenh || "__none__"); }
   // Loc theo don vi (danh cho Lanh dao don vi): cac giao dich cua user
   // thuoc don vi cua lanh dao VA MOI DON VI TRUC THUOC trong cay don vi
   // (don_vi.parent_id) — vi du lanh dao cap tinh thay toan tinh, lanh dao
@@ -393,6 +404,7 @@ function buildSource(t, meUser) {
       unitParts.push(t.key_col + " IN (" + subtree + " SELECT ma_hrm FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(meUser.don_vi_id);
       unitParts.push(t.key_col + " IN (" + subtree + " SELECT sdt_nhan_vien FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(meUser.don_vi_id);
     }
+    if (t.kenh_col) { unitParts.push(t.kenh_col + " IN (" + subtree + " SELECT ma_kenh FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(meUser.don_vi_id); }
   }
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
@@ -404,7 +416,7 @@ function buildSource(t, meUser) {
     eloadCol: t.eload_col || null, viCol: t.vi_col || null,
     subCol: t.sub_col || null, pkgCol: t.pkg_col || null,
     transCol: t.trans_col || null, statusCol: t.status_col || null, reasonCol: t.reason_col || null,
-    keyCol: t.key_col || null,
+    keyCol: t.key_col || null, kenhCol: t.kenh_col || null,
   };
 }
 function tableNameForType(t, thang, nam) {
@@ -649,7 +661,7 @@ export default {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen xem danh sach nguoi dung", 403);
         if (!hasModule(me, "users")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
         const res = await env.DB.prepare(
-          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id ORDER BY u.ho_ten"
+          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id ORDER BY u.ho_ten"
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -675,14 +687,21 @@ export default {
         if (latP.error) return err("Vi do diem ban khong hop le (tu -90 den 90)", 422);
         const lngP = parseCoordField(b.lng, -180, 180);
         if (lngP.error) return err("Kinh do diem ban khong hop le (tu -180 den 180)", 422);
+        // Lanh dao phu trach: chi nhan id cua tai khoan co role leader.
+        let newLeaderId = null;
+        if (b.leader_id) {
+          const ld = await env.DB.prepare("SELECT id FROM nguoi_dung WHERE id = ? AND role = 'leader'").bind(Number(b.leader_id)).first();
+          if (!ld) return err("Lanh dao phu trach khong ton tai hoac khong phai tai khoan Lanh dao don vi", 422);
+          newLeaderId = ld.id;
+        }
         const r = await env.DB.prepare(
-          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm),
-            b.don_vi_id ? Number(b.don_vi_id) : null, newCanImport, newModules, latP.val, lngP.val
+            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newCanImport, newModules, latP.val, lngP.val
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -733,13 +752,20 @@ export default {
           else impLat = impLatP.val;
           if (impLngP.error) warnings.push({ row: i + 2, reason: "Kinh do khong hop le — da de trong" });
           else impLng = impLngP.val;
+          // Lanh dao phu trach: nhan User dang nhap cua tai khoan leader
+          let leaderId = null;
+          if (toText(r.leader_username)) {
+            const ld = await env.DB.prepare("SELECT id FROM nguoi_dung WHERE username = ? AND role = 'leader'").bind(toText(r.leader_username)).first();
+            if (ld) leaderId = ld.id;
+            else warnings.push({ row: i + 2, reason: "Khong tim thay tai khoan lanh dao '" + toText(r.leader_username) + "' — da de trong" });
+          }
           await env.DB.prepare(
-            "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
               impRole,
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViId, isAdmin && r.can_import ? 1 : 0,
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViId, leaderId, isAdmin && r.can_import ? 1 : 0,
               impRole === "admin" ? null : JSON.stringify(impRole === "leader" ? LEADER_MODULES : DEFAULT_MODULES),
               impLat, impLng
             )
@@ -772,13 +798,19 @@ export default {
         if (latP.error) return err("Vi do diem ban khong hop le (tu -90 den 90)", 422);
         const lngP = parseCoordField(b.lng, -180, 180);
         if (lngP.error) return err("Kinh do diem ban khong hop le (tu -180 den 180)", 422);
+        let newLeaderId = null;
+        if (b.leader_id) {
+          const ld = await env.DB.prepare("SELECT id FROM nguoi_dung WHERE id = ? AND role = 'leader'").bind(Number(b.leader_id)).first();
+          if (!ld) return err("Lanh dao phu trach khong ton tai hoac khong phai tai khoan Lanh dao don vi", 422);
+          newLeaderId = ld.id;
+        }
         await env.DB.prepare(
-          "UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, ma_hrm = ?, don_vi_id = ?, can_import = ?, role = ?, modules = ?, lat = ?, lng = ?, active = ? WHERE id = ?"
+          "UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, ma_hrm = ?, don_vi_id = ?, leader_id = ?, can_import = ?, role = ?, modules = ?, lat = ?, lng = ?, active = ? WHERE id = ?"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
             toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm), b.don_vi_id ? Number(b.don_vi_id) : null,
-            newCanImport, newRole, newModules, latP.val, lngP.val,
+            newLeaderId, newCanImport, newRole, newModules, latP.val, lngP.val,
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
           .run();
@@ -824,7 +856,7 @@ export default {
         for (const rc of roleCols) {
           if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
         }
-        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col"]) {
+        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col"]) {
           if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
         }
         const exists = (await getDataTypes(env)).some((t) => t.code === code || t.prefix === code);
@@ -834,11 +866,11 @@ export default {
           type: ["money", "number", "date"].includes(c.type) ? c.type : "text",
         }));
         const r = await env.DB.prepare(
-          "INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
+          "INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
         )
           .bind(code, name, code, fmt, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || "", b.eload_col, b.vi_col || "",
-            b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "")
+            b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "", b.kenh_col || "")
           .run();
         return json({ ok: true, id: r.meta.last_row_id, code });
       }
@@ -992,6 +1024,7 @@ export default {
               if (src.eloadCol) innerCols.push(src.eloadCol);
               if (src.viCol) innerCols.push(src.viCol);
               if (src.keyCol) innerCols.push(src.keyCol);
+              if (src.kenhCol) innerCols.push(src.kenhCol);
               let sql =
                 'SELECT ' + groupExpr + ' AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT ' +
                 innerCols.join(", ") + ' FROM "' + t + '") WHERE substr(tg, 1, 10) BETWEEN ? AND ?';
@@ -1277,13 +1310,15 @@ export default {
         const lat = Number(url.searchParams.get("lat"));
         const lng = Number(url.searchParams.get("lng"));
         if (!isFinite(lat) || !isFinite(lng)) return json({ ok: true, pos: [], reason: "no_location" });
-        if (isLeader && !me.don_vi_id) return json({ ok: true, pos: [], reason: "no_unit" });
         const base = "SELECT u.id, u.ho_ten, u.ma_kenh, u.lat, u.lng, u.don_vi_id, d.ten_don_vi AS don_vi_ten FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = 'user' AND u.active = 1 AND u.lat IS NOT NULL AND u.lng IS NOT NULL";
         let rows;
         if (isAdmin) {
           rows = (await env.DB.prepare(base).all()).results || [];
         } else {
-          rows = (await env.DB.prepare(unitSubtreeCTE() + " " + base + " AND u.don_vi_id IN (SELECT id FROM subtree)").bind(me.don_vi_id).all()).results || [];
+          // Lanh dao chi thay diem ban DUOC GAN cho minh (leader_id = me.id) —
+          // khong lay theo cay don vi nua; van loc ban kinh 20m o buoc sau.
+          rows = (await env.DB.prepare(base + " AND u.leader_id = ?").bind(me.id).all()).results || [];
+          if (!rows.length) return json({ ok: true, pos: [], reason: "no_assigned" });
         }
         const pos = rows
           .map((u) => ({ id: u.id, ho_ten: u.ho_ten, ma_kenh: u.ma_kenh, lat: u.lat, lng: u.lng, don_vi_ten: u.don_vi_ten, khoang_cach_m: Math.round(haversineM(lat, lng, u.lat, u.lng) * 10) / 10 }))
@@ -1311,12 +1346,11 @@ export default {
         if (!file || !file.size) return err("Chua co anh diem ban", 422);
         const dot = await env.DB.prepare("SELECT id FROM dot_cham_soc WHERE id = ?").bind(dotId).first();
         if (!dot) return err("Khong tim thay dot cham soc", 404);
-        const pos = await env.DB.prepare("SELECT id, ho_ten, don_vi_id, lat, lng FROM nguoi_dung WHERE id = ? AND role = 'user'").bind(posId).first();
+        const pos = await env.DB.prepare("SELECT id, ho_ten, don_vi_id, lat, lng, leader_id FROM nguoi_dung WHERE id = ? AND role = 'user'").bind(posId).first();
         if (!pos || pos.lat === null || pos.lng === null) return err("Diem ban khong co toa do khai bao", 422);
-        if (isLeader) {
-          const inScope = await env.DB.prepare(unitSubtreeCTE() + " SELECT 1 FROM nguoi_dung WHERE id = ? AND don_vi_id IN (SELECT id FROM subtree)").bind(me.don_vi_id, posId).first();
-          if (!inScope) return err("Diem ban khong thuoc pham vi don vi cua ban", 403);
-        }
+        // Lanh dao chi duoc ghi nhan diem ban duoc gan cho minh (khop voi danh
+        // sach nearby); admin khong bi gioi han nay.
+        if (isLeader && pos.leader_id !== me.id) return err("Diem ban nay khong duoc gan cho ban cham soc", 403);
         const dist = haversineM(lat, lng, pos.lat, pos.lng);
         if (dist > 20) return err("Vi tri chup anh cach diem ban " + (Math.round(dist * 10) / 10) + "m, vuot qua ban kinh 20m cho phep", 403);
         if (!env.ANH) return err("Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker)", 501);
