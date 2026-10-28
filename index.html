@@ -2335,9 +2335,15 @@ export default {
       if (path === &quot;/api/care/batches&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
         await ensureCareTables(env);
-        const res = await env.DB.prepare(
-          &quot;SELECT d.*, (SELECT COUNT(*) FROM cham_soc c WHERE c.dot_id = d.id) AS so_luot, (SELECT COUNT(DISTINCT c.pos_user_id) FROM cham_soc c WHERE c.dot_id = d.id) AS so_diem FROM dot_cham_soc d ORDER BY d.id DESC&quot;
-        ).all();
+        const counts = &quot;(SELECT COUNT(*) FROM cham_soc c WHERE c.dot_id = d.id) AS so_luot, (SELECT COUNT(DISTINCT c.pos_user_id) FROM cham_soc c WHERE c.dot_id = d.id) AS so_diem&quot;;
+        let res;
+        if (isAdmin) {
+          res = await env.DB.prepare(&quot;SELECT d.*, &quot; + counts + &quot; FROM dot_cham_soc d ORDER BY d.id DESC&quot;).all();
+        } else {
+          // Lanh dao chi thay dot do minh tao + dot do admin tao (nguoi tao co role admin hien tai);
+          // khong thay dot cua lanh dao khac tao.
+          res = await env.DB.prepare(&quot;SELECT d.*, &quot; + counts + &quot; FROM dot_cham_soc d LEFT JOIN nguoi_dung u ON u.id = d.nguoi_tao_id WHERE d.nguoi_tao_id = ? OR u.role = &#x27;admin&#x27; ORDER BY d.id DESC&quot;).bind(me.id).all();
+        }
         return json({ ok: true, batches: res.results || [] });
       }
       if (path === &quot;/api/care/batches&quot; &amp;&amp; method === &quot;POST&quot;) {
@@ -2434,6 +2440,11 @@ export default {
         if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
         await ensureCareTables(env);
         const dotId = url.searchParams.get(&quot;dot_id&quot;);
+        if (dotId &amp;&amp; !isAdmin) {
+          // Chan xem lich su cua dot khong thuoc pham vi nhin thay (dot cua lanh dao khac).
+          const batch = await env.DB.prepare(&quot;SELECT d.nguoi_tao_id, u.role AS creator_role FROM dot_cham_soc d LEFT JOIN nguoi_dung u ON u.id = d.nguoi_tao_id WHERE d.id = ?&quot;).bind(Number(dotId)).first();
+          if (batch &amp;&amp; batch.nguoi_tao_id !== me.id &amp;&amp; batch.creator_role !== &quot;admin&quot;) return err(&quot;Ban khong co quyen xem dot cham soc nay&quot;, 403);
+        }
         const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         const limit = Math.min(1000, Number(url.searchParams.get(&quot;limit&quot;)) || 200);
@@ -2585,7 +2596,7 @@ export default {
           <div id="careRepSection">
           <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Báo cáo chăm sóc điểm bán</h3>
           <p class="desc">Tổng hợp và chi tiết công tác chăm sóc kênh bán trong cùng khoảng ngày/tháng đã chọn ở trên. Lãnh đạo đơn vị chỉ thấy số liệu của các điểm bán trong cây đơn vị của mình.</p>
-          <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn blue" type="button" id="careRepSummaryBtn">Báo cáo tổng hợp chăm sóc</button><button class="btn gray" type="button" id="careRepDetailBtn">Báo cáo chi tiết chăm sóc</button></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn blue" type="button" id="careRepSummaryBtn">Báo cáo tổng hợp chăm sóc</button><button class="btn gray" type="button" id="careRepDetailBtn">Báo cáo chi tiết chăm sóc</button><button class="btn gray" type="button" id="careRepExportBtn">Xuất Excel</button></div>
           <div id="careRepMsg"></div>
           <div class="kpi-row"><div class="kpi"><b id="careRepTotal">—</b><span>Tổng lượt chăm sóc</span></div><div class="kpi"><b id="careRepPos">—</b><span>Số điểm đã chăm sóc</span></div></div>
           <div class="tbl-wrap"><table class="data"><thead id="careRepHead"><tr><th>Đợt chăm sóc</th><th>Số lượt</th><th>Số điểm</th></tr></thead><tbody id="careRepBody"><tr><td colspan="3">Chưa có dữ liệu — hãy chọn khoảng thời gian và bấm báo cáo.</td></tr></tbody></table></div>
@@ -2643,7 +2654,7 @@ export default {
         <!-- CHAM SOC DIEM BAN -->
         <section class="panel hidden" id="panel-care">
           <h2>Chăm sóc điểm bán</h2>
-          <p class="desc">Dành cho Lãnh đạo đơn vị đi thực địa. Quy trình: tạo đợt chăm sóc → bấm “Lấy vị trí hiện tại” → hệ thống chỉ hiện các điểm bán trong bán kính 20m quanh vị trí thiết bị (không lấy được vị trí thì không hiện điểm nào) → chọn điểm bán, chụp ảnh, hệ thống tự đóng dấu tọa độ + thời gian chụp vào ảnh rồi mới cho lưu kết quả. Phạm vi điểm bán theo cây đơn vị của lãnh đạo (đơn vị mình + các đơn vị trực thuộc).</p>
+          <p class="desc">Dành cho Lãnh đạo đơn vị đi thực địa. Quy trình: tạo đợt chăm sóc → bấm “Lấy vị trí hiện tại” → hệ thống chỉ hiện các điểm bán trong bán kính 20m quanh vị trí thiết bị (không lấy được vị trí thì không hiện điểm nào) → chọn điểm bán, chụp ảnh, hệ thống tự đóng dấu tọa độ + thời gian chụp vào ảnh rồi mới cho lưu kết quả. Phạm vi điểm bán theo cây đơn vị của lãnh đạo (đơn vị mình + các đơn vị trực thuộc). Danh sách đợt chăm sóc: mỗi lãnh đạo chỉ thấy đợt do mình tạo và đợt do admin tạo; admin thấy tất cả.</p>
           <h3 style="margin:14px 0 8px;color:var(--blue-dark)">Tạo đợt chăm sóc</h3>
           <form id="careBatchForm" class="form-grid">
             <div><label>Tên đợt chăm sóc *</label><input id="careBatchName" required placeholder="VD: Đợt chăm sóc tháng 11/2026" /></div>
@@ -4084,6 +4095,48 @@ $("careRepDetailBtn").addEventListener("click", async () => {
 });
 
 /* ---------------- Thong ke dang nhap ---------------- */
+$("careRepExportBtn").addEventListener("click", async () => {
+  const p = repRange();
+  if (!p) { setMsg($("careRepMsg"), "Hãy chọn khoảng ngày hoặc tháng cần xem báo cáo.", false); return; }
+  try {
+    setMsg($("careRepMsg"), "Đang tạo file Excel…");
+    const [s, d] = await Promise.all([
+      api("/api/care/reports/summary?from=" + p.from + "&to=" + p.to),
+      api("/api/care/reports/detail?from=" + p.from + "&to=" + p.to + "&limit=1000"),
+    ]);
+    const wb = XLSX.utils.book_new();
+    const sumRows = [
+      ["BÁO CÁO CHĂM SÓC ĐIỂM BÁN"],
+      ["Khoảng thời gian", p.from + " đến " + p.to],
+      ["Tổng lượt chăm sóc", s.tong_luot || 0],
+      ["Số điểm đã chăm sóc", s.tong_diem || 0],
+      [],
+      ["Tổng hợp theo đợt chăm sóc"],
+      ["Đợt chăm sóc", "Số lượt", "Số điểm"],
+      ...(s.theo_dot || []).map((r) => [r.ten, r.luot, r.diem]),
+      [],
+      ["Tổng hợp theo đơn vị"],
+      ["Đơn vị", "Số lượt", "Số điểm"],
+      ...(s.theo_don_vi || []).map((r) => [r.ten, r.luot, r.diem]),
+      [],
+      ["Tổng hợp theo Lãnh đạo đơn vị"],
+      ["Lãnh đạo đơn vị", "Số lượt", "Số điểm"],
+      ...(s.theo_nguoi || []).map((r) => [r.ten, r.luot, r.diem]),
+    ];
+    const ws1 = XLSX.utils.aoa_to_sheet(sumRows);
+    ws1["!cols"] = [{ wch: 32 }, { wch: 14 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, ws1, "TongHop");
+    const detRows = [
+      ["Thời gian", "Đợt chăm sóc", "Điểm bán", "Đơn vị", "Lãnh đạo đơn vị", "Khoảng cách (m)", "Ghi chú"],
+      ...(d.records || []).map((r) => [r.thoi_gian, r.ten_dot, r.pos_ten, r.don_vi_ten, r.caregiver_ten, r.khoang_cach_m, r.ghi_chu]),
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(detRows);
+    ws2["!cols"] = [{ wch: 20 }, { wch: 26 }, { wch: 26 }, { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 40 }];
+    XLSX.utils.book_append_sheet(wb, ws2, "ChiTiet");
+    XLSX.writeFile(wb, "Bao_cao_cham_soc_" + p.from + "_den_" + p.to + ".xlsx");
+    setMsg($("careRepMsg"), "Đã xuất file Excel báo cáo chăm sóc (" + (d.records || []).length + " dòng chi tiết).");
+  } catch (e) { setMsg($("careRepMsg"), e.message, false); }
+});
 async function loadLoginStats() {
   const month = $("lsMonth").value;
   if (!month) { setMsg($("lsMsg"), "Hãy chọn tháng cần xem.", false); return; }

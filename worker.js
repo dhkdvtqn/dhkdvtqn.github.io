@@ -1123,9 +1123,15 @@ export default {
       if (path === "/api/care/batches" && method === "GET") {
         if (!canUseCare(me)) return err("Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban", 403);
         await ensureCareTables(env);
-        const res = await env.DB.prepare(
-          "SELECT d.*, (SELECT COUNT(*) FROM cham_soc c WHERE c.dot_id = d.id) AS so_luot, (SELECT COUNT(DISTINCT c.pos_user_id) FROM cham_soc c WHERE c.dot_id = d.id) AS so_diem FROM dot_cham_soc d ORDER BY d.id DESC"
-        ).all();
+        const counts = "(SELECT COUNT(*) FROM cham_soc c WHERE c.dot_id = d.id) AS so_luot, (SELECT COUNT(DISTINCT c.pos_user_id) FROM cham_soc c WHERE c.dot_id = d.id) AS so_diem";
+        let res;
+        if (isAdmin) {
+          res = await env.DB.prepare("SELECT d.*, " + counts + " FROM dot_cham_soc d ORDER BY d.id DESC").all();
+        } else {
+          // Lanh dao chi thay dot do minh tao + dot do admin tao (nguoi tao co role admin hien tai);
+          // khong thay dot cua lanh dao khac tao.
+          res = await env.DB.prepare("SELECT d.*, " + counts + " FROM dot_cham_soc d LEFT JOIN nguoi_dung u ON u.id = d.nguoi_tao_id WHERE d.nguoi_tao_id = ? OR u.role = 'admin' ORDER BY d.id DESC").bind(me.id).all();
+        }
         return json({ ok: true, batches: res.results || [] });
       }
       if (path === "/api/care/batches" && method === "POST") {
@@ -1222,6 +1228,11 @@ export default {
         if (!canUseCare(me)) return err("Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban", 403);
         await ensureCareTables(env);
         const dotId = url.searchParams.get("dot_id");
+        if (dotId && !isAdmin) {
+          // Chan xem lich su cua dot khong thuoc pham vi nhin thay (dot cua lanh dao khac).
+          const batch = await env.DB.prepare("SELECT d.nguoi_tao_id, u.role AS creator_role FROM dot_cham_soc d LEFT JOIN nguoi_dung u ON u.id = d.nguoi_tao_id WHERE d.id = ?").bind(Number(dotId)).first();
+          if (batch && batch.nguoi_tao_id !== me.id && batch.creator_role !== "admin") return err("Ban khong co quyen xem dot cham soc nay", 403);
+        }
         const from = url.searchParams.get("from") || "0000-01-01";
         const to = url.searchParams.get("to") || "9999-12-31";
         const limit = Math.min(1000, Number(url.searchParams.get("limit")) || 200);
