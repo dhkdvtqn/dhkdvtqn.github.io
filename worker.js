@@ -1240,6 +1240,10 @@ export default {
         const headers = new Headers();
         obj.writeHttpMetadata(headers);
         headers.set("Cache-Control", "private, max-age=3600");
+        // Bat buoc phai co header nay thi trinh duyet moi cho trang web (GitHub
+        // Pages, Vercel, ...) doc duoc anh tra ve tu Worker — thieu no, fetch
+        // se bi chan va bao "Failed to fetch" du Worker van tra anh binh thuong.
+        headers.set("Access-Control-Allow-Origin", "*");
         return new Response(obj.body, { headers });
       }
       // ---- Bao cao cham soc diem ban (trong muc Bao cao thong ke) ----
