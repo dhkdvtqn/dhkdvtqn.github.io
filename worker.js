@@ -106,7 +106,7 @@ async function requireAuth(request, env) {
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
   const user = await env.DB.prepare(
-    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?"
+    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?"
   )
     .bind(payload.sub)
     .first();
@@ -253,19 +253,31 @@ const BUILTIN_TYPES = [
   {
     code: "BCKH", name: "Chi trả tiền BCKH", prefix: "BCKH", fmt: "MMYY", builtin: 1,
     columns: [
-      { key: "so_eload", label: "Số Eload", type: "text" },
-      { key: "ten_eload", label: "Tên Eload", type: "text" },
-      { key: "so_thue_bao", label: "Số thuê bao", type: "text" },
-      { key: "thoi_gian_kich_hoat", label: "Thời gian kích hoạt", type: "date" },
-      { key: "hoa_hong_bckh", label: "Hoa hồng BCKH", type: "money" },
-      { key: "ma_giao_dich", label: "Mã giao dịch", type: "text" },
-      { key: "thoi_gian_chi_tra", label: "Thời gian chi trả", type: "date" },
-      { key: "trang_thai", label: "Trạng thái chi trả", type: "text" },
-      { key: "nguyen_nhan_loi", label: "Nguyên nhân lỗi", type: "text" },
+      { key: "ma_gd", label: "Mã GD", type: "text" },
+      { key: "ma_gd_doi_tac", label: "Mã GD đối tác", type: "text" },
+      { key: "ma_gd_eu", label: "Mã GD EU", type: "text" },
+      { key: "thoi_gian_giao_dich", label: "Thời gian giao dịch", type: "date" },
+      { key: "loai_hoa_hong", label: "Loại hoa hồng", type: "text" },
+      { key: "don_vi_chi_tra", label: "Đơn vị chi trả", type: "text" },
+      { key: "so_vi", label: "Số ví", type: "text" },
+      { key: "vtt", label: "VTT", type: "text" },
+      { key: "ttkd", label: "TTKD", type: "text" },
+      { key: "loai_vi", label: "Loại ví", type: "text" },
+      { key: "ho_ten", label: "Họ tên", type: "text" },
+      { key: "ma_hrm_sdt_smcs", label: "Mã HRM/SĐT SMCS", type: "text" },
+      { key: "ma_kenh", label: "Mã kênh", type: "text" },
+      { key: "ma_hd", label: "Mã HĐ", type: "text" },
+      { key: "so_tien", label: "Số tiền", type: "money" },
+      { key: "mo_ta", label: "Mô tả", type: "text" },
+      { key: "mo_ta_loi", label: "Mô tả lỗi", type: "text" },
+      { key: "trang_thai_gd", label: "Trạng thái GD", type: "text" },
     ],
-    money_col: "hoa_hong_bckh", time_col: "thoi_gian_chi_tra", time_fallback_col: "",
-    eload_col: "so_eload", vi_col: "", sub_col: "so_thue_bao", pkg_col: "",
-    trans_col: "ma_giao_dich", status_col: "trang_thai", reason_col: "nguyen_nhan_loi",
+    money_col: "so_tien", time_col: "thoi_gian_giao_dich", time_fallback_col: "",
+    eload_col: "", vi_col: "so_vi", sub_col: "", pkg_col: "",
+    trans_col: "ma_gd", status_col: "trang_thai_gd", reason_col: "mo_ta_loi",
+    // Cot khoa nghiep vu: vua la PRIMARY KEY cua bang thang (1 dong / 1 khoa),
+    // vua la can cu map bao cao (doi chieu voi ma_hrm / sdt_nhan_vien cua user).
+    key_col: "ma_hrm_sdt_smcs",
   },
 ];
 async function ensureTypes(env) {
@@ -274,17 +286,55 @@ async function ensureTypes(env) {
     "id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, " +
     "prefix TEXT NOT NULL, fmt TEXT NOT NULL DEFAULT 'MMYYYY', columns_json TEXT NOT NULL, " +
     "money_col TEXT, time_col TEXT, time_fallback_col TEXT, eload_col TEXT, vi_col TEXT, " +
-    "sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, " +
+    "sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, key_col TEXT, " +
     "builtin INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)"
   ).run();
+  // CSDL cu co the chua co cot key_col (them sau) — bo sung neu thieu.
+  try {
+    const info = await env.DB.prepare("PRAGMA table_info(loai_du_lieu)").all();
+    if (!(info.results || []).some((c) => c.name === "key_col")) {
+      await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN key_col TEXT").run();
+    }
+  } catch (e) { /* PRAGMA khong co thi bo qua, cot se duoc them o lan tao bang sau */ }
   const c = await env.DB.prepare("SELECT COUNT(*) AS n FROM loai_du_lieu").first();
   if (c && c.n === 0) {
     for (const t of BUILTIN_TYPES) {
       await env.DB.prepare(
-        "INSERT OR IGNORE INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"
+        "INSERT OR IGNORE INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"
       )
-        .bind(t.code, t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col)
+        .bind(t.code, t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col, t.key_col || "")
         .run();
+    }
+  }
+  // Dong bo dinh nghia loai mac dinh (builtin) theo code moi nhat — vi du BCKH
+  // doi sang dinh dang 18 truong moi. Chi cap nhat khi dinh nghia da luu khac
+  // voi code (tranh ghi khong can thiet moi lan goi). Loai tu tao (builtin=0)
+  // khong bi dong cham.
+  for (const t of BUILTIN_TYPES) {
+    const cur = await env.DB.prepare("SELECT * FROM loai_du_lieu WHERE code = ?").bind(t.code).first();
+    if (!cur) {
+      await env.DB.prepare(
+        "INSERT OR IGNORE INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"
+      )
+        .bind(t.code, t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col, t.key_col || "")
+        .run();
+    } else if (cur.builtin) {
+      const same =
+        cur.name === t.name && cur.prefix === t.prefix && cur.fmt === t.fmt &&
+        cur.columns_json === JSON.stringify(t.columns) &&
+        (cur.money_col || "") === (t.money_col || "") && (cur.time_col || "") === (t.time_col || "") &&
+        (cur.time_fallback_col || "") === (t.time_fallback_col || "") &&
+        (cur.eload_col || "") === (t.eload_col || "") && (cur.vi_col || "") === (t.vi_col || "") &&
+        (cur.sub_col || "") === (t.sub_col || "") && (cur.pkg_col || "") === (t.pkg_col || "") &&
+        (cur.trans_col || "") === (t.trans_col || "") && (cur.status_col || "") === (t.status_col || "") &&
+        (cur.reason_col || "") === (t.reason_col || "") && (cur.key_col || "") === (t.key_col || "");
+      if (!same) {
+        await env.DB.prepare(
+          "UPDATE loai_du_lieu SET name = ?, prefix = ?, fmt = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ? WHERE code = ?"
+        )
+          .bind(t.name, t.prefix, t.fmt, JSON.stringify(t.columns), t.money_col, t.time_col, t.time_fallback_col, t.eload_col, t.vi_col, t.sub_col, t.pkg_col, t.trans_col, t.status_col, t.reason_col, t.key_col || "", t.code)
+          .run();
+      }
     }
   }
 }
@@ -309,6 +359,12 @@ function buildSource(t, meUser) {
   const ownParts = [], ownBinds = [];
   if (t.eload_col) { ownParts.push(t.eload_col + " = ?"); ownBinds.push(meUser.so_eload || "__none__"); }
   if (t.vi_col) { ownParts.push(t.vi_col + " = ?"); ownBinds.push(meUser.so_vi || "__none__"); }
+  // Cot khoa nghiep vu (VD: BCKH map theo Ma HRM/SDT SMCS): doi chieu voi ca
+  // ma_hrm va sdt_nhan_vien cua user vi 1 cot khoa co the chua ma HRM hoac SDT.
+  if (t.key_col) {
+    ownParts.push("(" + t.key_col + " = ? OR " + t.key_col + " = ?)");
+    ownBinds.push(meUser.ma_hrm || "__none__", meUser.sdt_nhan_vien || "__none__");
+  }
   // Loc theo don vi (danh cho Lanh dao don vi): cac giao dich cua user
   // thuoc don vi cua lanh dao VA MOI DON VI TRUC THUOC trong cay don vi
   // (don_vi.parent_id) — vi du lanh dao cap tinh thay toan tinh, lanh dao
@@ -319,6 +375,10 @@ function buildSource(t, meUser) {
     const subtree = "WITH RECURSIVE subtree(id) AS (SELECT ? UNION ALL SELECT d.id FROM don_vi d JOIN subtree s ON d.parent_id = s.id)";
     if (t.eload_col) { unitParts.push(t.eload_col + " IN (" + subtree + " SELECT so_eload FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(meUser.don_vi_id); }
     if (t.vi_col) { unitParts.push(t.vi_col + " IN (" + subtree + " SELECT so_vi FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(meUser.don_vi_id); }
+    if (t.key_col) {
+      unitParts.push(t.key_col + " IN (" + subtree + " SELECT ma_hrm FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(meUser.don_vi_id);
+      unitParts.push(t.key_col + " IN (" + subtree + " SELECT sdt_nhan_vien FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(meUser.don_vi_id);
+    }
   }
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
@@ -329,13 +389,24 @@ function buildSource(t, meUser) {
     eloadCol: t.eload_col || null, viCol: t.vi_col || null,
     subCol: t.sub_col || null, pkgCol: t.pkg_col || null,
     transCol: t.trans_col || null, statusCol: t.status_col || null, reasonCol: t.reason_col || null,
+    keyCol: t.key_col || null,
   };
 }
 function tableNameForType(t, thang, nam) {
   const mm = String(thang).padStart(2, "0");
   return t.prefix + "_" + mm + (t.fmt === "MMYY" ? String(nam).slice(-2) : nam);
 }
-function createTableSQL(table, columns) {
+function createTableSQL(table, columns, pkCol) {
+  if (pkCol) {
+    // Loai co cot khoa nghiep vu: cot do lam PRIMARY KEY (khong co cot id tu tang).
+    // Dong trung khoa se bi tu choi khi insert — phia import xu ly rieng tung dong
+    // de bao ro khoa trung thay vi lam hong ca lo.
+    const cols = columns.map(([n, t]) => '"' + n + '" ' + t + (n === pkCol ? " NOT NULL PRIMARY KEY" : "")).join(", ");
+    return (
+      'CREATE TABLE IF NOT EXISTS "' + table + '" (' +
+      cols + ', imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP)'
+    );
+  }
   const cols = columns.map(([n, t]) => '"' + n + '" ' + t).join(", ");
   return (
     'CREATE TABLE IF NOT EXISTS "' + table + '" (id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
@@ -748,7 +819,7 @@ export default {
         for (const rc of roleCols) {
           if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
         }
-        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col"]) {
+        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col"]) {
           if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
         }
         const exists = (await getDataTypes(env)).some((t) => t.code === code || t.prefix === code);
@@ -758,11 +829,11 @@ export default {
           type: ["money", "number", "date"].includes(c.type) ? c.type : "text",
         }));
         const r = await env.DB.prepare(
-          "INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
+          "INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
         )
           .bind(code, name, code, fmt, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || "", b.eload_col, b.vi_col || "",
-            b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "")
+            b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "")
           .run();
         return json({ ok: true, id: r.meta.last_row_id, code });
       }
@@ -864,26 +935,44 @@ export default {
         if (mode === "replace") {
           await env.DB.prepare('DROP TABLE IF EXISTS "' + table + '"').run();
         }
-        await env.DB.prepare(createTableSQL(table, columns)).run();
+        await env.DB.prepare(createTableSQL(table, columns, dtype.key_col || "")).run();
         const numericCols = new Set(columns.filter(([, t]) => t === "REAL").map(([n]) => n));
         const sql =
           'INSERT INTO "' + table + '" (' + colNames.map((n) => '"' + n + '"').join(", ") +
           ", imported_by) VALUES (" + colNames.map(() => "?").join(", ") + ", ?)";
-        let inserted = 0;
+        const pkIdx = dtype.key_col ? colNames.indexOf(dtype.key_col) : -1;
+        let inserted = 0, skipped = 0;
+        const errors = [];
         const CHUNK = 100;
         for (let i = 0; i < rows.length; i += CHUNK) {
-          const batch = rows.slice(i, i + CHUNK).map((row) => {
+          const valsList = rows.slice(i, i + CHUNK).map((row) => {
             const vals = colNames.map((n) => {
               const v = row[n];
               return numericCols.has(n) ? toNumber(v) : toText(v);
             });
             vals.push(me.username);
-            return env.DB.prepare(sql).bind(...vals);
+            return vals;
           });
-          await env.DB.batch(batch);
-          inserted += batch.length;
+          try {
+            await env.DB.batch(valsList.map((vals) => env.DB.prepare(sql).bind(...vals)));
+            inserted += valsList.length;
+          } catch (e) {
+            // 1 dong loi (VD: trung khoa chinh) khong duoc lam hong ca lo 100 dong:
+            // chen lai tung dong, dong loi thi bo qua co bao cao.
+            for (const vals of valsList) {
+              try { await env.DB.prepare(sql).bind(...vals).run(); inserted++; }
+              catch (e2) {
+                skipped++;
+                if (errors.length < 50) {
+                  errors.push(pkIdx >= 0 && vals[pkIdx]
+                    ? ("Trùng khóa chính " + dtype.key_col + ": " + vals[pkIdx])
+                    : String((e2 && e2.message) || e2).slice(0, 120));
+                }
+              }
+            }
+          }
         }
-        return json({ ok: true, table, inserted, mode });
+        return json({ ok: true, table, inserted, skipped, errors, mode });
       }
 
       // ---- Bao cao thong ke ----
@@ -902,6 +991,9 @@ export default {
         // (Cach cu ghep tat ca bang bang UNION ALL thanh 1 cau SQL khong lo
         //  se vuot gioi han "too many terms in compound SELECT" cua D1.)
         const agg = new Map();
+        // Bang thang cu khong khop dinh nghia moi (thieu cot) thi bo qua co bao cao,
+        // thay vi lam hong toan bo bao cao — VD: bang BCKH thang cu theo mau cu.
+        const skippedTables = [];
         for (const s of sources) {
           const tables = await listMonthlyTables(env, s.prefix);
           for (const t of tables) {
@@ -909,6 +1001,7 @@ export default {
             const innerCols = [s.time + " AS tg", s.money + " AS tien"];
             if (s.eloadCol) innerCols.push(s.eloadCol);
             if (s.viCol) innerCols.push(s.viCol);
+            if (s.keyCol) innerCols.push(s.keyCol);
             let sql =
               'SELECT ' + groupExpr + ' AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT ' +
               innerCols.join(", ") + ' FROM "' + t + '") WHERE substr(tg, 1, 10) BETWEEN ? AND ?';
@@ -918,7 +1011,9 @@ export default {
               else { sql += " AND " + s.own; localBinds.push(...s.ownBinds); }
             }
             sql += " GROUP BY ky";
-            const res = await env.DB.prepare(sql).bind(...localBinds).all();
+            let res;
+            try { res = await env.DB.prepare(sql).bind(...localBinds).all(); }
+            catch (e) { skippedTables.push(t); continue; }
             for (const r of res.results || []) {
               const cur = agg.get(r.ky) || { ky: r.ky, so_giao_dich: 0, tong_tien: 0 };
               cur.so_giao_dich += r.so_giao_dich || 0;
@@ -933,6 +1028,7 @@ export default {
           rows,
           tong_giao_dich: rows.reduce((a, r) => a + (r.so_giao_dich || 0), 0),
           tong_tien: rows.reduce((a, r) => a + (r.tong_tien || 0), 0),
+          skipped_tables: skippedTables,
         });
       }
       if (path === "/api/reports/detail" && method === "GET") {
@@ -942,6 +1038,7 @@ export default {
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
         const limit = Math.min(Number(url.searchParams.get("limit") || 500), 2000);
         const out = [];
+        const skippedTables = [];
         const types = await getDataTypes(env);
         const sources = types
           .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col)
@@ -970,12 +1067,14 @@ export default {
             }
             sql += " ORDER BY thoi_gian DESC LIMIT ?";
             binds.push(limit);
-            const res = await env.DB.prepare(sql).bind(...binds).all();
+            let res;
+            try { res = await env.DB.prepare(sql).bind(...binds).all(); }
+            catch (e) { skippedTables.push(t); continue; }
             out.push(...(res.results || []));
           }
         }
         out.sort((a, b) => String(b.thoi_gian || "").localeCompare(String(a.thoi_gian || "")));
-        return json({ ok: true, rows: out.slice(0, limit) });
+        return json({ ok: true, rows: out.slice(0, limit), skipped_tables: skippedTables });
       }
 
       // ---- Thong ke dang nhap theo thang (admin & subadmin) ----

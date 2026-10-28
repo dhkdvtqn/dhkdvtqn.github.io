@@ -111,10 +111,12 @@ VALUES
 -- );
 --
 -- CREATE TABLE BCKH_1026 (
---   id INTEGER PRIMARY KEY AUTOINCREMENT,
---   so_eload TEXT, ten_eload TEXT, so_thue_bao TEXT,
---   thoi_gian_kich_hoat TEXT, hoa_hong_bckh REAL, ma_giao_dich TEXT,
---   thoi_gian_chi_tra TEXT, trang_thai TEXT, nguyen_nhan_loi TEXT,
+--   ma_gd TEXT, ma_gd_doi_tac TEXT, ma_gd_eu TEXT,
+--   thoi_gian_giao_dich TEXT, loai_hoa_hong TEXT, don_vi_chi_tra TEXT,
+--   so_vi TEXT, vtt TEXT, ttkd TEXT, loai_vi TEXT, ho_ten TEXT,
+--   ma_hrm_sdt_smcs TEXT NOT NULL PRIMARY KEY,
+--   ma_kenh TEXT, ma_hd TEXT, so_tien REAL, mo_ta TEXT,
+--   mo_ta_loi TEXT, trang_thai_gd TEXT,
 --   imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP
 -- );
 -- ============================================================================
