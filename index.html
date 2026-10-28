@@ -3981,7 +3981,17 @@ async function viewCarePhoto(recordId) {
     const res = await fetch(apiBase + "/api/care/records/" + recordId + "/image", { headers: token ? { Authorization: "Bearer " + token } : {} });
     if (!res.ok) throw new Error("Không tải được ảnh");
     const blob = await res.blob();
-    window.open(URL.createObjectURL(blob), "_blank");
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, "_blank");
+    if (!w) {
+      // Trình duyệt chặn cửa sổ bật lên (thường gặp khi bấm từ trình duyệt tự động
+      // hoặc khi trang chưa được cho phép mở tab mới): tải ảnh xuống thay thế để
+      // người dùng vẫn xem được, thay vì im lặng không có gì xảy ra.
+      const a = document.createElement("a");
+      a.href = url; a.download = "anh-cham-soc-" + recordId + ".jpg";
+      document.body.appendChild(a); a.click(); a.remove();
+      alert("Trình duyệt đã chặn mở tab mới nên ảnh được tải xuống thay thế — hãy mở file vừa tải để xem, hoặc cho phép trang này mở cửa sổ bật lên rồi bấm Xem ảnh lại.");
+    }
   } catch (e) { alert("Không xem được ảnh: " + e.message); }
 }
 
