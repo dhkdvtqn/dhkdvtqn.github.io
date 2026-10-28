@@ -275,8 +275,9 @@ const BUILTIN_TYPES = [
     money_col: "so_tien", time_col: "thoi_gian_giao_dich", time_fallback_col: "",
     eload_col: "", vi_col: "so_vi", sub_col: "", pkg_col: "",
     trans_col: "ma_gd", status_col: "trang_thai_gd", reason_col: "mo_ta_loi",
-    // Cot khoa nghiep vu: vua la PRIMARY KEY cua bang thang (1 dong / 1 khoa),
-    // vua la can cu map bao cao (doi chieu voi ma_hrm / sdt_nhan_vien cua user).
+    // Cot khoa nghiep vu: chi dung lam can cu map bao cao (doi chieu voi
+    // ma_hrm / sdt_nhan_vien cua user), KHONG lam PRIMARY KEY — bang thang
+    // van dung id tu tang de import du het cac dong ke ca khi khoa trung nhau.
     key_col: "ma_hrm_sdt_smcs",
   },
 ];
@@ -396,17 +397,7 @@ function tableNameForType(t, thang, nam) {
   const mm = String(thang).padStart(2, "0");
   return t.prefix + "_" + mm + (t.fmt === "MMYY" ? String(nam).slice(-2) : nam);
 }
-function createTableSQL(table, columns, pkCol) {
-  if (pkCol) {
-    // Loai co cot khoa nghiep vu: cot do lam PRIMARY KEY (khong co cot id tu tang).
-    // Dong trung khoa se bi tu choi khi insert — phia import xu ly rieng tung dong
-    // de bao ro khoa trung thay vi lam hong ca lo.
-    const cols = columns.map(([n, t]) => '"' + n + '" ' + t + (n === pkCol ? " NOT NULL PRIMARY KEY" : "")).join(", ");
-    return (
-      'CREATE TABLE IF NOT EXISTS "' + table + '" (' +
-      cols + ', imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP)'
-    );
-  }
+function createTableSQL(table, columns) {
   const cols = columns.map(([n, t]) => '"' + n + '" ' + t).join(", ");
   return (
     'CREATE TABLE IF NOT EXISTS "' + table + '" (id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
@@ -935,44 +926,26 @@ export default {
         if (mode === "replace") {
           await env.DB.prepare('DROP TABLE IF EXISTS "' + table + '"').run();
         }
-        await env.DB.prepare(createTableSQL(table, columns, dtype.key_col || "")).run();
+        await env.DB.prepare(createTableSQL(table, columns)).run();
         const numericCols = new Set(columns.filter(([, t]) => t === "REAL").map(([n]) => n));
         const sql =
           'INSERT INTO "' + table + '" (' + colNames.map((n) => '"' + n + '"').join(", ") +
           ", imported_by) VALUES (" + colNames.map(() => "?").join(", ") + ", ?)";
-        const pkIdx = dtype.key_col ? colNames.indexOf(dtype.key_col) : -1;
-        let inserted = 0, skipped = 0;
-        const errors = [];
+        let inserted = 0;
         const CHUNK = 100;
         for (let i = 0; i < rows.length; i += CHUNK) {
-          const valsList = rows.slice(i, i + CHUNK).map((row) => {
+          const batch = rows.slice(i, i + CHUNK).map((row) => {
             const vals = colNames.map((n) => {
               const v = row[n];
               return numericCols.has(n) ? toNumber(v) : toText(v);
             });
             vals.push(me.username);
-            return vals;
+            return env.DB.prepare(sql).bind(...vals);
           });
-          try {
-            await env.DB.batch(valsList.map((vals) => env.DB.prepare(sql).bind(...vals)));
-            inserted += valsList.length;
-          } catch (e) {
-            // 1 dong loi (VD: trung khoa chinh) khong duoc lam hong ca lo 100 dong:
-            // chen lai tung dong, dong loi thi bo qua co bao cao.
-            for (const vals of valsList) {
-              try { await env.DB.prepare(sql).bind(...vals).run(); inserted++; }
-              catch (e2) {
-                skipped++;
-                if (errors.length < 50) {
-                  errors.push(pkIdx >= 0 && vals[pkIdx]
-                    ? ("Trùng khóa chính " + dtype.key_col + ": " + vals[pkIdx])
-                    : String((e2 && e2.message) || e2).slice(0, 120));
-                }
-              }
-            }
-          }
+          await env.DB.batch(batch);
+          inserted += batch.length;
         }
-        return json({ ok: true, table, inserted, skipped, errors, mode });
+        return json({ ok: true, table, inserted, mode });
       }
 
       // ---- Bao cao thong ke ----

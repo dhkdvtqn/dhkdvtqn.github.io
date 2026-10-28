@@ -1032,7 +1032,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
               <div><label>Cột Trạng thái chi trả</label><select id="dtStatus"></select></div>
               <div><label>Cột Nguyên nhân lỗi</label><select id="dtReason"></select></div>
               <div><label>Cột Thời gian dự phòng (nếu cột thời gian chính trống)</label><select id="dtTimeFb"></select></div>
-              <div><label>Cột khóa chính / map báo cáo (VD: Mã HRM/SĐT SMCS — vừa là PRIMARY KEY của bảng tháng, vừa để map với người dùng)</label><select id="dtKey"></select></div>
+              <div><label>Cột khóa map báo cáo (VD: Mã HRM/SĐT SMCS — để map dữ liệu với người dùng)</label><select id="dtKey"></select></div>
               <div class="full"><button class="btn blue" type="submit">Tạo loại dữ liệu</button></div>
             </form>
             <div id="dtMsg"></div>
@@ -1173,11 +1173,11 @@ VALUES
 -- );
 --
 -- CREATE TABLE BCKH_1026 (
+--   id INTEGER PRIMARY KEY AUTOINCREMENT,
 --   ma_gd TEXT, ma_gd_doi_tac TEXT, ma_gd_eu TEXT,
 --   thoi_gian_giao_dich TEXT, loai_hoa_hong TEXT, don_vi_chi_tra TEXT,
 --   so_vi TEXT, vtt TEXT, ttkd TEXT, loai_vi TEXT, ho_ten TEXT,
---   ma_hrm_sdt_smcs TEXT NOT NULL PRIMARY KEY,
---   ma_kenh TEXT, ma_hd TEXT, so_tien REAL, mo_ta TEXT,
+--   ma_hrm_sdt_smcs TEXT, ma_kenh TEXT, ma_hd TEXT, so_tien REAL, mo_ta TEXT,
 --   mo_ta_loi TEXT, trang_thai_gd TEXT,
 --   imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP
 -- );
@@ -1490,8 +1490,9 @@ const BUILTIN_TYPES = [
     money_col: &quot;so_tien&quot;, time_col: &quot;thoi_gian_giao_dich&quot;, time_fallback_col: &quot;&quot;,
     eload_col: &quot;&quot;, vi_col: &quot;so_vi&quot;, sub_col: &quot;&quot;, pkg_col: &quot;&quot;,
     trans_col: &quot;ma_gd&quot;, status_col: &quot;trang_thai_gd&quot;, reason_col: &quot;mo_ta_loi&quot;,
-    // Cot khoa nghiep vu: vua la PRIMARY KEY cua bang thang (1 dong / 1 khoa),
-    // vua la can cu map bao cao (doi chieu voi ma_hrm / sdt_nhan_vien cua user).
+    // Cot khoa nghiep vu: chi dung lam can cu map bao cao (doi chieu voi
+    // ma_hrm / sdt_nhan_vien cua user), KHONG lam PRIMARY KEY — bang thang
+    // van dung id tu tang de import du het cac dong ke ca khi khoa trung nhau.
     key_col: &quot;ma_hrm_sdt_smcs&quot;,
   },
 ];
@@ -1611,17 +1612,7 @@ function tableNameForType(t, thang, nam) {
   const mm = String(thang).padStart(2, &quot;0&quot;);
   return t.prefix + &quot;_&quot; + mm + (t.fmt === &quot;MMYY&quot; ? String(nam).slice(-2) : nam);
 }
-function createTableSQL(table, columns, pkCol) {
-  if (pkCol) {
-    // Loai co cot khoa nghiep vu: cot do lam PRIMARY KEY (khong co cot id tu tang).
-    // Dong trung khoa se bi tu choi khi insert — phia import xu ly rieng tung dong
-    // de bao ro khoa trung thay vi lam hong ca lo.
-    const cols = columns.map(([n, t]) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot; &#x27; + t + (n === pkCol ? &quot; NOT NULL PRIMARY KEY&quot; : &quot;&quot;)).join(&quot;, &quot;);
-    return (
-      &#x27;CREATE TABLE IF NOT EXISTS &quot;&#x27; + table + &#x27;&quot; (&#x27; +
-      cols + &#x27;, imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP)&#x27;
-    );
-  }
+function createTableSQL(table, columns) {
   const cols = columns.map(([n, t]) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot; &#x27; + t).join(&quot;, &quot;);
   return (
     &#x27;CREATE TABLE IF NOT EXISTS &quot;&#x27; + table + &#x27;&quot; (id INTEGER PRIMARY KEY AUTOINCREMENT, &#x27; +
@@ -2150,44 +2141,26 @@ export default {
         if (mode === &quot;replace&quot;) {
           await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + table + &#x27;&quot;&#x27;).run();
         }
-        await env.DB.prepare(createTableSQL(table, columns, dtype.key_col || &quot;&quot;)).run();
+        await env.DB.prepare(createTableSQL(table, columns)).run();
         const numericCols = new Set(columns.filter(([, t]) =&gt; t === &quot;REAL&quot;).map(([n]) =&gt; n));
         const sql =
           &#x27;INSERT INTO &quot;&#x27; + table + &#x27;&quot; (&#x27; + colNames.map((n) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot;&#x27;).join(&quot;, &quot;) +
           &quot;, imported_by) VALUES (&quot; + colNames.map(() =&gt; &quot;?&quot;).join(&quot;, &quot;) + &quot;, ?)&quot;;
-        const pkIdx = dtype.key_col ? colNames.indexOf(dtype.key_col) : -1;
-        let inserted = 0, skipped = 0;
-        const errors = [];
+        let inserted = 0;
         const CHUNK = 100;
         for (let i = 0; i &lt; rows.length; i += CHUNK) {
-          const valsList = rows.slice(i, i + CHUNK).map((row) =&gt; {
+          const batch = rows.slice(i, i + CHUNK).map((row) =&gt; {
             const vals = colNames.map((n) =&gt; {
               const v = row[n];
               return numericCols.has(n) ? toNumber(v) : toText(v);
             });
             vals.push(me.username);
-            return vals;
+            return env.DB.prepare(sql).bind(...vals);
           });
-          try {
-            await env.DB.batch(valsList.map((vals) =&gt; env.DB.prepare(sql).bind(...vals)));
-            inserted += valsList.length;
-          } catch (e) {
-            // 1 dong loi (VD: trung khoa chinh) khong duoc lam hong ca lo 100 dong:
-            // chen lai tung dong, dong loi thi bo qua co bao cao.
-            for (const vals of valsList) {
-              try { await env.DB.prepare(sql).bind(...vals).run(); inserted++; }
-              catch (e2) {
-                skipped++;
-                if (errors.length &lt; 50) {
-                  errors.push(pkIdx &gt;= 0 &amp;&amp; vals[pkIdx]
-                    ? (&quot;Trùng khóa chính &quot; + dtype.key_col + &quot;: &quot; + vals[pkIdx])
-                    : String((e2 &amp;&amp; e2.message) || e2).slice(0, 120));
-                }
-              }
-            }
-          }
+          await env.DB.batch(batch);
+          inserted += batch.length;
         }
-        return json({ ok: true, table, inserted, skipped, errors, mode });
+        return json({ ok: true, table, inserted, mode });
       }
 
       // ---- Bao cao thong ke ----
@@ -3742,7 +3715,6 @@ $("importForm").addEventListener("submit", async (e) => {
     setMsg($("impMsg"), "Đang import " + rows.length.toLocaleString("vi-VN") + " dòng lên D1 (" + modeLabel + ")…");
     const d = await api("/api/import", { method: "POST", body: JSON.stringify({ loai, thang, nam, mode, rows }) });
     let msg = "Import thành công " + (d.inserted || 0).toLocaleString("vi-VN") + " dòng vào bảng " + d.table + " (chế độ " + modeLabel + ").";
-    if (d.skipped) msg += " Đã bỏ qua " + d.skipped.toLocaleString("vi-VN") + " dòng lỗi (VD: trùng khóa chính): " + (d.errors || []).join("; ") + ".";
     if (ignored.size) msg += " Đã tự động bỏ qua " + ignored.size + " cột không khớp với mẫu: " + [...ignored].join(", ") + ".";
     setMsg($("impMsg"), msg);
     loadTables();
