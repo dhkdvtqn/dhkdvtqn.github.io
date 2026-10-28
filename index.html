@@ -931,7 +931,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <!-- QUAN LY NGUOI DUNG -->
         <section class="panel hidden" id="panel-users">
           <h2>Quản lý người dùng</h2>
-          <p class="desc">Tạo tài khoản cho các điểm bán. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Tích chọn "Được quyền import dữ liệu" để tài khoản được dùng module Quản lý dữ liệu đầu vào. Admin thiết lập quyền sử dụng từng module cho mỗi tài khoản ở mục bên dưới (mặc định khi tạo mới: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt; Lãnh đạo đơn vị mặc định thêm Chăm sóc điểm bán). Khai báo tọa độ điểm bán để dùng cho module Chăm sóc điểm bán (nhận diện điểm trong bán kính 5m).</p>
+          <p class="desc">Tạo tài khoản cho các điểm bán. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Tích chọn "Được quyền import dữ liệu" để tài khoản được dùng module Quản lý dữ liệu đầu vào. Admin thiết lập quyền sử dụng từng module cho mỗi tài khoản ở mục bên dưới (mặc định khi tạo mới: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt; Lãnh đạo đơn vị mặc định thêm Chăm sóc điểm bán). Khai báo tọa độ điểm bán để dùng cho module Chăm sóc điểm bán (nhận diện điểm trong bán kính 20m).</p>
           <form id="userForm" class="form-grid">
             <input type="hidden" id="userId" />
             <div><label>Mã kênh bán hàng</label><input id="uChannel" placeholder="VD: KBH-VDCT-001" /></div>
@@ -951,7 +951,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
                 <div style="flex:1;min-width:150px"><label>Kinh độ (Lng)</label><input id="uLng" inputmode="decimal" placeholder="VD: 107.292100" /></div>
                 <div style="display:flex;align-items:flex-end"><button class="btn gray" type="button" id="uMapBtn">🗺️ Chọn trên bản đồ</button></div>
               </div>
-              <div class="desc" style="margin-top:6px">Nhập tay tọa độ, hoặc bấm “Chọn trên bản đồ” để chấm vị trí trên bản đồ OpenStreetMap (miễn phí, không cần API key). Tọa độ dùng để module Chăm sóc điểm bán nhận diện điểm bán trong bán kính 5m.</div>
+              <div class="desc" style="margin-top:6px">Nhập tay tọa độ, hoặc bấm “Chọn trên bản đồ” để chấm vị trí trên bản đồ OpenStreetMap (miễn phí, không cần API key). Tọa độ dùng để module Chăm sóc điểm bán nhận diện điểm bán trong bán kính 20m.</div>
             </div>
             <div><label>Loại tài khoản</label><select id="uRole"><option value="user">User thường (điểm bán)</option><option value="leader">Lãnh đạo đơn vị (xem dữ liệu đơn vị và các đơn vị trực thuộc)</option><option value="subadmin">SubAdmin (xem toàn tỉnh + quản lý người dùng)</option><option value="admin">Admin</option></select></div>
             <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="uCanImport" /> Được quyền import dữ liệu</label></div>
@@ -2347,7 +2347,7 @@ export default {
         ).bind(toText(b.ten_dot), toText(b.ghi_chu), me.id, me.ho_ten, saigonNow()).run();
         return json({ ok: true, id: r.meta.last_row_id });
       }
-      // Diem ban trong ban kinh 5m quanh vi tri thiet bi (khong co vi tri -&gt; khong tra diem nao)
+      // Diem ban trong ban kinh 20m quanh vi tri thiet bi (khong co vi tri -&gt; khong tra diem nao)
       if (path === &quot;/api/care/nearby&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
         await ensureCareTables(env);
@@ -2364,7 +2364,7 @@ export default {
         }
         const pos = rows
           .map((u) =&gt; ({ id: u.id, ho_ten: u.ho_ten, ma_kenh: u.ma_kenh, lat: u.lat, lng: u.lng, don_vi_ten: u.don_vi_ten, khoang_cach_m: Math.round(haversineM(lat, lng, u.lat, u.lng) * 10) / 10 }))
-          .filter((u) =&gt; u.khoang_cach_m &lt;= 5)
+          .filter((u) =&gt; u.khoang_cach_m &lt;= 20)
           .sort((a, b) =&gt; a.khoang_cach_m - b.khoang_cach_m)
           .slice(0, 100);
         return json({ ok: true, pos });
@@ -2395,7 +2395,7 @@ export default {
           if (!inScope) return err(&quot;Diem ban khong thuoc pham vi don vi cua ban&quot;, 403);
         }
         const dist = haversineM(lat, lng, pos.lat, pos.lng);
-        if (dist &gt; 5) return err(&quot;Vi tri chup anh cach diem ban &quot; + (Math.round(dist * 10) / 10) + &quot;m, vuot qua ban kinh 5m cho phep&quot;, 403);
+        if (dist &gt; 20) return err(&quot;Vi tri chup anh cach diem ban &quot; + (Math.round(dist * 10) / 10) + &quot;m, vuot qua ban kinh 20m cho phep&quot;, 403);
         if (!env.ANH) return err(&quot;Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker)&quot;, 501);
         const mime = file.type || &quot;&quot;;
         if (!mime.startsWith(&quot;image/&quot;)) return err(&quot;File anh phai la dinh dang anh&quot;, 422);
@@ -2616,7 +2616,7 @@ export default {
         <!-- CHAM SOC DIEM BAN -->
         <section class="panel hidden" id="panel-care">
           <h2>Chăm sóc điểm bán</h2>
-          <p class="desc">Dành cho Lãnh đạo đơn vị đi thực địa. Quy trình: tạo đợt chăm sóc → bấm “Lấy vị trí hiện tại” → hệ thống chỉ hiện các điểm bán trong bán kính 5m quanh vị trí thiết bị (không lấy được vị trí thì không hiện điểm nào) → chọn điểm bán, chụp ảnh, hệ thống tự đóng dấu tọa độ + thời gian chụp vào ảnh rồi mới cho lưu kết quả. Phạm vi điểm bán theo cây đơn vị của lãnh đạo (đơn vị mình + các đơn vị trực thuộc).</p>
+          <p class="desc">Dành cho Lãnh đạo đơn vị đi thực địa. Quy trình: tạo đợt chăm sóc → bấm “Lấy vị trí hiện tại” → hệ thống chỉ hiện các điểm bán trong bán kính 20m quanh vị trí thiết bị (không lấy được vị trí thì không hiện điểm nào) → chọn điểm bán, chụp ảnh, hệ thống tự đóng dấu tọa độ + thời gian chụp vào ảnh rồi mới cho lưu kết quả. Phạm vi điểm bán theo cây đơn vị của lãnh đạo (đơn vị mình + các đơn vị trực thuộc).</p>
           <h3 style="margin:14px 0 8px;color:var(--blue-dark)">Tạo đợt chăm sóc</h3>
           <form id="careBatchForm" class="form-grid">
             <div><label>Tên đợt chăm sóc *</label><input id="careBatchName" required placeholder="VD: Đợt chăm sóc tháng 11/2026" /></div>
@@ -2632,7 +2632,7 @@ export default {
               <span id="careLocText" class="desc"></span>
             </div>
             <div id="careNearbyMsg"></div>
-            <div class="tbl-wrap"><table class="data"><thead><tr><th>Điểm bán</th><th>Đơn vị</th><th>Khoảng cách tới bạn</th><th></th></tr></thead><tbody id="careNearbyBody"><tr><td colspan="4">Hãy bấm “Lấy vị trí hiện tại” để hiển thị các điểm bán trong bán kính 5m.</td></tr></tbody></table></div>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Điểm bán</th><th>Đơn vị</th><th>Khoảng cách tới bạn</th><th></th></tr></thead><tbody id="careNearbyBody"><tr><td colspan="4">Hãy bấm “Lấy vị trí hiện tại” để hiển thị các điểm bán trong bán kính 20m.</td></tr></tbody></table></div>
             <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Lịch sử chăm sóc trong đợt</h3>
             <div class="tbl-wrap"><table class="data"><thead><tr><th>Thời gian chăm sóc</th><th>Điểm bán</th><th>Người chăm sóc</th><th>Khoảng cách</th><th>Ghi chú</th><th>Ảnh</th></tr></thead><tbody id="careHistBody"><tr><td colspan="6">Chưa có lượt chăm sóc nào trong đợt này.</td></tr></tbody></table></div>
           </div>
@@ -3797,7 +3797,7 @@ function openCareBatch(id, name) {
   careBatchId = id;
   $("careBatchTitle").textContent = "Đợt: " + name;
   $("careBatchDetail").classList.remove("hidden");
-  $("careNearbyBody").innerHTML = "<tr><td colspan='4'>Hãy bấm “Lấy vị trí hiện tại” để hiển thị các điểm bán trong bán kính 5m.</td></tr>";
+  $("careNearbyBody").innerHTML = "<tr><td colspan='4'>Hãy bấm “Lấy vị trí hiện tại” để hiển thị các điểm bán trong bán kính 20m.</td></tr>";
   $("careLocText").textContent = "";
   loadCareHistory();
 }
@@ -3827,7 +3827,7 @@ $("careLocBtn").addEventListener("click", async () => {
       "<tr><td><b>" + esc(p.ho_ten) + "</b>" + (p.ma_kenh ? "<br /><span class='desc'>" + esc(p.ma_kenh) + "</span>" : "") + "</td>" +
       "<td>" + esc(p.don_vi_ten) + "</td><td><b>" + p.khoang_cach_m + "m</b></td>" +
       "<td><button class='btn sm blue' data-care-pos='" + p.id + "'>Chăm sóc</button></td></tr>").join("") ||
-      "<tr><td colspan='4'>Không có điểm bán nào trong bán kính 5m quanh vị trí hiện tại. Hãy đứng sát điểm bán rồi bấm lại “Lấy vị trí hiện tại”.</td></tr>";
+      "<tr><td colspan='4'>Không có điểm bán nào trong bán kính 20m quanh vị trí hiện tại. Hãy đứng sát điểm bán rồi bấm lại “Lấy vị trí hiện tại”.</td></tr>";
     $("careNearbyBody").querySelectorAll("[data-care-pos]").forEach((b) => b.addEventListener("click", () => {
       const p = (d.pos || []).find((x) => x.id === Number(b.dataset.carePos));
       if (p) openCareModal(p);

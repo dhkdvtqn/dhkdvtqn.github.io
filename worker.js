@@ -1137,7 +1137,7 @@ export default {
         ).bind(toText(b.ten_dot), toText(b.ghi_chu), me.id, me.ho_ten, saigonNow()).run();
         return json({ ok: true, id: r.meta.last_row_id });
       }
-      // Diem ban trong ban kinh 5m quanh vi tri thiet bi (khong co vi tri -> khong tra diem nao)
+      // Diem ban trong ban kinh 20m quanh vi tri thiet bi (khong co vi tri -> khong tra diem nao)
       if (path === "/api/care/nearby" && method === "GET") {
         if (!canUseCare(me)) return err("Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban", 403);
         await ensureCareTables(env);
@@ -1154,7 +1154,7 @@ export default {
         }
         const pos = rows
           .map((u) => ({ id: u.id, ho_ten: u.ho_ten, ma_kenh: u.ma_kenh, lat: u.lat, lng: u.lng, don_vi_ten: u.don_vi_ten, khoang_cach_m: Math.round(haversineM(lat, lng, u.lat, u.lng) * 10) / 10 }))
-          .filter((u) => u.khoang_cach_m <= 5)
+          .filter((u) => u.khoang_cach_m <= 20)
           .sort((a, b) => a.khoang_cach_m - b.khoang_cach_m)
           .slice(0, 100);
         return json({ ok: true, pos });
@@ -1185,7 +1185,7 @@ export default {
           if (!inScope) return err("Diem ban khong thuoc pham vi don vi cua ban", 403);
         }
         const dist = haversineM(lat, lng, pos.lat, pos.lng);
-        if (dist > 5) return err("Vi tri chup anh cach diem ban " + (Math.round(dist * 10) / 10) + "m, vuot qua ban kinh 5m cho phep", 403);
+        if (dist > 20) return err("Vi tri chup anh cach diem ban " + (Math.round(dist * 10) / 10) + "m, vuot qua ban kinh 20m cho phep", 403);
         if (!env.ANH) return err("Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker)", 501);
         const mime = file.type || "";
         if (!mime.startsWith("image/")) return err("File anh phai la dinh dang anh", 422);
