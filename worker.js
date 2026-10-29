@@ -1009,6 +1009,8 @@ export default {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen xoa nguoi dung", 403);
         if (!hasModule(me, "users")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
         if (Number(userMatch[1]) === me.id) return err("Khong the tu xoa tai khoan dang dang nhap", 422);
+        const leadRef = await env.DB.prepare("SELECT COUNT(*) AS c FROM nguoi_dung WHERE leader_id = ?").bind(Number(userMatch[1])).first();
+        if (leadRef && leadRef.c > 0) return err("Khong the xoa — nguoi dung nay dang la Lanh dao phu trach cua " + leadRef.c + " diem ban. Hay gan lai lanh dao phu trach truoc khi xoa.", 422);
         await env.DB.prepare("DELETE FROM nguoi_dung WHERE id = ?").bind(Number(userMatch[1])).run();
         return json({ ok: true });
       }
@@ -1023,6 +1025,8 @@ export default {
         const skipped = [];
         for (const id of ids) {
           if (id === me.id) { skipped.push({ id, reason: "Khong the tu xoa tai khoan dang dang nhap" }); continue; }
+          const leadRef = await env.DB.prepare("SELECT COUNT(*) AS c FROM nguoi_dung WHERE leader_id = ?").bind(id).first();
+          if (leadRef && leadRef.c > 0) { skipped.push({ id, reason: "Dang la Lanh dao phu trach cua " + leadRef.c + " diem ban — hay gan lai lanh dao phu trach truoc khi xoa" }); continue; }
           const r = await env.DB.prepare("DELETE FROM nguoi_dung WHERE id = ?").bind(id).run();
           if ((r.meta.changes || 0) > 0) deleted++;
           else skipped.push({ id, reason: "Khong tim thay nguoi dung" });

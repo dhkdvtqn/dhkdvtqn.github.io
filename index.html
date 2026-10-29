@@ -993,11 +993,12 @@ html.is-mobile #appRoot .btn{min-height:44px}
           </form>
           <div id="userMsg"></div>
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Danh sách người dùng</h3>
-          <div class="form-grid" style="grid-template-columns:minmax(260px,380px) 1fr;align-items:end;margin-bottom:10px">
-            <div><label>Lọc theo đơn vị</label><select id="userUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+            <div style="min-width:260px;flex:1;max-width:380px"><label>Lọc theo đơn vị</label><select id="userUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
             <div><span id="userCount" class="desc"></span></div>
+            <div style="margin-left:auto"><button class="btn danger" type="button" id="uDelSel" title="Xóa các người dùng đã đánh dấu">Xóa</button></div>
           </div>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th style="white-space:nowrap"><input type="checkbox" id="uSelAll" title="Đánh dấu tất cả" /> <button class="btn sm danger" type="button" id="uDelSel" title="Xóa các người dùng đã đánh dấu">Xóa</button></th><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Tọa độ điểm bán</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Mã HRM</th><th>Lãnh đạo phụ trách</th><th>Loại kênh bán</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="16">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th><input type="checkbox" id="uSelAll" title="Đánh dấu tất cả" /></th><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Tọa độ điểm bán</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Mã HRM</th><th>Lãnh đạo phụ trách</th><th>Loại kênh bán</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="16">Đang tải…</td></tr></tbody></table></div>
           <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import người dùng từ Excel</h3>
           <p class="desc">Tải file mẫu về, điền thông tin người dùng vào file rồi import lên hệ thống. Có 3 chế độ import: <b>Tạo mới</b> (chỉ thêm user chưa có — user đã tồn tại thì bỏ qua), <b>Cập nhật</b> (user đã có thì cập nhật các trường có dữ liệu mới trong file, trường để trống thì giữ nguyên; chưa có thì tạo mới), <b>Thay thế</b> (user đã có thì ghi đè toàn bộ thông tin theo file, trường để trống thì xóa; chưa có thì tạo mới). Lưu ý: import không thay đổi loại tài khoản, quyền import và quyền module của user đã có (đổi các quyền này trong form Sửa); mật khẩu để trống thì giữ nguyên mật khẩu cũ (tạo mới thì dùng mặc định <code class="inl">Vnpt@2026</code>).</p>
           <div style="margin-bottom:10px;max-width:520px"><label>Chế độ import</label><select id="uImpMode"><option value="create">Tạo mới — chỉ thêm user chưa có, user đã tồn tại thì bỏ qua</option><option value="update">Cập nhật — user đã có thì cập nhật các trường có dữ liệu mới (trường trống giữ nguyên), chưa có thì tạo mới</option><option value="replace">Thay thế — user đã có thì ghi đè toàn bộ theo file (trường trống thì xóa), chưa có thì tạo mới</option></select></div>
@@ -2242,6 +2243,8 @@ export default {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xoa nguoi dung&quot;, 403);
         if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         if (Number(userMatch[1]) === me.id) return err(&quot;Khong the tu xoa tai khoan dang dang nhap&quot;, 422);
+        const leadRef = await env.DB.prepare(&quot;SELECT COUNT(*) AS c FROM nguoi_dung WHERE leader_id = ?&quot;).bind(Number(userMatch[1])).first();
+        if (leadRef &amp;&amp; leadRef.c &gt; 0) return err(&quot;Khong the xoa — nguoi dung nay dang la Lanh dao phu trach cua &quot; + leadRef.c + &quot; diem ban. Hay gan lai lanh dao phu trach truoc khi xoa.&quot;, 422);
         await env.DB.prepare(&quot;DELETE FROM nguoi_dung WHERE id = ?&quot;).bind(Number(userMatch[1])).run();
         return json({ ok: true });
       }
@@ -2256,6 +2259,8 @@ export default {
         const skipped = [];
         for (const id of ids) {
           if (id === me.id) { skipped.push({ id, reason: &quot;Khong the tu xoa tai khoan dang dang nhap&quot; }); continue; }
+          const leadRef = await env.DB.prepare(&quot;SELECT COUNT(*) AS c FROM nguoi_dung WHERE leader_id = ?&quot;).bind(id).first();
+          if (leadRef &amp;&amp; leadRef.c &gt; 0) { skipped.push({ id, reason: &quot;Dang la Lanh dao phu trach cua &quot; + leadRef.c + &quot; diem ban — hay gan lai lanh dao phu trach truoc khi xoa&quot; }); continue; }
           const r = await env.DB.prepare(&quot;DELETE FROM nguoi_dung WHERE id = ?&quot;).bind(id).run();
           if ((r.meta.changes || 0) &gt; 0) deleted++;
           else skipped.push({ id, reason: &quot;Khong tim thay nguoi dung&quot; });
