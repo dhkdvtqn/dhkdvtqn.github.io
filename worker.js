@@ -106,7 +106,7 @@ async function requireAuth(request, env) {
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
   const user = await env.DB.prepare(
-    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, don_vi_id, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?"
+    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, chuc_danh, don_vi_id, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?"
   )
     .bind(payload.sub)
     .first();
@@ -475,7 +475,7 @@ function buildSource(t, meUser, overrideUnitId) {
 // Giai quyet tham so loc don_vi cho bao cao: admin/subadmin duoc loc bat ky
 // don vi; lanh dao chi duoc loc don vi trong cay cua minh; user thuong khong
 // duoc loc. Tra ve { ok, unit } — unit null nghia la khong loc.
-async function resolveScopeUnit(env, me, isLeader, isPrivileged, donViParam) {
+async function resolveScopeUnit(env, me, isLeaderLike, isPrivileged, donViParam) {
   if (donViParam === null || donViParam === undefined || donViParam === "") return { ok: true, unit: null };
   // Don vi ao "Chua xac dinh" (don_vi=0): so lieu chua map duoc voi don vi
   // nao — chi admin/subadmin moi xem duoc vi so lieu nay nam ngoai moi cay
@@ -489,11 +489,35 @@ async function resolveScopeUnit(env, me, isLeader, isPrivileged, donViParam) {
   const unit = await env.DB.prepare("SELECT id FROM don_vi WHERE id = ?").bind(id).first();
   if (!unit) return { ok: false, msg: "Don vi khong ton tai: " + donViParam, code: 422 };
   if (!isPrivileged) {
-    if (!isLeader || !me.don_vi_id) return { ok: false, msg: "Tai khoan khong co quyen loc theo don vi", code: 403 };
+    if (!isLeaderLike || !me.don_vi_id) return { ok: false, msg: "Tai khoan khong co quyen loc theo don vi", code: 403 };
     const inside = await env.DB.prepare(unitSubtreeCTE() + " SELECT 1 FROM don_vi WHERE id = ? AND id IN (SELECT id FROM subtree)").bind(me.don_vi_id, id).first();
     if (!inside) return { ok: false, msg: "Don vi khong thuoc pham vi cua ban", code: 403 };
   }
   return { ok: true, unit: id };
+}
+
+// Giai ma tham so loc "Theo diem ban" (?diem_ban=<id>): chi nhan tai khoan
+// diem ban (role='user'). Admin/subadmin loc diem ban bat ky; lanh dao
+// (va chuyen vien tuong duong) chi loc diem ban trong cay don vi cua minh;
+// user thuong/nhan su khac chi duoc loc chinh minh.
+async function resolvePosUser(env, me, isPrivileged, isLeaderLike, posParam) {
+  if (posParam === null || posParam === undefined || posParam === "") return { ok: true, pos: null };
+  const id = Number(posParam);
+  if (!id) return { ok: false, msg: "Diem ban loc khong hop le", code: 422 };
+  const pos = await env.DB.prepare(
+    "SELECT id, ho_ten, username, role, so_eload, so_vi, ma_hrm, sdt_nhan_vien, ma_kenh, don_vi_id FROM nguoi_dung WHERE id = ?"
+  ).bind(id).first();
+  if (!pos || pos.role !== "user") return { ok: false, msg: "Diem ban khong ton tai", code: 422 };
+  if (!isPrivileged) {
+    if (isLeaderLike && me.don_vi_id) {
+      if (!pos.don_vi_id) return { ok: false, msg: "Diem ban khong thuoc pham vi cua ban", code: 403 };
+      const inside = await env.DB.prepare(unitSubtreeCTE() + " SELECT 1 FROM don_vi WHERE id = ? AND id IN (SELECT id FROM subtree)").bind(me.don_vi_id, pos.don_vi_id).first();
+      if (!inside) return { ok: false, msg: "Diem ban khong thuoc pham vi cua ban", code: 403 };
+    } else if (pos.id !== me.id) {
+      return { ok: false, msg: "Ban chi duoc loc theo diem ban cua chinh minh", code: 403 };
+    }
+  }
+  return { ok: true, pos };
 }
 
 // Chuan hoa trang thai chi tra de xep vao nhom "Thanh cong" / "Khong thanh cong".
@@ -515,13 +539,13 @@ function parseStatusFilter(v) { return v === "fail" ? "fail" : v === "all" ? "al
 // Tong hop bao cao dung chung cho /api/reports/summary va /api/reports/by-unit.
 // scopeUnit: null = pham vi mac dinh theo vai tro; so = goc cay don vi can loc.
 // statusFilter: "success" (mac dinh) / "fail" / "all" (khong loc).
-async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit, statusFilter }) {
+async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit, statusFilter, posUser }) {
   const groupExpr = group === "month" ? "substr(tg, 1, 7)" : "substr(tg, 1, 10)";
   const stFilter = parseStatusFilter(statusFilter);
   const types = await getDataTypes(env);
   const sources = types
     .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col)
-    .map((t) => buildSource(t, me, scopeUnit));
+    .map((t) => buildSource(t, posUser || me, scopeUnit));
   // Truy van tung bang thang roi cong don ket qua trong JS.
   // (Cach cu ghep tat ca bang bang UNION ALL thanh 1 cau SQL khong lo
   //  se vuot gioi han "too many terms in compound SELECT" cua D1.)
@@ -547,7 +571,8 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
             'SELECT ' + groupExpr + ' AS ky' + (withStatus ? ', tt' : '') + ', COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT ' +
             innerCols.join(", ") + ' FROM "' + t + '") WHERE substr(tg, 1, 10) BETWEEN ? AND ?';
           const localBinds = [from, to];
-          if (scopeUnit != null) {
+          if (posUser) { sql += " AND " + src.own; localBinds.push(...src.ownBinds); }
+          else if (scopeUnit != null) {
             if (scopeUnit === 0) { sql += " AND " + src.unmapped; }
             else { sql += " AND " + src.unit; localBinds.push(...src.unitBinds); }
           }
@@ -580,7 +605,7 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
       catch (e) {
         const legacy = LEGACY_SCHEMAS[s.code];
         if (!legacy || !s.type) { skippedTables.push(t); continue; }
-        try { res = await runSummaryTable(buildSource({ ...s.type, ...legacy }, me, scopeUnit)); usedLegacy = true; }
+        try { res = await runSummaryTable(buildSource({ ...s.type, ...legacy }, posUser || me, scopeUnit)); usedLegacy = true; }
         catch (e2) { skippedTables.push(t); continue; }
       }
       if (usedLegacy) legacyTables.push(t);
@@ -798,10 +823,15 @@ export default {
       const isAdmin = me.role === "admin";
       const isSubAdmin = me.role === "subadmin";
       const isLeader = me.role === "leader";
+      // Chuyen vien (nhan su noi bo role staff + chuc danh "Chuyên viên"):
+      // duoc xem so lieu tuong duong Lanh dao don vi — pham vi cay don vi
+      // cua minh. Khong ap dung cho module Cham soc diem ban (van chi
+      // admin/lanh dao duoc gan diem truc tiep).
+      const isLeaderLike = isLeader || (me.role === "staff" && me.chuc_danh === "Chuyên viên");
       // Lanh dao don vi: xem du lieu cua cac user trong don vi cua minh VA
       // cac don vi truc thuoc (cay don_vi qua parent_id); neu chua gan don
       // vi thi tam xem du lieu cua chinh minh.
-      const isUnitScoped = isLeader && !!me.don_vi_id;
+      const isUnitScoped = isLeaderLike && !!me.don_vi_id;
       const isPrivileged = isAdmin || isSubAdmin; // Admin & SubAdmin: xem du lieu toan tinh
       const canManageUsers = isAdmin || isSubAdmin; // Admin & SubAdmin: quan ly nguoi dung
 
@@ -1409,6 +1439,25 @@ export default {
       }
 
       // ---- Bao cao thong ke ----
+      // Danh sach diem ban cho bo loc "Theo diem ban" trong Bao cao thong ke.
+      // Admin/subadmin: toan bo diem ban; lanh dao (va chuyen vien tuong
+      // duong): diem ban trong cay don vi cua minh; con lai: chi chinh minh.
+      if (path === "/api/pos-list" && method === "GET") {
+        if (!hasModule(me, "reports")) return err("Tai khoan khong co quyen xem bao cao", 403);
+        let sql, binds;
+        if (isPrivileged) {
+          sql = "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.don_vi_id, d.ten_don_vi AS don_vi_ten FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = 'user' ORDER BY u.ho_ten";
+          binds = [];
+        } else if (isLeaderLike && me.don_vi_id) {
+          sql = unitSubtreeCTE() + " SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.don_vi_id, d.ten_don_vi AS don_vi_ten FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = 'user' AND u.don_vi_id IN (SELECT id FROM subtree) ORDER BY u.ho_ten";
+          binds = [me.don_vi_id];
+        } else {
+          sql = "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.don_vi_id, d.ten_don_vi AS don_vi_ten FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.id = ?";
+          binds = [me.id];
+        }
+        const res = await env.DB.prepare(sql).bind(...binds).all();
+        return json({ ok: true, list: res.results || [] });
+      }
       if (path === "/api/reports/summary" && method === "GET") {
         if (!hasModule(me, "reports") && !hasModule(me, "dashboard")) return err("Tai khoan khong co quyen xem bao cao", 403);
         const from = url.searchParams.get("from") || "0000-01-01";
@@ -1416,33 +1465,41 @@ export default {
         const group = url.searchParams.get("group") || "day";
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
         const statusFilter = parseStatusFilter(url.searchParams.get("trang_thai"));
-        const r = await resolveScopeUnit(env, me, isLeader, isPrivileged, url.searchParams.get("don_vi"));
+        const r = await resolveScopeUnit(env, me, isLeaderLike, isPrivileged, url.searchParams.get("don_vi"));
         if (!r.ok) return err(r.msg, r.code);
-        const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit: r.unit, statusFilter });
-        return json({ ok: true, ...d });
+        const pr = await resolvePosUser(env, me, isPrivileged, isLeaderLike, url.searchParams.get("diem_ban"));
+        if (!pr.ok) return err(pr.msg, pr.code);
+        const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit: r.unit, statusFilter, posUser: pr.pos });
+        return json({ ok: true, ...d, pos: pr.pos ? { id: pr.pos.id, ho_ten: pr.pos.ho_ten, username: pr.pos.username } : null });
       }
       // Tong hop theo don vi: moi dong la tong so lieu cua cac diem ban thuoc
       // don vi do (map qua so_eload/so_vi/ma_kenh/ma_hrm-sdt). Admin/subadmin
       // thay toan bo don vi; lanh dao chi thay cac don vi trong cay cua minh.
       if (path === "/api/reports/by-unit" && method === "GET") {
         if (!hasModule(me, "reports")) return err("Tai khoan khong co quyen xem bao cao", 403);
-        if (!isPrivileged && !isLeader) return err("Chi admin/subadmin/lanh dao moi xem duoc bao cao theo don vi", 403);
+        if (!isPrivileged && !isLeaderLike) return err("Chi admin/subadmin/lanh dao moi xem duoc bao cao theo don vi", 403);
         const from = url.searchParams.get("from") || "0000-01-01";
         const to = url.searchParams.get("to") || "9999-12-31";
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
         const statusFilter = parseStatusFilter(url.searchParams.get("trang_thai"));
+        const pr = await resolvePosUser(env, me, isPrivileged, isLeaderLike, url.searchParams.get("diem_ban"));
+        if (!pr.ok) return err(pr.msg, pr.code);
+        const posUser = pr.pos;
         let units;
-        if (isPrivileged) {
+        if (posUser && posUser.don_vi_id) {
+          // Loc theo diem ban: chi hien dong don vi cua diem ban do
+          units = (await env.DB.prepare("SELECT id, ma_don_vi, ten_don_vi, parent_id FROM don_vi WHERE id = ?").bind(posUser.don_vi_id).all()).results || [];
+        } else if (isPrivileged) {
           units = (await env.DB.prepare("SELECT id, ma_don_vi, ten_don_vi, parent_id FROM don_vi ORDER BY ten_don_vi").all()).results || [];
         } else {
           units = (await env.DB.prepare(unitSubtreeCTE() + " SELECT d.id, d.ma_don_vi, d.ten_don_vi, d.parent_id FROM don_vi d WHERE d.id IN (SELECT id FROM subtree) ORDER BY d.ten_don_vi").bind(me.don_vi_id).all()).results || [];
         }
         const out = [];
         for (const u of units) {
-          const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group: "month", loai, scopeUnit: u.id, statusFilter });
+          const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group: "month", loai, scopeUnit: u.id, statusFilter, posUser });
           out.push({ don_vi_id: u.id, ma_don_vi: u.ma_don_vi, ten_don_vi: u.ten_don_vi, so_giao_dich: d.tong_giao_dich, tong_tien: d.tong_tien });
         }
-        return json({ ok: true, units: out });
+        return json({ ok: true, units: out, pos: posUser ? { id: posUser.id, ho_ten: posUser.ho_ten, username: posUser.username } : null });
       }
       if (path === "/api/reports/detail" && method === "GET") {
         if (!hasModule(me, "reports")) return err("Tai khoan khong co quyen xem bao cao", 403);
@@ -1451,16 +1508,19 @@ export default {
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
         const limit = Math.min(Number(url.searchParams.get("limit") || 500), 2000);
         const statusFilter = parseStatusFilter(url.searchParams.get("trang_thai"));
-        const dr = await resolveScopeUnit(env, me, isLeader, isPrivileged, url.searchParams.get("don_vi"));
+        const dr = await resolveScopeUnit(env, me, isLeaderLike, isPrivileged, url.searchParams.get("don_vi"));
         if (!dr.ok) return err(dr.msg, dr.code);
         const scopeUnit = dr.unit;
+        const pr = await resolvePosUser(env, me, isPrivileged, isLeaderLike, url.searchParams.get("diem_ban"));
+        if (!pr.ok) return err(pr.msg, pr.code);
+        const posUser = pr.pos;
         const out = [];
         const skippedTables = [];
         const legacyTables = [];
         const types = await getDataTypes(env);
         const sources = types
           .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col)
-          .map((t) => buildSource(t, me, scopeUnit));
+          .map((t) => buildSource(t, posUser || me, scopeUnit));
         for (const s of sources) {
           const tables = await listMonthlyTables(env, s.prefix);
           for (const t of tables) {
@@ -1480,7 +1540,8 @@ export default {
               let sql =
                 "SELECT " + sel.join(", ") + ' FROM "' + t + '" WHERE substr(' + src.time + ", 1, 10) BETWEEN ? AND ?";
               const binds = [from, to];
-              if (scopeUnit != null) {
+              if (posUser) { sql += " AND " + src.own; binds.push(...src.ownBinds); }
+              else if (scopeUnit != null) {
                 if (scopeUnit === 0) { sql += " AND " + src.unmapped; }
                 else { sql += " AND " + src.unit; binds.push(...src.unitBinds); }
               }
@@ -1497,7 +1558,7 @@ export default {
             catch (e) {
               const legacy = LEGACY_SCHEMAS[s.code];
               if (!legacy || !s.type) { skippedTables.push(t); continue; }
-              try { usedSrc = buildSource({ ...s.type, ...legacy }, me, scopeUnit); res = await runDetailTable(usedSrc); usedLegacy = true; }
+              try { usedSrc = buildSource({ ...s.type, ...legacy }, posUser || me, scopeUnit); res = await runDetailTable(usedSrc); usedLegacy = true; }
               catch (e2) { skippedTables.push(t); continue; }
             }
             if (usedLegacy) legacyTables.push(t);
@@ -1513,7 +1574,7 @@ export default {
           }
         }
         out.sort((a, b) => String(b.thoi_gian || "").localeCompare(String(a.thoi_gian || "")));
-        return json({ ok: true, rows: out.slice(0, limit), skipped_tables: skippedTables, legacy_tables: legacyTables });
+        return json({ ok: true, rows: out.slice(0, limit), skipped_tables: skippedTables, legacy_tables: legacyTables, pos: posUser ? { id: posUser.id, ho_ten: posUser.ho_ten, username: posUser.username } : null });
       }
 
       // ---- Thong ke dang nhap theo thang (admin & subadmin) ----
@@ -1833,16 +1894,16 @@ export default {
       // Chi admin/subadmin/lanh dao don vi duoc xem (diem ban thuong khong duoc,
       // ke ca khi modules NULL) — pham vi: lanh dao chi thay cay don vi cua minh.
       if (path === "/api/care/reports/summary" && method === "GET") {
-        if (!isPrivileged && !isLeader) return err("Chi admin/subadmin va Lanh dao don vi moi xem duoc bao cao cham soc", 403);
+        if (!isPrivileged && !isLeaderLike) return err("Chi admin/subadmin va Lanh dao don vi moi xem duoc bao cao cham soc", 403);
         if (!hasModule(me, "reports")) return err("Tai khoan khong co quyen xem bao cao", 403);
         await ensureCareTables(env);
         const from = url.searchParams.get("from") || "0000-01-01";
         const to = url.searchParams.get("to") || "9999-12-31";
-        if (isLeader && !me.don_vi_id) return json({ ok: true, tong_luot: 0, tong_diem: 0, theo_dot: [], theo_nguoi: [], theo_don_vi: [], theo_diem: [] });
-        const prefix = isLeader ? unitSubtreeCTE() + " " : "";
-        const scopeSql = isLeader ? " AND p.don_vi_id IN (SELECT id FROM subtree)" : "";
+        if (isLeaderLike && !me.don_vi_id) return json({ ok: true, tong_luot: 0, tong_diem: 0, theo_dot: [], theo_nguoi: [], theo_don_vi: [], theo_diem: [] });
+        const prefix = isLeaderLike ? unitSubtreeCTE() + " " : "";
+        const scopeSql = isLeaderLike ? " AND p.don_vi_id IN (SELECT id FROM subtree)" : "";
         const runQ = async (sql, extraBinds) => {
-          const binds = isLeader ? [me.don_vi_id, ...extraBinds] : extraBinds;
+          const binds = isLeaderLike ? [me.don_vi_id, ...extraBinds] : extraBinds;
           return (await env.DB.prepare(prefix + sql).bind(...binds).all()).results || [];
         };
         const base = "FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id LEFT JOIN don_vi dv ON dv.id = p.don_vi_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?" + scopeSql;
@@ -1854,17 +1915,17 @@ export default {
         return json({ ok: true, tong_luot: tot[0] ? tot[0].luot : 0, tong_diem: tot[0] ? tot[0].diem : 0, theo_dot: theoDot, theo_nguoi: theoNguoi, theo_don_vi: theoDonVi, theo_diem: theoDiem });
       }
       if (path === "/api/care/reports/detail" && method === "GET") {
-        if (!isPrivileged && !isLeader) return err("Chi admin/subadmin va Lanh dao don vi moi xem duoc bao cao cham soc", 403);
+        if (!isPrivileged && !isLeaderLike) return err("Chi admin/subadmin va Lanh dao don vi moi xem duoc bao cao cham soc", 403);
         if (!hasModule(me, "reports")) return err("Tai khoan khong co quyen xem bao cao", 403);
         await ensureCareTables(env);
         const from = url.searchParams.get("from") || "0000-01-01";
         const to = url.searchParams.get("to") || "9999-12-31";
         const limit = Math.min(1000, Number(url.searchParams.get("limit")) || 1000);
-        if (isLeader && !me.don_vi_id) return json({ ok: true, records: [] });
+        if (isLeaderLike && !me.don_vi_id) return json({ ok: true, records: [] });
         const base = "SELECT c.id, c.thoi_gian, dt.ten_dot, p.ho_ten AS pos_ten, d.ten_don_vi AS don_vi_ten, c.caregiver_ten, c.khoang_cach_m, c.ghi_chu FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN don_vi d ON d.id = p.don_vi_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?";
         let sql = base;
         let binds = [from, to];
-        if (isLeader) {
+        if (isLeaderLike) {
           sql = unitSubtreeCTE() + " " + base + " AND p.don_vi_id IN (SELECT id FROM subtree)";
           binds = [me.don_vi_id, from, to];
         }
