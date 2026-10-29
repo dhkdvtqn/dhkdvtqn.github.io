@@ -476,10 +476,25 @@ async function resolveScopeUnit(env, me, isLeader, isPrivileged, donViParam) {
   return { ok: true, unit: id };
 }
 
+// Chuan hoa trang thai chi tra de xep vao nhom "Thanh cong" / "Khong thanh cong".
+// Thanh cong = dung 1 trong 2 trang thai anh Tuan chot: "Thanh cong" hoac
+// "Da chi tra thu lao thanh cong" (khong phan biet hoa/thuong, co/khong dau,
+// thua khoang trang). Moi trang thai khac (ke ca de trong) = khong thanh cong.
+function normStatus(s) {
+  return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().trim();
+}
+function isSuccessStatus(s) {
+  const n = normStatus(s);
+  return n === "thanh cong" || n === "da chi tra thu lao thanh cong";
+}
+
 // Tong hop bao cao dung chung cho /api/reports/summary va /api/reports/by-unit.
 // scopeUnit: null = pham vi mac dinh theo vai tro; so = goc cay don vi can loc.
-async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit }) {
+// statusFilter: "success" (mac dinh) = chi cong giao dich thanh cong;
+// "fail" = chi cong giao dich khong thanh cong.
+async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit, statusFilter }) {
   const groupExpr = group === "month" ? "substr(tg, 1, 7)" : "substr(tg, 1, 10)";
+  const stFilter = statusFilter === "fail" ? "fail" : "success";
   const types = await getDataTypes(env);
   const sources = types
     .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col)
@@ -498,25 +513,44 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
     for (const t of tables) {
       if (!tableInRange(t, s.prefix, from, to)) continue;
       const runSummaryTable = async (src) => {
-        const innerCols = [src.time + " AS tg", src.money + " AS tien"];
-        if (src.eloadCol) innerCols.push(src.eloadCol);
-        if (src.viCol) innerCols.push(src.viCol);
-        if (src.keyCol) innerCols.push(src.keyCol);
-        if (src.kenhCol) innerCols.push(src.kenhCol);
-        let sql =
-          'SELECT ' + groupExpr + ' AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT ' +
-          innerCols.join(", ") + ' FROM "' + t + '") WHERE substr(tg, 1, 10) BETWEEN ? AND ?';
-        const localBinds = [from, to];
-        if (scopeUnit != null) {
-          if (scopeUnit === 0) { sql += " AND " + src.unmapped; }
-          else { sql += " AND " + src.unit; localBinds.push(...src.unitBinds); }
+        const buildSQL = (withStatus) => {
+          const innerCols = [src.time + " AS tg", src.money + " AS tien"];
+          if (src.eloadCol) innerCols.push(src.eloadCol);
+          if (src.viCol) innerCols.push(src.viCol);
+          if (src.keyCol) innerCols.push(src.keyCol);
+          if (src.kenhCol) innerCols.push(src.kenhCol);
+          if (withStatus) innerCols.push('"' + src.statusCol + '" AS tt');
+          let sql =
+            'SELECT ' + groupExpr + ' AS ky' + (withStatus ? ', tt' : '') + ', COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT ' +
+            innerCols.join(", ") + ' FROM "' + t + '") WHERE substr(tg, 1, 10) BETWEEN ? AND ?';
+          const localBinds = [from, to];
+          if (scopeUnit != null) {
+            if (scopeUnit === 0) { sql += " AND " + src.unmapped; }
+            else { sql += " AND " + src.unit; localBinds.push(...src.unitBinds); }
+          }
+          else if (!isPrivileged) {
+            if (isUnitScoped) { sql += " AND " + src.unit; localBinds.push(...src.unitBinds); }
+            else { sql += " AND " + src.own; localBinds.push(...src.ownBinds); }
+          }
+          sql += withStatus ? " GROUP BY ky, tt" : " GROUP BY ky";
+          return { sql, localBinds };
+        };
+        // Uu tien doc kem cot trang thai de phan nhom success/fail trong JS
+        // (chuan hoa day du: hoa/thuong, dau, khoang trang — tranh bay "Khong
+        // thanh cong" neu so sanh chuoi don gian). Bang khong co cot trang
+        // thai thi roi ve cach tinh cu: success cong het, fail bo qua.
+        if (src.statusCol) {
+          try {
+            const q = buildSQL(true);
+            const r = await env.DB.prepare(q.sql).bind(...q.localBinds).all();
+            return { rows: r.results || [], withStatus: true };
+          } catch (e) {
+            if (!/no such column/i.test(e.message || "")) throw e;
+          }
         }
-        else if (!isPrivileged) {
-          if (isUnitScoped) { sql += " AND " + src.unit; localBinds.push(...src.unitBinds); }
-          else { sql += " AND " + src.own; localBinds.push(...src.ownBinds); }
-        }
-        sql += " GROUP BY ky";
-        return env.DB.prepare(sql).bind(...localBinds).all();
+        const q = buildSQL(false);
+        const r = await env.DB.prepare(q.sql).bind(...q.localBinds).all();
+        return { rows: r.results || [], withStatus: false };
       };
       let res, usedLegacy = false;
       try { res = await runSummaryTable(s); }
@@ -527,7 +561,10 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
         catch (e2) { skippedTables.push(t); continue; }
       }
       if (usedLegacy) legacyTables.push(t);
-      for (const r of res.results || []) {
+      for (const r of res.rows || []) {
+        if (res.withStatus) {
+          if ((isSuccessStatus(r.tt) ? "success" : "fail") !== stFilter) continue;
+        } else if (stFilter === "fail") continue;
         const cur = agg.get(r.ky) || { ky: r.ky, so_giao_dich: 0, tong_tien: 0 };
         cur.so_giao_dich += r.so_giao_dich || 0;
         cur.tong_tien += r.tong_tien || 0;
@@ -1244,9 +1281,10 @@ export default {
         const to = url.searchParams.get("to") || "9999-12-31";
         const group = url.searchParams.get("group") || "day";
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
+        const statusFilter = url.searchParams.get("trang_thai") === "fail" ? "fail" : "success";
         const r = await resolveScopeUnit(env, me, isLeader, isPrivileged, url.searchParams.get("don_vi"));
         if (!r.ok) return err(r.msg, r.code);
-        const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit: r.unit });
+        const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit: r.unit, statusFilter });
         return json({ ok: true, ...d });
       }
       // Tong hop theo don vi: moi dong la tong so lieu cua cac diem ban thuoc
@@ -1258,6 +1296,7 @@ export default {
         const from = url.searchParams.get("from") || "0000-01-01";
         const to = url.searchParams.get("to") || "9999-12-31";
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
+        const statusFilter = url.searchParams.get("trang_thai") === "fail" ? "fail" : "success";
         let units;
         if (isPrivileged) {
           units = (await env.DB.prepare("SELECT id, ma_don_vi, ten_don_vi, parent_id FROM don_vi ORDER BY ten_don_vi").all()).results || [];
@@ -1266,7 +1305,7 @@ export default {
         }
         const out = [];
         for (const u of units) {
-          const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group: "month", loai, scopeUnit: u.id });
+          const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group: "month", loai, scopeUnit: u.id, statusFilter });
           out.push({ don_vi_id: u.id, ma_don_vi: u.ma_don_vi, ten_don_vi: u.ten_don_vi, so_giao_dich: d.tong_giao_dich, tong_tien: d.tong_tien });
         }
         return json({ ok: true, units: out });
@@ -1277,6 +1316,7 @@ export default {
         const to = url.searchParams.get("to") || "9999-12-31";
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
         const limit = Math.min(Number(url.searchParams.get("limit") || 500), 2000);
+        const statusFilter = url.searchParams.get("trang_thai") === "fail" ? "fail" : "success";
         const dr = await resolveScopeUnit(env, me, isLeader, isPrivileged, url.searchParams.get("don_vi"));
         if (!dr.ok) return err(dr.msg, dr.code);
         const scopeUnit = dr.unit;
@@ -1318,16 +1358,22 @@ export default {
               binds.push(limit);
               return env.DB.prepare(sql).bind(...binds).all();
             };
-            let res, usedLegacy = false;
+            let res, usedLegacy = false, usedSrc = s;
             try { res = await runDetailTable(s); }
             catch (e) {
               const legacy = LEGACY_SCHEMAS[s.code];
               if (!legacy || !s.type) { skippedTables.push(t); continue; }
-              try { res = await runDetailTable(buildSource({ ...s.type, ...legacy }, me, scopeUnit)); usedLegacy = true; }
+              try { usedSrc = buildSource({ ...s.type, ...legacy }, me, scopeUnit); res = await runDetailTable(usedSrc); usedLegacy = true; }
               catch (e2) { skippedTables.push(t); continue; }
             }
             if (usedLegacy) legacyTables.push(t);
-            out.push(...(res.results || []));
+            const hasStatus = !!usedSrc.statusCol;
+            for (const r of res.results || []) {
+              if (hasStatus) {
+                if ((isSuccessStatus(r.trang_thai) ? "success" : "fail") !== statusFilter) continue;
+              } else if (statusFilter === "fail") continue;
+              out.push(r);
+            }
           }
         }
         out.sort((a, b) => String(b.thoi_gian || "").localeCompare(String(a.thoi_gian || "")));

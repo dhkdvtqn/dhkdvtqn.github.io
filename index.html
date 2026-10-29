@@ -909,15 +909,16 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <section class="panel hidden" id="panel-dashboard">
           <h2>Dashboard tổng hợp</h2>
           <p class="desc" id="dashScope">Tổng hợp số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng hiện tại và lũy kế từ đầu năm, từ toàn bộ các loại dữ liệu đã import lên D1.</p>
+          <div style="margin:10px 0"><label>Lọc theo trạng thái chi trả: </label><select id="dashStatusFilter" title="Thành công = giao dịch có trạng thái 'Thành công' hoặc 'Đã chi trả thù lao thành công'; Không thành công = các trạng thái còn lại"><option value="success">Thành công</option><option value="fail">Không thành công</option></select></div>
           <h3 style="margin:14px 0 8px;color:var(--blue-dark)" id="dashMonthLabel">Tháng hiện tại</h3>
           <div class="kpi-row">
             <div class="kpi"><b id="dashMonthTx">—</b><span>Số lượng giao dịch trong tháng</span></div>
-            <div class="kpi"><b id="dashMonthMoney">—</b><span>Số tiền hoa hồng đã chi trả trong tháng</span></div>
+            <div class="kpi"><b id="dashMonthMoney">—</b><span id="dashMonthMoneyCap">Số tiền hoa hồng đã chi trả trong tháng</span></div>
           </div>
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)" id="dashYearLabel">Lũy kế từ đầu năm</h3>
           <div class="kpi-row">
             <div class="kpi"><b id="dashYearTx">—</b><span>Tổng số lượng giao dịch từ đầu năm</span></div>
-            <div class="kpi"><b id="dashYearMoney">—</b><span>Tổng số tiền hoa hồng đã chi trả từ đầu năm</span></div>
+            <div class="kpi"><b id="dashYearMoney">—</b><span id="dashYearMoneyCap">Tổng số tiền hoa hồng đã chi trả từ đầu năm</span></div>
           </div>
           <div id="dashMsg"></div>
           <div id="dashUnitRow" style="margin-bottom:10px"><label>Lọc theo đơn vị (áp dụng cho 2 bảng dưới): </label><select id="dashUnitFilter"><option value="">Tất cả đơn vị trong phạm vi của bạn</option></select></div>
@@ -1713,10 +1714,25 @@ async function resolveScopeUnit(env, me, isLeader, isPrivileged, donViParam) {
   return { ok: true, unit: id };
 }
 
+// Chuan hoa trang thai chi tra de xep vao nhom &quot;Thanh cong&quot; / &quot;Khong thanh cong&quot;.
+// Thanh cong = dung 1 trong 2 trang thai anh Tuan chot: &quot;Thanh cong&quot; hoac
+// &quot;Da chi tra thu lao thanh cong&quot; (khong phan biet hoa/thuong, co/khong dau,
+// thua khoang trang). Moi trang thai khac (ke ca de trong) = khong thanh cong.
+function normStatus(s) {
+  return String(s || &quot;&quot;).normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/đ/g, &quot;d&quot;).replace(/Đ/g, &quot;D&quot;).toLowerCase().trim();
+}
+function isSuccessStatus(s) {
+  const n = normStatus(s);
+  return n === &quot;thanh cong&quot; || n === &quot;da chi tra thu lao thanh cong&quot;;
+}
+
 // Tong hop bao cao dung chung cho /api/reports/summary va /api/reports/by-unit.
 // scopeUnit: null = pham vi mac dinh theo vai tro; so = goc cay don vi can loc.
-async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit }) {
+// statusFilter: &quot;success&quot; (mac dinh) = chi cong giao dich thanh cong;
+// &quot;fail&quot; = chi cong giao dich khong thanh cong.
+async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit, statusFilter }) {
   const groupExpr = group === &quot;month&quot; ? &quot;substr(tg, 1, 7)&quot; : &quot;substr(tg, 1, 10)&quot;;
+  const stFilter = statusFilter === &quot;fail&quot; ? &quot;fail&quot; : &quot;success&quot;;
   const types = await getDataTypes(env);
   const sources = types
     .filter((t) =&gt; (loai === &quot;ALL&quot; || t.code === loai) &amp;&amp; t.money_col &amp;&amp; t.time_col)
@@ -1735,25 +1751,44 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
     for (const t of tables) {
       if (!tableInRange(t, s.prefix, from, to)) continue;
       const runSummaryTable = async (src) =&gt; {
-        const innerCols = [src.time + &quot; AS tg&quot;, src.money + &quot; AS tien&quot;];
-        if (src.eloadCol) innerCols.push(src.eloadCol);
-        if (src.viCol) innerCols.push(src.viCol);
-        if (src.keyCol) innerCols.push(src.keyCol);
-        if (src.kenhCol) innerCols.push(src.kenhCol);
-        let sql =
-          &#x27;SELECT &#x27; + groupExpr + &#x27; AS ky, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT &#x27; +
-          innerCols.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot;) WHERE substr(tg, 1, 10) BETWEEN ? AND ?&#x27;;
-        const localBinds = [from, to];
-        if (scopeUnit != null) {
-          if (scopeUnit === 0) { sql += &quot; AND &quot; + src.unmapped; }
-          else { sql += &quot; AND &quot; + src.unit; localBinds.push(...src.unitBinds); }
+        const buildSQL = (withStatus) =&gt; {
+          const innerCols = [src.time + &quot; AS tg&quot;, src.money + &quot; AS tien&quot;];
+          if (src.eloadCol) innerCols.push(src.eloadCol);
+          if (src.viCol) innerCols.push(src.viCol);
+          if (src.keyCol) innerCols.push(src.keyCol);
+          if (src.kenhCol) innerCols.push(src.kenhCol);
+          if (withStatus) innerCols.push(&#x27;&quot;&#x27; + src.statusCol + &#x27;&quot; AS tt&#x27;);
+          let sql =
+            &#x27;SELECT &#x27; + groupExpr + &#x27; AS ky&#x27; + (withStatus ? &#x27;, tt&#x27; : &#x27;&#x27;) + &#x27;, COUNT(*) AS so_giao_dich, COALESCE(SUM(tien), 0) AS tong_tien FROM (SELECT &#x27; +
+            innerCols.join(&quot;, &quot;) + &#x27; FROM &quot;&#x27; + t + &#x27;&quot;) WHERE substr(tg, 1, 10) BETWEEN ? AND ?&#x27;;
+          const localBinds = [from, to];
+          if (scopeUnit != null) {
+            if (scopeUnit === 0) { sql += &quot; AND &quot; + src.unmapped; }
+            else { sql += &quot; AND &quot; + src.unit; localBinds.push(...src.unitBinds); }
+          }
+          else if (!isPrivileged) {
+            if (isUnitScoped) { sql += &quot; AND &quot; + src.unit; localBinds.push(...src.unitBinds); }
+            else { sql += &quot; AND &quot; + src.own; localBinds.push(...src.ownBinds); }
+          }
+          sql += withStatus ? &quot; GROUP BY ky, tt&quot; : &quot; GROUP BY ky&quot;;
+          return { sql, localBinds };
+        };
+        // Uu tien doc kem cot trang thai de phan nhom success/fail trong JS
+        // (chuan hoa day du: hoa/thuong, dau, khoang trang — tranh bay &quot;Khong
+        // thanh cong&quot; neu so sanh chuoi don gian). Bang khong co cot trang
+        // thai thi roi ve cach tinh cu: success cong het, fail bo qua.
+        if (src.statusCol) {
+          try {
+            const q = buildSQL(true);
+            const r = await env.DB.prepare(q.sql).bind(...q.localBinds).all();
+            return { rows: r.results || [], withStatus: true };
+          } catch (e) {
+            if (!/no such column/i.test(e.message || &quot;&quot;)) throw e;
+          }
         }
-        else if (!isPrivileged) {
-          if (isUnitScoped) { sql += &quot; AND &quot; + src.unit; localBinds.push(...src.unitBinds); }
-          else { sql += &quot; AND &quot; + src.own; localBinds.push(...src.ownBinds); }
-        }
-        sql += &quot; GROUP BY ky&quot;;
-        return env.DB.prepare(sql).bind(...localBinds).all();
+        const q = buildSQL(false);
+        const r = await env.DB.prepare(q.sql).bind(...q.localBinds).all();
+        return { rows: r.results || [], withStatus: false };
       };
       let res, usedLegacy = false;
       try { res = await runSummaryTable(s); }
@@ -1764,7 +1799,10 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
         catch (e2) { skippedTables.push(t); continue; }
       }
       if (usedLegacy) legacyTables.push(t);
-      for (const r of res.results || []) {
+      for (const r of res.rows || []) {
+        if (res.withStatus) {
+          if ((isSuccessStatus(r.tt) ? &quot;success&quot; : &quot;fail&quot;) !== stFilter) continue;
+        } else if (stFilter === &quot;fail&quot;) continue;
         const cur = agg.get(r.ky) || { ky: r.ky, so_giao_dich: 0, tong_tien: 0 };
         cur.so_giao_dich += r.so_giao_dich || 0;
         cur.tong_tien += r.tong_tien || 0;
@@ -2481,9 +2519,10 @@ export default {
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         const group = url.searchParams.get(&quot;group&quot;) || &quot;day&quot;;
         const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;ALL&quot;).toUpperCase();
+        const statusFilter = url.searchParams.get(&quot;trang_thai&quot;) === &quot;fail&quot; ? &quot;fail&quot; : &quot;success&quot;;
         const r = await resolveScopeUnit(env, me, isLeader, isPrivileged, url.searchParams.get(&quot;don_vi&quot;));
         if (!r.ok) return err(r.msg, r.code);
-        const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit: r.unit });
+        const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit: r.unit, statusFilter });
         return json({ ok: true, ...d });
       }
       // Tong hop theo don vi: moi dong la tong so lieu cua cac diem ban thuoc
@@ -2495,6 +2534,7 @@ export default {
         const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;ALL&quot;).toUpperCase();
+        const statusFilter = url.searchParams.get(&quot;trang_thai&quot;) === &quot;fail&quot; ? &quot;fail&quot; : &quot;success&quot;;
         let units;
         if (isPrivileged) {
           units = (await env.DB.prepare(&quot;SELECT id, ma_don_vi, ten_don_vi, parent_id FROM don_vi ORDER BY ten_don_vi&quot;).all()).results || [];
@@ -2503,7 +2543,7 @@ export default {
         }
         const out = [];
         for (const u of units) {
-          const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group: &quot;month&quot;, loai, scopeUnit: u.id });
+          const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group: &quot;month&quot;, loai, scopeUnit: u.id, statusFilter });
           out.push({ don_vi_id: u.id, ma_don_vi: u.ma_don_vi, ten_don_vi: u.ten_don_vi, so_giao_dich: d.tong_giao_dich, tong_tien: d.tong_tien });
         }
         return json({ ok: true, units: out });
@@ -2514,6 +2554,7 @@ export default {
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;ALL&quot;).toUpperCase();
         const limit = Math.min(Number(url.searchParams.get(&quot;limit&quot;) || 500), 2000);
+        const statusFilter = url.searchParams.get(&quot;trang_thai&quot;) === &quot;fail&quot; ? &quot;fail&quot; : &quot;success&quot;;
         const dr = await resolveScopeUnit(env, me, isLeader, isPrivileged, url.searchParams.get(&quot;don_vi&quot;));
         if (!dr.ok) return err(dr.msg, dr.code);
         const scopeUnit = dr.unit;
@@ -2555,16 +2596,22 @@ export default {
               binds.push(limit);
               return env.DB.prepare(sql).bind(...binds).all();
             };
-            let res, usedLegacy = false;
+            let res, usedLegacy = false, usedSrc = s;
             try { res = await runDetailTable(s); }
             catch (e) {
               const legacy = LEGACY_SCHEMAS[s.code];
               if (!legacy || !s.type) { skippedTables.push(t); continue; }
-              try { res = await runDetailTable(buildSource({ ...s.type, ...legacy }, me, scopeUnit)); usedLegacy = true; }
+              try { usedSrc = buildSource({ ...s.type, ...legacy }, me, scopeUnit); res = await runDetailTable(usedSrc); usedLegacy = true; }
               catch (e2) { skippedTables.push(t); continue; }
             }
             if (usedLegacy) legacyTables.push(t);
-            out.push(...(res.results || []));
+            const hasStatus = !!usedSrc.statusCol;
+            for (const r of res.results || []) {
+              if (hasStatus) {
+                if ((isSuccessStatus(r.trang_thai) ? &quot;success&quot; : &quot;fail&quot;) !== statusFilter) continue;
+              } else if (statusFilter === &quot;fail&quot;) continue;
+              out.push(r);
+            }
           }
         }
         out.sort((a, b) =&gt; String(b.thoi_gian || &quot;&quot;).localeCompare(String(a.thoi_gian || &quot;&quot;)));
@@ -2977,6 +3024,7 @@ export default {
           <form id="repForm" class="form-grid">
             <div><label>Loại dữ liệu</label><select id="repType"><option value="ALL">Tất cả các loại dữ liệu</option><option value="HHBG">Hoa hồng bán gói</option><option value="BCKH">Tiền BCKH</option></select></div>
             <div><label>Kiểu báo cáo</label><select id="repMode"><option value="day">Theo ngày</option><option value="month">Theo tháng</option></select></div>
+            <div><label>Trạng thái chi trả</label><select id="repStatus" title="Thành công = giao dịch có trạng thái 'Thành công' hoặc 'Đã chi trả thù lao thành công'; Không thành công = các trạng thái còn lại"><option value="success">Thành công</option><option value="fail">Không thành công</option></select></div>
             <div class="full" id="repDayBox">
               <div style="display:flex;gap:12px;flex-wrap:wrap">
                 <div style="flex:1;min-width:170px"><label>Từ ngày</label><input type="date" id="repFrom" /></div>
@@ -3639,6 +3687,10 @@ function renderDashYearBody(rows) {
     return "<tr><td><b>Tháng " + (parts[1] || "") + "/" + (parts[0] || "") + "</b></td><td>" + (r.so_giao_dich || 0).toLocaleString("vi-VN") + "</td><td>" + fmt(r.tong_tien) + "</td></tr>";
   }).join("") + "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + totTx.toLocaleString("vi-VN") + "</b></td><td><b>" + fmt(totMoney) + "</b></td></tr>";
 }
+/* Loc trang thai chi tra dung chung cho Dashboard va Bao cao thong ke:
+   success = chi tinh giao dich "Thanh cong" / "Da chi tra thu lao thanh cong";
+   fail = cac trang thai con lai. */
+const dashStatusVal = () => ($("dashStatusFilter") && $("dashStatusFilter").value) || "success";
 async function loadDashboard() {
   const now = new Date();
   const y = now.getFullYear(), mo = now.getMonth();
@@ -3648,6 +3700,10 @@ async function loadDashboard() {
   const yFrom = y + "-01-01", yTo = isoD(now);
   $("dashMonthLabel").textContent = "Tháng " + (mo + 1) + "/" + y + " (tháng hiện tại)";
   $("dashYearLabel").textContent = "Lũy kế từ đầu năm " + y;
+  // Nhan KPI tien doi theo bo loc trang thai de khong gay hieu nham
+  const stFail = dashStatusVal() === "fail";
+  $("dashMonthMoneyCap").textContent = stFail ? "Số tiền giao dịch không thành công trong tháng" : "Số tiền hoa hồng đã chi trả trong tháng";
+  $("dashYearMoneyCap").textContent = stFail ? "Tổng số tiền giao dịch không thành công từ đầu năm" : "Tổng số tiền hoa hồng đã chi trả từ đầu năm";
   $("dashScope").textContent = me && me.role === "user"
     ? "Số liệu của chính điểm bán của anh (theo số Eload / số Ví / mã HRM-SĐT đã khai báo), tổng hợp từ các loại dữ liệu đã import lên D1."
     : me && me.role === "leader"
@@ -3660,8 +3716,8 @@ async function loadDashboard() {
   dys.value = [...dys.options].some((o) => o.value === curY) ? curY : "ALL";
   try {
     const [dm, dy] = await Promise.all([
-      api("/api/reports/summary?" + new URLSearchParams({ loai: "ALL", from: mFrom, to: mTo, group: "day" })),
-      api("/api/reports/summary?" + new URLSearchParams({ loai: "ALL", from: yFrom, to: yTo, group: "month" })),
+      api("/api/reports/summary?" + new URLSearchParams({ loai: "ALL", from: mFrom, to: mTo, group: "day", trang_thai: dashStatusVal() })),
+      api("/api/reports/summary?" + new URLSearchParams({ loai: "ALL", from: yFrom, to: yTo, group: "month", trang_thai: dashStatusVal() })),
     ]);
     $("dashMonthTx").textContent = (dm.tong_giao_dich || 0).toLocaleString("vi-VN");
     $("dashMonthMoney").textContent = fmt(dm.tong_tien);
@@ -3724,7 +3780,7 @@ async function loadDashTypeTable() {
   try {
     const per = await Promise.all(dataTypes.map(async (t) => {
       try {
-        const q = new URLSearchParams({ loai: t.code, from: mFrom, to: mTo, group: "month" });
+        const q = new URLSearchParams({ loai: t.code, from: mFrom, to: mTo, group: "month", trang_thai: dashStatusVal() });
         if (dv) q.set("don_vi", dv);
         const d = await api("/api/reports/summary?" + q);
         return { name: t.name, tx: d.tong_giao_dich || 0, money: d.tong_tien || 0 };
@@ -3738,13 +3794,14 @@ async function loadDashYearTable(loai) {
   const p2 = (x) => String(x).padStart(2, "0");
   const yFrom = y + "-01-01", yTo = y + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate());
   try {
-    const q = new URLSearchParams({ loai, from: yFrom, to: yTo, group: "month" });
+    const q = new URLSearchParams({ loai, from: yFrom, to: yTo, group: "month", trang_thai: dashStatusVal() });
     const dv = $("dashUnitFilter").value || "";
     if (dv) q.set("don_vi", dv);
     const d = await api("/api/reports/summary?" + q);
     renderDashYearBody(d.rows);
   } catch (e) { $("dashYearBody").innerHTML = "<tr><td colspan='3'>" + esc(e.message) + "</td></tr>"; }
 }
+$("dashStatusFilter").addEventListener("change", () => { loadDashboard(); });
 $("dashUnitFilter").addEventListener("change", () => { loadDashTypeTable(); loadDashYearTable($("dashYearType").value || "ALL"); });
 $("dashYearType").addEventListener("change", () => { loadDashYearTable($("dashYearType").value || "ALL"); });
 
@@ -4703,15 +4760,16 @@ async function viewCarePhoto(recordId) {
 
 /* ---------------- Bao cao thong ke ---------------- */
 function repRange() {
+  const tt = ($("repStatus") && $("repStatus").value) || "success";
   if ($("repMode").value === "month") {
     const v = $("repMonth").value; // YYYY-MM
     if (!v) return null;
     const [y, m] = v.split("-").map(Number);
     const last = new Date(y, m, 0).getDate();
-    return { loai: $("repType").value, from: v + "-01", to: v + "-" + String(last).padStart(2, "0"), group: "day" };
+    return { loai: $("repType").value, from: v + "-01", to: v + "-" + String(last).padStart(2, "0"), group: "day", trang_thai: tt };
   }
   if (!$("repFrom").value || !$("repTo").value) return null;
-  return { loai: $("repType").value, from: $("repFrom").value, to: $("repTo").value, group: "day" };
+  return { loai: $("repType").value, from: $("repFrom").value, to: $("repTo").value, group: "day", trang_thai: tt };
 }
 $("repMode").addEventListener("change", () => {
   const month = $("repMode").value === "month";
@@ -4738,7 +4796,7 @@ $("repUnitBtn").addEventListener("click", async () => {
   if (!p) { setMsg($("repMsg"), "Hãy chọn khoảng ngày hoặc tháng cần xem báo cáo.", false); return; }
   try {
     setMsg($("repMsg"), "Đang tải báo cáo theo đơn vị…");
-    const d = await api("/api/reports/by-unit?from=" + p.from + "&to=" + p.to);
+    const d = await api("/api/reports/by-unit?from=" + p.from + "&to=" + p.to + "&trang_thai=" + (p.trang_thai || "success"));
     $("repHead").innerHTML = "<tr><th>Đơn vị</th><th>Số giao dịch</th><th>Tổng tiền chi trả</th></tr>";
     const rows = d.units || [];
     const totTx = rows.reduce((a, r) => a + (Number(r.so_giao_dich) || 0), 0);
