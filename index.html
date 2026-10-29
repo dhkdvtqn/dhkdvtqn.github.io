@@ -455,6 +455,9 @@
 #appRoot .map-legend {background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.9;box-shadow:0 1px 6px rgba(0,0,0,.15)}
 #appRoot .map-legend b {display:block;margin-bottom:2px;color:var(--blue-deep)}
 #appRoot .map-legend .dot {display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:7px;vertical-align:-1px;border:1.5px solid #fff;box-shadow:0 0 0 1px #cbd5e1}
+#appRoot /* Ban do kenh ban rong hon 30%: khi mo panel ban do, #appRoot khung app mo rong tu 1180px len 1431px
+   (ban do tu ~836px len ~1087px, #appRoot +30%); man hinh hep hon thi lay het phan con trong, #appRoot khong tran */
+.wrap.map-wide {max-width:1431px}
 #appRoot .panel {background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
 #appRoot .panel h2 {color:var(--blue-deep);font-size:20px;margin-bottom:4px}
 #appRoot .panel .desc {color:var(--muted);font-size:14px;margin-bottom:16px;line-height:1.65}
@@ -3474,6 +3477,9 @@ function refreshAuthUI() {
   $("appView").classList.toggle("hidden", !logged);
 }
 function openPanel(panelId) {
+  // Mo panel Ban do kenh ban -> mo rong khung app de ban do rong them ~30%; roi panel thi tra ve 1180px
+  const aw = document.querySelector("#appView .wrap");
+  if (aw) aw.classList.toggle("map-wide", panelId === "panel-channelmap");
   document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("hidden", p.id !== panelId));
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.panel === panelId));
   fillBanner();
