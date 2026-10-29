@@ -841,7 +841,17 @@ export default {
         const b = await readBody(request);
         const rows = Array.isArray(b.rows) ? b.rows : [];
         if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
-        let created = 0, skipped = 0;
+        // Che do import nguoi dung: create (mac dinh) | update | replace
+        // - create: chi them user chua co; user da ton tai thi bo qua.
+        // - update: user da co thi cap nhat cac truong co du lieu moi trong file
+        //   (truong de trong thi giu nguyen); chua co thi tao moi.
+        // - replace: user da co thi ghi de toan bo thong tin theo file
+        //   (truong de trong thi xoa); chua co thi tao moi.
+        // Import khong bao gio doi role / can_import / modules cua user da co
+        // (doi cac quyen nay trong form Sua); mat khau de trong thi giu nguyen
+        // mat khau cu (tao moi thi dung mac dinh Vnpt@2026).
+        const impMode = b.mode === "update" ? "update" : b.mode === "replace" ? "replace" : "create";
+        let created = 0, updated = 0, skipped = 0;
         const errors = [];
         const warnings = [];
         for (let i = 0; i < rows.length; i++) {
@@ -853,57 +863,96 @@ export default {
             errors.push({ row: i + 2, reason: "Thieu User dang nhap hoac Ho va ten" });
             continue;
           }
-          const dup = await env.DB.prepare("SELECT id FROM nguoi_dung WHERE username = ?").bind(username).first();
-          if (dup) {
-            skipped++;
-            errors.push({ row: i + 2, reason: "User dang nhap da ton tai: " + username });
-            continue;
-          }
+          const existing = await env.DB.prepare("SELECT id FROM nguoi_dung WHERE username = ?").bind(username).first();
           // Don vi: nhan id truc tiep, hoac tra theo ma/ten don vi trong file Excel
-          let donViId = null;
-          if (r.don_vi_id) donViId = Number(r.don_vi_id) || null;
+          let donViId = null, donViOk = false;
+          if (r.don_vi_id) { donViId = Number(r.don_vi_id) || null; donViOk = true; }
           else if (toText(r.don_vi)) {
             const dv = await env.DB.prepare("SELECT id FROM don_vi WHERE ma_don_vi = ? OR ten_don_vi = ?")
               .bind(toText(r.don_vi), toText(r.don_vi))
               .first();
-            if (dv) donViId = dv.id;
+            if (dv) { donViId = dv.id; donViOk = true; }
             else warnings.push({ row: i + 2, reason: "Khong tim thay don vi '" + toText(r.don_vi) + "' — da de trong" });
+          }
+          // Toa do: chi nhan gia tri hop le trong khoang; sai thi bao lai va giu nguyen
+          let impLat = null, impLng = null, latOk = false, lngOk = false;
+          if (toText(r.lat) !== "") {
+            const p = parseCoordField(r.lat, -90, 90);
+            if (p.error) warnings.push({ row: i + 2, reason: "Vi do khong hop le — da giu nguyen" });
+            else { impLat = p.val; latOk = true; }
+          }
+          if (toText(r.lng) !== "") {
+            const p = parseCoordField(r.lng, -180, 180);
+            if (p.error) warnings.push({ row: i + 2, reason: "Kinh do khong hop le — da giu nguyen" });
+            else { impLng = p.val; lngOk = true; }
+          }
+          // Lanh dao phu trach: nhan User dang nhap cua tai khoan leader
+          let leaderId = null, leaderOk = false;
+          if (toText(r.leader_username)) {
+            const ld = await env.DB.prepare("SELECT id FROM nguoi_dung WHERE username = ? AND role = 'leader'").bind(toText(r.leader_username)).first();
+            if (ld) { leaderId = ld.id; leaderOk = true; }
+            else warnings.push({ row: i + 2, reason: "Khong tim thay tai khoan lanh dao '" + toText(r.leader_username) + "' — da de trong" });
+          }
+          // Loai kenh ban: chuan hoa tu ma hoac ten day du, khong nhan ra thi de trong + bao lai
+          const impLoaiKenh = normLoaiKenh(r.loai_kenh);
+          if (toText(r.loai_kenh) && !impLoaiKenh) warnings.push({ row: i + 2, reason: "Loai kenh ban '" + toText(r.loai_kenh) + "' khong nhan ra — da de trong" });
+          if (existing) {
+            if (impMode === "create") {
+              skipped++;
+              errors.push({ row: i + 2, reason: "User dang nhap da ton tai: " + username });
+              continue;
+            }
+            const sets = [], binds = [];
+            const setText = (col, raw) => {
+              const v = toText(raw);
+              if (impMode === "update") { if (v) { sets.push(col + " = ?"); binds.push(v); } }
+              else { sets.push(col + " = ?"); binds.push(v); }
+            };
+            setText("ma_kenh", r.ma_kenh);
+            setText("ho_ten", r.ho_ten);
+            setText("so_eload", r.so_eload);
+            setText("so_vi", r.so_vi);
+            setText("ten_nhan_vien", r.ten_nhan_vien);
+            setText("sdt_nhan_vien", r.sdt_nhan_vien);
+            setText("ma_hrm", r.ma_hrm);
+            if (impMode === "replace") { sets.push("loai_kenh = ?"); binds.push(impLoaiKenh); }
+            else if (impLoaiKenh) { sets.push("loai_kenh = ?"); binds.push(impLoaiKenh); }
+            if (impMode === "replace") { sets.push("don_vi_id = ?"); binds.push(donViOk ? donViId : null); }
+            else if (donViOk) { sets.push("don_vi_id = ?"); binds.push(donViId); }
+            if (impMode === "replace") { sets.push("leader_id = ?"); binds.push(leaderOk ? leaderId : null); }
+            else if (leaderOk) { sets.push("leader_id = ?"); binds.push(leaderId); }
+            if (impMode === "replace") { sets.push("lat = ?"); binds.push(latOk ? impLat : null); sets.push("lng = ?"); binds.push(lngOk ? impLng : null); }
+            else { if (latOk) { sets.push("lat = ?"); binds.push(impLat); } if (lngOk) { sets.push("lng = ?"); binds.push(impLng); } }
+            const pw = String(r.password || "");
+            let pwHash = null, pwSalt = null;
+            if (pw) { pwSalt = randomSalt(); pwHash = await hashPassword(pw, pwSalt); }
+            if (sets.length || pwHash) {
+              let sql = "UPDATE nguoi_dung SET " + sets.join(", ");
+              if (pwHash) sql += (sets.length ? ", " : "") + "password_hash = ?, salt = ?";
+              sql += " WHERE id = ?";
+              const allBinds = binds.concat(pwHash ? [pwHash, pwSalt] : []).concat([existing.id]);
+              await env.DB.prepare(sql).bind(...allBinds).run();
+            }
+            updated++;
+            continue;
           }
           const salt = randomSalt();
           const hash = await hashPassword(String(r.password || "Vnpt@2026"), salt);
           const impRole = isAdmin ? (r.role === "admin" ? "admin" : r.role === "subadmin" ? "subadmin" : r.role === "leader" ? "leader" : "user") : "user";
-          // Toa do: khong hop le thi de trong + bao lai (khong bo dong)
-          let impLat = null, impLng = null;
-          const impLatP = parseCoordField(r.lat, -90, 90);
-          const impLngP = parseCoordField(r.lng, -180, 180);
-          if (impLatP.error) warnings.push({ row: i + 2, reason: "Vi do khong hop le — da de trong" });
-          else impLat = impLatP.val;
-          if (impLngP.error) warnings.push({ row: i + 2, reason: "Kinh do khong hop le — da de trong" });
-          else impLng = impLngP.val;
-          // Lanh dao phu trach: nhan User dang nhap cua tai khoan leader
-          let leaderId = null;
-          if (toText(r.leader_username)) {
-            const ld = await env.DB.prepare("SELECT id FROM nguoi_dung WHERE username = ? AND role = 'leader'").bind(toText(r.leader_username)).first();
-            if (ld) leaderId = ld.id;
-            else warnings.push({ row: i + 2, reason: "Khong tim thay tai khoan lanh dao '" + toText(r.leader_username) + "' — da de trong" });
-          }
-          // Loai kenh ban: chuan hoa tu ma hoac ten day du, khong nhan ra thi de trong + bao lai.
-          const impLoaiKenh = normLoaiKenh(r.loai_kenh);
-          if (toText(r.loai_kenh) && !impLoaiKenh) warnings.push({ row: i + 2, reason: "Loai kenh ban '" + toText(r.loai_kenh) + "' khong nhan ra — da de trong" });
           await env.DB.prepare(
             "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
               impRole,
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViId, leaderId, impLoaiKenh, isAdmin && r.can_import ? 1 : 0,
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViOk ? donViId : null, leaderOk ? leaderId : null, impLoaiKenh, isAdmin && r.can_import ? 1 : 0,
               impRole === "admin" ? null : JSON.stringify(impRole === "leader" ? LEADER_MODULES : DEFAULT_MODULES),
-              impLat, impLng
+              latOk ? impLat : null, lngOk ? impLng : null
             )
             .run();
           created++;
         }
-        return json({ ok: true, created, skipped, errors: errors.slice(0, 50), warnings: warnings.slice(0, 50) });
+        return json({ ok: true, created, updated, skipped, errors: errors.slice(0, 50), warnings: warnings.slice(0, 50) });
       }
       const userMatch = path.match(/^\/api\/users\/(\d+)$/);
       if (userMatch && method === "PUT") {
@@ -962,6 +1011,23 @@ export default {
         if (Number(userMatch[1]) === me.id) return err("Khong the tu xoa tai khoan dang dang nhap", 422);
         await env.DB.prepare("DELETE FROM nguoi_dung WHERE id = ?").bind(Number(userMatch[1])).run();
         return json({ ok: true });
+      }
+      // ---- Xoa nhieu nguoi dung cung luc (theo danh sach da danh dau) ----
+      if (path === "/api/users/bulk-delete" && method === "POST") {
+        if (!canManageUsers) return err("Chi admin/subadmin moi co quyen xoa nguoi dung", 403);
+        if (!hasModule(me, "users")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
+        const b = await readBody(request);
+        const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map(Number).filter((n) => n > 0))];
+        if (!ids.length) return err("Chua chon nguoi dung nao de xoa", 422);
+        let deleted = 0;
+        const skipped = [];
+        for (const id of ids) {
+          if (id === me.id) { skipped.push({ id, reason: "Khong the tu xoa tai khoan dang dang nhap" }); continue; }
+          const r = await env.DB.prepare("DELETE FROM nguoi_dung WHERE id = ?").bind(id).run();
+          if ((r.meta.changes || 0) > 0) deleted++;
+          else skipped.push({ id, reason: "Khong tim thay nguoi dung" });
+        }
+        return json({ ok: true, deleted, skipped });
       }
 
       // ---- Quan ly loai du lieu dau vao ----

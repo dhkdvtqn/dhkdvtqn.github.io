@@ -997,9 +997,10 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div><label>Lọc theo đơn vị</label><select id="userUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
             <div><span id="userCount" class="desc"></span></div>
           </div>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Tọa độ điểm bán</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Mã HRM</th><th>Lãnh đạo phụ trách</th><th>Loại kênh bán</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="15">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th style="white-space:nowrap"><input type="checkbox" id="uSelAll" title="Đánh dấu tất cả" /> <button class="btn sm danger" type="button" id="uDelSel" title="Xóa các người dùng đã đánh dấu">Xóa</button></th><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Tọa độ điểm bán</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Mã HRM</th><th>Lãnh đạo phụ trách</th><th>Loại kênh bán</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="16">Đang tải…</td></tr></tbody></table></div>
           <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import người dùng từ Excel</h3>
-          <p class="desc">Tải file mẫu về, điền thông tin người dùng vào file rồi import lên hệ thống. User đăng nhập đã tồn tại sẽ tự động bị bỏ qua; mật khẩu để trống sẽ dùng mặc định <code class="inl">Vnpt@2026</code>.</p>
+          <p class="desc">Tải file mẫu về, điền thông tin người dùng vào file rồi import lên hệ thống. Có 3 chế độ import: <b>Tạo mới</b> (chỉ thêm user chưa có — user đã tồn tại thì bỏ qua), <b>Cập nhật</b> (user đã có thì cập nhật các trường có dữ liệu mới trong file, trường để trống thì giữ nguyên; chưa có thì tạo mới), <b>Thay thế</b> (user đã có thì ghi đè toàn bộ thông tin theo file, trường để trống thì xóa; chưa có thì tạo mới). Lưu ý: import không thay đổi loại tài khoản, quyền import và quyền module của user đã có (đổi các quyền này trong form Sửa); mật khẩu để trống thì giữ nguyên mật khẩu cũ (tạo mới thì dùng mặc định <code class="inl">Vnpt@2026</code>).</p>
+          <div style="margin-bottom:10px;max-width:520px"><label>Chế độ import</label><select id="uImpMode"><option value="create">Tạo mới — chỉ thêm user chưa có, user đã tồn tại thì bỏ qua</option><option value="update">Cập nhật — user đã có thì cập nhật các trường có dữ liệu mới (trường trống giữ nguyên), chưa có thì tạo mới</option><option value="replace">Thay thế — user đã có thì ghi đè toàn bộ theo file (trường trống thì xóa), chưa có thì tạo mới</option></select></div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
             <input type="file" id="uImpFile" accept=".xlsx,.xls,.csv" style="max-width:340px" />
             <button class="btn blue" type="button" id="uImpBtn">Import người dùng</button>
@@ -2073,7 +2074,17 @@ export default {
         const b = await readBody(request);
         const rows = Array.isArray(b.rows) ? b.rows : [];
         if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
-        let created = 0, skipped = 0;
+        // Che do import nguoi dung: create (mac dinh) | update | replace
+        // - create: chi them user chua co; user da ton tai thi bo qua.
+        // - update: user da co thi cap nhat cac truong co du lieu moi trong file
+        //   (truong de trong thi giu nguyen); chua co thi tao moi.
+        // - replace: user da co thi ghi de toan bo thong tin theo file
+        //   (truong de trong thi xoa); chua co thi tao moi.
+        // Import khong bao gio doi role / can_import / modules cua user da co
+        // (doi cac quyen nay trong form Sua); mat khau de trong thi giu nguyen
+        // mat khau cu (tao moi thi dung mac dinh Vnpt@2026).
+        const impMode = b.mode === &quot;update&quot; ? &quot;update&quot; : b.mode === &quot;replace&quot; ? &quot;replace&quot; : &quot;create&quot;;
+        let created = 0, updated = 0, skipped = 0;
         const errors = [];
         const warnings = [];
         for (let i = 0; i &lt; rows.length; i++) {
@@ -2085,57 +2096,96 @@ export default {
             errors.push({ row: i + 2, reason: &quot;Thieu User dang nhap hoac Ho va ten&quot; });
             continue;
           }
-          const dup = await env.DB.prepare(&quot;SELECT id FROM nguoi_dung WHERE username = ?&quot;).bind(username).first();
-          if (dup) {
-            skipped++;
-            errors.push({ row: i + 2, reason: &quot;User dang nhap da ton tai: &quot; + username });
-            continue;
-          }
+          const existing = await env.DB.prepare(&quot;SELECT id FROM nguoi_dung WHERE username = ?&quot;).bind(username).first();
           // Don vi: nhan id truc tiep, hoac tra theo ma/ten don vi trong file Excel
-          let donViId = null;
-          if (r.don_vi_id) donViId = Number(r.don_vi_id) || null;
+          let donViId = null, donViOk = false;
+          if (r.don_vi_id) { donViId = Number(r.don_vi_id) || null; donViOk = true; }
           else if (toText(r.don_vi)) {
             const dv = await env.DB.prepare(&quot;SELECT id FROM don_vi WHERE ma_don_vi = ? OR ten_don_vi = ?&quot;)
               .bind(toText(r.don_vi), toText(r.don_vi))
               .first();
-            if (dv) donViId = dv.id;
+            if (dv) { donViId = dv.id; donViOk = true; }
             else warnings.push({ row: i + 2, reason: &quot;Khong tim thay don vi &#x27;&quot; + toText(r.don_vi) + &quot;&#x27; — da de trong&quot; });
+          }
+          // Toa do: chi nhan gia tri hop le trong khoang; sai thi bao lai va giu nguyen
+          let impLat = null, impLng = null, latOk = false, lngOk = false;
+          if (toText(r.lat) !== &quot;&quot;) {
+            const p = parseCoordField(r.lat, -90, 90);
+            if (p.error) warnings.push({ row: i + 2, reason: &quot;Vi do khong hop le — da giu nguyen&quot; });
+            else { impLat = p.val; latOk = true; }
+          }
+          if (toText(r.lng) !== &quot;&quot;) {
+            const p = parseCoordField(r.lng, -180, 180);
+            if (p.error) warnings.push({ row: i + 2, reason: &quot;Kinh do khong hop le — da giu nguyen&quot; });
+            else { impLng = p.val; lngOk = true; }
+          }
+          // Lanh dao phu trach: nhan User dang nhap cua tai khoan leader
+          let leaderId = null, leaderOk = false;
+          if (toText(r.leader_username)) {
+            const ld = await env.DB.prepare(&quot;SELECT id FROM nguoi_dung WHERE username = ? AND role = &#x27;leader&#x27;&quot;).bind(toText(r.leader_username)).first();
+            if (ld) { leaderId = ld.id; leaderOk = true; }
+            else warnings.push({ row: i + 2, reason: &quot;Khong tim thay tai khoan lanh dao &#x27;&quot; + toText(r.leader_username) + &quot;&#x27; — da de trong&quot; });
+          }
+          // Loai kenh ban: chuan hoa tu ma hoac ten day du, khong nhan ra thi de trong + bao lai
+          const impLoaiKenh = normLoaiKenh(r.loai_kenh);
+          if (toText(r.loai_kenh) &amp;&amp; !impLoaiKenh) warnings.push({ row: i + 2, reason: &quot;Loai kenh ban &#x27;&quot; + toText(r.loai_kenh) + &quot;&#x27; khong nhan ra — da de trong&quot; });
+          if (existing) {
+            if (impMode === &quot;create&quot;) {
+              skipped++;
+              errors.push({ row: i + 2, reason: &quot;User dang nhap da ton tai: &quot; + username });
+              continue;
+            }
+            const sets = [], binds = [];
+            const setText = (col, raw) =&gt; {
+              const v = toText(raw);
+              if (impMode === &quot;update&quot;) { if (v) { sets.push(col + &quot; = ?&quot;); binds.push(v); } }
+              else { sets.push(col + &quot; = ?&quot;); binds.push(v); }
+            };
+            setText(&quot;ma_kenh&quot;, r.ma_kenh);
+            setText(&quot;ho_ten&quot;, r.ho_ten);
+            setText(&quot;so_eload&quot;, r.so_eload);
+            setText(&quot;so_vi&quot;, r.so_vi);
+            setText(&quot;ten_nhan_vien&quot;, r.ten_nhan_vien);
+            setText(&quot;sdt_nhan_vien&quot;, r.sdt_nhan_vien);
+            setText(&quot;ma_hrm&quot;, r.ma_hrm);
+            if (impMode === &quot;replace&quot;) { sets.push(&quot;loai_kenh = ?&quot;); binds.push(impLoaiKenh); }
+            else if (impLoaiKenh) { sets.push(&quot;loai_kenh = ?&quot;); binds.push(impLoaiKenh); }
+            if (impMode === &quot;replace&quot;) { sets.push(&quot;don_vi_id = ?&quot;); binds.push(donViOk ? donViId : null); }
+            else if (donViOk) { sets.push(&quot;don_vi_id = ?&quot;); binds.push(donViId); }
+            if (impMode === &quot;replace&quot;) { sets.push(&quot;leader_id = ?&quot;); binds.push(leaderOk ? leaderId : null); }
+            else if (leaderOk) { sets.push(&quot;leader_id = ?&quot;); binds.push(leaderId); }
+            if (impMode === &quot;replace&quot;) { sets.push(&quot;lat = ?&quot;); binds.push(latOk ? impLat : null); sets.push(&quot;lng = ?&quot;); binds.push(lngOk ? impLng : null); }
+            else { if (latOk) { sets.push(&quot;lat = ?&quot;); binds.push(impLat); } if (lngOk) { sets.push(&quot;lng = ?&quot;); binds.push(impLng); } }
+            const pw = String(r.password || &quot;&quot;);
+            let pwHash = null, pwSalt = null;
+            if (pw) { pwSalt = randomSalt(); pwHash = await hashPassword(pw, pwSalt); }
+            if (sets.length || pwHash) {
+              let sql = &quot;UPDATE nguoi_dung SET &quot; + sets.join(&quot;, &quot;);
+              if (pwHash) sql += (sets.length ? &quot;, &quot; : &quot;&quot;) + &quot;password_hash = ?, salt = ?&quot;;
+              sql += &quot; WHERE id = ?&quot;;
+              const allBinds = binds.concat(pwHash ? [pwHash, pwSalt] : []).concat([existing.id]);
+              await env.DB.prepare(sql).bind(...allBinds).run();
+            }
+            updated++;
+            continue;
           }
           const salt = randomSalt();
           const hash = await hashPassword(String(r.password || &quot;Vnpt@2026&quot;), salt);
           const impRole = isAdmin ? (r.role === &quot;admin&quot; ? &quot;admin&quot; : r.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : r.role === &quot;leader&quot; ? &quot;leader&quot; : &quot;user&quot;) : &quot;user&quot;;
-          // Toa do: khong hop le thi de trong + bao lai (khong bo dong)
-          let impLat = null, impLng = null;
-          const impLatP = parseCoordField(r.lat, -90, 90);
-          const impLngP = parseCoordField(r.lng, -180, 180);
-          if (impLatP.error) warnings.push({ row: i + 2, reason: &quot;Vi do khong hop le — da de trong&quot; });
-          else impLat = impLatP.val;
-          if (impLngP.error) warnings.push({ row: i + 2, reason: &quot;Kinh do khong hop le — da de trong&quot; });
-          else impLng = impLngP.val;
-          // Lanh dao phu trach: nhan User dang nhap cua tai khoan leader
-          let leaderId = null;
-          if (toText(r.leader_username)) {
-            const ld = await env.DB.prepare(&quot;SELECT id FROM nguoi_dung WHERE username = ? AND role = &#x27;leader&#x27;&quot;).bind(toText(r.leader_username)).first();
-            if (ld) leaderId = ld.id;
-            else warnings.push({ row: i + 2, reason: &quot;Khong tim thay tai khoan lanh dao &#x27;&quot; + toText(r.leader_username) + &quot;&#x27; — da de trong&quot; });
-          }
-          // Loai kenh ban: chuan hoa tu ma hoac ten day du, khong nhan ra thi de trong + bao lai.
-          const impLoaiKenh = normLoaiKenh(r.loai_kenh);
-          if (toText(r.loai_kenh) &amp;&amp; !impLoaiKenh) warnings.push({ row: i + 2, reason: &quot;Loai kenh ban &#x27;&quot; + toText(r.loai_kenh) + &quot;&#x27; khong nhan ra — da de trong&quot; });
           await env.DB.prepare(
             &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
               impRole,
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViId, leaderId, impLoaiKenh, isAdmin &amp;&amp; r.can_import ? 1 : 0,
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViOk ? donViId : null, leaderOk ? leaderId : null, impLoaiKenh, isAdmin &amp;&amp; r.can_import ? 1 : 0,
               impRole === &quot;admin&quot; ? null : JSON.stringify(impRole === &quot;leader&quot; ? LEADER_MODULES : DEFAULT_MODULES),
-              impLat, impLng
+              latOk ? impLat : null, lngOk ? impLng : null
             )
             .run();
           created++;
         }
-        return json({ ok: true, created, skipped, errors: errors.slice(0, 50), warnings: warnings.slice(0, 50) });
+        return json({ ok: true, created, updated, skipped, errors: errors.slice(0, 50), warnings: warnings.slice(0, 50) });
       }
       const userMatch = path.match(/^\/api\/users\/(\d+)$/);
       if (userMatch &amp;&amp; method === &quot;PUT&quot;) {
@@ -2194,6 +2244,23 @@ export default {
         if (Number(userMatch[1]) === me.id) return err(&quot;Khong the tu xoa tai khoan dang dang nhap&quot;, 422);
         await env.DB.prepare(&quot;DELETE FROM nguoi_dung WHERE id = ?&quot;).bind(Number(userMatch[1])).run();
         return json({ ok: true });
+      }
+      // ---- Xoa nhieu nguoi dung cung luc (theo danh sach da danh dau) ----
+      if (path === &quot;/api/users/bulk-delete&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xoa nguoi dung&quot;, 403);
+        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
+        const b = await readBody(request);
+        const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map(Number).filter((n) =&gt; n &gt; 0))];
+        if (!ids.length) return err(&quot;Chua chon nguoi dung nao de xoa&quot;, 422);
+        let deleted = 0;
+        const skipped = [];
+        for (const id of ids) {
+          if (id === me.id) { skipped.push({ id, reason: &quot;Khong the tu xoa tai khoan dang dang nhap&quot; }); continue; }
+          const r = await env.DB.prepare(&quot;DELETE FROM nguoi_dung WHERE id = ?&quot;).bind(id).run();
+          if ((r.meta.changes || 0) &gt; 0) deleted++;
+          else skipped.push({ id, reason: &quot;Khong tim thay nguoi dung&quot; });
+        }
+        return json({ ok: true, deleted, skipped });
       }
 
       // ---- Quan ly loai du lieu dau vao ----
@@ -3763,13 +3830,23 @@ async function loadUsers() {
     setMsg($("userMsg"), "");
   } catch (e) { setMsg($("userMsg"), e.message, false); }
 }
+/* Danh sach id nguoi dung da danh dau (giua nut Xoa hang loat); giu lai khi loc lai bang */
+let userSel = new Set();
+function refreshUserSelUI() {
+  const boxes = [...document.querySelectorAll("[data-user-sel]")];
+  const checked = boxes.filter((c) => c.checked).length;
+  const all = $("uSelAll");
+  if (all) { all.checked = boxes.length > 0 && checked === boxes.length; all.indeterminate = checked > 0 && checked < boxes.length; }
+  const del = $("uDelSel");
+  if (del) del.textContent = userSel.size ? "Xóa (" + userSel.size + ")" : "Xóa";
+}
 function renderUsers() {
   const fEl = $("userUnitFilter");
   const f = fEl ? fEl.value : "";
   const list = usersCache.filter((u) => (f === "" ? true : f === "none" ? !u.don_vi_id : String(u.don_vi_id) === String(f)));
   if ($("userCount")) $("userCount").textContent = "Hiển thị " + list.length + " / " + usersCache.length + " người dùng";
   $("usersBody").innerHTML = list.map((u) =>
-      "<tr><td>" + esc(u.ma_kenh) + "</td><td><b>" + esc(u.ho_ten) + "</b></td><td>" + esc(u.username) + "</td>" +
+      "<tr><td><input type='checkbox' data-user-sel='" + u.id + "'" + (userSel.has(u.id) ? " checked" : "") + " title='Đánh dấu để xóa' /></td><td>" + esc(u.ma_kenh) + "</td><td><b>" + esc(u.ho_ten) + "</b></td><td>" + esc(u.username) + "</td>" +
       "<td><span class='pill " + (u.role === "admin" ? "admin" : u.role === "subadmin" || u.role === "leader" ? "sub" : "user") + "'>" + (u.role === "admin" ? "Admin" : u.role === "subadmin" ? "SubAdmin" : u.role === "leader" ? "Lãnh đạo đơn vị" : "Điểm bán") + "</span></td>" +
       "<td>" + esc(u.so_eload) + "</td><td>" + esc(u.so_vi) + "</td>" +
       "<td>" + esc(u.don_vi_ten) + "</td>" +
@@ -3783,7 +3860,7 @@ function renderUsers() {
         ? "<button class='btn sm gray' disabled title='Không thể tự xóa tài khoản đang đăng nhập'>Xóa</button>"
         : "<button class='btn sm danger' data-del-user='" + u.id + "'>Xóa</button>") +
       "</td></tr>").join("") ||
-      "<tr><td colspan='15'>" + (usersCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
+      "<tr><td colspan='16'>" + (usersCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
   const lsel = $("uLeader");
   if (lsel) {
     const cur = lsel.value;
@@ -3793,6 +3870,12 @@ function renderUsers() {
   }
   $("usersBody").querySelectorAll("[data-edit-user]").forEach((b) => b.addEventListener("click", () => editUser(Number(b.dataset.editUser))));
   $("usersBody").querySelectorAll("[data-del-user]").forEach((b) => b.addEventListener("click", () => delUser(Number(b.dataset.delUser))));
+  $("usersBody").querySelectorAll("[data-user-sel]").forEach((c) => c.addEventListener("change", () => {
+    const id = Number(c.dataset.userSel);
+    if (c.checked) userSel.add(id); else userSel.delete(id);
+    refreshUserSelUI();
+  }));
+  refreshUserSelUI();
 }
 $("userUnitFilter").addEventListener("change", renderUsers);
 function editUser(id) {
@@ -3849,6 +3932,28 @@ async function delUser(id) {
   try { await api("/api/users/" + id, { method: "DELETE" }); loadUsers(); }
   catch (e) { setMsg($("userMsg"), e.message, false); }
 }
+$("uSelAll").addEventListener("change", () => {
+  const on = $("uSelAll").checked;
+  document.querySelectorAll("[data-user-sel]").forEach((c) => {
+    c.checked = on;
+    const id = Number(c.dataset.userSel);
+    if (on) userSel.add(id); else userSel.delete(id);
+  });
+  refreshUserSelUI();
+});
+$("uDelSel").addEventListener("click", async () => {
+  if (!userSel.size) { setMsg($("userMsg"), "Chưa đánh dấu người dùng nào để xóa.", false); return; }
+  const n = userSel.size;
+  if (!confirm("Xóa " + n + " người dùng đã đánh dấu? Hành động này không thể hoàn tác.")) return;
+  try {
+    const d = await api("/api/users/bulk-delete", { method: "POST", body: JSON.stringify({ ids: [...userSel] }) });
+    let msg = "Đã xóa " + (d.deleted || 0) + " người dùng.";
+    if (d.skipped && d.skipped.length) msg += " Bỏ qua " + d.skipped.length + ": " + d.skipped.slice(0, 5).map((s) => s.reason).join("; ") + (d.skipped.length > 5 ? "…" : "");
+    setMsg($("userMsg"), msg, true);
+    userSel.clear();
+    loadUsers();
+  } catch (e) { setMsg($("userMsg"), e.message, false); }
+});
 
 /* ---------------- Import nguoi dung tu Excel + file mau ---------------- */
 const USER_HEADER_MAP = {
@@ -3925,8 +4030,8 @@ $("uImpBtn").addEventListener("click", async () => {
     }).filter((o) => o.username || o.ho_ten);
     if (!rows.length) throw new Error("Không đọc được dòng người dùng nào. Hãy kiểm tra lại hàng tiêu đề của file (dùng đúng file mẫu).");
     setMsg($("uImpMsg"), "Đang import " + rows.length + " người dùng…");
-    const d = await api("/api/users/import", { method: "POST", body: JSON.stringify({ rows }) });
-    let msg = "Import xong: tạo mới " + (d.created || 0) + " người dùng, bỏ qua " + (d.skipped || 0) + " dòng.";
+    const d = await api("/api/users/import", { method: "POST", body: JSON.stringify({ rows, mode: $("uImpMode").value }) });
+    let msg = "Import xong: tạo mới " + (d.created || 0) + ", cập nhật " + (d.updated || 0) + ", bỏ qua " + (d.skipped || 0) + " dòng.";
     if (d.errors && d.errors.length) msg += " Chi tiết bỏ qua: " + d.errors.slice(0, 8).map((x) => "Hàng " + x.row + ": " + x.reason).join("; ") + (d.errors.length > 8 ? "…" : "");
     if (d.warnings && d.warnings.length) msg += " Lưu ý: " + d.warnings.slice(0, 8).map((x) => "Hàng " + x.row + ": " + x.reason).join("; ") + (d.warnings.length > 8 ? "…" : "");
     setMsg($("uImpMsg"), msg, true);
