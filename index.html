@@ -3076,6 +3076,7 @@ export default {
           <div class="form-grid" style="margin-bottom:12px">
             <div><label>Lọc theo đơn vị (chọn đơn vị cha sẽ hiện cả các đơn vị con)</label><select id="chMapUnit"><option value="">Tất cả đơn vị</option></select></div>
             <div><label>Lọc theo nhân viên quản lý</label><select id="chMapManager"><option value="">Tất cả nhân viên</option></select></div>
+            <div><label>Lọc theo loại điểm bán</label><select id="chMapType"><option value="">Tất cả loại điểm bán</option></select></div>
             <div><label>Tìm kiếm điểm bán (tên, mã kênh, số Eload, số Ví, nhân viên)</label><input id="chMapSearch" placeholder="Nhập từ khóa…" /></div>
             <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap"><button class="btn gray" type="button" id="chMapNamesBtn">👁 Hiện tên điểm bán</button><span id="chMapCount" class="desc" style="margin:0"></span></div>
           </div>
@@ -4717,6 +4718,10 @@ const CHANNEL_TYPES = {
 };
 const CHANNEL_UNKNOWN = { label: "Chưa phân loại", color: "#64748b" };
 const channelTypeOf = (p) => CHANNEL_TYPES[p.loai_kenh] || CHANNEL_UNKNOWN;
+// Nap lua chon loc theo loai diem ban (co dinh, 1 lan)
+$("chMapType").innerHTML = '<option value="">Tất cả loại điểm bán</option>' +
+  Object.entries(CHANNEL_TYPES).map(([code, t]) => '<option value="' + code + '">' + esc(t.label) + "</option>").join("") +
+  '<option value="__none">Chưa phân loại</option>';
 let chMapObj = null, chMapLayer = null, chMapCache = [], chMapUnits = [], chMapShowNames = false;
 function normSearch(s) {
   return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
@@ -4731,11 +4736,14 @@ function chMapUnitSet(id) {
 function chMapFiltered() {
   const unit = $("chMapUnit").value || "";
   const mgr = $("chMapManager").value || "";
+  const type = $("chMapType").value || "";
   const q = normSearch($("chMapSearch").value);
   const unitSet = unit ? chMapUnitSet(unit) : null;
   return (chMapCache || []).filter((p) => {
     if (unitSet && !unitSet.has(p.don_vi_id)) return false;
     if (mgr && (p.ten_nhan_vien || "") !== mgr) return false;
+    if (type === "__none") { if (p.loai_kenh) return false; }
+    else if (type && p.loai_kenh !== type) return false;
     if (q) {
       const hay = normSearch([p.ho_ten, p.ma_kenh, p.so_eload, p.so_vi, p.ten_nhan_vien, p.don_vi_ten].join(" "));
       if (!hay.includes(q)) return false;
@@ -4814,6 +4822,7 @@ async function loadChannelMap() {
 }
 $("chMapUnit").addEventListener("change", () => renderChannelMap(false));
 $("chMapManager").addEventListener("change", () => renderChannelMap(false));
+$("chMapType").addEventListener("change", () => renderChannelMap(false));
 $("chMapSearch").addEventListener("input", () => renderChannelMap(false));
 $("chMapNamesBtn").addEventListener("click", () => {
   chMapShowNames = !chMapShowNames;
