@@ -897,7 +897,8 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <div class="who"><b id="whoName">—</b><span id="whoRole">—</span></div>
         <button class="nav-btn" data-panel="panel-dashboard">📈 Dashboard</button>
         <button class="nav-btn" data-panel="panel-units">🏢 Quản lý đơn vị</button>
-        <button class="nav-btn" data-panel="panel-users">👥 Quản lý người dùng</button>
+        <button class="nav-btn" data-panel="panel-users">🏪 Quản lý kênh bán</button>
+        <button class="nav-btn" data-panel="panel-staff">👤 Quản lý người dùng</button>
         <button class="nav-btn" data-panel="panel-import">📥 Quản lý dữ liệu đầu vào</button>
         <button class="nav-btn" data-panel="panel-config">🗄️ Cấu hình kết nối D1</button>
         <button class="nav-btn" data-panel="panel-reports">📊 Báo cáo thống kê</button>
@@ -948,10 +949,10 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <div class="tree" id="unitTree">Đang tải…</div>
         </section>
 
-        <!-- QUAN LY NGUOI DUNG -->
+        <!-- QUAN LY KENH BAN (diem ban) -->
         <section class="panel hidden" id="panel-users">
-          <h2>Quản lý người dùng</h2>
-          <p class="desc">Tạo tài khoản cho các điểm bán. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Tích chọn "Được quyền import dữ liệu" để tài khoản được dùng module Quản lý dữ liệu đầu vào. Admin thiết lập quyền sử dụng từng module cho mỗi tài khoản ở mục bên dưới (mặc định khi tạo mới: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt; Lãnh đạo đơn vị mặc định thêm Chăm sóc điểm bán). Khai báo tọa độ điểm bán để dùng cho module Chăm sóc điểm bán (nhận diện điểm trong bán kính 20m).</p>
+          <h2>Quản lý kênh bán</h2>
+          <p class="desc">Tạo tài khoản cho các điểm bán thuộc kênh bán hàng. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Admin thiết lập quyền sử dụng từng module cho mỗi điểm bán ở mục bên dưới (mặc định khi tạo mới: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt). Khai báo tọa độ điểm bán để dùng cho module Chăm sóc điểm bán (nhận diện điểm trong bán kính 20m).</p>
           <form id="userForm" class="form-grid">
             <input type="hidden" id="userId" />
             <div><label>Mã kênh bán hàng</label><input id="uChannel" placeholder="VD: KBH-VDCT-001" /></div>
@@ -976,37 +977,22 @@ html.is-mobile #appRoot .btn{min-height:44px}
               </div>
               <div class="desc" style="margin-top:6px">Nhập tay tọa độ, hoặc bấm “Chọn trên bản đồ” để chấm vị trí trên bản đồ OpenStreetMap (miễn phí, không cần API key). Tọa độ dùng để module Chăm sóc điểm bán nhận diện điểm bán trong bán kính 20m.</div>
             </div>
-            <div><label>Loại tài khoản</label><select id="uRole"><option value="user">User thường (điểm bán)</option><option value="leader">Lãnh đạo đơn vị (xem dữ liệu đơn vị và các đơn vị trực thuộc)</option><option value="subadmin">SubAdmin (xem toàn tỉnh + quản lý người dùng)</option><option value="admin">Admin</option></select></div>
-            <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="uCanImport" /> Được quyền import dữ liệu</label></div>
             <div class="full" id="uModulesBox">
               <label>Quyền sử dụng module <span style="font-weight:500;color:var(--muted)">(chỉ admin thiết lập)</span></label>
-              <div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px">
-                <label class="checkline"><input type="checkbox" name="uModule" value="dashboard" checked /> Dashboard</label>
-                <label class="checkline"><input type="checkbox" name="uModule" value="units" /> Quản lý đơn vị</label>
-                <label class="checkline"><input type="checkbox" name="uModule" value="users" /> Quản lý người dùng</label>
-                <label class="checkline"><input type="checkbox" name="uModule" value="import" /> Quản lý dữ liệu đầu vào</label>
-                <label class="checkline"><input type="checkbox" name="uModule" value="config" /> Cấu hình kết nối D1</label>
-                <label class="checkline"><input type="checkbox" name="uModule" value="reports" checked /> Báo cáo thống kê</label>
-                <label class="checkline"><input type="checkbox" name="uModule" value="packages" checked /> Danh mục gói cước</label>
-                <label class="checkline"><input type="checkbox" name="uModule" value="loginstats" /> Thống kê đăng nhập</label>
-                <label class="checkline"><input type="checkbox" name="uModule" value="care" /> Chăm sóc điểm bán</label>
-                <label class="checkline"><input type="checkbox" name="uModule" value="channelmap" /> Bản đồ kênh bán</label>
-                <label class="checkline"><input type="checkbox" name="uModule" value="settings" checked /> Cài đặt</label>
-              </div>
-              <div class="desc" style="margin-top:6px">Tài khoản chưa thiết lập riêng vẫn dùng đủ module theo vai trò. Admin luôn dùng được mọi module.</div>
-              <div id="uLeaderHint" class="desc hidden" style="color:var(--orange-dark)">Lãnh đạo đơn vị cần chọn một đơn vị ở trên để xem được dữ liệu của đơn vị đó.</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px" id="uModulesList"></div>
+              <div class="desc" style="margin-top:6px">Điểm bán chưa thiết lập riêng dùng 4 module mặc định: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt. Admin luôn dùng được mọi module.</div>
             </div>
-            <div class="full" style="display:flex;gap:10px"><button class="btn blue" type="submit" id="userSubmit">Tạo người dùng</button><button class="btn gray hidden" type="button" id="userCancel">Hủy sửa</button></div>
+            <div class="full" style="display:flex;gap:10px"><button class="btn blue" type="submit" id="userSubmit">Tạo điểm bán</button><button class="btn gray hidden" type="button" id="userCancel">Hủy sửa</button></div>
           </form>
           <div id="userMsg"></div>
-          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Danh sách người dùng</h3>
+          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Danh sách điểm bán</h3>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
             <div style="min-width:260px;flex:1;max-width:380px"><label>Lọc theo đơn vị</label><select id="userUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
             <div><span id="userCount" class="desc"></span></div>
             <div style="margin-left:auto"><button class="btn danger" type="button" id="uDelSel" title="Xóa các người dùng đã đánh dấu">Xóa</button></div>
           </div>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th><input type="checkbox" id="uSelAll" title="Đánh dấu tất cả" /></th><th data-sort="ma_kenh">Mã kênh</th><th data-sort="ho_ten">Họ tên / điểm bán</th><th data-sort="username">User</th><th data-sort="role">Loại</th><th data-sort="so_eload">Số Eload</th><th data-sort="so_vi">Số Ví</th><th data-sort="don_vi">Đơn vị</th><th data-sort="toado">Tọa độ điểm bán</th><th data-sort="ten_nv">Nhân viên quản lý</th><th data-sort="sdt_nv">SĐT NV quản lý</th><th data-sort="ma_hrm">Mã HRM</th><th data-sort="leader">Lãnh đạo phụ trách</th><th data-sort="loai_kenh">Loại kênh bán</th><th data-sort="can_import">Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="16">Đang tải…</td></tr></tbody></table></div>
-          <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import người dùng từ Excel</h3>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th><input type="checkbox" id="uSelAll" title="Đánh dấu tất cả" /></th><th data-sort="ma_kenh">Mã kênh</th><th data-sort="ho_ten">Họ tên / điểm bán</th><th data-sort="username">User</th><th data-sort="so_eload">Số Eload</th><th data-sort="so_vi">Số Ví</th><th data-sort="don_vi">Đơn vị</th><th data-sort="toado">Tọa độ điểm bán</th><th data-sort="ten_nv">Nhân viên quản lý</th><th data-sort="sdt_nv">SĐT NV quản lý</th><th data-sort="ma_hrm">Mã HRM</th><th data-sort="leader">Lãnh đạo phụ trách</th><th data-sort="loai_kenh">Loại kênh bán</th><th data-sort="can_import">Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="15">Đang tải…</td></tr></tbody></table></div>
+          <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import điểm bán từ Excel</h3>
           <p class="desc">Tải file mẫu về, điền thông tin người dùng vào file rồi import lên hệ thống. Có 3 chế độ import: <b>Tạo mới</b> (chỉ thêm user chưa có — user đã tồn tại thì bỏ qua), <b>Cập nhật</b> (user đã có thì cập nhật các trường có dữ liệu mới trong file, trường để trống thì giữ nguyên; chưa có thì tạo mới), <b>Thay thế</b> (user đã có thì ghi đè toàn bộ thông tin theo file, trường để trống thì xóa; chưa có thì tạo mới). Lưu ý: import không thay đổi loại tài khoản, quyền import và quyền module của user đã có (đổi các quyền này trong form Sửa); mật khẩu để trống thì giữ nguyên mật khẩu cũ (tạo mới thì dùng mặc định <code class="inl">Vnpt@2026</code>).</p>
           <div style="margin-bottom:10px;max-width:520px"><label>Chế độ import</label><select id="uImpMode"><option value="create">Tạo mới — chỉ thêm user chưa có, user đã tồn tại thì bỏ qua</option><option value="update">Cập nhật — user đã có thì cập nhật các trường có dữ liệu mới (trường trống giữ nguyên), chưa có thì tạo mới</option><option value="replace">Thay thế — user đã có thì ghi đè toàn bộ theo file (trường trống thì xóa), chưa có thì tạo mới</option></select></div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -1015,6 +1001,46 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <button class="btn gray" type="button" id="uTemplateBtn">Tải file mẫu Excel</button>
           </div>
           <div id="uImpMsg" style="margin-top:10px"></div>
+        </section>
+
+        <!-- QUAN LY NGUOI DUNG (nhan su noi bo) -->
+        <section class="panel hidden" id="panel-staff">
+          <h2>Quản lý người dùng</h2>
+          <p class="desc">Khai báo tài khoản cho nhân sự nội bộ: Quản trị viên, Lãnh đạo đơn vị, Chuyên viên, Nhân viên kinh doanh. Tài khoản điểm bán được quản lý riêng trong module Quản lý kênh bán. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Tích chọn "Cấp quyền SubAdmin" để tài khoản xem được số liệu toàn tỉnh và quản lý người dùng/kênh bán. Admin thiết lập quyền sử dụng từng module cho mỗi tài khoản ở mục bên dưới.</p>
+          <form id="staffForm" class="form-grid">
+            <input type="hidden" id="staffId" />
+            <div><label>Mã nhân viên</label><input id="sMaNv" placeholder="VD: NV-001" /></div>
+            <div><label>Họ và tên *</label><input id="sName" required /></div>
+            <div><label>User đăng nhập *</label><input id="sUsername" required autocomplete="off" /></div>
+            <div><label>Mật khẩu (để trống = Vnpt@2026)</label><input id="sPassword" type="text" autocomplete="off" placeholder="Vnpt@2026" /></div>
+            <div><label>Đơn vị</label><select id="sUnit"><option value="">— Chưa thuộc đơn vị —</option></select></div>
+            <div><label>Chức danh</label><select id="sChucDanh"><option>Lãnh đạo đơn vị</option><option>Chuyên viên</option><option>Nhân viên kinh doanh</option><option>Quản trị viên</option></select></div>
+            <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="sSubAdmin" /> Cấp quyền SubAdmin</label></div>
+            <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="sCanImport" /> Được quyền import dữ liệu</label></div>
+            <div class="full" id="sModulesBox">
+              <label>Quyền sử dụng module <span style="font-weight:500;color:var(--muted)">(chỉ admin thiết lập)</span></label>
+              <div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px" id="sModulesList"></div>
+              <div class="desc" style="margin-top:6px">Chuyên viên / Nhân viên kinh doanh chưa thiết lập riêng dùng 4 module mặc định: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt. Lãnh đạo đơn vị mặc định thêm Chăm sóc điểm bán. Tài khoản SubAdmin và Admin dùng đủ quyền theo vai trò. Admin luôn dùng được mọi module.</div>
+            </div>
+            <div class="full" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn blue" type="submit" id="staffSubmit">Tạo người dùng</button><button class="btn gray hidden" type="button" id="staffResetPass">Reset Pass</button><button class="btn gray hidden" type="button" id="staffCancel">Hủy sửa</button></div>
+          </form>
+          <div id="staffMsg"></div>
+          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Danh sách người dùng</h3>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+            <div style="min-width:260px;flex:1;max-width:380px"><label>Lọc theo đơn vị</label><select id="staffUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
+            <div><span id="staffCount" class="desc"></span></div>
+            <div style="margin-left:auto"><button class="btn danger" type="button" id="staffDelSel" title="Xóa các người dùng đã đánh dấu">Xóa</button></div>
+          </div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th><input type="checkbox" id="staffSelAll" title="Đánh dấu tất cả" /></th><th data-sort="ma_nhan_vien">Mã NV</th><th data-sort="ho_ten">Họ tên</th><th data-sort="username">User</th><th data-sort="chuc_danh">Chức danh</th><th data-sort="don_vi">Đơn vị</th><th data-sort="subadmin">SubAdmin</th><th data-sort="can_import">Import</th><th>Module</th><th></th></tr></thead><tbody id="staffBody"><tr><td colspan="10">Đang tải…</td></tr></tbody></table></div>
+          <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import người dùng từ Excel</h3>
+          <div style="margin-bottom:10px;max-width:520px"><label>Chế độ import</label><select id="sImpMode"><option value="create">Tạo mới — chỉ thêm user chưa có, user đã tồn tại thì bỏ qua</option><option value="update">Cập nhật — user đã có thì cập nhật các trường có dữ liệu mới (trường trống giữ nguyên), chưa có thì tạo mới</option><option value="replace">Thay thế — user đã có thì ghi đè toàn bộ theo file (trường trống thì xóa), chưa có thì tạo mới</option></select></div>
+          <div class="desc">Import không thay đổi loại tài khoản, quyền import và quyền module của user đã có (đổi các quyền này trong form Sửa). Mật khẩu để trống thì giữ nguyên (tạo mới dùng Vnpt@2026).</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:10px 0">
+            <div><button class="btn gray" type="button" id="sTemplateBtn">Tải file mẫu Excel</button></div>
+            <div><label>Chọn file Excel</label><input type="file" id="sImpFile" accept=".xlsx,.xls,.csv" /></div>
+            <div style="display:flex;align-items:flex-end"><button class="btn blue" type="button" id="sImpBtn">Import</button></div>
+          </div>
+          <div id="sImpMsg" style="margin-top:10px"></div>
         </section>
 
         <!-- QUAN LY DU LIEU DAU VAO -->
@@ -1366,6 +1392,8 @@ function publicUser(u) {
     ten_nhan_vien: u.ten_nhan_vien || &quot;&quot;,
     sdt_nhan_vien: u.sdt_nhan_vien || &quot;&quot;,
     ma_hrm: u.ma_hrm || &quot;&quot;,
+    ma_nhan_vien: u.ma_nhan_vien || &quot;&quot;,
+    chuc_danh: u.chuc_danh || &quot;&quot;,
     don_vi_id: u.don_vi_id ?? null,
     don_vi_ten: u.don_vi_ten || &quot;&quot;,
     leader_id: u.leader_id ?? null,
@@ -1391,6 +1419,8 @@ async function ensureUserColumns(env) {
     if (!cols.has(&quot;lng&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN lng REAL&quot;).run();
     if (!cols.has(&quot;leader_id&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN leader_id INTEGER&quot;).run();
     if (!cols.has(&quot;loai_kenh&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN loai_kenh TEXT&quot;).run();
+    if (!cols.has(&quot;ma_nhan_vien&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN ma_nhan_vien TEXT&quot;).run();
+    if (!cols.has(&quot;chuc_danh&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN chuc_danh TEXT&quot;).run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -1417,7 +1447,7 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -&gt; giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = [&quot;dashboard&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;, &quot;channelmap&quot;];
+const MODULE_KEYS = [&quot;dashboard&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;, &quot;channelmap&quot;, &quot;staff&quot;];
 
 // Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
 // (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
@@ -1436,6 +1466,22 @@ function normLoaiKenh(v) {
 const DEFAULT_MODULES = [&quot;dashboard&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;settings&quot;];
 // Lanh dao don vi mac dinh them module Cham soc diem ban
 const LEADER_MODULES = [...DEFAULT_MODULES, &quot;care&quot;];
+// Danh sach chuc danh trong module Quan ly nguoi dung (nhan su noi bo)
+const CHUC_DANH_LIST = [&quot;Lãnh đạo đơn vị&quot;, &quot;Chuyên viên&quot;, &quot;Nhân viên kinh doanh&quot;, &quot;Quản trị viên&quot;];
+// Chuc danh + co SubAdmin -&gt; role he thong
+function staffRoleFrom(chucDanh, isSubAdmin) {
+  if (isSubAdmin) return &quot;subadmin&quot;;
+  const cd = String(chucDanh || &quot;&quot;).trim();
+  if (cd === &quot;Quản trị viên&quot;) return &quot;admin&quot;;
+  if (cd === &quot;Lãnh đạo đơn vị&quot;) return &quot;leader&quot;;
+  return &quot;staff&quot;; // Chuyên viên / Nhân viên kinh doanh: chi xem so lieu cua chinh minh
+}
+// Module mac dinh khi tao tai khoan nhan su (admin khong tich tay)
+function defaultModulesForRole(role) {
+  if (role === &quot;admin&quot;) return null;
+  if (role === &quot;leader&quot;) return JSON.stringify(LEADER_MODULES);
+  return JSON.stringify(DEFAULT_MODULES);
+}
 function parseModules(v) {
   if (!v) return null;
   try {
@@ -2064,33 +2110,71 @@ export default {
         return json({ ok: true });
       }
 
-      // ---- Quan ly nguoi dung (admin &amp; subadmin) ----
+      // ---- Quan ly kenh ban (module &quot;Quan ly kenh ban&quot;, key users) va
+      // Quan ly nguoi dung noi bo (module &quot;Quan ly nguoi dung&quot;, key staff).
+      // kind=channel: chi tai khoan diem ban (role=&#x27;user&#x27;);
+      // kind=staff: tai khoan noi bo (admin/subadmin/leader/staff).
       if (path === &quot;/api/users&quot; &amp;&amp; method === &quot;GET&quot;) {
-        if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xem danh sach nguoi dung&quot;, 403);
-        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
+        if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xem danh sach&quot;, 403);
+        const kind = url.searchParams.get(&quot;kind&quot;);
+        const needKey = kind === &quot;staff&quot; ? &quot;staff&quot; : kind === &quot;channel&quot; ? &quot;users&quot; : null;
+        if (needKey ? !hasModule(me, needKey) : !(hasModule(me, &quot;users&quot;) || hasModule(me, &quot;staff&quot;)))
+          return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
+        const where = kind === &quot;channel&quot; ? &quot; WHERE u.role = &#x27;user&#x27;&quot; : kind === &quot;staff&quot; ? &quot; WHERE u.role != &#x27;user&#x27;&quot; : &quot;&quot;;
         const res = await env.DB.prepare(
-          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id ORDER BY u.ho_ten&quot;
+          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.ma_nhan_vien, u.chuc_danh, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id&quot; + where + &quot; ORDER BY u.ho_ten&quot;
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
+      // Danh sach chuc danh trong module Quan ly nguoi dung (nhan su noi bo)
+      const CHUC_DANH_LIST = [&quot;Lãnh đạo đơn vị&quot;, &quot;Chuyên viên&quot;, &quot;Nhân viên kinh doanh&quot;, &quot;Quản trị viên&quot;];
+      // Chuc danh + co SubAdmin -&gt; role he thong
+      const staffRoleFrom = (chucDanh, isSubAdmin) =&gt; {
+        if (isSubAdmin) return &quot;subadmin&quot;;
+        const cd = String(chucDanh || &quot;&quot;).trim();
+        if (cd === &quot;Quản trị viên&quot;) return &quot;admin&quot;;
+        if (cd === &quot;Lãnh đạo đơn vị&quot;) return &quot;leader&quot;;
+        return &quot;staff&quot;; // Chuyên viên / Nhân viên kinh doanh: chi xem so lieu cua chinh minh
+      };
+      // Module mac dinh khi tao tai khoan nhan su (admin khong tich tay)
+      const defaultModulesForRole = (role) =&gt; {
+        if (role === &quot;admin&quot;) return null;
+        if (role === &quot;leader&quot;) return JSON.stringify(LEADER_MODULES);
+        return JSON.stringify(DEFAULT_MODULES);
+      };
       if (path === &quot;/api/users&quot; &amp;&amp; method === &quot;POST&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen tao nguoi dung&quot;, 403);
-        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         const b = await readBody(request);
+        const kind = b.kind === &quot;staff&quot; ? &quot;staff&quot; : &quot;channel&quot;;
+        const needKey = kind === &quot;staff&quot; ? &quot;staff&quot; : &quot;users&quot;;
+        if (!hasModule(me, needKey)) return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
         if (!toText(b.ho_ten) || !toText(b.username)) return err(&quot;Thieu ho ten hoac user dang nhap&quot;, 422);
         const salt = randomSalt();
         const password = String(b.password || &quot;Vnpt@2026&quot;);
         const hash = await hashPassword(password, salt);
-        // Phan quyen: chi admin moi duoc dat loai tai khoan va cap quyen import;
-        // SubAdmin tao nguoi dung thi mac dinh la user thuong, khong co quyen import.
-        const newRole = isAdmin ? (b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : b.role === &quot;leader&quot; ? &quot;leader&quot; : &quot;user&quot;) : &quot;user&quot;;
-        const newCanImport = isAdmin &amp;&amp; b.can_import ? 1 : 0;
-        // Quyen module: chi admin moi duoc thiet lap; khong gui -&gt; mac dinh
-        // 4 module (Dashboard, Bao cao, Goi cuoc, Cai dat); lanh dao don vi
-        // mac dinh them module Cham soc diem ban; tai khoan admin -&gt; NULL (khong gioi han).
-        let newModules = null;
-        if (isAdmin &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
-        else if (newRole !== &quot;admin&quot;) newModules = JSON.stringify(newRole === &quot;leader&quot; ? LEADER_MODULES : DEFAULT_MODULES);
+        let newRole, newCanImport, newModules, newMaNv = &quot;&quot;, newChucDanh = &quot;&quot;;
+        if (kind === &quot;channel&quot;) {
+          // Kenh ban: luon la user, khong co quyen import; mac dinh 4 module
+          // (Dashboard, Bao cao thong ke, Danh muc goi cuoc, Cai dat).
+          newRole = &quot;user&quot;;
+          newCanImport = 0;
+          if (isAdmin &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
+          else newModules = JSON.stringify(DEFAULT_MODULES);
+        } else {
+          newMaNv = toText(b.ma_nhan_vien);
+          newChucDanh = toText(b.chuc_danh);
+          if (newChucDanh &amp;&amp; !CHUC_DANH_LIST.includes(newChucDanh)) return err(&quot;Chuc danh khong hop le&quot;, 422);
+          if (isAdmin) {
+            newRole = staffRoleFrom(newChucDanh, b.subadmin);
+            newCanImport = b.can_import ? 1 : 0;
+          } else {
+            // SubAdmin tao nhan su: khong duoc cap subadmin/admin
+            newRole = newChucDanh === &quot;Lãnh đạo đơn vị&quot; ? &quot;leader&quot; : &quot;staff&quot;;
+            newCanImport = 0;
+          }
+          if (isAdmin &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
+          else newModules = defaultModulesForRole(newRole);
+        }
         const latP = parseCoordField(b.lat, -90, 90);
         if (latP.error) return err(&quot;Vi do diem ban khong hop le (tu -90 den 90)&quot;, 422);
         const lngP = parseCoordField(b.lng, -180, 180);
@@ -2106,25 +2190,28 @@ export default {
         const newLoaiKenh = normLoaiKenh(b.loai_kenh);
         if (toText(b.loai_kenh) &amp;&amp; !newLoaiKenh) return err(&quot;Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)&quot;, 422);
         const r = await env.DB.prepare(
-          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, ma_nhan_vien, chuc_danh, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm),
+            newMaNv, newChucDanh,
             b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newLoaiKenh, newCanImport, newModules, latP.val, lngP.val
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
       }
-      // ---- Import nguoi dung tu Excel ----
+      // ---- Import nguoi dung tu Excel (kind=channel: diem ban; kind=staff: nhan su noi bo) ----
       if (path === &quot;/api/users/import&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen import nguoi dung&quot;, 403);
-        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
+        if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen import&quot;, 403);
         const b = await readBody(request);
+        const kind = b.kind === &quot;staff&quot; ? &quot;staff&quot; : &quot;channel&quot;;
+        const needKey = kind === &quot;staff&quot; ? &quot;staff&quot; : &quot;users&quot;;
+        if (!hasModule(me, needKey)) return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
         const rows = Array.isArray(b.rows) ? b.rows : [];
         if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
-        // Che do import nguoi dung: create (mac dinh) | update | replace
+        // Che do import: create (mac dinh) | update | replace
         // - create: chi them user chua co; user da ton tai thi bo qua.
         // - update: user da co thi cap nhat cac truong co du lieu moi trong file
         //   (truong de trong thi giu nguyen); chua co thi tao moi.
@@ -2157,28 +2244,44 @@ export default {
             if (dv) { donViId = dv.id; donViOk = true; }
             else warnings.push({ row: i + 2, reason: &quot;Khong tim thay don vi &#x27;&quot; + toText(r.don_vi) + &quot;&#x27; — da de trong&quot; });
           }
-          // Toa do: chi nhan gia tri hop le trong khoang; sai thi bao lai va giu nguyen
+          // Toa do / Lanh dao phu trach / Loai kenh ban: chi ap dung cho diem ban (kind=channel)
           let impLat = null, impLng = null, latOk = false, lngOk = false;
-          if (toText(r.lat) !== &quot;&quot;) {
-            const p = parseCoordField(r.lat, -90, 90);
-            if (p.error) warnings.push({ row: i + 2, reason: &quot;Vi do khong hop le — da giu nguyen&quot; });
-            else { impLat = p.val; latOk = true; }
-          }
-          if (toText(r.lng) !== &quot;&quot;) {
-            const p = parseCoordField(r.lng, -180, 180);
-            if (p.error) warnings.push({ row: i + 2, reason: &quot;Kinh do khong hop le — da giu nguyen&quot; });
-            else { impLng = p.val; lngOk = true; }
-          }
-          // Lanh dao phu trach: nhan User dang nhap cua tai khoan leader
           let leaderId = null, leaderOk = false;
-          if (toText(r.leader_username)) {
-            const ld = await env.DB.prepare(&quot;SELECT id FROM nguoi_dung WHERE username = ? AND role = &#x27;leader&#x27;&quot;).bind(toText(r.leader_username)).first();
-            if (ld) { leaderId = ld.id; leaderOk = true; }
-            else warnings.push({ row: i + 2, reason: &quot;Khong tim thay tai khoan lanh dao &#x27;&quot; + toText(r.leader_username) + &quot;&#x27; — da de trong&quot; });
+          let impLoaiKenh = &quot;&quot;;
+          if (kind === &quot;channel&quot;) {
+            if (toText(r.lat) !== &quot;&quot;) {
+              const p = parseCoordField(r.lat, -90, 90);
+              if (p.error) warnings.push({ row: i + 2, reason: &quot;Vi do khong hop le — da giu nguyen&quot; });
+              else { impLat = p.val; latOk = true; }
+            }
+            if (toText(r.lng) !== &quot;&quot;) {
+              const p = parseCoordField(r.lng, -180, 180);
+              if (p.error) warnings.push({ row: i + 2, reason: &quot;Kinh do khong hop le — da giu nguyen&quot; });
+              else { impLng = p.val; lngOk = true; }
+            }
+            if (toText(r.leader_username)) {
+              const ld = await env.DB.prepare(&quot;SELECT id FROM nguoi_dung WHERE username = ? AND role = &#x27;leader&#x27;&quot;).bind(toText(r.leader_username)).first();
+              if (ld) { leaderId = ld.id; leaderOk = true; }
+              else warnings.push({ row: i + 2, reason: &quot;Khong tim thay tai khoan lanh dao &#x27;&quot; + toText(r.leader_username) + &quot;&#x27; — da de trong&quot; });
+            }
+            impLoaiKenh = normLoaiKenh(r.loai_kenh);
+            if (toText(r.loai_kenh) &amp;&amp; !impLoaiKenh) warnings.push({ row: i + 2, reason: &quot;Loai kenh ban &#x27;&quot; + toText(r.loai_kenh) + &quot;&#x27; khong nhan ra — da de trong&quot; });
           }
-          // Loai kenh ban: chuan hoa tu ma hoac ten day du, khong nhan ra thi de trong + bao lai
-          const impLoaiKenh = normLoaiKenh(r.loai_kenh);
-          if (toText(r.loai_kenh) &amp;&amp; !impLoaiKenh) warnings.push({ row: i + 2, reason: &quot;Loai kenh ban &#x27;&quot; + toText(r.loai_kenh) + &quot;&#x27; khong nhan ra — da de trong&quot; });
+          // Truong nhan su: chi ap dung cho kind=staff
+          let impMaNv = &quot;&quot;, impChucDanh = &quot;Nhân viên kinh doanh&quot;, impSubAdmin = false, impCanImport = 0, impModules = null;
+          if (kind === &quot;staff&quot;) {
+            impMaNv = toText(r.ma_nhan_vien);
+            const cdRaw = toText(r.chuc_danh);
+            if (cdRaw &amp;&amp; !CHUC_DANH_LIST.includes(cdRaw)) warnings.push({ row: i + 2, reason: &quot;Chuc danh &#x27;&quot; + cdRaw + &quot;&#x27; khong hop le — da dung &#x27;Nhân viên kinh doanh&#x27;&quot; });
+            else if (cdRaw) impChucDanh = cdRaw;
+            impSubAdmin = !!r.subadmin;
+            impCanImport = isAdmin &amp;&amp; r.can_import ? 1 : 0;
+            if (isAdmin &amp;&amp; toText(r.modules)) {
+              const keys = String(r.modules).split(&quot;,&quot;).map((s) =&gt; s.trim().toLowerCase()).filter((k) =&gt; MODULE_KEYS.includes(k));
+              if (keys.length) impModules = JSON.stringify(keys);
+              else warnings.push({ row: i + 2, reason: &quot;Cot Modules khong co ma hop le — da dung mac dinh theo chuc danh&quot; });
+            }
+          }
           if (existing) {
             if (impMode === &quot;create&quot;) {
               skipped++;
@@ -2191,21 +2294,31 @@ export default {
               if (impMode === &quot;update&quot;) { if (v) { sets.push(col + &quot; = ?&quot;); binds.push(v); } }
               else { sets.push(col + &quot; = ?&quot;); binds.push(v); }
             };
-            setText(&quot;ma_kenh&quot;, r.ma_kenh);
-            setText(&quot;ho_ten&quot;, r.ho_ten);
-            setText(&quot;so_eload&quot;, r.so_eload);
-            setText(&quot;so_vi&quot;, r.so_vi);
-            setText(&quot;ten_nhan_vien&quot;, r.ten_nhan_vien);
-            setText(&quot;sdt_nhan_vien&quot;, r.sdt_nhan_vien);
-            setText(&quot;ma_hrm&quot;, r.ma_hrm);
-            if (impMode === &quot;replace&quot;) { sets.push(&quot;loai_kenh = ?&quot;); binds.push(impLoaiKenh); }
-            else if (impLoaiKenh) { sets.push(&quot;loai_kenh = ?&quot;); binds.push(impLoaiKenh); }
-            if (impMode === &quot;replace&quot;) { sets.push(&quot;don_vi_id = ?&quot;); binds.push(donViOk ? donViId : null); }
-            else if (donViOk) { sets.push(&quot;don_vi_id = ?&quot;); binds.push(donViId); }
-            if (impMode === &quot;replace&quot;) { sets.push(&quot;leader_id = ?&quot;); binds.push(leaderOk ? leaderId : null); }
-            else if (leaderOk) { sets.push(&quot;leader_id = ?&quot;); binds.push(leaderId); }
-            if (impMode === &quot;replace&quot;) { sets.push(&quot;lat = ?&quot;); binds.push(latOk ? impLat : null); sets.push(&quot;lng = ?&quot;); binds.push(lngOk ? impLng : null); }
-            else { if (latOk) { sets.push(&quot;lat = ?&quot;); binds.push(impLat); } if (lngOk) { sets.push(&quot;lng = ?&quot;); binds.push(impLng); } }
+            if (kind === &quot;staff&quot;) {
+              // Nhan su: chi cap nhat thong tin hanh chinh; khong doi role/can_import/modules
+              setText(&quot;ma_nhan_vien&quot;, r.ma_nhan_vien);
+              setText(&quot;ho_ten&quot;, r.ho_ten);
+              if (impMode === &quot;replace&quot;) { sets.push(&quot;chuc_danh = ?&quot;); binds.push(impChucDanh); }
+              else if (toText(r.chuc_danh)) { sets.push(&quot;chuc_danh = ?&quot;); binds.push(impChucDanh); }
+              if (impMode === &quot;replace&quot;) { sets.push(&quot;don_vi_id = ?&quot;); binds.push(donViOk ? donViId : null); }
+              else if (donViOk) { sets.push(&quot;don_vi_id = ?&quot;); binds.push(donViId); }
+            } else {
+              setText(&quot;ma_kenh&quot;, r.ma_kenh);
+              setText(&quot;ho_ten&quot;, r.ho_ten);
+              setText(&quot;so_eload&quot;, r.so_eload);
+              setText(&quot;so_vi&quot;, r.so_vi);
+              setText(&quot;ten_nhan_vien&quot;, r.ten_nhan_vien);
+              setText(&quot;sdt_nhan_vien&quot;, r.sdt_nhan_vien);
+              setText(&quot;ma_hrm&quot;, r.ma_hrm);
+              if (impMode === &quot;replace&quot;) { sets.push(&quot;loai_kenh = ?&quot;); binds.push(impLoaiKenh); }
+              else if (impLoaiKenh) { sets.push(&quot;loai_kenh = ?&quot;); binds.push(impLoaiKenh); }
+              if (impMode === &quot;replace&quot;) { sets.push(&quot;don_vi_id = ?&quot;); binds.push(donViOk ? donViId : null); }
+              else if (donViOk) { sets.push(&quot;don_vi_id = ?&quot;); binds.push(donViId); }
+              if (impMode === &quot;replace&quot;) { sets.push(&quot;leader_id = ?&quot;); binds.push(leaderOk ? leaderId : null); }
+              else if (leaderOk) { sets.push(&quot;leader_id = ?&quot;); binds.push(leaderId); }
+              if (impMode === &quot;replace&quot;) { sets.push(&quot;lat = ?&quot;); binds.push(latOk ? impLat : null); sets.push(&quot;lng = ?&quot;); binds.push(lngOk ? impLng : null); }
+              else { if (latOk) { sets.push(&quot;lat = ?&quot;); binds.push(impLat); } if (lngOk) { sets.push(&quot;lng = ?&quot;); binds.push(impLng); } }
+            }
             const pw = String(r.password || &quot;&quot;);
             let pwHash = null, pwSalt = null;
             if (pw) { pwSalt = randomSalt(); pwHash = await hashPassword(pw, pwSalt); }
@@ -2221,18 +2334,29 @@ export default {
           }
           const salt = randomSalt();
           const hash = await hashPassword(String(r.password || &quot;Vnpt@2026&quot;), salt);
-          const impRole = isAdmin ? (r.role === &quot;admin&quot; ? &quot;admin&quot; : r.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : r.role === &quot;leader&quot; ? &quot;leader&quot; : &quot;user&quot;) : &quot;user&quot;;
-          await env.DB.prepare(
-            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
-          )
-            .bind(
-              toText(r.ma_kenh), hoTen, username, hash, salt,
-              impRole,
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViOk ? donViId : null, leaderOk ? leaderId : null, impLoaiKenh, isAdmin &amp;&amp; r.can_import ? 1 : 0,
-              impRole === &quot;admin&quot; ? null : JSON.stringify(impRole === &quot;leader&quot; ? LEADER_MODULES : DEFAULT_MODULES),
-              latOk ? impLat : null, lngOk ? impLng : null
+          if (kind === &quot;staff&quot;) {
+            // Nhan su moi: role suy tu chuc danh + SubAdmin (subadmin import thi khong duoc cap subadmin/admin)
+            const newRole = isAdmin ? staffRoleFrom(impChucDanh, impSubAdmin) : (impChucDanh === &quot;Lãnh đạo đơn vị&quot; ? &quot;leader&quot; : &quot;staff&quot;);
+            const newModules = impModules || defaultModulesForRole(newRole);
+            await env.DB.prepare(
+              &quot;INSERT INTO nguoi_dung (ho_ten, username, password_hash, salt, role, ma_nhan_vien, chuc_danh, don_vi_id, can_import, modules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
             )
-            .run();
+              .bind(hoTen, username, hash, salt, newRole, impMaNv, impChucDanh, donViOk ? donViId : null, impCanImport, newModules)
+              .run();
+          } else {
+            // Diem ban moi: luon la user, khong co quyen import, mac dinh 4 module
+            await env.DB.prepare(
+              &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+            )
+              .bind(
+                toText(r.ma_kenh), hoTen, username, hash, salt,
+                &quot;user&quot;,
+                toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViOk ? donViId : null, leaderOk ? leaderId : null, impLoaiKenh, 0,
+                JSON.stringify(DEFAULT_MODULES),
+                latOk ? impLat : null, lngOk ? impLng : null
+              )
+              .run();
+          }
           created++;
         }
         return json({ ok: true, created, updated, skipped, errors: errors.slice(0, 50), warnings: warnings.slice(0, 50) });
@@ -2240,22 +2364,37 @@ export default {
       const userMatch = path.match(/^\/api\/users\/(\d+)$/);
       if (userMatch &amp;&amp; method === &quot;PUT&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen sua nguoi dung&quot;, 403);
-        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         const b = await readBody(request);
-        // Phan quyen: SubAdmin khong duoc thay doi loai tai khoan, quyen import
-        // va quyen module cua nguoi dung -&gt; giu nguyen gia tri dang co trong CSDL.
-        let newRole = b.role === &quot;admin&quot; ? &quot;admin&quot; : b.role === &quot;subadmin&quot; ? &quot;subadmin&quot; : b.role === &quot;leader&quot; ? &quot;leader&quot; : &quot;user&quot;;
-        let newCanImport = b.can_import ? 1 : 0;
-        let newModules;
-        if (!isAdmin) {
-          const cur = await env.DB.prepare(&quot;SELECT role, can_import, modules FROM nguoi_dung WHERE id = ?&quot;).bind(Number(userMatch[1])).first();
-          if (cur) { newRole = cur.role; newCanImport = cur.can_import; newModules = cur.modules; }
-          else newModules = null;
-        } else if (Array.isArray(b.modules)) {
-          newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
+        const kind = b.kind === &quot;staff&quot; ? &quot;staff&quot; : &quot;channel&quot;;
+        const needKey = kind === &quot;staff&quot; ? &quot;staff&quot; : &quot;users&quot;;
+        if (!hasModule(me, needKey)) return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
+        const uid = Number(userMatch[1]);
+        const cur = await env.DB.prepare(&quot;SELECT role, can_import, modules, chuc_danh FROM nguoi_dung WHERE id = ?&quot;).bind(uid).first();
+        if (!cur) return err(&quot;Khong tim thay nguoi dung&quot;, 404);
+        // Khong cho sua tai khoan khac module (kenh ban &lt;-&gt; nhan su)
+        if (kind === &quot;channel&quot; &amp;&amp; cur.role !== &quot;user&quot;) return err(&quot;Tai khoan nay thuoc module Quan ly nguoi dung&quot;, 422);
+        if (kind === &quot;staff&quot; &amp;&amp; cur.role === &quot;user&quot;) return err(&quot;Tai khoan nay thuoc module Quan ly kenh ban&quot;, 422);
+        if (!toText(b.ho_ten)) return err(&quot;Thieu ho ten&quot;, 422);
+        let newRole = cur.role, newCanImport = cur.can_import, newModules = cur.modules;
+        let newMaNv = null, newChucDanh = null; // null = khong doi cot nay
+        if (kind === &quot;staff&quot;) {
+          newMaNv = toText(b.ma_nhan_vien);
+          newChucDanh = (&quot;chuc_danh&quot; in b) ? toText(b.chuc_danh) : (cur.chuc_danh || &quot;&quot;);
+          if (newChucDanh &amp;&amp; !CHUC_DANH_LIST.includes(newChucDanh)) return err(&quot;Chuc danh khong hop le&quot;, 422);
+          const subAdm = (&quot;subadmin&quot; in b) ? !!b.subadmin : cur.role === &quot;subadmin&quot;;
+          if (isAdmin) {
+            newRole = staffRoleFrom(newChucDanh, subAdm);
+            newCanImport = b.can_import ? 1 : 0;
+            if (Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
+          } else {
+            // SubAdmin khong duoc nang/hạ loai tai khoan admin/subadmin, khong doi quyen import/module
+            if (cur.role === &quot;admin&quot; || cur.role === &quot;subadmin&quot;) newRole = cur.role;
+            else newRole = newChucDanh === &quot;Lãnh đạo đơn vị&quot; ? &quot;leader&quot; : &quot;staff&quot;;
+          }
+          if (uid === me.id &amp;&amp; newRole !== me.role) return err(&quot;Khong the tu doi loai tai khoan cua chinh minh&quot;, 422);
         } else {
-          const cur = await env.DB.prepare(&quot;SELECT modules FROM nguoi_dung WHERE id = ?&quot;).bind(Number(userMatch[1])).first();
-          newModules = cur ? cur.modules : null;
+          newRole = &quot;user&quot;;
+          if (isAdmin &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
         }
         const latP = parseCoordField(b.lat, -90, 90);
         if (latP.error) return err(&quot;Vi do diem ban khong hop le (tu -90 den 90)&quot;, 422);
@@ -2269,28 +2408,29 @@ export default {
         }
         const newLoaiKenh = normLoaiKenh(b.loai_kenh);
         if (toText(b.loai_kenh) &amp;&amp; !newLoaiKenh) return err(&quot;Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)&quot;, 422);
-        await env.DB.prepare(
-          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, ma_hrm = ?, don_vi_id = ?, leader_id = ?, loai_kenh = ?, can_import = ?, role = ?, modules = ?, lat = ?, lng = ?, active = ? WHERE id = ?&quot;
-        )
-          .bind(
-            toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
-            toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm), b.don_vi_id ? Number(b.don_vi_id) : null,
-            newLeaderId, newLoaiKenh, newCanImport, newRole, newModules, latP.val, lngP.val,
-            b.active === false ? 0 : 1, Number(userMatch[1])
-          )
-          .run();
+        const sets = [&quot;ho_ten = ?&quot;, &quot;don_vi_id = ?&quot;, &quot;active = ?&quot;, &quot;role = ?&quot;, &quot;can_import = ?&quot;, &quot;modules = ?&quot;];
+        const binds = [toText(b.ho_ten), b.don_vi_id ? Number(b.don_vi_id) : null, b.active === false ? 0 : 1, newRole, newCanImport, newModules];
+        if (kind === &quot;staff&quot;) {
+          sets.push(&quot;ma_nhan_vien = ?&quot;, &quot;chuc_danh = ?&quot;); binds.push(newMaNv, newChucDanh);
+        } else {
+          sets.push(&quot;ma_kenh = ?&quot;, &quot;so_eload = ?&quot;, &quot;so_vi = ?&quot;, &quot;ten_nhan_vien = ?&quot;, &quot;sdt_nhan_vien = ?&quot;, &quot;ma_hrm = ?&quot;,
+            &quot;leader_id = ?&quot;, &quot;loai_kenh = ?&quot;, &quot;lat = ?&quot;, &quot;lng = ?&quot;);
+          binds.push(toText(b.ma_kenh), toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien),
+            toText(b.sdt_nhan_vien), toText(b.ma_hrm), newLeaderId, newLoaiKenh, latP.val, lngP.val);
+        }
+        await env.DB.prepare(&quot;UPDATE nguoi_dung SET &quot; + sets.join(&quot;, &quot;) + &quot; WHERE id = ?&quot;).bind(...binds, uid).run();
         if (b.password) {
           const salt = randomSalt();
           const hash = await hashPassword(String(b.password), salt);
           await env.DB.prepare(&quot;UPDATE nguoi_dung SET password_hash = ?, salt = ? WHERE id = ?&quot;)
-            .bind(hash, salt, Number(userMatch[1]))
+            .bind(hash, salt, uid)
             .run();
         }
         return json({ ok: true });
       }
       if (userMatch &amp;&amp; method === &quot;DELETE&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xoa nguoi dung&quot;, 403);
-        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
+        if (!(hasModule(me, &quot;users&quot;) || hasModule(me, &quot;staff&quot;))) return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
         if (Number(userMatch[1]) === me.id) return err(&quot;Khong the tu xoa tai khoan dang dang nhap&quot;, 422);
         const leadRef = await env.DB.prepare(&quot;SELECT COUNT(*) AS c FROM nguoi_dung WHERE leader_id = ?&quot;).bind(Number(userMatch[1])).first();
         if (leadRef &amp;&amp; leadRef.c &gt; 0) return err(&quot;Khong the xoa — nguoi dung nay dang la Lanh dao phu trach cua &quot; + leadRef.c + &quot; diem ban. Hay gan lai lanh dao phu trach truoc khi xoa.&quot;, 422);
@@ -2300,7 +2440,7 @@ export default {
       // ---- Xoa nhieu nguoi dung cung luc (theo danh sach da danh dau) ----
       if (path === &quot;/api/users/bulk-delete&quot; &amp;&amp; method === &quot;POST&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xoa nguoi dung&quot;, 403);
-        if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
+        if (!(hasModule(me, &quot;users&quot;) || hasModule(me, &quot;staff&quot;))) return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
         const b = await readBody(request);
         const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map(Number).filter((n) =&gt; n &gt; 0))];
         if (!ids.length) return err(&quot;Chua chon nguoi dung nao de xoa&quot;, 422);
@@ -2315,6 +2455,21 @@ export default {
           else skipped.push({ id, reason: &quot;Khong tim thay nguoi dung&quot; });
         }
         return json({ ok: true, deleted, skipped });
+      }
+      // ---- Reset mat khau nhan su ve mac dinh Vnpt@2026 (module Quan ly nguoi dung) ----
+      const resetMatch = path.match(/^\/api\/users\/(\d+)\/reset-password$/);
+      if (resetMatch &amp;&amp; method === &quot;POST&quot;) {
+        if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen reset mat khau&quot;, 403);
+        if (!hasModule(me, &quot;staff&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
+        const rid = Number(resetMatch[1]);
+        if (rid === me.id) return err(&quot;Khong the reset mat khau chinh minh tai day — doi mat khau trong module Cai dat&quot;, 422);
+        const target = await env.DB.prepare(&quot;SELECT id, role FROM nguoi_dung WHERE id = ?&quot;).bind(rid).first();
+        if (!target) return err(&quot;Khong tim thay nguoi dung&quot;, 404);
+        if (target.role === &quot;user&quot;) return err(&quot;Tai khoan diem ban duoc quan ly trong module Quan ly kenh ban&quot;, 422);
+        const salt = randomSalt();
+        const hash = await hashPassword(&quot;Vnpt@2026&quot;, salt);
+        await env.DB.prepare(&quot;UPDATE nguoi_dung SET password_hash = ?, salt = ? WHERE id = ?&quot;).bind(hash, salt, rid).run();
+        return json({ ok: true });
       }
 
       // ---- Quan ly loai du lieu dau vao ----
@@ -3108,7 +3263,7 @@ export default {
         <!-- CHAM SOC DIEM BAN -->
         <section class="panel hidden" id="panel-care">
           <h2>Chăm sóc điểm bán</h2>
-          <p class="desc">Dành cho Lãnh đạo đơn vị đi thực địa. Quy trình: tạo đợt chăm sóc → bấm “Lấy vị trí hiện tại” → hệ thống chỉ hiện các điểm bán trong bán kính 20m quanh vị trí thiết bị (không lấy được vị trí thì không hiện điểm nào) → chọn điểm bán, chụp ảnh, hệ thống tự đóng dấu tọa độ + thời gian chụp vào ảnh rồi mới cho lưu kết quả. Phạm vi điểm bán: mỗi lãnh đạo chỉ thấy các điểm bán được admin gán cho mình (trường “Lãnh đạo đơn vị phụ trách” trong Quản lý người dùng) và trong bán kính 20m quanh vị trí hiện tại. Danh sách đợt chăm sóc: mỗi lãnh đạo chỉ thấy đợt do mình tạo và đợt do admin tạo; admin thấy tất cả.</p>
+          <p class="desc">Dành cho Lãnh đạo đơn vị đi thực địa. Quy trình: tạo đợt chăm sóc → bấm “Lấy vị trí hiện tại” → hệ thống chỉ hiện các điểm bán trong bán kính 20m quanh vị trí thiết bị (không lấy được vị trí thì không hiện điểm nào) → chọn điểm bán, chụp ảnh, hệ thống tự đóng dấu tọa độ + thời gian chụp vào ảnh rồi mới cho lưu kết quả. Phạm vi điểm bán: mỗi lãnh đạo chỉ thấy các điểm bán được admin gán cho mình (trường “Lãnh đạo đơn vị phụ trách” trong Quản lý kênh bán) và trong bán kính 20m quanh vị trí hiện tại. Danh sách đợt chăm sóc: mỗi lãnh đạo chỉ thấy đợt do mình tạo và đợt do admin tạo; admin thấy tất cả.</p>
           <h3 style="margin:14px 0 8px;color:var(--blue-dark)">Tạo đợt chăm sóc</h3>
           <form id="careBatchForm" class="form-grid">
             <div><label>Tên đợt chăm sóc *</label><input id="careBatchName" required placeholder="VD: Đợt chăm sóc tháng 11/2026" /></div>
@@ -3506,41 +3661,33 @@ function fillBanner() {
 }
 function applyUserFormPerms() {
   if (!me) return;
-  const restricted = me.role === "subadmin";
-  $("uRole").disabled = restricted;
-  $("uCanImport").disabled = restricted;
-  const note = restricted ? "SubAdmin không được thay đổi loại tài khoản và không được cấp quyền import dữ liệu" : "";
-  $("uRole").title = note;
-  $("uCanImport").title = note;
   // Muc phan quyen module: chi admin moi duoc thiet lap
   $("uModulesBox").classList.toggle("hidden", me.role !== "admin");
-  $("uLeaderHint").classList.toggle("hidden", !($("uRole").value === "leader" && !$("uUnit").value));
 }
 // Danh sach module + mac dinh khi tao moi (Dashboard, Bao cao, Goi cuoc, Cai dat)
 const MODULE_DEFS = [
-  ["dashboard", "Dashboard"], ["units", "Quản lý đơn vị"], ["users", "Quản lý người dùng"],
+  ["dashboard", "Dashboard"], ["units", "Quản lý đơn vị"], ["users", "Quản lý kênh bán"], ["staff", "Quản lý người dùng"],
   ["import", "Quản lý dữ liệu đầu vào"], ["config", "Cấu hình kết nối D1"], ["reports", "Báo cáo thống kê"],
   ["packages", "Danh mục gói cước"], ["loginstats", "Thống kê đăng nhập"], ["care", "Chăm sóc điểm bán"], ["channelmap", "Bản đồ kênh bán"], ["settings", "Cài đặt"],
 ];
 const PANEL_MODULES = {
-  "panel-dashboard": "dashboard", "panel-units": "units", "panel-users": "users", "panel-import": "import",
+  "panel-dashboard": "dashboard", "panel-units": "units", "panel-users": "users", "panel-staff": "staff", "panel-import": "import",
   "panel-config": "config", "panel-reports": "reports", "panel-packages": "packages",
   "panel-loginstats": "loginstats", "panel-care": "care", "panel-channelmap": "channelmap", "panel-settings": "settings",
 };
 const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
 const LEADER_MODULES = [...DEFAULT_MODULES, "care"];
-function setModulesBoxes(list) {
-  document.querySelectorAll('input[name="uModule"]').forEach((c) => { c.checked = list.includes(c.value); });
+function setModulesBoxes(name, list) {
+  document.querySelectorAll('input[name="' + name + '"]').forEach((c) => { c.checked = list.includes(c.value); });
 }
-function getModulesFromForm() {
-  return [...document.querySelectorAll('input[name="uModule"]:checked')].map((c) => c.value);
+function getModulesFromForm(name) {
+  return [...document.querySelectorAll('input[name="' + name + '"]:checked')].map((c) => c.value);
 }
-$("uRole").addEventListener("change", () => {
-  // Chon chuc danh Lanh dao don vi -> mac dinh dung 5 module cua chuc danh nay (4 module chung + Cham soc diem ban; admin van sua tay duoc sau do)
-  if ($("uRole").value === "leader") setModulesBoxes(LEADER_MODULES);
-  applyUserFormPerms();
-});
-$("uUnit").addEventListener("change", applyUserFormPerms);
+// Render checkbox quyen module tu MODULE_DEFS (dung chung cho form kenh ban va form nhan su)
+function renderModuleCheckboxes(elId, name, checked) {
+  $(elId).innerHTML = MODULE_DEFS.map(([k, label]) => '<label class="checkline"><input type="checkbox" name="' + name + '" value="' + k + '"' + (checked.includes(k) ? " checked" : "") + " /> " + esc(label) + "</label>").join("");
+}
+renderModuleCheckboxes("uModulesList", "uModule", DEFAULT_MODULES);
 function applyImportPerms() {
   if (!me) return;
   const sel = $("impMode");
@@ -3579,9 +3726,9 @@ function refreshAuthUI() {
   $("logoutBtn").classList.toggle("hidden", !logged);
   $("userChip").classList.toggle("hidden", !logged);
   if (logged) {
-    $("userChip").textContent = "👤 " + me.ho_ten + (me.role === "admin" ? " (Admin)" : me.role === "subadmin" ? " (SubAdmin)" : me.role === "leader" ? " (Lãnh đạo đơn vị)" : "");
+    $("userChip").textContent = "👤 " + me.ho_ten + (me.role === "admin" ? " (Admin)" : me.role === "subadmin" ? " (SubAdmin)" : me.role === "leader" ? " (Lãnh đạo đơn vị)" : me.role === "staff" ? " (Nhân viên)" : "");
     $("whoName").textContent = me.ho_ten;
-    $("whoRole").textContent = (me.role === "admin" ? "Quản trị viên" : me.role === "subadmin" ? "SubAdmin" : me.role === "leader" ? "Lãnh đạo đơn vị" : "Điểm bán") + (me.ma_kenh ? " · " + me.ma_kenh : "");
+    $("whoRole").textContent = (me.role === "admin" ? "Quản trị viên" : me.role === "subadmin" ? "SubAdmin" : me.role === "leader" ? "Lãnh đạo đơn vị" : me.role === "staff" ? "Nhân viên" : "Điểm bán") + (me.ma_kenh ? " · " + me.ma_kenh : "");
     // Pham vi so lieu tren Dashboard theo vai tro
     const ds = $("dashScope");
     if (ds) ds.textContent = (me.role === "admin" || me.role === "subadmin")
@@ -3598,7 +3745,7 @@ function refreshAuthUI() {
       const p = b.dataset.panel;
       let show = true;
       if (p === "panel-units" || p === "panel-config") show = me.role === "admin";
-      if (p === "panel-users" || p === "panel-loginstats") show = me.role === "admin" || me.role === "subadmin";
+      if (p === "panel-users" || p === "panel-loginstats" || p === "panel-staff") show = me.role === "admin" || me.role === "subadmin";
       if (p === "panel-import") show = me.role === "admin" || me.can_import;
       if (p === "panel-care") show = me.role === "admin" || me.role === "leader";
       const key = PANEL_MODULES[p];
@@ -3623,6 +3770,7 @@ function openPanel(panelId) {
   if (panelId === "panel-packages") { $("pkgAdminBox").classList.toggle("hidden", !(me && me.role === "admin")); loadPackages(); }
   if (panelId === "panel-units") loadUnits();
   if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); }
+  if (panelId === "panel-staff") { loadStaff(); loadStaffUnits(); applyStaffFormPerms(); }
   if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); }
   if (panelId === "panel-reports") { loadDataTypes(); const crs = $("careRepSection"); if (crs) crs.classList.toggle("hidden", !(me && (me.role === "admin" || me.role === "subadmin" || me.role === "leader"))); }
   if (panelId === "panel-care") loadCareBatches();
@@ -3715,8 +3863,8 @@ async function loadDashboard() {
   const stt = dashStatusVal();
   $("dashMonthMoneyCap").textContent = stt === "fail" ? "Số tiền giao dịch không thành công trong tháng" : stt === "all" ? "Số tiền hoa hồng trong tháng (tất cả trạng thái)" : "Số tiền hoa hồng đã chi trả trong tháng";
   $("dashYearMoneyCap").textContent = stt === "fail" ? "Tổng số tiền giao dịch không thành công từ đầu năm" : stt === "all" ? "Tổng số tiền hoa hồng từ đầu năm (tất cả trạng thái)" : "Tổng số tiền hoa hồng đã chi trả từ đầu năm";
-  $("dashScope").textContent = me && me.role === "user"
-    ? "Số liệu của chính điểm bán của anh (theo số Eload / số Ví / mã HRM-SĐT đã khai báo), tổng hợp từ các loại dữ liệu đã import lên D1."
+  $("dashScope").textContent = me && (me.role === "user" || me.role === "staff")
+    ? "Số liệu gắn với tài khoản của bạn (theo số Eload / số Ví / mã HRM-SĐT đã khai báo), tổng hợp từ các loại dữ liệu đã import lên D1."
     : me && me.role === "leader"
     ? "Số liệu trong đơn vị của bạn và các đơn vị trực thuộc, tổng hợp từ các loại dữ liệu đã import lên D1."
     : "Tổng hợp toàn tỉnh: số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng hiện tại và lũy kế từ đầu năm, từ toàn bộ các loại dữ liệu đã import lên D1.";
@@ -3899,11 +4047,29 @@ async function loadUnitOptions() {
     fsel.value = fcur;
   } catch (e) { /* bo qua */ }
 }
+let leadersCache = null;
+async function ensureLeaders() {
+  if (!leadersCache) {
+    try {
+      const s = await api("/api/users?kind=staff");
+      leadersCache = (s.users || []).filter((u) => u.role === "leader");
+    } catch (e) { leadersCache = []; }
+  }
+  const lsel = $("uLeader");
+  if (lsel) {
+    const cur = lsel.value;
+    lsel.innerHTML = '<option value="">— Chưa gán lãnh đạo —</option>' +
+      leadersCache.map((u) => '<option value="' + u.id + '">' + esc(u.ho_ten) + " (" + esc(u.username) + ")</option>").join("");
+    lsel.value = cur;
+  }
+  return leadersCache;
+}
 async function loadUsers() {
   try {
-    const d = await api("/api/users");
+    const d = await api("/api/users?kind=channel");
     usersCache = d.users || [];
     renderUsers();
+    ensureLeaders(); // Dropdown Lanh dao phu trach lay tu module Quan ly nguoi dung; nap nen khong doi hien danh sach
     setMsg($("userMsg"), "");
   } catch (e) { setMsg($("userMsg"), e.message, false); }
 }
@@ -3916,7 +4082,6 @@ function userSortVal(u, k) {
     case "ma_kenh": return u.ma_kenh || "";
     case "ho_ten": return u.ho_ten || "";
     case "username": return u.username || "";
-    case "role": return u.role === "admin" ? "Admin" : u.role === "subadmin" ? "SubAdmin" : u.role === "leader" ? "Lãnh đạo đơn vị" : "Điểm bán";
     case "so_eload": return u.so_eload || "";
     case "so_vi": return u.so_vi || "";
     case "don_vi": return u.don_vi_ten || "";
@@ -3965,10 +4130,9 @@ function renderUsers() {
       return cmp * d;
     });
   }
-  if ($("userCount")) $("userCount").textContent = "Hiển thị " + list.length + " / " + usersCache.length + " người dùng";
+  if ($("userCount")) $("userCount").textContent = "Hiển thị " + list.length + " / " + usersCache.length + " điểm bán";
   $("usersBody").innerHTML = list.map((u) =>
       "<tr><td><input type='checkbox' data-user-sel='" + u.id + "'" + (userSel.has(u.id) ? " checked" : "") + " title='Đánh dấu để xóa' /></td><td>" + esc(u.ma_kenh) + "</td><td><b>" + esc(u.ho_ten) + "</b></td><td>" + esc(u.username) + "</td>" +
-      "<td><span class='pill " + (u.role === "admin" ? "admin" : u.role === "subadmin" || u.role === "leader" ? "sub" : "user") + "'>" + (u.role === "admin" ? "Admin" : u.role === "subadmin" ? "SubAdmin" : u.role === "leader" ? "Lãnh đạo đơn vị" : "Điểm bán") + "</span></td>" +
       "<td>" + esc(u.so_eload) + "</td><td>" + esc(u.so_vi) + "</td>" +
       "<td>" + esc(u.don_vi_ten) + "</td>" +
       "<td>" + ((u.lat == null || u.lng == null) ? "—" : Number(u.lat).toFixed(5) + ", " + Number(u.lng).toFixed(5)) + "</td>" +
@@ -3981,14 +4145,7 @@ function renderUsers() {
         ? "<button class='btn sm gray' disabled title='Không thể tự xóa tài khoản đang đăng nhập'>Xóa</button>"
         : "<button class='btn sm danger' data-del-user='" + u.id + "'>Xóa</button>") +
       "</td></tr>").join("") ||
-      "<tr><td colspan='16'>" + (usersCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
-  const lsel = $("uLeader");
-  if (lsel) {
-    const cur = lsel.value;
-    lsel.innerHTML = '<option value="">— Chưa gán lãnh đạo —</option>' +
-      usersCache.filter((u) => u.role === "leader").map((u) => '<option value="' + u.id + '">' + esc(u.ho_ten) + " (" + esc(u.username) + ")</option>").join("");
-    lsel.value = cur;
-  }
+      "<tr><td colspan='15'>" + (usersCache.length ? "Không có điểm bán nào thuộc đơn vị đã chọn." : "Chưa có điểm bán nào.") + "</td></tr>";
   $("usersBody").querySelectorAll("[data-edit-user]").forEach((b) => b.addEventListener("click", () => editUser(Number(b.dataset.editUser))));
   $("usersBody").querySelectorAll("[data-del-user]").forEach((b) => b.addEventListener("click", () => delUser(Number(b.dataset.delUser))));
   $("usersBody").querySelectorAll("[data-user-sel]").forEach((c) => c.addEventListener("change", () => {
@@ -4000,9 +4157,10 @@ function renderUsers() {
   refreshUserSortUI();
 }
 $("userUnitFilter").addEventListener("change", renderUsers);
-function editUser(id) {
+async function editUser(id) {
   const u = usersCache.find((x) => x.id === id);
   if (!u) return;
+  await ensureLeaders(); // dam bao dropdown lanh dao co du lieu truoc khi gan gia tri
   $("userId").value = u.id; $("uChannel").value = u.ma_kenh || ""; $("uName").value = u.ho_ten;
   $("uUsername").value = u.username; $("uUsername").disabled = true; $("uPassword").value = "";
   $("uEload").value = u.so_eload || ""; $("uWallet").value = u.so_vi || "";
@@ -4011,15 +4169,15 @@ function editUser(id) {
   $("uLoaiKenh").value = u.loai_kenh || "";
   $("uManager").value = u.ten_nhan_vien || ""; $("uManagerPhone").value = u.sdt_nhan_vien || ""; $("uHrm").value = u.ma_hrm || "";
   $("uLat").value = u.lat == null ? "" : u.lat; $("uLng").value = u.lng == null ? "" : u.lng;
-  $("uRole").value = u.role; $("uCanImport").checked = !!u.can_import;
-  // Quyen module: da thiet lap rieng thi hien dung danh sach do; chua thiet lap (null) thi hien du (theo vai tro)
-  setModulesBoxes(u.modules || MODULE_DEFS.map((m) => m[0]));
+  // Quyen module: da thiet lap rieng thi hien dung danh sach do; chua thiet lap (null) thi hien du
+  setModulesBoxes("uModule", u.modules || MODULE_DEFS.map((m) => m[0]));
   applyUserFormPerms();
   $("userSubmit").textContent = "Lưu thay đổi"; $("userCancel").classList.remove("hidden");
 }
 $("userCancel").addEventListener("click", () => {
   $("userForm").reset(); $("userId").value = ""; $("uUsername").disabled = false;
-  $("userSubmit").textContent = "Tạo người dùng"; $("userCancel").classList.add("hidden");
+  $("userSubmit").textContent = "Tạo điểm bán"; $("userCancel").classList.add("hidden");
+  setModulesBoxes("uModule", DEFAULT_MODULES);
   applyUserFormPerms();
 });
 $("userForm").addEventListener("submit", async (e) => {
@@ -4031,6 +4189,7 @@ $("userForm").addEventListener("submit", async (e) => {
   if (latNum !== null && (!isFinite(latNum) || latNum < -90 || latNum > 90)) { setMsg($("userMsg"), "Vĩ độ không hợp lệ (từ -90 đến 90).", false); return; }
   if (lngNum !== null && (!isFinite(lngNum) || lngNum < -180 || lngNum > 180)) { setMsg($("userMsg"), "Kinh độ không hợp lệ (từ -180 đến 180).", false); return; }
   const body = {
+    kind: "channel",
     ma_kenh: $("uChannel").value.trim(), ho_ten: $("uName").value.trim(), username: $("uUsername").value.trim(),
     password: $("uPassword").value, so_eload: $("uEload").value.trim(), so_vi: $("uWallet").value.trim(),
     don_vi_id: $("uUnit").value ? Number($("uUnit").value) : null,
@@ -4038,13 +4197,13 @@ $("userForm").addEventListener("submit", async (e) => {
     loai_kenh: $("uLoaiKenh").value || "",
     ten_nhan_vien: $("uManager").value.trim(), sdt_nhan_vien: $("uManagerPhone").value.trim(), ma_hrm: $("uHrm").value.trim(),
     lat: latNum, lng: lngNum,
-    role: $("uRole").value, can_import: $("uCanImport").checked, active: true,
-    ...(me && me.role === "admin" ? { modules: getModulesFromForm() } : {}),
+    active: true,
+    ...(me && me.role === "admin" ? { modules: getModulesFromForm("uModule") } : {}),
   };
   try {
     if (id) await api("/api/users/" + id, { method: "PUT", body: JSON.stringify(body) });
     else await api("/api/users", { method: "POST", body: JSON.stringify(body) });
-    setMsg($("userMsg"), id ? "Đã cập nhật người dùng." : "Đã tạo người dùng mới. Mật khẩu: " + (body.password || "Vnpt@2026"));
+    setMsg($("userMsg"), id ? "Đã cập nhật điểm bán." : "Đã tạo điểm bán mới. Mật khẩu: " + (body.password || "Vnpt@2026"));
     $("userCancel").click();
     loadUsers();
   } catch (err) { setMsg($("userMsg"), err.message, false); }
@@ -4100,8 +4259,6 @@ const USER_HEADER_MAP = {
   "mã hrm nhân viên quản lý": "ma_hrm", "mã hrm": "ma_hrm", "hrm": "ma_hrm",
   "lãnh đạo phụ trách": "leader_username", "lãnh đạo đơn vị phụ trách": "leader_username", "user lãnh đạo phụ trách": "leader_username",
   "loại kênh bán": "loai_kenh", "loai kenh ban": "loai_kenh", "kênh bán": "loai_kenh",
-  "quyền import dữ liệu": "can_import", "được quyền import dữ liệu": "can_import", "quyền import": "can_import",
-  "loại tài khoản": "role", "vai trò": "role",
   "vĩ độ (lat)": "lat", "vĩ độ": "lat", "lat": "lat",
   "kinh độ (lng)": "lng", "kinh độ": "lng", "lng": "lng",
 };
@@ -4110,44 +4267,42 @@ function parseYesNo(v) {
 }
 $("uTemplateBtn").addEventListener("click", () => {
   try {
-    const headers = ["Mã kênh bán hàng", "Họ và tên người dùng/điểm bán", "User đăng nhập", "Mật khẩu", "Số tài khoản Eload", "Số Ví VNPT Money", "Đơn vị", "Tên nhân viên quản lý", "Số điện thoại nhân viên quản lý", "Mã HRM nhân viên quản lý", "Quyền import dữ liệu", "Loại tài khoản", "Vĩ độ (Lat)", "Kinh độ (Lng)", "Lãnh đạo phụ trách", "Loại kênh bán"];
-    const sample = ["KBH-VDCT-001", "Điểm bán Minh Anh (ví dụ)", "minhanh.db", "", "0901234567", "0901234567", "VDCT", "Nguyễn Văn A", "0912345678", "", 0, "user", 21.0278, 107.2921, "", "ĐUQ"];
+    const headers = ["Mã kênh bán hàng", "Họ và tên điểm bán", "User đăng nhập", "Mật khẩu", "Số tài khoản Eload", "Số Ví VNPT Money", "Đơn vị", "Tên nhân viên quản lý", "Số điện thoại nhân viên quản lý", "Mã HRM nhân viên quản lý", "Vĩ độ (Lat)", "Kinh độ (Lng)", "Lãnh đạo phụ trách", "Loại kênh bán"];
+    const sample = ["KBH-VDCT-001", "Điểm bán Minh Anh (ví dụ)", "minhanh.db", "", "0901234567", "0901234567", "VDCT", "Nguyễn Văn A", "0912345678", "", 21.0278, 107.2921, "", "ĐUQ"];
     const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
     ws["!cols"] = headers.map(() => ({ wch: 26 }));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "NguoiDung");
+    XLSX.utils.book_append_sheet(wb, ws, "DiemBan");
     const guide = [
-      ["HƯỚNG DẪN NHẬP LIỆU — FILE MẪU IMPORT NGƯỜI DÙNG"],
+      ["HƯỚNG DẪN NHẬP LIỆU — FILE MẪU IMPORT ĐIỂM BÁN"],
       ["1. Nhập dữ liệu từ hàng 2 trở đi, KHÔNG thay đổi hàng tiêu đề (hàng 1). Xóa hàng ví dụ trước khi import."],
       ["2. User đăng nhập: bắt buộc, không được trùng với tài khoản đã có trên hệ thống (dòng trùng sẽ bị bỏ qua và báo lại)."],
-      ["3. Họ và tên người dùng/điểm bán: bắt buộc."],
+      ["3. Họ và tên điểm bán: bắt buộc."],
       ["4. Mật khẩu: để trống thì hệ thống dùng mật khẩu mặc định Vnpt@2026."],
-      ["5. Quyền import dữ liệu: nhập 1 nếu cho phép dùng module Quản lý dữ liệu đầu vào, nhập 0 nếu không."],
-      ["6. Loại tài khoản: nhập user (điểm bán), leader (lãnh đạo đơn vị), subadmin hoặc admin."],
-      ["7. Số tài khoản Eload và Số Ví VNPT Money: dùng để điểm bán xem báo cáo chi trả của chính mình."],
-      ["8. Tên nhân viên quản lý và Số điện thoại nhân viên quản lý: có thể để trống."],
-      ["9. Đơn vị: nhập Mã đơn vị (hoặc đúng Tên đơn vị) đã tạo trong module Quản lý đơn vị, ví dụ VDCT. Để trống nếu chưa thuộc đơn vị nào; nếu mã/tên không tồn tại, hệ thống sẽ để trống và báo lại."],
-      ["10. Vĩ độ (Lat) và Kinh độ (Lng): tọa độ điểm bán (hệ WGS84, số thập phân). Để trống nếu chưa khai báo; nhập sai khoảng (Lat -90..90, Lng -180..180) thì hệ thống để trống và báo lại. Tọa độ dùng cho module Chăm sóc điểm bán."],
-      ["11. Mã HRM nhân viên quản lý: mã HRM của nhân viên VNPT đang quản lý điểm bán, có thể để trống."],
-      ["12. Lãnh đạo phụ trách: nhập User đăng nhập của tài khoản Lãnh đạo đơn vị được gán chăm sóc điểm bán này (chỉ áp dụng cho điểm bán). Để trống nếu chưa gán; nếu user không tồn tại hoặc không phải lãnh đạo, hệ thống sẽ để trống và báo lại. Lãnh đạo chỉ thấy các điểm bán được gán cho mình trong module Chăm sóc."],
-      ["13. Loại kênh bán: nhập 1 trong 4 mã — ĐUQ (Điểm ủy quyền), ĐBL (Điểm bán lẻ), GARA (Gara ô tô), ĐDV (Điểm ủy quyền bán đa dịch vụ); nhập tên đầy đủ cũng được hệ thống tự nhận. Để trống nếu chưa phân loại."],
+      ["5. Số tài khoản Eload và Số Ví VNPT Money: dùng để điểm bán xem báo cáo chi trả của chính mình."],
+      ["6. Tên nhân viên quản lý và Số điện thoại nhân viên quản lý: có thể để trống."],
+      ["7. Đơn vị: nhập Mã đơn vị (hoặc đúng Tên đơn vị) đã tạo trong module Quản lý đơn vị, ví dụ VDCT. Để trống nếu chưa thuộc đơn vị nào; nếu mã/tên không tồn tại, hệ thống sẽ để trống và báo lại."],
+      ["8. Vĩ độ (Lat) và Kinh độ (Lng): tọa độ điểm bán (hệ WGS84, số thập phân). Để trống nếu chưa khai báo; nhập sai khoảng (Lat -90..90, Lng -180..180) thì hệ thống để trống và báo lại. Tọa độ dùng cho module Chăm sóc điểm bán."],
+      ["9. Mã HRM nhân viên quản lý: mã HRM của nhân viên VNPT đang quản lý điểm bán, có thể để trống."],
+      ["10. Lãnh đạo phụ trách: nhập User đăng nhập của tài khoản Lãnh đạo đơn vị được gán chăm sóc điểm bán này (chỉ áp dụng cho điểm bán). Để trống nếu chưa gán; nếu user không tồn tại hoặc không phải lãnh đạo, hệ thống sẽ để trống và báo lại. Lãnh đạo chỉ thấy các điểm bán được gán cho mình trong module Chăm sóc."],
+      ["11. Loại kênh bán: nhập 1 trong 4 mã — ĐUQ (Điểm ủy quyền), ĐBL (Điểm bán lẻ), GARA (Gara ô tô), ĐDV (Điểm ủy quyền bán đa dịch vụ); nhập tên đầy đủ cũng được hệ thống tự nhận. Để trống nếu chưa phân loại."],
     ];
     const ws2 = XLSX.utils.aoa_to_sheet(guide);
     ws2["!cols"] = [{ wch: 120 }];
     XLSX.utils.book_append_sheet(wb, ws2, "HuongDan");
-    XLSX.writeFile(wb, "Mau_import_nguoi_dung.xlsx");
-    setMsg($("uImpMsg"), "Đã tải file mẫu Mau_import_nguoi_dung.xlsx — hãy điền thông tin vào sheet NguoiDung rồi import lên.");
+    XLSX.writeFile(wb, "Mau_import_diem_ban.xlsx");
+    setMsg($("uImpMsg"), "Đã tải file mẫu Mau_import_diem_ban.xlsx — hãy điền thông tin vào sheet DiemBan rồi import lên.");
   } catch (e) { setMsg($("uImpMsg"), "Không tạo được file mẫu: " + e.message, false); }
 });
 $("uImpBtn").addEventListener("click", async () => {
   const file = $("uImpFile").files[0];
-  if (!file) { setMsg($("uImpMsg"), "Hãy chọn file Excel danh sách người dùng trước.", false); return; }
+  if (!file) { setMsg($("uImpMsg"), "Hãy chọn file Excel danh sách điểm bán trước.", false); return; }
   try {
     $("uImpBtn").disabled = true;
     setMsg($("uImpMsg"), "Đang đọc file…");
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: "array", cellDates: true });
-    const ws = wb.Sheets["NguoiDung"] || wb.Sheets[wb.SheetNames[0]];
+    const ws = wb.Sheets["DiemBan"] || wb.Sheets["NguoiDung"] || wb.Sheets[wb.SheetNames[0]];
     const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
     const rows = raw.map((r) => {
       const o = {};
@@ -4155,13 +4310,11 @@ $("uImpBtn").addEventListener("click", async () => {
         const f = USER_HEADER_MAP[normHeader(k)];
         if (f) o[f] = r[k];
       });
-      if ("can_import" in o) o.can_import = parseYesNo(o.can_import);
-      if ("role" in o) { const rv = String(o.role || "").toLowerCase(); o.role = rv.includes("sub") ? "subadmin" : rv.includes("admin") ? "admin" : (rv.includes("leader") || rv.includes("lãnh đạo")) ? "leader" : "user"; }
       return o;
     }).filter((o) => o.username || o.ho_ten);
-    if (!rows.length) throw new Error("Không đọc được dòng người dùng nào. Hãy kiểm tra lại hàng tiêu đề của file (dùng đúng file mẫu).");
-    setMsg($("uImpMsg"), "Đang import " + rows.length + " người dùng…");
-    const d = await api("/api/users/import", { method: "POST", body: JSON.stringify({ rows, mode: $("uImpMode").value }) });
+    if (!rows.length) throw new Error("Không đọc được dòng điểm bán nào. Hãy kiểm tra lại hàng tiêu đề của file (dùng đúng file mẫu).");
+    setMsg($("uImpMsg"), "Đang import " + rows.length + " điểm bán…");
+    const d = await api("/api/users/import", { method: "POST", body: JSON.stringify({ rows, mode: $("uImpMode").value, kind: "channel" }) });
     let msg = "Import xong: tạo mới " + (d.created || 0) + ", cập nhật " + (d.updated || 0) + ", bỏ qua " + (d.skipped || 0) + " dòng.";
     if (d.errors && d.errors.length) msg += " Chi tiết bỏ qua: " + d.errors.slice(0, 8).map((x) => "Hàng " + x.row + ": " + x.reason).join("; ") + (d.errors.length > 8 ? "…" : "");
     if (d.warnings && d.warnings.length) msg += " Lưu ý: " + d.warnings.slice(0, 8).map((x) => "Hàng " + x.row + ": " + x.reason).join("; ") + (d.warnings.length > 8 ? "…" : "");
@@ -4169,6 +4322,300 @@ $("uImpBtn").addEventListener("click", async () => {
     loadUsers();
   } catch (err) { setMsg($("uImpMsg"), err.message, false); }
   finally { $("uImpBtn").disabled = false; }
+});
+
+
+/* ================= QUAN LY NGUOI DUNG (nhan su noi bo) ================= */
+renderModuleCheckboxes("sModulesList", "sModule", DEFAULT_MODULES);
+let staffCache = [];
+let staffSel = new Set();
+let staffSort = { key: null, dir: 1 };
+const STAFF_ROLE_LABEL = { admin: "Quản trị viên", subadmin: "SubAdmin", leader: "Lãnh đạo đơn vị", staff: "Nhân viên", user: "Điểm bán" };
+const STAFF_CD_FALLBACK = { admin: "Quản trị viên", subadmin: "Chuyên viên", leader: "Lãnh đạo đơn vị", staff: "Nhân viên kinh doanh" };
+function staffChucDanh(u) {
+  return u.chuc_danh || STAFF_ROLE_LABEL[u.role] || u.role;
+}
+function applyStaffFormPerms() {
+  if (!me) return;
+  const isAdmin = me.role === "admin";
+  $("sModulesBox").classList.toggle("hidden", !isAdmin);
+  $("sSubAdmin").disabled = !isAdmin;
+  $("sCanImport").disabled = !isAdmin;
+  const cd = $("sChucDanh");
+  [...cd.options].forEach((o) => { o.disabled = (o.value === "Quản trị viên" && !isAdmin); });
+  if (!isAdmin && cd.value === "Quản trị viên") { cd.value = "Chuyên viên"; setModulesBoxes("sModule", DEFAULT_MODULES); }
+}
+async function loadStaffUnits() {
+  try {
+    const d = await api("/api/units");
+    const sel = $("sUnit");
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Chưa thuộc đơn vị —</option>' +
+      (d.units || []).map((u) => '<option value="' + u.id + '">' + esc(u.ten_don_vi) + " (" + esc(u.ma_don_vi) + ")</option>").join("");
+    sel.value = cur;
+    const fsel = $("staffUnitFilter");
+    const fcur = fsel.value;
+    fsel.innerHTML = '<option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option>' +
+      (d.units || []).map((u) => '<option value="' + u.id + '">' + esc(u.ten_don_vi) + " (" + esc(u.ma_don_vi) + ")</option>").join("");
+    fsel.value = fcur;
+  } catch (e) { /* bo qua */ }
+}
+async function loadStaff() {
+  try {
+    const d = await api("/api/users?kind=staff");
+    staffCache = d.users || [];
+    renderStaff();
+    setMsg($("staffMsg"), "");
+  } catch (e) { setMsg($("staffMsg"), e.message, false); }
+}
+function staffSortVal(u, k) {
+  switch (k) {
+    case "ma_nhan_vien": return u.ma_nhan_vien || "";
+    case "ho_ten": return u.ho_ten || "";
+    case "username": return u.username || "";
+    case "chuc_danh": return staffChucDanh(u);
+    case "don_vi": return u.don_vi_ten || "";
+    case "subadmin": return u.role === "subadmin" ? "Có" : "";
+    case "can_import": return u.can_import ? "Có" : "";
+    default: return "";
+  }
+}
+function refreshStaffSortUI() {
+  const ths = document.querySelector("#staffBody").closest("table").querySelectorAll("th[data-sort]");
+  ths.forEach((th) => {
+    const active = th.dataset.sort === staffSort.key;
+    let ind = th.querySelector(".sort-ind");
+    if (active) {
+      if (!ind) { ind = document.createElement("span"); ind.className = "sort-ind"; th.appendChild(ind); }
+      ind.textContent = staffSort.dir === 1 ? "▲" : "▼";
+    } else if (ind) ind.remove();
+  });
+}
+function refreshStaffSelUI() {
+  const boxes = [...document.querySelectorAll("[data-staff-sel]")];
+  const checked = boxes.filter((c) => c.checked).length;
+  const all = $("staffSelAll");
+  if (all) { all.checked = boxes.length > 0 && checked === boxes.length; all.indeterminate = checked > 0 && checked < boxes.length; }
+  const del = $("staffDelSel");
+  if (del) del.textContent = staffSel.size ? "Xóa (" + staffSel.size + ")" : "Xóa";
+}
+function staffModulesLabel(u) {
+  if (!u.modules) return u.role === "admin" ? "Tất cả" : "Theo vai trò";
+  return u.modules.map((k) => { const f = MODULE_DEFS.find((m) => m[0] === k); return f ? f[1] : k; }).join(", ");
+}
+function renderStaff() {
+  const fEl = $("staffUnitFilter");
+  const f = fEl ? fEl.value : "";
+  const list = staffCache.filter((u) => (f === "" ? true : f === "none" ? !u.don_vi_id : String(u.don_vi_id) === String(f)));
+  if (staffSort.key) {
+    const k = staffSort.key, d = staffSort.dir;
+    list.sort((a, b) => {
+      const va = staffSortVal(a, k), vb = staffSortVal(b, k);
+      const aE = va === "" || va == null, bE = vb === "" || vb == null;
+      if (aE && bE) return 0;
+      if (aE) return 1;
+      if (bE) return -1;
+      const cmp = (typeof va === "number" && typeof vb === "number") ? va - vb : String(va).localeCompare(String(vb), "vi", { numeric: true });
+      return cmp * d;
+    });
+  }
+  if ($("staffCount")) $("staffCount").textContent = "Hiển thị " + list.length + " / " + staffCache.length + " người dùng";
+  $("staffBody").innerHTML = list.map((u) =>
+      "<tr><td><input type='checkbox' data-staff-sel='" + u.id + "'" + (staffSel.has(u.id) ? " checked" : "") + " title='Đánh dấu để xóa' /></td>" +
+      "<td>" + esc(u.ma_nhan_vien) + "</td><td><b>" + esc(u.ho_ten) + "</b></td><td>" + esc(u.username) + "</td>" +
+      "<td><span class='pill " + (u.role === "admin" ? "admin" : u.role === "subadmin" || u.role === "leader" ? "sub" : "user") + "'>" + esc(staffChucDanh(u)) + "</span></td>" +
+      "<td>" + esc(u.don_vi_ten) + "</td>" +
+      "<td>" + (u.role === "subadmin" ? "<span class='pill sub'>Có</span>" : "—") + "</td>" +
+      "<td>" + (u.can_import ? "<span class='pill ok'>Có</span>" : "—") + "</td>" +
+      "<td><small>" + esc(staffModulesLabel(u)) + "</small></td>" +
+      "<td style='white-space:nowrap'><button class='btn sm gray' data-edit-staff='" + u.id + "'>Sửa</button> " +
+      "<button class='btn sm gray' data-reset-staff='" + u.id + "' title='Đặt lại mật khẩu về Vnpt@2026'>Reset Pass</button> " +
+      (me && u.id === me.id
+        ? "<button class='btn sm gray' disabled title='Không thể tự xóa tài khoản đang đăng nhập'>Xóa</button>"
+        : "<button class='btn sm danger' data-del-staff='" + u.id + "'>Xóa</button>") +
+      "</td></tr>").join("") ||
+      "<tr><td colspan='10'>" + (staffCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
+  $("staffBody").querySelectorAll("[data-edit-staff]").forEach((b) => b.addEventListener("click", () => editStaff(Number(b.dataset.editStaff))));
+  $("staffBody").querySelectorAll("[data-reset-staff]").forEach((b) => b.addEventListener("click", () => resetStaffPass(Number(b.dataset.resetStaff))));
+  $("staffBody").querySelectorAll("[data-del-staff]").forEach((b) => b.addEventListener("click", () => delStaff(Number(b.dataset.delStaff))));
+  $("staffBody").querySelectorAll("[data-staff-sel]").forEach((c) => c.addEventListener("change", () => {
+    const id = Number(c.dataset.staffSel);
+    if (c.checked) staffSel.add(id); else staffSel.delete(id);
+    refreshStaffSelUI();
+  }));
+  refreshStaffSelUI();
+  refreshStaffSortUI();
+}
+$("staffUnitFilter").addEventListener("change", renderStaff);
+function editStaff(id) {
+  const u = staffCache.find((x) => x.id === id);
+  if (!u) return;
+  $("staffId").value = u.id;
+  $("sMaNv").value = u.ma_nhan_vien || ""; $("sName").value = u.ho_ten;
+  $("sUsername").value = u.username; $("sUsername").disabled = true; $("sPassword").value = "";
+  $("sUnit").value = u.don_vi_id || "";
+  $("sChucDanh").value = u.chuc_danh || STAFF_CD_FALLBACK[u.role] || "Nhân viên kinh doanh";
+  $("sSubAdmin").checked = u.role === "subadmin";
+  $("sCanImport").checked = !!u.can_import;
+  setModulesBoxes("sModule", u.modules || MODULE_DEFS.map((m) => m[0]));
+  applyStaffFormPerms();
+  $("staffSubmit").textContent = "Lưu thay đổi";
+  $("staffResetPass").classList.remove("hidden"); $("staffCancel").classList.remove("hidden");
+}
+async function resetStaffPass(id) {
+  const u = staffCache.find((x) => x.id === id);
+  if (!u) return;
+  if (!confirm("Đặt lại mật khẩu của \"" + u.ho_ten + " (" + u.username + ")\" về mặc định Vnpt@2026?")) return;
+  try {
+    await api("/api/users/" + id + "/reset-password", { method: "POST" });
+    setMsg($("staffMsg"), "Đã reset mật khẩu về Vnpt@2026.", true);
+  } catch (e) { setMsg($("staffMsg"), e.message, false); }
+}
+$("staffResetPass").addEventListener("click", () => {
+  const id = $("staffId").value;
+  if (id) resetStaffPass(Number(id));
+});
+$("staffCancel").addEventListener("click", () => {
+  $("staffForm").reset(); $("staffId").value = ""; $("sUsername").disabled = false;
+  $("staffSubmit").textContent = "Tạo người dùng";
+  $("staffResetPass").classList.add("hidden"); $("staffCancel").classList.add("hidden");
+  setModulesBoxes("sModule", DEFAULT_MODULES);
+  applyStaffFormPerms();
+});
+$("sChucDanh").addEventListener("change", () => {
+  const v = $("sChucDanh").value;
+  if (v === "Quản trị viên") setModulesBoxes("sModule", MODULE_DEFS.map((m) => m[0]));
+  else if (v === "Lãnh đạo đơn vị") setModulesBoxes("sModule", LEADER_MODULES);
+  else setModulesBoxes("sModule", DEFAULT_MODULES);
+});
+$("staffForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = $("staffId").value;
+  const body = {
+    kind: "staff",
+    ma_nhan_vien: $("sMaNv").value.trim(), ho_ten: $("sName").value.trim(), username: $("sUsername").value.trim(),
+    password: $("sPassword").value,
+    don_vi_id: $("sUnit").value ? Number($("sUnit").value) : null,
+    chuc_danh: $("sChucDanh").value,
+    subadmin: $("sSubAdmin").checked, can_import: $("sCanImport").checked,
+    active: true,
+    ...(me && me.role === "admin" ? { modules: getModulesFromForm("sModule") } : {}),
+  };
+  try {
+    if (id) await api("/api/users/" + id, { method: "PUT", body: JSON.stringify(body) });
+    else await api("/api/users", { method: "POST", body: JSON.stringify(body) });
+    setMsg($("staffMsg"), id ? "Đã cập nhật người dùng." : "Đã tạo người dùng mới. Mật khẩu: " + (body.password || "Vnpt@2026"));
+    $("staffCancel").click();
+    loadStaff();
+  } catch (err) { setMsg($("staffMsg"), err.message, false); }
+});
+async function delStaff(id) {
+  if (!confirm("Xóa người dùng này?")) return;
+  try { await api("/api/users/" + id, { method: "DELETE" }); loadStaff(); }
+  catch (e) { setMsg($("staffMsg"), e.message, false); }
+}
+/* Bam tieu de cot trong bang nhan su de sap xep tang/giam dan */
+document.querySelector("#staffBody").closest("table").querySelectorAll("th[data-sort]").forEach((th) => {
+  th.addEventListener("click", () => {
+    const k = th.dataset.sort;
+    if (staffSort.key === k) staffSort.dir = -staffSort.dir;
+    else { staffSort.key = k; staffSort.dir = 1; }
+    renderStaff();
+  });
+});
+$("staffSelAll").addEventListener("change", () => {
+  const on = $("staffSelAll").checked;
+  document.querySelectorAll("[data-staff-sel]").forEach((c) => {
+    c.checked = on;
+    const id = Number(c.dataset.staffSel);
+    if (on) staffSel.add(id); else staffSel.delete(id);
+  });
+  refreshStaffSelUI();
+});
+$("staffDelSel").addEventListener("click", async () => {
+  if (!staffSel.size) { setMsg($("staffMsg"), "Chưa đánh dấu người dùng nào để xóa.", false); return; }
+  const n = staffSel.size;
+  if (!confirm("Xóa " + n + " người dùng đã đánh dấu? Hành động này không thể hoàn tác.")) return;
+  try {
+    const d = await api("/api/users/bulk-delete", { method: "POST", body: JSON.stringify({ ids: [...staffSel] }) });
+    let msg = "Đã xóa " + (d.deleted || 0) + " người dùng.";
+    if (d.skipped && d.skipped.length) msg += " Bỏ qua " + d.skipped.length + ": " + d.skipped.slice(0, 5).map((s) => s.reason).join("; ") + (d.skipped.length > 5 ? "…" : "");
+    setMsg($("staffMsg"), msg, true);
+    staffSel.clear();
+    loadStaff();
+  } catch (e) { setMsg($("staffMsg"), e.message, false); }
+});
+
+/* ---------------- Import nhan su tu Excel + file mau ---------------- */
+const STAFF_HEADER_MAP = {
+  "mã nhân viên": "ma_nhan_vien", "mã nv": "ma_nhan_vien",
+  "họ và tên": "ho_ten", "họ tên": "ho_ten",
+  "user đăng nhập": "username", "tên đăng nhập": "username", "username": "username", "user": "username",
+  "mật khẩu": "password", "password": "password",
+  "đơn vị": "don_vi", "mã đơn vị": "don_vi", "tên đơn vị": "don_vi",
+  "chức danh": "chuc_danh",
+  "subadmin": "subadmin", "cấp quyền subadmin": "subadmin", "quyền subadmin": "subadmin",
+  "quyền import dữ liệu": "can_import", "được quyền import dữ liệu": "can_import", "quyền import": "can_import", "import": "can_import",
+  "module": "modules", "modules": "modules", "quyền sử dụng module": "modules",
+};
+$("sTemplateBtn").addEventListener("click", () => {
+  try {
+    const headers = ["Mã nhân viên", "Họ và tên", "User đăng nhập", "Mật khẩu", "Đơn vị", "Chức danh", "SubAdmin (Có/Không)", "Import (Có/Không)", "Modules"];
+    const sample = ["NV-001", "Nguyễn Văn A (ví dụ)", "nguyenvana", "", "VDCT", "Chuyên viên", "Không", "Không", "dashboard, reports, packages, settings"];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+    ws["!cols"] = headers.map(() => ({ wch: 26 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "NhanSu");
+    const guide = [
+      ["HƯỚNG DẪN NHẬP LIỆU — FILE MẪU IMPORT NGƯỜI DÙNG"],
+      ["1. Nhập dữ liệu từ hàng 2 trở đi, KHÔNG thay đổi hàng tiêu đề (hàng 1). Xóa hàng ví dụ trước khi import."],
+      ["2. User đăng nhập: bắt buộc, không được trùng với tài khoản đã có trên hệ thống (dòng trùng sẽ bị bỏ qua và báo lại)."],
+      ["3. Họ và tên: bắt buộc."],
+      ["4. Mật khẩu: để trống thì hệ thống dùng mật khẩu mặc định Vnpt@2026."],
+      ["5. Đơn vị: nhập Mã đơn vị (hoặc đúng Tên đơn vị) đã tạo trong module Quản lý đơn vị. Để trống nếu chưa thuộc đơn vị nào."],
+      ["6. Chức danh: nhập 1 trong 4 giá trị — Lãnh đạo đơn vị, Chuyên viên, Nhân viên kinh doanh, Quản trị viên. Để trống thì mặc định là Nhân viên kinh doanh."],
+      ["7. SubAdmin: nhập Có nếu cấp quyền SubAdmin (xem toàn tỉnh + quản lý người dùng/kênh bán), nhập Không nếu không. Chỉ admin mới cấp được quyền này; SubAdmin import thì quyền này không có hiệu lực."],
+      ["8. Import: nhập Có nếu cho phép dùng module Quản lý dữ liệu đầu vào, nhập Không nếu không. Chỉ admin mới cấp được quyền này."],
+      ["9. Modules: liệt kê các mã module được dùng, cách nhau bằng dấu phẩy (ví dụ: dashboard, reports, packages, settings). Để trống thì dùng mặc định theo chức danh. Các mã hợp lệ: dashboard, units, users, staff, import, config, reports, packages, loginstats, care, channelmap, settings."],
+      ["10. Import không thay đổi loại tài khoản, quyền import và quyền module của user đã có — đổi các quyền này trong form Sửa của module."],
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(guide);
+    ws2["!cols"] = [{ wch: 120 }];
+    XLSX.utils.book_append_sheet(wb, ws2, "HuongDan");
+    XLSX.writeFile(wb, "Mau_import_nhan_su.xlsx");
+    setMsg($("sImpMsg"), "Đã tải file mẫu Mau_import_nhan_su.xlsx — hãy điền thông tin vào sheet NhanSu rồi import lên.");
+  } catch (e) { setMsg($("sImpMsg"), "Không tạo được file mẫu: " + e.message, false); }
+});
+$("sImpBtn").addEventListener("click", async () => {
+  const file = $("sImpFile").files[0];
+  if (!file) { setMsg($("sImpMsg"), "Hãy chọn file Excel danh sách người dùng trước.", false); return; }
+  try {
+    $("sImpBtn").disabled = true;
+    setMsg($("sImpMsg"), "Đang đọc file…");
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array", cellDates: true });
+    const ws = wb.Sheets["NhanSu"] || wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
+    const rows = raw.map((r) => {
+      const o = {};
+      Object.keys(r).forEach((k) => {
+        const f = STAFF_HEADER_MAP[normHeader(k)];
+        if (f) o[f] = r[k];
+      });
+      if ("subadmin" in o) o.subadmin = parseYesNo(o.subadmin);
+      if ("can_import" in o) o.can_import = parseYesNo(o.can_import);
+      return o;
+    }).filter((o) => o.username || o.ho_ten);
+    if (!rows.length) throw new Error("Không đọc được dòng người dùng nào. Hãy kiểm tra lại hàng tiêu đề của file (dùng đúng file mẫu).");
+    setMsg($("sImpMsg"), "Đang import " + rows.length + " người dùng…");
+    const d = await api("/api/users/import", { method: "POST", body: JSON.stringify({ rows, mode: $("sImpMode").value, kind: "staff" }) });
+    let msg = "Import xong: tạo mới " + (d.created || 0) + ", cập nhật " + (d.updated || 0) + ", bỏ qua " + (d.skipped || 0) + " dòng.";
+    if (d.errors && d.errors.length) msg += " Chi tiết bỏ qua: " + d.errors.slice(0, 8).map((x) => "Hàng " + x.row + ": " + x.reason).join("; ") + (d.errors.length > 8 ? "…" : "");
+    if (d.warnings && d.warnings.length) msg += " Lưu ý: " + d.warnings.slice(0, 8).map((x) => "Hàng " + x.row + ": " + x.reason).join("; ") + (d.warnings.length > 8 ? "…" : "");
+    setMsg($("sImpMsg"), msg, true);
+    loadStaff();
+  } catch (err) { setMsg($("sImpMsg"), err.message, false); }
+  finally { $("sImpBtn").disabled = false; }
 });
 
 /* ---------------- Import du lieu Excel & loai du lieu ---------------- */
