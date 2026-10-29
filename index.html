@@ -4796,16 +4796,24 @@ $("repUnitBtn").addEventListener("click", async () => {
   if (!p) { setMsg($("repMsg"), "Hãy chọn khoảng ngày hoặc tháng cần xem báo cáo.", false); return; }
   try {
     setMsg($("repMsg"), "Đang tải báo cáo theo đơn vị…");
-    const d = await api("/api/reports/by-unit?from=" + p.from + "&to=" + p.to + "&trang_thai=" + (p.trang_thai || "success"));
+    const [d, du] = await Promise.all([
+      api("/api/reports/by-unit?from=" + p.from + "&to=" + p.to + "&trang_thai=" + (p.trang_thai || "success")),
+      api("/api/units").catch(() => ({ units: [] })),
+    ]);
     $("repHead").innerHTML = "<tr><th>Đơn vị</th><th>Số giao dịch</th><th>Tổng tiền chi trả</th></tr>";
     const rows = d.units || [];
-    const totTx = rows.reduce((a, r) => a + (Number(r.so_giao_dich) || 0), 0);
-    const totMoney = rows.reduce((a, r) => a + (Number(r.tong_tien) || 0), 0);
+    // Chan trang chi cong cac don vi la (khong co don vi con trong cay): moi
+    // dong da la tong cua ca cay don vi do nen cong ca don vi cha
+    // (VD: VNPT Quang Ninh) se nhan doi so lieu.
+    const parentIds = new Set((du.units || []).map((u) => u.parent_id).filter(Boolean));
+    const leafRows = rows.filter((r) => !parentIds.has(r.don_vi_id));
+    const totTx = leafRows.reduce((a, r) => a + (Number(r.so_giao_dich) || 0), 0);
+    const totMoney = leafRows.reduce((a, r) => a + (Number(r.tong_tien) || 0), 0);
     $("repBody").innerHTML = (rows.map((r) =>
       "<tr><td><b>" + esc(r.ten_don_vi) + "</b>" + (r.ma_don_vi ? " <span class='desc'>(" + esc(r.ma_don_vi) + ")</span>" : "") + "</td><td>" + (r.so_giao_dich || 0).toLocaleString("vi-VN") + "</td><td>" + fmt(r.tong_tien) + "</td></tr>").join("") +
       (rows.length ? "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + totTx.toLocaleString("vi-VN") + "</b></td><td><b>" + fmt(totMoney) + "</b></td></tr>" : "")) ||
       "<tr><td colspan='3'>Không có dữ liệu trong khoảng đã chọn.</td></tr>";
-    setMsg($("repMsg"), "Tổng hợp theo đơn vị: mỗi dòng là số liệu của các điểm bán thuộc đơn vị đó (map qua Số Eload / Số Ví / Mã kênh / Mã HRM-SĐT). Dòng không map được với người dùng thuộc đơn vị nào sẽ không nằm trong bảng này.");
+    setMsg($("repMsg"), "Tổng hợp theo đơn vị: mỗi dòng là số liệu của các điểm bán thuộc đơn vị đó (map qua Số Eload / Số Ví / Mã kênh / Mã HRM-SĐT). Dòng không map được với người dùng thuộc đơn vị nào sẽ không nằm trong bảng này. Dòng Tổng cộng chỉ cộng các đơn vị không có đơn vị con (đơn vị cấp tỉnh như VNPT Quảng Ninh không cộng vào để tránh nhân đôi).");
   } catch (e) { setMsg($("repMsg"), e.message, false); }
 });
 $("repDetailBtn").addEventListener("click", async () => {
