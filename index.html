@@ -3343,7 +3343,7 @@ export default {
             </div>
             <div id="careNearbyMsg"></div>
             <div class="tbl-wrap"><table class="data"><thead><tr><th>Điểm bán</th><th>Đơn vị</th><th>Khoảng cách tới bạn</th><th></th></tr></thead><tbody id="careNearbyBody"><tr><td colspan="4">Hãy bấm “Lấy vị trí hiện tại” để hiển thị các điểm bán trong bán kính 20m.</td></tr></tbody></table></div>
-            <div id="careMapWrap" class="hidden" style="margin-top:12px"><div id="careMap" style="height:360px;border-radius:12px;border:1px solid var(--line);z-index:0"></div><p class="desc" style="margin-top:6px">📍 Vị trí hiện tại của bạn. <span style="color:#1a8a2e;font-weight:600">● Điểm bán trong bán kính 20m</span> (bấm vào pin để chăm sóc) — <span style="color:#c0392b;font-weight:600">● Điểm bán ngoài 20m</span> (đứng trong 20m mới chăm sóc được).</p></div>
+            <div id="careMapWrap" class="hidden" style="margin-top:12px"><div id="careMap" style="height:360px;border-radius:12px;border:1px solid var(--line);z-index:0"></div><p class="desc" style="margin-top:6px">📍 Vị trí hiện tại của bạn. <span class="pos-pin" style="background:#1a8a2e;width:20px;height:20px;font-size:12px;border-radius:6px;vertical-align:-4px">🏪</span> <b>Điểm bán trong bán kính 20m</b> (bấm vào để chăm sóc) — <span class="pos-pin" style="background:#c0392b;width:20px;height:20px;font-size:12px;border-radius:6px;vertical-align:-4px">🏪</span> <b>Điểm bán ngoài 20m</b> (đứng trong 20m mới chăm sóc được).</p></div>
             <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Lịch sử chăm sóc trong đợt</h3>
             <div class="tbl-wrap"><table class="data"><thead><tr><th>Thời gian chăm sóc</th><th>Điểm bán</th><th>Người chăm sóc</th><th>Khoảng cách</th><th>Ghi chú</th><th>Ảnh</th></tr></thead><tbody id="careHistBody"><tr><td colspan="6">Chưa có lượt chăm sóc nào trong đợt này.</td></tr></tbody></table></div>
           </div>
@@ -5120,7 +5120,7 @@ function renderCareMap(loc, posList) {
   (posList || []).forEach((p) => {
     const near = p.khoang_cach_m <= 20;
     const color = near ? "#1a8a2e" : "#c0392b";
-    const m = L.circleMarker([p.lat, p.lng], { radius: 9, color, fillColor: color, fillOpacity: 0.85, weight: 2 }).addTo(careMapLayer);
+    const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html: '<div class="pos-pin" style="background:' + color + '">🏪</div>', iconSize: [30, 30], iconAnchor: [15, 15] }) }).addTo(careMapLayer);
     let popup = "<b>" + esc(p.ho_ten) + "</b>" + (p.ma_kenh ? "<br />Mã kênh: " + esc(p.ma_kenh) : "") + "<br />Cách bạn: <b>" + p.khoang_cach_m + "m</b>";
     if (near) popup += "<br /><button class='btn sm blue' data-care-map-pos='" + p.id + "'>Chăm sóc</button>";
     else popup += "<br /><span class='desc'>Đứng trong bán kính 20m mới chăm sóc được.</span>";
