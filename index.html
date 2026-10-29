@@ -448,6 +448,13 @@
 #appRoot .nav-btn {display:flex;width:100%;text-align:left;gap:9px;align-items:center;background:none;border:none;padding:11px 10px;border-radius:10px;font-size:14.5px;font-weight:600;color:var(--ink)}
 #appRoot .nav-btn:hover {background:var(--blue-light)}
 #appRoot .nav-btn.active {background:var(--blue);color:#fff}
+#appRoot /* ---------- Ban do kenh ban ---------- */
+.pos-pin {width:22px;height:22px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)}
+#appRoot .pos-label {background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.2);white-space:nowrap}
+#appRoot .pos-label::before {display:none}
+#appRoot .map-legend {background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.9;box-shadow:0 1px 6px rgba(0,0,0,.15)}
+#appRoot .map-legend b {display:block;margin-bottom:2px;color:var(--blue-deep)}
+#appRoot .map-legend .dot {display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:7px;vertical-align:-1px;border:1.5px solid #fff;box-shadow:0 0 0 1px #cbd5e1}
 #appRoot .panel {background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
 #appRoot .panel h2 {color:var(--blue-deep);font-size:20px;margin-bottom:4px}
 #appRoot .panel .desc {color:var(--muted);font-size:14px;margin-bottom:16px;line-height:1.65}
@@ -887,6 +894,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <button class="nav-btn" data-panel="panel-reports">📊 Báo cáo thống kê</button>
         <button class="nav-btn" data-panel="panel-packages">📦 Danh mục gói cước</button>
         <button class="nav-btn" data-panel="panel-care">🧭 Chăm sóc điểm bán</button>
+        <button class="nav-btn" data-panel="panel-channelmap">🗺️ Bản đồ kênh bán</button>
         <button class="nav-btn" data-panel="panel-loginstats">🔑 Thống kê đăng nhập</button>
         <button class="nav-btn" data-panel="panel-settings">⚙️ Cài đặt</button>
       </aside>
@@ -944,6 +952,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div><label>Số Ví VNPT Money</label><input id="uWallet" /></div>
             <div><label>Đơn vị</label><select id="uUnit"><option value="">— Chưa thuộc đơn vị —</option></select></div>
             <div><label>Lãnh đạo đơn vị phụ trách (chỉ áp dụng cho điểm bán — lãnh đạo này sẽ thấy điểm bán trong module Chăm sóc)</label><select id="uLeader"><option value="">— Chưa gán lãnh đạo —</option></select></div>
+            <div><label>Loại kênh bán</label><select id="uLoaiKenh"><option value="">— Chưa phân loại —</option><option value="DUQ">Điểm ủy quyền (ĐUQ)</option><option value="DBL">Điểm bán lẻ (ĐBL)</option><option value="GARA">Gara ô tô (GARA)</option><option value="DDV">Điểm ủy quyền bán đa dịch vụ (ĐDV)</option></select></div>
             <div></div>
             <div><label>Tên nhân viên quản lý (có thể để trống)</label><input id="uManager" /></div>
             <div><label>Số điện thoại nhân viên quản lý (có thể để trống)</label><input id="uManagerPhone" /></div>
@@ -971,6 +980,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
                 <label class="checkline"><input type="checkbox" name="uModule" value="packages" checked /> Danh mục gói cước</label>
                 <label class="checkline"><input type="checkbox" name="uModule" value="loginstats" /> Thống kê đăng nhập</label>
                 <label class="checkline"><input type="checkbox" name="uModule" value="care" /> Chăm sóc điểm bán</label>
+                <label class="checkline"><input type="checkbox" name="uModule" value="channelmap" /> Bản đồ kênh bán</label>
                 <label class="checkline"><input type="checkbox" name="uModule" value="settings" checked /> Cài đặt</label>
               </div>
               <div class="desc" style="margin-top:6px">Tài khoản chưa thiết lập riêng vẫn dùng đủ module theo vai trò. Admin luôn dùng được mọi module.</div>
@@ -984,7 +994,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div><label>Lọc theo đơn vị</label><select id="userUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
             <div><span id="userCount" class="desc"></span></div>
           </div>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Tọa độ điểm bán</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Mã HRM</th><th>Lãnh đạo phụ trách</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="14">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Mã kênh</th><th>Họ tên / điểm bán</th><th>User</th><th>Loại</th><th>Số Eload</th><th>Số Ví</th><th>Đơn vị</th><th>Tọa độ điểm bán</th><th>Nhân viên quản lý</th><th>SĐT NV quản lý</th><th>Mã HRM</th><th>Lãnh đạo phụ trách</th><th>Loại kênh bán</th><th>Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="15">Đang tải…</td></tr></tbody></table></div>
           <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import người dùng từ Excel</h3>
           <p class="desc">Tải file mẫu về, điền thông tin người dùng vào file rồi import lên hệ thống. User đăng nhập đã tồn tại sẽ tự động bị bỏ qua; mật khẩu để trống sẽ dùng mặc định <code class="inl">Vnpt@2026</code>.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -1348,6 +1358,7 @@ function publicUser(u) {
     don_vi_ten: u.don_vi_ten || &quot;&quot;,
     leader_id: u.leader_id ?? null,
     leader_ten: u.leader_ten || &quot;&quot;,
+    loai_kenh: u.loai_kenh || &quot;&quot;,
     can_import: !!u.can_import,
     modules: parseModules(u.modules),
     lat: u.lat ?? null,
@@ -1367,6 +1378,7 @@ async function ensureUserColumns(env) {
     if (!cols.has(&quot;lat&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN lat REAL&quot;).run();
     if (!cols.has(&quot;lng&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN lng REAL&quot;).run();
     if (!cols.has(&quot;leader_id&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN leader_id INTEGER&quot;).run();
+    if (!cols.has(&quot;loai_kenh&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN loai_kenh TEXT&quot;).run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -1393,7 +1405,22 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -&gt; giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = [&quot;dashboard&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;];
+const MODULE_KEYS = [&quot;dashboard&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;, &quot;channelmap&quot;];
+
+// Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
+// (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
+// truoc khi so sanh de &quot;đbl&quot;/&quot;điểm ủy quyền bán đa dịch vụ&quot; deu nhan ra.
+// Kiem tra DDV truoc DUQ vi ten day du cua DDV co chua cum &quot;uy quyen&quot;.
+// Tra ve &quot;&quot; neu khong nhan ra.
+function normLoaiKenh(v) {
+  const s = String(v || &quot;&quot;).trim().toUpperCase().normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/Đ/g, &quot;D&quot;);
+  if ([&quot;DUQ&quot;, &quot;DBL&quot;, &quot;GARA&quot;, &quot;DDV&quot;].includes(s)) return s;
+  if (s.includes(&quot;DDV&quot;) || s.includes(&quot;DA DICH VU&quot;)) return &quot;DDV&quot;;
+  if (s.includes(&quot;DBL&quot;) || s.includes(&quot;BAN LE&quot;)) return &quot;DBL&quot;;
+  if (s.includes(&quot;GARA&quot;)) return &quot;GARA&quot;;
+  if (s.includes(&quot;DUQ&quot;) || s.includes(&quot;UY QUYEN&quot;)) return &quot;DUQ&quot;;
+  return &quot;&quot;;
+}
 const DEFAULT_MODULES = [&quot;dashboard&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;settings&quot;];
 // Lanh dao don vi mac dinh them module Cham soc diem ban
 const LEADER_MODULES = [...DEFAULT_MODULES, &quot;care&quot;];
@@ -1988,7 +2015,7 @@ export default {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xem danh sach nguoi dung&quot;, 403);
         if (!hasModule(me, &quot;users&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         const res = await env.DB.prepare(
-          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id ORDER BY u.ho_ten&quot;
+          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id ORDER BY u.ho_ten&quot;
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -2021,14 +2048,17 @@ export default {
           if (!ld) return err(&quot;Lanh dao phu trach khong ton tai hoac khong phai tai khoan Lanh dao don vi&quot;, 422);
           newLeaderId = ld.id;
         }
+        // Loai kenh ban: DUQ/DBL/GARA/DDV (hoac de trong).
+        const newLoaiKenh = normLoaiKenh(b.loai_kenh);
+        if (toText(b.loai_kenh) &amp;&amp; !newLoaiKenh) return err(&quot;Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)&quot;, 422);
         const r = await env.DB.prepare(
-          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm),
-            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newCanImport, newModules, latP.val, lngP.val
+            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newLoaiKenh, newCanImport, newModules, latP.val, lngP.val
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -2086,13 +2116,16 @@ export default {
             if (ld) leaderId = ld.id;
             else warnings.push({ row: i + 2, reason: &quot;Khong tim thay tai khoan lanh dao &#x27;&quot; + toText(r.leader_username) + &quot;&#x27; — da de trong&quot; });
           }
+          // Loai kenh ban: chuan hoa tu ma hoac ten day du, khong nhan ra thi de trong + bao lai.
+          const impLoaiKenh = normLoaiKenh(r.loai_kenh);
+          if (toText(r.loai_kenh) &amp;&amp; !impLoaiKenh) warnings.push({ row: i + 2, reason: &quot;Loai kenh ban &#x27;&quot; + toText(r.loai_kenh) + &quot;&#x27; khong nhan ra — da de trong&quot; });
           await env.DB.prepare(
-            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+            &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
               impRole,
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViId, leaderId, isAdmin &amp;&amp; r.can_import ? 1 : 0,
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViId, leaderId, impLoaiKenh, isAdmin &amp;&amp; r.can_import ? 1 : 0,
               impRole === &quot;admin&quot; ? null : JSON.stringify(impRole === &quot;leader&quot; ? LEADER_MODULES : DEFAULT_MODULES),
               impLat, impLng
             )
@@ -2131,13 +2164,15 @@ export default {
           if (!ld) return err(&quot;Lanh dao phu trach khong ton tai hoac khong phai tai khoan Lanh dao don vi&quot;, 422);
           newLeaderId = ld.id;
         }
+        const newLoaiKenh = normLoaiKenh(b.loai_kenh);
+        if (toText(b.loai_kenh) &amp;&amp; !newLoaiKenh) return err(&quot;Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)&quot;, 422);
         await env.DB.prepare(
-          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, ma_hrm = ?, don_vi_id = ?, leader_id = ?, can_import = ?, role = ?, modules = ?, lat = ?, lng = ?, active = ? WHERE id = ?&quot;
+          &quot;UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, ma_hrm = ?, don_vi_id = ?, leader_id = ?, loai_kenh = ?, can_import = ?, role = ?, modules = ?, lat = ?, lng = ?, active = ? WHERE id = ?&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
             toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm), b.don_vi_id ? Number(b.don_vi_id) : null,
-            newLeaderId, newCanImport, newRole, newModules, latP.val, lngP.val,
+            newLeaderId, newLoaiKenh, newCanImport, newRole, newModules, latP.val, lngP.val,
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
           .run();
@@ -2600,6 +2635,17 @@ export default {
       }
 
       // ---- Cham soc diem ban (admin &amp; Lanh dao don vi) ----
+      // ---- Ban do kenh ban: tat ca diem ban co toa do ----
+      // Khong gioi han theo cay don vi, nhan su quan ly hay lanh dao phu
+      // trach cham soc: bat ky user nao co module &quot;channelmap&quot; cung xem duoc
+      // toan bo diem ban co toa do (chi loc hien thi o phia client).
+      if (path === &quot;/api/channel-map&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;channelmap&quot;)) return err(&quot;Tai khoan khong co quyen xem ban do kenh ban&quot;, 403);
+        const res = await env.DB.prepare(
+          &quot;SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.loai_kenh, u.lat, u.lng FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = &#x27;user&#x27; AND u.active = 1 AND u.lat IS NOT NULL AND u.lng IS NOT NULL ORDER BY u.ho_ten&quot;
+        ).all();
+        return json({ ok: true, pos: res.results || [] });
+      }
       if (path === &quot;/api/care/batches&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
         await ensureCareTables(env);
@@ -2947,6 +2993,19 @@ export default {
             <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Lịch sử chăm sóc trong đợt</h3>
             <div class="tbl-wrap"><table class="data"><thead><tr><th>Thời gian chăm sóc</th><th>Điểm bán</th><th>Người chăm sóc</th><th>Khoảng cách</th><th>Ghi chú</th><th>Ảnh</th></tr></thead><tbody id="careHistBody"><tr><td colspan="6">Chưa có lượt chăm sóc nào trong đợt này.</td></tr></tbody></table></div>
           </div>
+        </section>
+
+        <section class="panel hidden" id="panel-channelmap">
+          <h2>Bản đồ kênh bán</h2>
+          <p class="desc">Bản đồ tất cả điểm bán có tọa độ trên hệ thống. Mọi người dùng có quyền module này đều xem được toàn bộ điểm bán, không giới hạn theo nhân sự quản lý hay lãnh đạo phụ trách chăm sóc. Bấm vào pin để xem thông tin và dẫn đường bằng Google Maps.</p>
+          <div class="form-grid" style="margin-bottom:12px">
+            <div><label>Lọc theo đơn vị (chọn đơn vị cha sẽ hiện cả các đơn vị con)</label><select id="chMapUnit"><option value="">Tất cả đơn vị</option></select></div>
+            <div><label>Lọc theo nhân viên quản lý</label><select id="chMapManager"><option value="">Tất cả nhân viên</option></select></div>
+            <div><label>Tìm kiếm điểm bán (tên, mã kênh, số Eload, số Ví, nhân viên)</label><input id="chMapSearch" placeholder="Nhập từ khóa…" /></div>
+            <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap"><button class="btn gray" type="button" id="chMapNamesBtn">👁 Hiện tên điểm bán</button><span id="chMapCount" class="desc" style="margin:0"></span></div>
+          </div>
+          <div id="chMapMsg"></div>
+          <div id="channelMap" style="height:520px;border-radius:12px;border:1px solid var(--line);z-index:0"></div>
         </section>
 
         <section class="panel hidden" id="panel-loginstats">
@@ -3323,12 +3382,12 @@ function applyUserFormPerms() {
 const MODULE_DEFS = [
   ["dashboard", "Dashboard"], ["units", "Quản lý đơn vị"], ["users", "Quản lý người dùng"],
   ["import", "Quản lý dữ liệu đầu vào"], ["config", "Cấu hình kết nối D1"], ["reports", "Báo cáo thống kê"],
-  ["packages", "Danh mục gói cước"], ["loginstats", "Thống kê đăng nhập"], ["care", "Chăm sóc điểm bán"], ["settings", "Cài đặt"],
+  ["packages", "Danh mục gói cước"], ["loginstats", "Thống kê đăng nhập"], ["care", "Chăm sóc điểm bán"], ["channelmap", "Bản đồ kênh bán"], ["settings", "Cài đặt"],
 ];
 const PANEL_MODULES = {
   "panel-dashboard": "dashboard", "panel-units": "units", "panel-users": "users", "panel-import": "import",
   "panel-config": "config", "panel-reports": "reports", "panel-packages": "packages",
-  "panel-loginstats": "loginstats", "panel-care": "care", "panel-settings": "settings",
+  "panel-loginstats": "loginstats", "panel-care": "care", "panel-channelmap": "channelmap", "panel-settings": "settings",
 };
 const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
 const LEADER_MODULES = [...DEFAULT_MODULES, "care"];
@@ -3426,6 +3485,7 @@ function openPanel(panelId) {
   if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); }
   if (panelId === "panel-reports") { loadDataTypes(); const crs = $("careRepSection"); if (crs) crs.classList.toggle("hidden", !(me && (me.role === "admin" || me.role === "subadmin" || me.role === "leader"))); }
   if (panelId === "panel-care") loadCareBatches();
+  if (panelId === "panel-channelmap") loadChannelMap();
   if (panelId === "panel-config") $("cfgApiUrl").value = apiBase;
 }
 document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel)));
@@ -3710,13 +3770,14 @@ function renderUsers() {
       "<td>" + ((u.lat == null || u.lng == null) ? "—" : Number(u.lat).toFixed(5) + ", " + Number(u.lng).toFixed(5)) + "</td>" +
       "<td>" + esc(u.ten_nhan_vien) + "</td><td>" + esc(u.sdt_nhan_vien) + "</td><td>" + esc(u.ma_hrm) + "</td>" +
       "<td>" + esc(u.leader_ten) + "</td>" +
+      "<td>" + esc(u.loai_kenh) + "</td>" +
       "<td>" + (u.can_import ? "<span class='pill ok'>Có</span>" : "—") + "</td>" +
       "<td style='white-space:nowrap'><button class='btn sm gray' data-edit-user='" + u.id + "'>Sửa</button> " +
       (me && u.id === me.id
         ? "<button class='btn sm gray' disabled title='Không thể tự xóa tài khoản đang đăng nhập'>Xóa</button>"
         : "<button class='btn sm danger' data-del-user='" + u.id + "'>Xóa</button>") +
       "</td></tr>").join("") ||
-      "<tr><td colspan='14'>" + (usersCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
+      "<tr><td colspan='15'>" + (usersCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
   const lsel = $("uLeader");
   if (lsel) {
     const cur = lsel.value;
@@ -3736,6 +3797,7 @@ function editUser(id) {
   $("uEload").value = u.so_eload || ""; $("uWallet").value = u.so_vi || "";
   $("uUnit").value = u.don_vi_id || "";
   $("uLeader").value = u.leader_id || "";
+  $("uLoaiKenh").value = u.loai_kenh || "";
   $("uManager").value = u.ten_nhan_vien || ""; $("uManagerPhone").value = u.sdt_nhan_vien || ""; $("uHrm").value = u.ma_hrm || "";
   $("uLat").value = u.lat == null ? "" : u.lat; $("uLng").value = u.lng == null ? "" : u.lng;
   $("uRole").value = u.role; $("uCanImport").checked = !!u.can_import;
@@ -3762,6 +3824,7 @@ $("userForm").addEventListener("submit", async (e) => {
     password: $("uPassword").value, so_eload: $("uEload").value.trim(), so_vi: $("uWallet").value.trim(),
     don_vi_id: $("uUnit").value ? Number($("uUnit").value) : null,
     leader_id: $("uLeader").value ? Number($("uLeader").value) : null,
+    loai_kenh: $("uLoaiKenh").value || "",
     ten_nhan_vien: $("uManager").value.trim(), sdt_nhan_vien: $("uManagerPhone").value.trim(), ma_hrm: $("uHrm").value.trim(),
     lat: latNum, lng: lngNum,
     role: $("uRole").value, can_import: $("uCanImport").checked, active: true,
@@ -3794,6 +3857,7 @@ const USER_HEADER_MAP = {
   "số điện thoại nhân viên quản lý": "sdt_nhan_vien", "sđt nhân viên quản lý": "sdt_nhan_vien", "số điện thoại": "sdt_nhan_vien",
   "mã hrm nhân viên quản lý": "ma_hrm", "mã hrm": "ma_hrm", "hrm": "ma_hrm",
   "lãnh đạo phụ trách": "leader_username", "lãnh đạo đơn vị phụ trách": "leader_username", "user lãnh đạo phụ trách": "leader_username",
+  "loại kênh bán": "loai_kenh", "loai kenh ban": "loai_kenh", "kênh bán": "loai_kenh",
   "quyền import dữ liệu": "can_import", "được quyền import dữ liệu": "can_import", "quyền import": "can_import",
   "loại tài khoản": "role", "vai trò": "role",
   "vĩ độ (lat)": "lat", "vĩ độ": "lat", "lat": "lat",
@@ -3804,8 +3868,8 @@ function parseYesNo(v) {
 }
 $("uTemplateBtn").addEventListener("click", () => {
   try {
-    const headers = ["Mã kênh bán hàng", "Họ và tên người dùng/điểm bán", "User đăng nhập", "Mật khẩu", "Số tài khoản Eload", "Số Ví VNPT Money", "Đơn vị", "Tên nhân viên quản lý", "Số điện thoại nhân viên quản lý", "Mã HRM nhân viên quản lý", "Quyền import dữ liệu", "Loại tài khoản", "Vĩ độ (Lat)", "Kinh độ (Lng)", "Lãnh đạo phụ trách"];
-    const sample = ["KBH-VDCT-001", "Điểm bán Minh Anh (ví dụ)", "minhanh.db", "", "0901234567", "0901234567", "VDCT", "Nguyễn Văn A", "0912345678", "", 0, "user", 21.0278, 107.2921, ""];
+    const headers = ["Mã kênh bán hàng", "Họ và tên người dùng/điểm bán", "User đăng nhập", "Mật khẩu", "Số tài khoản Eload", "Số Ví VNPT Money", "Đơn vị", "Tên nhân viên quản lý", "Số điện thoại nhân viên quản lý", "Mã HRM nhân viên quản lý", "Quyền import dữ liệu", "Loại tài khoản", "Vĩ độ (Lat)", "Kinh độ (Lng)", "Lãnh đạo phụ trách", "Loại kênh bán"];
+    const sample = ["KBH-VDCT-001", "Điểm bán Minh Anh (ví dụ)", "minhanh.db", "", "0901234567", "0901234567", "VDCT", "Nguyễn Văn A", "0912345678", "", 0, "user", 21.0278, 107.2921, "", "ĐUQ"];
     const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
     ws["!cols"] = headers.map(() => ({ wch: 26 }));
     const wb = XLSX.utils.book_new();
@@ -3824,6 +3888,7 @@ $("uTemplateBtn").addEventListener("click", () => {
       ["10. Vĩ độ (Lat) và Kinh độ (Lng): tọa độ điểm bán (hệ WGS84, số thập phân). Để trống nếu chưa khai báo; nhập sai khoảng (Lat -90..90, Lng -180..180) thì hệ thống để trống và báo lại. Tọa độ dùng cho module Chăm sóc điểm bán."],
       ["11. Mã HRM nhân viên quản lý: mã HRM của nhân viên VNPT đang quản lý điểm bán, có thể để trống."],
       ["12. Lãnh đạo phụ trách: nhập User đăng nhập của tài khoản Lãnh đạo đơn vị được gán chăm sóc điểm bán này (chỉ áp dụng cho điểm bán). Để trống nếu chưa gán; nếu user không tồn tại hoặc không phải lãnh đạo, hệ thống sẽ để trống và báo lại. Lãnh đạo chỉ thấy các điểm bán được gán cho mình trong module Chăm sóc."],
+      ["13. Loại kênh bán: nhập 1 trong 4 mã — ĐUQ (Điểm ủy quyền), ĐBL (Điểm bán lẻ), GARA (Gara ô tô), ĐDV (Điểm ủy quyền bán đa dịch vụ); nhập tên đầy đủ cũng được hệ thống tự nhận. Để trống nếu chưa phân loại."],
     ];
     const ws2 = XLSX.utils.aoa_to_sheet(guide);
     ws2["!cols"] = [{ wch: 120 }];
@@ -4525,6 +4590,119 @@ $("repDetailBtn").addEventListener("click", async () => {
     $("repTotalMoney").textContent = fmt((d.rows || []).reduce((a, r) => a + (Number(r.so_tien) || 0), 0));
     setMsg($("repMsg"), (d.skipped_tables || []).length ? "Lưu ý: các bảng tháng cũ sau không khớp mẫu dữ liệu mới nên không tính vào báo cáo: " + d.skipped_tables.join(", ") + "." : "");
   } catch (e) { setMsg($("repMsg"), e.message, false); }
+});
+
+/* ---------------- Ban do kenh ban ---------------- */
+const CHANNEL_TYPES = {
+  DUQ: { label: "Điểm ủy quyền (ĐUQ)", color: "#2563eb" },
+  DBL: { label: "Điểm bán lẻ (ĐBL)", color: "#9333ea" },
+  GARA: { label: "Gara ô tô (GARA)", color: "#16a34a" },
+  DDV: { label: "Điểm ủy quyền bán đa dịch vụ (ĐDV)", color: "#dc2626" },
+};
+const CHANNEL_UNKNOWN = { label: "Chưa phân loại", color: "#64748b" };
+const channelTypeOf = (p) => CHANNEL_TYPES[p.loai_kenh] || CHANNEL_UNKNOWN;
+let chMapObj = null, chMapLayer = null, chMapCache = [], chMapUnits = [], chMapShowNames = false;
+function normSearch(s) {
+  return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+}
+function chMapUnitSet(id) {
+  const kids = new Map();
+  chMapUnits.forEach((u) => { if (u.parent_id) { if (!kids.has(u.parent_id)) kids.set(u.parent_id, []); kids.get(u.parent_id).push(u.id); } });
+  const keep = new Set([Number(id)]), stack = [Number(id)];
+  while (stack.length) { const cur = stack.pop(); (kids.get(cur) || []).forEach((c) => { if (!keep.has(c)) { keep.add(c); stack.push(c); } }); }
+  return keep;
+}
+function chMapFiltered() {
+  const unit = $("chMapUnit").value || "";
+  const mgr = $("chMapManager").value || "";
+  const q = normSearch($("chMapSearch").value);
+  const unitSet = unit ? chMapUnitSet(unit) : null;
+  return (chMapCache || []).filter((p) => {
+    if (unitSet && !unitSet.has(p.don_vi_id)) return false;
+    if (mgr && (p.ten_nhan_vien || "") !== mgr) return false;
+    if (q) {
+      const hay = normSearch([p.ho_ten, p.ma_kenh, p.so_eload, p.so_vi, p.ten_nhan_vien, p.don_vi_ten].join(" "));
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function renderChannelMap(fit) {
+  if (!chMapObj) return;
+  const list = chMapFiltered();
+  $("chMapCount").textContent = "Hiển thị " + list.length + " / " + (chMapCache || []).length + " điểm bán";
+  if (chMapLayer) chMapObj.removeLayer(chMapLayer);
+  chMapLayer = L.layerGroup().addTo(chMapObj);
+  const bounds = [];
+  list.forEach((p) => {
+    const t = channelTypeOf(p);
+    const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html: '<div class="pos-pin" style="background:' + t.color + '"></div>', iconSize: [26, 26], iconAnchor: [13, 26] }) }).addTo(chMapLayer);
+    let popup = "<b>" + esc(p.ho_ten) + "</b><br /><span style='color:" + t.color + ";font-weight:700'>" + esc(t.label) + "</span>";
+    if (p.ma_kenh) popup += "<br />Mã kênh: " + esc(p.ma_kenh);
+    if (p.so_eload) popup += "<br />Số Eload: " + esc(p.so_eload);
+    if (p.so_vi) popup += "<br />Số Ví: " + esc(p.so_vi);
+    if (p.don_vi_ten) popup += "<br />Đơn vị: " + esc(p.don_vi_ten);
+    if (p.ten_nhan_vien) popup += "<br />NV quản lý: " + esc(p.ten_nhan_vien) + (p.sdt_nhan_vien ? " (" + esc(p.sdt_nhan_vien) + ")" : "");
+    popup += "<br /><a class='btn sm blue' style='display:inline-block;margin-top:8px;text-decoration:none' target='_blank' rel='noopener' href='https://www.google.com/maps/dir/?api=1&destination=" + p.lat + "," + p.lng + "'>🧭 Dẫn đường</a>";
+    m.bindPopup(popup);
+    if (chMapShowNames) m.bindTooltip(esc(p.ho_ten), { permanent: true, direction: "top", offset: [0, -26], className: "pos-label" });
+    bounds.push([p.lat, p.lng]);
+  });
+  if (fit && bounds.length) chMapObj.fitBounds(bounds, { padding: [30, 30] });
+}
+async function loadChannelMap() {
+  try { await loadLeaflet(); }
+  catch (e) { setMsg($("chMapMsg"), e.message, false); return; }
+  if (!chMapObj) {
+    chMapObj = L.map("channelMap").setView([21.0, 107.3], 10);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap contributors" }).addTo(chMapObj);
+    const legend = L.control({ position: "bottomright" });
+    legend.onAdd = () => {
+      const div = L.DomUtil.create("div", "map-legend");
+      div.innerHTML = "<b>Loại điểm bán</b>" +
+        Object.values(CHANNEL_TYPES).map((t) => "<div><span class='dot' style='background:" + t.color + "'></span>" + esc(t.label) + "</div>").join("") +
+        "<div><span class='dot' style='background:" + CHANNEL_UNKNOWN.color + "'></span>" + esc(CHANNEL_UNKNOWN.label) + "</div>";
+      return div;
+    };
+    legend.addTo(chMapObj);
+  }
+  try {
+    const d = await api("/api/channel-map");
+    chMapCache = d.pos || [];
+    try {
+      const u = await api("/api/units");
+      chMapUnits = u.units || [];
+      const byId = new Map(chMapUnits.map((x) => [x.id, x]));
+      const kids = new Map();
+      chMapUnits.forEach((x) => { if (x.parent_id) { if (!kids.has(x.parent_id)) kids.set(x.parent_id, []); kids.get(x.parent_id).push(x); } });
+      const byCode = (a, b) => String(a.ma_don_vi || "").localeCompare(String(b.ma_don_vi || ""));
+      kids.forEach((arr) => arr.sort(byCode));
+      const ordered = [];
+      const walk = (x, depth) => { ordered.push({ ...x, depth }); (kids.get(x.id) || []).forEach((c) => walk(c, depth + 1)); };
+      chMapUnits.filter((x) => !x.parent_id || !byId.has(x.parent_id)).sort(byCode).forEach((r) => walk(r, 0));
+      const seen = new Set(ordered.map((x) => x.id));
+      chMapUnits.filter((x) => !seen.has(x.id)).sort(byCode).forEach((x) => ordered.push({ ...x, depth: 0 }));
+      const curU = $("chMapUnit").value;
+      $("chMapUnit").innerHTML = '<option value="">Tất cả đơn vị</option>' +
+        ordered.map((x) => '<option value="' + x.id + '">' + "↳ ".repeat(x.depth) + esc(x.ten_don_vi) + " (" + esc(x.ma_don_vi) + ")</option>").join("");
+      if ([...$("chMapUnit").options].some((o) => o.value === curU)) $("chMapUnit").value = curU;
+    } catch (e) { /* giu nguyen lua chon mac dinh */ }
+    const mgrs = [...new Set((chMapCache || []).map((p) => p.ten_nhan_vien || "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
+    const curM = $("chMapManager").value;
+    $("chMapManager").innerHTML = '<option value="">Tất cả nhân viên</option>' + mgrs.map((m) => '<option value="' + esc(m) + '">' + esc(m) + "</option>").join("");
+    if ([...$("chMapManager").options].some((o) => o.value === curM)) $("chMapManager").value = curM;
+    setMsg($("chMapMsg"), "");
+    renderChannelMap(true);
+  } catch (e) { setMsg($("chMapMsg"), e.message, false); }
+  setTimeout(() => { if (chMapObj) chMapObj.invalidateSize(); }, 50);
+}
+$("chMapUnit").addEventListener("change", () => renderChannelMap(false));
+$("chMapManager").addEventListener("change", () => renderChannelMap(false));
+$("chMapSearch").addEventListener("input", () => renderChannelMap(false));
+$("chMapNamesBtn").addEventListener("click", () => {
+  chMapShowNames = !chMapShowNames;
+  $("chMapNamesBtn").textContent = chMapShowNames ? "🙈 Ẩn tên điểm bán" : "👁 Hiện tên điểm bán";
+  renderChannelMap(false);
 });
 
 /* ---------------- Bao cao cham soc diem ban ---------------- */

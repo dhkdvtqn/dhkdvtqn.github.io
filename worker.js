@@ -129,6 +129,7 @@ function publicUser(u) {
     don_vi_ten: u.don_vi_ten || "",
     leader_id: u.leader_id ?? null,
     leader_ten: u.leader_ten || "",
+    loai_kenh: u.loai_kenh || "",
     can_import: !!u.can_import,
     modules: parseModules(u.modules),
     lat: u.lat ?? null,
@@ -148,6 +149,7 @@ async function ensureUserColumns(env) {
     if (!cols.has("lat")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN lat REAL").run();
     if (!cols.has("lng")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN lng REAL").run();
     if (!cols.has("leader_id")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN leader_id INTEGER").run();
+    if (!cols.has("loai_kenh")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN loai_kenh TEXT").run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -174,7 +176,22 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -> giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = ["dashboard", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care"];
+const MODULE_KEYS = ["dashboard", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care", "channelmap"];
+
+// Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
+// (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
+// truoc khi so sanh de "đbl"/"điểm ủy quyền bán đa dịch vụ" deu nhan ra.
+// Kiem tra DDV truoc DUQ vi ten day du cua DDV co chua cum "uy quyen".
+// Tra ve "" neu khong nhan ra.
+function normLoaiKenh(v) {
+  const s = String(v || "").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/Đ/g, "D");
+  if (["DUQ", "DBL", "GARA", "DDV"].includes(s)) return s;
+  if (s.includes("DDV") || s.includes("DA DICH VU")) return "DDV";
+  if (s.includes("DBL") || s.includes("BAN LE")) return "DBL";
+  if (s.includes("GARA")) return "GARA";
+  if (s.includes("DUQ") || s.includes("UY QUYEN")) return "DUQ";
+  return "";
+}
 const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
 // Lanh dao don vi mac dinh them module Cham soc diem ban
 const LEADER_MODULES = [...DEFAULT_MODULES, "care"];
@@ -769,7 +786,7 @@ export default {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen xem danh sach nguoi dung", 403);
         if (!hasModule(me, "users")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
         const res = await env.DB.prepare(
-          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id ORDER BY u.ho_ten"
+          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id ORDER BY u.ho_ten"
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -802,14 +819,17 @@ export default {
           if (!ld) return err("Lanh dao phu trach khong ton tai hoac khong phai tai khoan Lanh dao don vi", 422);
           newLeaderId = ld.id;
         }
+        // Loai kenh ban: DUQ/DBL/GARA/DDV (hoac de trong).
+        const newLoaiKenh = normLoaiKenh(b.loai_kenh);
+        if (toText(b.loai_kenh) && !newLoaiKenh) return err("Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)", 422);
         const r = await env.DB.prepare(
-          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm),
-            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newCanImport, newModules, latP.val, lngP.val
+            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newLoaiKenh, newCanImport, newModules, latP.val, lngP.val
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -867,13 +887,16 @@ export default {
             if (ld) leaderId = ld.id;
             else warnings.push({ row: i + 2, reason: "Khong tim thay tai khoan lanh dao '" + toText(r.leader_username) + "' — da de trong" });
           }
+          // Loai kenh ban: chuan hoa tu ma hoac ten day du, khong nhan ra thi de trong + bao lai.
+          const impLoaiKenh = normLoaiKenh(r.loai_kenh);
+          if (toText(r.loai_kenh) && !impLoaiKenh) warnings.push({ row: i + 2, reason: "Loai kenh ban '" + toText(r.loai_kenh) + "' khong nhan ra — da de trong" });
           await env.DB.prepare(
-            "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
           )
             .bind(
               toText(r.ma_kenh), hoTen, username, hash, salt,
               impRole,
-              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViId, leaderId, isAdmin && r.can_import ? 1 : 0,
+              toText(r.so_eload), toText(r.so_vi), toText(r.ten_nhan_vien), toText(r.sdt_nhan_vien), toText(r.ma_hrm), donViId, leaderId, impLoaiKenh, isAdmin && r.can_import ? 1 : 0,
               impRole === "admin" ? null : JSON.stringify(impRole === "leader" ? LEADER_MODULES : DEFAULT_MODULES),
               impLat, impLng
             )
@@ -912,13 +935,15 @@ export default {
           if (!ld) return err("Lanh dao phu trach khong ton tai hoac khong phai tai khoan Lanh dao don vi", 422);
           newLeaderId = ld.id;
         }
+        const newLoaiKenh = normLoaiKenh(b.loai_kenh);
+        if (toText(b.loai_kenh) && !newLoaiKenh) return err("Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)", 422);
         await env.DB.prepare(
-          "UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, ma_hrm = ?, don_vi_id = ?, leader_id = ?, can_import = ?, role = ?, modules = ?, lat = ?, lng = ?, active = ? WHERE id = ?"
+          "UPDATE nguoi_dung SET ma_kenh = ?, ho_ten = ?, so_eload = ?, so_vi = ?, ten_nhan_vien = ?, sdt_nhan_vien = ?, ma_hrm = ?, don_vi_id = ?, leader_id = ?, loai_kenh = ?, can_import = ?, role = ?, modules = ?, lat = ?, lng = ?, active = ? WHERE id = ?"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.so_eload), toText(b.so_vi),
             toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm), b.don_vi_id ? Number(b.don_vi_id) : null,
-            newLeaderId, newCanImport, newRole, newModules, latP.val, lngP.val,
+            newLeaderId, newLoaiKenh, newCanImport, newRole, newModules, latP.val, lngP.val,
             b.active === false ? 0 : 1, Number(userMatch[1])
           )
           .run();
@@ -1381,6 +1406,17 @@ export default {
       }
 
       // ---- Cham soc diem ban (admin & Lanh dao don vi) ----
+      // ---- Ban do kenh ban: tat ca diem ban co toa do ----
+      // Khong gioi han theo cay don vi, nhan su quan ly hay lanh dao phu
+      // trach cham soc: bat ky user nao co module "channelmap" cung xem duoc
+      // toan bo diem ban co toa do (chi loc hien thi o phia client).
+      if (path === "/api/channel-map" && method === "GET") {
+        if (!hasModule(me, "channelmap")) return err("Tai khoan khong co quyen xem ban do kenh ban", 403);
+        const res = await env.DB.prepare(
+          "SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.loai_kenh, u.lat, u.lng FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = 'user' AND u.active = 1 AND u.lat IS NOT NULL AND u.lng IS NOT NULL ORDER BY u.ho_ten"
+        ).all();
+        return json({ ok: true, pos: res.results || [] });
+      }
       if (path === "/api/care/batches" && method === "GET") {
         if (!canUseCare(me)) return err("Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban", 403);
         await ensureCareTables(env);
