@@ -487,14 +487,17 @@ function isSuccessStatus(s) {
   const n = normStatus(s);
   return n === "thanh cong" || n === "da chi tra thu lao thanh cong";
 }
+// Tham so loc trang thai chi tra (?trang_thai=): "success" (mac dinh) = chi
+// tinh giao dich thanh cong; "fail" = chi tinh giao dich khong thanh cong;
+// "all" = tinh tat ca (khong loc theo trang thai).
+function parseStatusFilter(v) { return v === "fail" ? "fail" : v === "all" ? "all" : "success"; }
 
 // Tong hop bao cao dung chung cho /api/reports/summary va /api/reports/by-unit.
 // scopeUnit: null = pham vi mac dinh theo vai tro; so = goc cay don vi can loc.
-// statusFilter: "success" (mac dinh) = chi cong giao dich thanh cong;
-// "fail" = chi cong giao dich khong thanh cong.
+// statusFilter: "success" (mac dinh) / "fail" / "all" (khong loc).
 async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit, statusFilter }) {
   const groupExpr = group === "month" ? "substr(tg, 1, 7)" : "substr(tg, 1, 10)";
-  const stFilter = statusFilter === "fail" ? "fail" : "success";
+  const stFilter = parseStatusFilter(statusFilter);
   const types = await getDataTypes(env);
   const sources = types
     .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col)
@@ -562,9 +565,11 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
       }
       if (usedLegacy) legacyTables.push(t);
       for (const r of res.rows || []) {
-        if (res.withStatus) {
-          if ((isSuccessStatus(r.tt) ? "success" : "fail") !== stFilter) continue;
-        } else if (stFilter === "fail") continue;
+        if (stFilter !== "all") {
+          if (res.withStatus) {
+            if ((isSuccessStatus(r.tt) ? "success" : "fail") !== stFilter) continue;
+          } else if (stFilter === "fail") continue;
+        }
         const cur = agg.get(r.ky) || { ky: r.ky, so_giao_dich: 0, tong_tien: 0 };
         cur.so_giao_dich += r.so_giao_dich || 0;
         cur.tong_tien += r.tong_tien || 0;
@@ -1281,7 +1286,7 @@ export default {
         const to = url.searchParams.get("to") || "9999-12-31";
         const group = url.searchParams.get("group") || "day";
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
-        const statusFilter = url.searchParams.get("trang_thai") === "fail" ? "fail" : "success";
+        const statusFilter = parseStatusFilter(url.searchParams.get("trang_thai"));
         const r = await resolveScopeUnit(env, me, isLeader, isPrivileged, url.searchParams.get("don_vi"));
         if (!r.ok) return err(r.msg, r.code);
         const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit: r.unit, statusFilter });
@@ -1296,7 +1301,7 @@ export default {
         const from = url.searchParams.get("from") || "0000-01-01";
         const to = url.searchParams.get("to") || "9999-12-31";
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
-        const statusFilter = url.searchParams.get("trang_thai") === "fail" ? "fail" : "success";
+        const statusFilter = parseStatusFilter(url.searchParams.get("trang_thai"));
         let units;
         if (isPrivileged) {
           units = (await env.DB.prepare("SELECT id, ma_don_vi, ten_don_vi, parent_id FROM don_vi ORDER BY ten_don_vi").all()).results || [];
@@ -1316,7 +1321,7 @@ export default {
         const to = url.searchParams.get("to") || "9999-12-31";
         const loai = (url.searchParams.get("loai") || "ALL").toUpperCase();
         const limit = Math.min(Number(url.searchParams.get("limit") || 500), 2000);
-        const statusFilter = url.searchParams.get("trang_thai") === "fail" ? "fail" : "success";
+        const statusFilter = parseStatusFilter(url.searchParams.get("trang_thai"));
         const dr = await resolveScopeUnit(env, me, isLeader, isPrivileged, url.searchParams.get("don_vi"));
         if (!dr.ok) return err(dr.msg, dr.code);
         const scopeUnit = dr.unit;
@@ -1369,9 +1374,11 @@ export default {
             if (usedLegacy) legacyTables.push(t);
             const hasStatus = !!usedSrc.statusCol;
             for (const r of res.results || []) {
-              if (hasStatus) {
-                if ((isSuccessStatus(r.trang_thai) ? "success" : "fail") !== statusFilter) continue;
-              } else if (statusFilter === "fail") continue;
+              if (statusFilter !== "all") {
+                if (hasStatus) {
+                  if ((isSuccessStatus(r.trang_thai) ? "success" : "fail") !== statusFilter) continue;
+                } else if (statusFilter === "fail") continue;
+              }
               out.push(r);
             }
           }

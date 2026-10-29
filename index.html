@@ -912,7 +912,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <section class="panel hidden" id="panel-dashboard">
           <h2>Dashboard tổng hợp</h2>
           <p class="desc" id="dashScope">Tổng hợp số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng hiện tại và lũy kế từ đầu năm, từ toàn bộ các loại dữ liệu đã import lên D1.</p>
-          <div style="margin:10px 0"><label>Lọc theo trạng thái chi trả: </label><select id="dashStatusFilter" title="Thành công = giao dịch có trạng thái 'Thành công' hoặc 'Đã chi trả thù lao thành công'; Không thành công = các trạng thái còn lại"><option value="success">Thành công</option><option value="fail">Không thành công</option></select></div>
+          <div style="margin:10px 0"><label>Lọc theo trạng thái chi trả: </label><select id="dashStatusFilter" title="Thành công = giao dịch có trạng thái 'Thành công' hoặc 'Đã chi trả thù lao thành công'; Không thành công = các trạng thái còn lại; Tất cả trạng thái = không lọc"><option value="success">Thành công</option><option value="fail">Không thành công</option><option value="all">Tất cả trạng thái</option></select></div>
           <h3 style="margin:14px 0 8px;color:var(--blue-dark)" id="dashMonthLabel">Tháng hiện tại</h3>
           <div class="kpi-row">
             <div class="kpi"><b id="dashMonthTx">—</b><span>Số lượng giao dịch trong tháng</span></div>
@@ -1728,14 +1728,17 @@ function isSuccessStatus(s) {
   const n = normStatus(s);
   return n === &quot;thanh cong&quot; || n === &quot;da chi tra thu lao thanh cong&quot;;
 }
+// Tham so loc trang thai chi tra (?trang_thai=): &quot;success&quot; (mac dinh) = chi
+// tinh giao dich thanh cong; &quot;fail&quot; = chi tinh giao dich khong thanh cong;
+// &quot;all&quot; = tinh tat ca (khong loc theo trang thai).
+function parseStatusFilter(v) { return v === &quot;fail&quot; ? &quot;fail&quot; : v === &quot;all&quot; ? &quot;all&quot; : &quot;success&quot;; }
 
 // Tong hop bao cao dung chung cho /api/reports/summary va /api/reports/by-unit.
 // scopeUnit: null = pham vi mac dinh theo vai tro; so = goc cay don vi can loc.
-// statusFilter: &quot;success&quot; (mac dinh) = chi cong giao dich thanh cong;
-// &quot;fail&quot; = chi cong giao dich khong thanh cong.
+// statusFilter: &quot;success&quot; (mac dinh) / &quot;fail&quot; / &quot;all&quot; (khong loc).
 async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit, statusFilter }) {
   const groupExpr = group === &quot;month&quot; ? &quot;substr(tg, 1, 7)&quot; : &quot;substr(tg, 1, 10)&quot;;
-  const stFilter = statusFilter === &quot;fail&quot; ? &quot;fail&quot; : &quot;success&quot;;
+  const stFilter = parseStatusFilter(statusFilter);
   const types = await getDataTypes(env);
   const sources = types
     .filter((t) =&gt; (loai === &quot;ALL&quot; || t.code === loai) &amp;&amp; t.money_col &amp;&amp; t.time_col)
@@ -1803,9 +1806,11 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
       }
       if (usedLegacy) legacyTables.push(t);
       for (const r of res.rows || []) {
-        if (res.withStatus) {
-          if ((isSuccessStatus(r.tt) ? &quot;success&quot; : &quot;fail&quot;) !== stFilter) continue;
-        } else if (stFilter === &quot;fail&quot;) continue;
+        if (stFilter !== &quot;all&quot;) {
+          if (res.withStatus) {
+            if ((isSuccessStatus(r.tt) ? &quot;success&quot; : &quot;fail&quot;) !== stFilter) continue;
+          } else if (stFilter === &quot;fail&quot;) continue;
+        }
         const cur = agg.get(r.ky) || { ky: r.ky, so_giao_dich: 0, tong_tien: 0 };
         cur.so_giao_dich += r.so_giao_dich || 0;
         cur.tong_tien += r.tong_tien || 0;
@@ -2522,7 +2527,7 @@ export default {
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         const group = url.searchParams.get(&quot;group&quot;) || &quot;day&quot;;
         const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;ALL&quot;).toUpperCase();
-        const statusFilter = url.searchParams.get(&quot;trang_thai&quot;) === &quot;fail&quot; ? &quot;fail&quot; : &quot;success&quot;;
+        const statusFilter = parseStatusFilter(url.searchParams.get(&quot;trang_thai&quot;));
         const r = await resolveScopeUnit(env, me, isLeader, isPrivileged, url.searchParams.get(&quot;don_vi&quot;));
         if (!r.ok) return err(r.msg, r.code);
         const d = await aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to, group, loai, scopeUnit: r.unit, statusFilter });
@@ -2537,7 +2542,7 @@ export default {
         const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;ALL&quot;).toUpperCase();
-        const statusFilter = url.searchParams.get(&quot;trang_thai&quot;) === &quot;fail&quot; ? &quot;fail&quot; : &quot;success&quot;;
+        const statusFilter = parseStatusFilter(url.searchParams.get(&quot;trang_thai&quot;));
         let units;
         if (isPrivileged) {
           units = (await env.DB.prepare(&quot;SELECT id, ma_don_vi, ten_don_vi, parent_id FROM don_vi ORDER BY ten_don_vi&quot;).all()).results || [];
@@ -2557,7 +2562,7 @@ export default {
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;ALL&quot;).toUpperCase();
         const limit = Math.min(Number(url.searchParams.get(&quot;limit&quot;) || 500), 2000);
-        const statusFilter = url.searchParams.get(&quot;trang_thai&quot;) === &quot;fail&quot; ? &quot;fail&quot; : &quot;success&quot;;
+        const statusFilter = parseStatusFilter(url.searchParams.get(&quot;trang_thai&quot;));
         const dr = await resolveScopeUnit(env, me, isLeader, isPrivileged, url.searchParams.get(&quot;don_vi&quot;));
         if (!dr.ok) return err(dr.msg, dr.code);
         const scopeUnit = dr.unit;
@@ -2610,9 +2615,11 @@ export default {
             if (usedLegacy) legacyTables.push(t);
             const hasStatus = !!usedSrc.statusCol;
             for (const r of res.results || []) {
-              if (hasStatus) {
-                if ((isSuccessStatus(r.trang_thai) ? &quot;success&quot; : &quot;fail&quot;) !== statusFilter) continue;
-              } else if (statusFilter === &quot;fail&quot;) continue;
+              if (statusFilter !== &quot;all&quot;) {
+                if (hasStatus) {
+                  if ((isSuccessStatus(r.trang_thai) ? &quot;success&quot; : &quot;fail&quot;) !== statusFilter) continue;
+                } else if (statusFilter === &quot;fail&quot;) continue;
+              }
               out.push(r);
             }
           }
@@ -3705,9 +3712,9 @@ async function loadDashboard() {
   $("dashMonthLabel").textContent = "Tháng " + (mo + 1) + "/" + y + " (tháng hiện tại)";
   $("dashYearLabel").textContent = "Lũy kế từ đầu năm " + y;
   // Nhan KPI tien doi theo bo loc trang thai de khong gay hieu nham
-  const stFail = dashStatusVal() === "fail";
-  $("dashMonthMoneyCap").textContent = stFail ? "Số tiền giao dịch không thành công trong tháng" : "Số tiền hoa hồng đã chi trả trong tháng";
-  $("dashYearMoneyCap").textContent = stFail ? "Tổng số tiền giao dịch không thành công từ đầu năm" : "Tổng số tiền hoa hồng đã chi trả từ đầu năm";
+  const stt = dashStatusVal();
+  $("dashMonthMoneyCap").textContent = stt === "fail" ? "Số tiền giao dịch không thành công trong tháng" : stt === "all" ? "Số tiền hoa hồng trong tháng (tất cả trạng thái)" : "Số tiền hoa hồng đã chi trả trong tháng";
+  $("dashYearMoneyCap").textContent = stt === "fail" ? "Tổng số tiền giao dịch không thành công từ đầu năm" : stt === "all" ? "Tổng số tiền hoa hồng từ đầu năm (tất cả trạng thái)" : "Tổng số tiền hoa hồng đã chi trả từ đầu năm";
   $("dashScope").textContent = me && me.role === "user"
     ? "Số liệu của chính điểm bán của anh (theo số Eload / số Ví / mã HRM-SĐT đã khai báo), tổng hợp từ các loại dữ liệu đã import lên D1."
     : me && me.role === "leader"
