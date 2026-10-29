@@ -455,6 +455,9 @@
 #appRoot .map-legend {background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.9;box-shadow:0 1px 6px rgba(0,0,0,.15)}
 #appRoot .map-legend b {display:block;margin-bottom:2px;color:var(--blue-deep)}
 #appRoot .map-legend .dot {display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:7px;vertical-align:-1px;border:1.5px solid #fff;box-shadow:0 0 0 1px #cbd5e1}
+#appRoot /* Chu thich loai diem ban dat duoi ban do: xep ngang, #appRoot khong che ban do */
+#chMapLegend {display:flex;flex-wrap:wrap;gap:6px 20px;align-items:center;line-height:1.6}
+#appRoot #chMapLegend b {display:inline;margin:0}
 #appRoot /* Ban do kenh ban rong hon 30%: khi mo panel ban do, #appRoot khung app mo rong tu 1180px len 1431px
    (ban do tu ~836px len ~1087px, #appRoot +30%); man hinh hep hon thi lay het phan con trong, #appRoot khong tran */
 .wrap.map-wide {max-width:1431px}
@@ -3133,6 +3136,7 @@ export default {
           </div>
           <div id="chMapMsg"></div>
           <div id="channelMap" style="height:520px;border-radius:12px;border:1px solid var(--line);z-index:0"></div>
+          <div id="chMapLegend" class="map-legend" style="margin-top:10px"></div>
         </section>
 
         <section class="panel hidden" id="panel-loginstats">
@@ -4809,6 +4813,9 @@ $("repUnitBtn").addEventListener("click", async () => {
     const leafRows = rows.filter((r) => !parentIds.has(r.don_vi_id));
     const totTx = leafRows.reduce((a, r) => a + (Number(r.so_giao_dich) || 0), 0);
     const totMoney = leafRows.reduce((a, r) => a + (Number(r.tong_tien) || 0), 0);
+    // Dong bo 2 the KPI phia tren voi chan trang bang don vi
+    $("repTotalTx").textContent = totTx.toLocaleString("vi-VN");
+    $("repTotalMoney").textContent = fmt(totMoney);
     $("repBody").innerHTML = (rows.map((r) =>
       "<tr><td><b>" + esc(r.ten_don_vi) + "</b>" + (r.ma_don_vi ? " <span class='desc'>(" + esc(r.ma_don_vi) + ")</span>" : "") + "</td><td>" + (r.so_giao_dich || 0).toLocaleString("vi-VN") + "</td><td>" + fmt(r.tong_tien) + "</td></tr>").join("") +
       (rows.length ? "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + totTx.toLocaleString("vi-VN") + "</b></td><td><b>" + fmt(totMoney) + "</b></td></tr>" : "")) ||
@@ -4845,6 +4852,10 @@ const channelTypeOf = (p) => CHANNEL_TYPES[p.loai_kenh] || CHANNEL_UNKNOWN;
 $("chMapType").innerHTML = '<option value="">Tất cả loại điểm bán</option>' +
   Object.entries(CHANNEL_TYPES).map(([code, t]) => '<option value="' + code + '">' + esc(t.label) + "</option>").join("") +
   '<option value="__none">Chưa phân loại</option>';
+// Chu thich loai diem ban hien co dinh duoi ban do (khong de tren ban do de khoi che)
+$("chMapLegend").innerHTML = "<b>Chú thích loại điểm bán:</b>" +
+  Object.values(CHANNEL_TYPES).map((t) => "<span><span class='dot' style='background:" + t.color + "'></span>" + esc(t.label) + "</span>").join("") +
+  "<span><span class='dot' style='background:" + CHANNEL_UNKNOWN.color + "'></span>" + esc(CHANNEL_UNKNOWN.label) + "</span>";
 let chMapObj = null, chMapLayer = null, chMapCache = [], chMapUnits = [], chMapShowNames = false;
 function normSearch(s) {
   return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
@@ -4903,15 +4914,6 @@ async function loadChannelMap() {
   if (!chMapObj) {
     chMapObj = L.map("channelMap").setView([21.0, 107.3], 10);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap contributors" }).addTo(chMapObj);
-    const legend = L.control({ position: "bottomright" });
-    legend.onAdd = () => {
-      const div = L.DomUtil.create("div", "map-legend");
-      div.innerHTML = "<b>Loại điểm bán</b>" +
-        Object.values(CHANNEL_TYPES).map((t) => "<div><span class='dot' style='background:" + t.color + "'></span>" + esc(t.label) + "</div>").join("") +
-        "<div><span class='dot' style='background:" + CHANNEL_UNKNOWN.color + "'></span>" + esc(CHANNEL_UNKNOWN.label) + "</div>";
-      return div;
-    };
-    legend.addTo(chMapObj);
   }
   try {
     const d = await api("/api/channel-map");
