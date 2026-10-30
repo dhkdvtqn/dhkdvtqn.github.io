@@ -1563,8 +1563,8 @@ export default {
         if (t.sales_qty_col) needCols.push(t.sales_qty_col);
         if (t.sales_result_col) needCols.push(t.sales_result_col);
         if (t.sales_subtype_col) needCols.push(t.sales_subtype_col);
-        const fKq = String(url.searchParams.get("ket_qua") || "").trim();
-        const fSt = String(url.searchParams.get("loai_tb") || "").trim();
+        const fKqList = url.searchParams.getAll("ket_qua").map((s) => String(s || "").trim());
+        const fStList = url.searchParams.getAll("loai_tb").map((s) => String(s || "").trim());
         const kqSet = new Set(), stSet = new Set();
         const tables = await listMonthlyTables(env, t.prefix);
         for (const tbl of tables) {
@@ -1586,8 +1586,8 @@ export default {
             if (ownOnly && e !== meEload) continue;
             if (t.sales_result_col) kqSet.add(kq || "(Trống)");
             if (t.sales_subtype_col) stSet.add(st || "(Trống)");
-            if (fKq && kq !== (fKq === "(Trống)" ? "" : fKq)) continue;
-            if (fSt && st !== (fSt === "(Trống)" ? "" : fSt)) continue;
+            if (fKqList.length && !fKqList.includes(kq)) continue;
+            if (fStList.length && !fStList.includes(st)) continue;
             const price = toNumber(r[t.sales_price_col]);
             let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
             if (!qty || qty <= 0) qty = 1;

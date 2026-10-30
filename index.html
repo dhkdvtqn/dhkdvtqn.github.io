@@ -450,6 +450,14 @@
 #appRoot .nav-btn.active {background:var(--blue);color:#fff}
 #appRoot /* ---------- Ban do kenh ban ---------- */
 .pos-pin {width:30px;height:30px;border-radius:9px;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1}
+#appRoot .checkdrop {position:relative}
+#appRoot .checkdrop-btn {width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+#appRoot .checkdrop-btn::after {content:"\25be";float:right;color:var(--muted);margin-left:8px}
+#appRoot .checkdrop-panel {position:absolute;top:calc(100% + 4px);left:0;right:0;min-width:200px;max-height:250px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(15,40,80,.14);padding:6px;z-index:50}
+#appRoot .checkdrop-panel .checkline {display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-weight:400;margin:0}
+#appRoot .checkdrop-panel .checkline:hover {background:var(--blue-light)}
+#appRoot .checkdrop-tools {display:flex;gap:12px;padding:4px 8px 6px;border-bottom:1px solid var(--line);margin-bottom:4px}
+#appRoot .checkdrop-tools a {font-size:12px;cursor:pointer}
 #appRoot .pos-label {background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.2);white-space:nowrap}
 #appRoot .pos-label::before {display:none}
 #appRoot .map-legend {background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.9;box-shadow:0 1px 6px rgba(0,0,0,.15)}
@@ -940,8 +948,8 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <p class="desc" id="salesScope">Tổng hợp số liệu phát triển thuê bao di động và doanh thu bán gói di động phát triển mới (trước thuế = giá gói ÷ 1,1) theo đơn vị và theo điểm bán, từ loại dữ liệu do anh thiết kế trong Cấu hình. Chỉ tính các thuê bao do tài khoản Eload của điểm bán phát triển.</p>
           <div class="form-grid">
             <div><label>Loại dữ liệu bán hàng</label><select id="salesType"><option value="">— Chọn loại dữ liệu —</option></select></div>
-            <div id="salesResultBox" class="hidden"><label>Kết quả bán gói</label><select id="salesResult"><option value="">— Tất cả —</option></select></div>
-            <div id="salesSubtypeBox" class="hidden"><label>Loại thuê bao</label><select id="salesSubtype"><option value="">— Tất cả —</option></select></div>
+            <div id="salesResultBox" class="hidden"><label>Kết quả bán gói</label><div class="checkdrop" id="salesResultDrop"><button type="button" class="checkdrop-btn">— Tất cả —</button><div class="checkdrop-panel hidden"></div></div></div>
+            <div id="salesSubtypeBox" class="hidden"><label>Loại thuê bao</label><div class="checkdrop" id="salesSubtypeDrop"><button type="button" class="checkdrop-btn">— Tất cả —</button><div class="checkdrop-panel hidden"></div></div></div>
             <div><label>Từ tháng</label><input type="month" id="salesFrom" /></div>
             <div><label>Đến tháng</label><input type="month" id="salesTo" /></div>
             <div style="align-self:end"><button class="btn blue" id="salesBtn">Xem tổng hợp</button></div>
@@ -2872,8 +2880,8 @@ export default {
         if (t.sales_qty_col) needCols.push(t.sales_qty_col);
         if (t.sales_result_col) needCols.push(t.sales_result_col);
         if (t.sales_subtype_col) needCols.push(t.sales_subtype_col);
-        const fKq = String(url.searchParams.get(&quot;ket_qua&quot;) || &quot;&quot;).trim();
-        const fSt = String(url.searchParams.get(&quot;loai_tb&quot;) || &quot;&quot;).trim();
+        const fKqList = url.searchParams.getAll(&quot;ket_qua&quot;).map((s) =&gt; String(s || &quot;&quot;).trim());
+        const fStList = url.searchParams.getAll(&quot;loai_tb&quot;).map((s) =&gt; String(s || &quot;&quot;).trim());
         const kqSet = new Set(), stSet = new Set();
         const tables = await listMonthlyTables(env, t.prefix);
         for (const tbl of tables) {
@@ -2895,8 +2903,8 @@ export default {
             if (ownOnly &amp;&amp; e !== meEload) continue;
             if (t.sales_result_col) kqSet.add(kq || &quot;(Trống)&quot;);
             if (t.sales_subtype_col) stSet.add(st || &quot;(Trống)&quot;);
-            if (fKq &amp;&amp; kq !== (fKq === &quot;(Trống)&quot; ? &quot;&quot; : fKq)) continue;
-            if (fSt &amp;&amp; st !== (fSt === &quot;(Trống)&quot; ? &quot;&quot; : fSt)) continue;
+            if (fKqList.length &amp;&amp; !fKqList.includes(kq)) continue;
+            if (fStList.length &amp;&amp; !fStList.includes(st)) continue;
             const price = toNumber(r[t.sales_price_col]);
             let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
             if (!qty || qty &lt;= 0) qty = 1;
@@ -4192,6 +4200,56 @@ $("dashYearType").addEventListener("change", () => { loadDashYearTable($("dashYe
 const fmtInt = (n) => (Math.round(Number(n) || 0)).toLocaleString("vi-VN");
 const monthLabel = (ym) => { const [y, m] = ym.split("-"); return "Tháng " + Number(m) + "/" + y; };
 // Chi cac loai du lieu da cau hinh du 3 cot bat buoc cho Dashboard ban hang
+/* Drop box tich chon nhieu gia tri (bo loc Dashboard ban hang) */
+function checkDropRefresh(dropId) {
+  const drop = $(dropId); if (!drop) return;
+  const boxes = [...drop.querySelectorAll(".checkdrop-panel input[type=checkbox]")];
+  const checked = boxes.filter((c) => c.checked);
+  const btn = drop.querySelector(".checkdrop-btn");
+  if (!checked.length) btn.textContent = "— Tất cả —";
+  else if (checked.length === boxes.length) btn.textContent = "Tất cả (" + boxes.length + ")";
+  else if (checked.length <= 2) btn.textContent = checked.map((c) => c.closest("label").textContent.trim()).join("; ");
+  else btn.textContent = "Đã chọn " + checked.length + "/" + boxes.length + " mục";
+}
+function checkDropSet(dropId, values, keepSelected) {
+  const drop = $(dropId); if (!drop) return;
+  const panel = drop.querySelector(".checkdrop-panel");
+  const keep = new Set(keepSelected || []);
+  panel.innerHTML = (values && values.length
+    ? '<div class="checkdrop-tools"><a data-act="all">Chọn tất cả</a><a data-act="none">Bỏ chọn</a></div>' : "") +
+    (values || []).map((o) => '<label class="checkline"><input type="checkbox" value="' + esc(o.value) + '"' + (keep.has(o.value) ? " checked" : "") + " /> " + esc(o.label) + "</label>").join("");
+  checkDropRefresh(dropId);
+}
+function checkDropGet(dropId) {
+  const drop = $(dropId); if (!drop) return [];
+  return [...drop.querySelectorAll(".checkdrop-panel input[type=checkbox]:checked")].map((c) => c.value);
+}
+// Dong/mo drop + chon tat ca / bo chon (uy quyen 1 cho, ap dung moi checkdrop)
+document.addEventListener("click", (e) => {
+  const act = e.target.closest("[data-act]");
+  if (act) {
+    e.preventDefault();
+    const drop = act.closest(".checkdrop");
+    drop.querySelectorAll(".checkdrop-panel input[type=checkbox]").forEach((c) => { c.checked = act.dataset.act === "all"; });
+    checkDropRefresh(drop.id);
+    return;
+  }
+  const btn = e.target.closest(".checkdrop-btn");
+  document.querySelectorAll(".checkdrop.open").forEach((d) => {
+    if (!btn || !d.contains(btn)) { d.classList.remove("open"); d.querySelector(".checkdrop-panel").classList.add("hidden"); }
+  });
+  if (btn) {
+    const drop = btn.closest(".checkdrop");
+    const willOpen = !drop.classList.contains("open");
+    drop.classList.toggle("open", willOpen);
+    drop.querySelector(".checkdrop-panel").classList.toggle("hidden", !willOpen);
+  }
+});
+document.addEventListener("change", (e) => {
+  const drop = e.target.closest(".checkdrop");
+  if (drop && e.target.matches(".checkdrop-panel input[type=checkbox]")) checkDropRefresh(drop.id);
+});
+
 const salesKindLabel = (k) => k === "doanh_thu" ? " — Doanh thu" : k === "san_luong" ? " — Sản lượng PTTB" : "";
 const salesTypes = () => (dataTypes || []).filter((x) => {
   if (x.sales_kind === "san_luong") return x.sales_unit_col && x.sales_eload_col;
@@ -4219,25 +4277,25 @@ async function loadSalesDash() {
   if (!code) { setMsg($("salesMsg"), "Hãy chọn loại dữ liệu bán hàng (đã cấu hình cột trong Cấu hình > Loại dữ liệu).", false); return; }
   const f = $("salesFrom").value, tt = $("salesTo").value;
   if (!f || !tt || f > tt) { setMsg($("salesMsg"), "Hãy chọn khoảng tháng hợp lệ (Từ tháng ≤ Đến tháng).", false); return; }
-  const q = new URLSearchParams({ loai: code, from: f + "-01", to: tt + "-31",
-    ket_qua: $("salesResult") ? $("salesResult").value : "", loai_tb: $("salesSubtype") ? $("salesSubtype").value : "" });
+  const q = new URLSearchParams({ loai: code, from: f + "-01", to: tt + "-31" });
+  checkDropGet("salesResultDrop").forEach((v) => q.append("ket_qua", v));
+  checkDropGet("salesSubtypeDrop").forEach((v) => q.append("loai_tb", v));
   setMsg($("salesMsg"), "Đang tổng hợp…");
   try {
     const d = await api("/api/sales-dashboard?" + q);
     setMsg($("salesMsg"), (d.skipped_tables || []).length ? "Lưu ý: các bảng tháng sau thiếu cột đã cấu hình nên không tính: " + d.skipped_tables.join(", ") + "." : "");
     // Nap bo loc Ket qua ban goi / Loai thue bao (chi hien khi loai co cau hinh)
     const st = salesTypes().find((x) => x.code === code) || {};
-    const fillFilter = (boxId, selId, values, hasCol) => {
-      const box = $(boxId), sel = $(selId);
-      if (!box || !sel) return;
+    const fillFilter = (boxId, dropId, values, hasCol) => {
+      const box = $(boxId);
+      if (!box) return;
       box.classList.toggle("hidden", !hasCol);
-      if (!hasCol) { sel.value = ""; return; }
-      const cur = sel.value;
-      sel.innerHTML = '<option value="">— Tất cả —</option>' + (values || []).map((v) => '<option value="' + esc(v) + '">' + esc(v) + "</option>").join("");
-      sel.value = [...sel.options].some((o) => o.value === cur) ? cur : "";
+      if (!hasCol) { checkDropSet(dropId, [], []); return; }
+      const cur = checkDropGet(dropId);
+      checkDropSet(dropId, (values || []).map((v) => ({ value: v === "(Trống)" ? "" : v, label: v })), cur);
     };
-    fillFilter("salesResultBox", "salesResult", d.ket_qua_values, !!st.sales_result_col);
-    fillFilter("salesSubtypeBox", "salesSubtype", d.loai_tb_values, !!st.sales_subtype_col);
+    fillFilter("salesResultBox", "salesResultDrop", d.ket_qua_values, !!st.sales_result_col);
+    fillFilter("salesSubtypeBox", "salesSubtypeDrop", d.loai_tb_values, !!st.sales_subtype_col);
     const now = new Date(); const p2 = (x) => String(x).padStart(2, "0");
     const curM = now.getFullYear() + "-" + p2(now.getMonth() + 1);
     const curY = String(now.getFullYear());
@@ -4291,7 +4349,7 @@ async function loadSalesDash() {
   } catch (e) { setMsg($("salesMsg"), e.message, false); }
 }
 $("salesBtn").addEventListener("click", () => { loadSalesDash(); });
-$("salesType").addEventListener("change", () => { $("salesResult").value = ""; $("salesSubtype").value = ""; });
+$("salesType").addEventListener("change", () => { checkDropSet("salesResultDrop", [], []); checkDropSet("salesSubtypeDrop", [], []); });
 
 /* ---------------- Quan ly don vi (cay) ---------------- */
 let unitsCache = [];
