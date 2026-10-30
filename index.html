@@ -979,9 +979,9 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <h2>🛒 Dashboard bán hàng</h2>
           <p class="desc" id="salesScope">Tổng hợp số liệu phát triển thuê bao di động và doanh thu bán gói di động phát triển mới (trước thuế = giá gói ÷ 1,1) theo đơn vị và theo điểm bán, từ loại dữ liệu do anh thiết kế trong Cấu hình. Chỉ tính các thuê bao do tài khoản Eload của điểm bán phát triển.</p>
           <div class="form-grid">
-            <div><label>Loại dữ liệu bán hàng</label><select id="salesType"><option value="">— Chọn loại dữ liệu —</option></select></div>
-            <div><label>Tháng đánh giá</label><input type="month" id="salesMonth" /></div>
-            <div id="salesResultBox" class="hidden"><label>Kết quả bán gói</label><div class="checkdrop" id="salesResultDrop"><button type="button" class="checkdrop-btn">— Tất cả —</button><div class="checkdrop-panel hidden"></div></div></div>
+            <div><label>Kỳ đánh giá</label><select id="salesKy"><option value="thang">Theo tháng</option><option value="nam">Theo năm</option></select></div>
+            <div id="salesMonthWrap"><label>Tháng đánh giá</label><input type="month" id="salesMonth" /></div>
+            <div id="salesYearWrap" class="hidden"><label>Năm đánh giá</label><input type="number" id="salesYear" min="2020" max="2100" /></div>
             <div id="salesSubtypeBox" class="hidden"><label>Loại thuê bao</label><div class="checkdrop" id="salesSubtypeDrop"><button type="button" class="checkdrop-btn">— Tất cả —</button><div class="checkdrop-panel hidden"></div></div></div>
             <div style="align-self:end"><button class="btn blue" id="salesBtn">Xem tổng hợp</button></div>
           </div>
@@ -993,12 +993,22 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div class="ov-kpi" id="kpiSubs" style="--kc:#2f7cf6">
               <div class="kpi-label">📱 Thuê bao phát triển mới</div>
               <b id="ovSubs">—</b>
-              <div class="kpi-deltas"><span class="delta" id="ovSubsMom"></span><span class="delta" id="ovSubsYoy"></span></div>
+              <div class="kpi-deltas"><span class="delta" id="ovSubsMom"></span><span class="delta" id="ovSubsYoy"></span><span class="delta" id="ovSubsPlan"></span></div>
             </div>
             <div class="ov-kpi" id="kpiRev" style="--kc:#f59e0b">
               <div class="kpi-label">💰 Doanh thu bán gói (trước thuế)</div>
               <b id="ovRev">—</b>
-              <div class="kpi-deltas"><span class="delta" id="ovRevMom"></span><span class="delta" id="ovRevYoy"></span></div>
+              <div class="kpi-deltas"><span class="delta" id="ovRevMom"></span><span class="delta" id="ovRevYoy"></span><span class="delta" id="ovRevPlan"></span></div>
+            </div>
+            <div class="ov-kpi" id="kpiDuqScale" style="--kc:#0ea5e9">
+              <div class="kpi-label">🏬 Quy mô kênh ĐUQ</div>
+              <b id="ovDuqScale">—</b>
+              <div class="kpi-deltas"><span class="delta flat" id="ovDuqScaleSub">điểm bán ủy quyền</span></div>
+            </div>
+            <div class="ov-kpi" id="kpiDuqRate" style="--kc:#ec4899">
+              <div class="kpi-label">📊 Tỷ lệ ĐUQ có PSSL</div>
+              <b id="ovDuqRate">—</b>
+              <div class="kpi-deltas"><span class="delta" id="ovDuqRateC1"></span><span class="delta flat" id="ovDuqRateSub"></span></div>
             </div>
             <div class="ov-kpi" id="kpiPssl" style="--kc:#14b8a6">
               <div class="kpi-label">🏪 Kênh điểm bán có PSSL</div>
@@ -1025,13 +1035,9 @@ html.is-mobile #appRoot .btn{min-height:44px}
           </div>
           <div class="plan-card">
             <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between">
-              <div id="planInputWrap">
-                <label>Kế hoạch kênh PSSL tháng <b id="planMonthLabel"></b> <span class="desc">(chỉ admin)</span></label>
-                <div style="display:flex;gap:8px;margin-top:4px">
-                  <input type="number" id="psslPlanInput" min="0" step="1" placeholder="VD: 120" style="max-width:170px" />
-                  <button class="btn blue" id="psslPlanSave">Lưu kế hoạch</button>
-                </div>
-                <div id="psslPlanMsg" style="margin-top:4px"></div>
+              <div>
+                <label>Kế hoạch kênh PSSL <b id="planMonthLabel"></b></label>
+                <div class="desc" style="margin-top:4px">Admin giao kế hoạch theo tháng và theo đơn vị trong module <b>Quản lý dữ liệu đầu vào</b>.</div>
               </div>
               <div style="flex:1;min-width:260px">
                 <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
@@ -1042,6 +1048,10 @@ html.is-mobile #appRoot .btn{min-height:44px}
               </div>
             </div>
           </div>
+
+          <!-- CHAM SOC KENH DUQ -->
+          <h3 class="sec-title">💆 Chăm sóc kênh ĐUQ theo đơn vị <span class="sec-sub" id="ovCareSub"></span></h3>
+          <div class="tbl-wrap"><table class="data"><thead id="ovCareHead"></thead><tbody id="ovCareBody"><tr><td>—</td></tr></tbody></table></div>
 
           <!-- DANH GIA THEO DON VI -->
           <h3 class="sec-title">🏢 Đánh giá theo đơn vị <span class="sec-sub" id="ovUnitSub"></span></h3>
@@ -1178,9 +1188,25 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div class="full"><button class="btn blue" type="submit" id="impBtn">Import lên D1</button></div>
           </form>
           <div id="impMsg"></div>
-          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Các bảng dữ liệu đã import</h3>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th>Khóa thay thế</th><th></th></tr></thead><tbody id="tablesBody"><tr><td colspan="6">Đang tải…</td></tr></tbody></table></div>
+          <div style="display:flex;gap:12px;align-items:flex-end;justify-content:space-between;margin:18px 0 8px;flex-wrap:wrap">
+            <h3 style="margin:0;color:var(--blue-dark)">Các bảng dữ liệu đã import</h3>
+            <div style="min-width:220px"><label>Bộ lọc theo loại dữ liệu</label><select id="tblTypeFilter"><option value="">— Tất cả loại —</option></select></div>
+          </div>
+          <div class="tbl-wrap" style="max-height:215px;overflow-y:auto"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th>Khóa thay thế</th><th></th></tr></thead><tbody id="tablesBody"><tr><td colspan="6">Đang tải…</td></tr></tbody></table></div>
           <div class="note"><b>Trường dữ liệu HHBG:</b> Tên Eload, Số Eload, Số Ví, Số thuê bao, Loại thuê bao, Chu kỳ chi trả, Tên gói cước, Giá gói cước, Thời gian giao dịch, Trans ID, Kênh thực hiện, Thù lao chi trả, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.<br/><b>Trường dữ liệu BCKH:</b> Số Eload, Tên Eload, Số thuê bao, Thời gian kích hoạt, Hoa hồng BCKH, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.</div>
+
+          <div id="planManager" class="hidden">
+            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Giao kế hoạch kinh doanh (chỉ admin)</h3>
+            <p class="desc">Giao kế hoạch theo tháng và theo từng đơn vị cho 3 chỉ tiêu: <b>kênh PSSL</b>, <b>sản lượng phát triển thuê bao</b> và <b>doanh thu thuê bao di động phát triển mới</b>. Số liệu kế hoạch dùng để đánh giá tỷ lệ hoàn thành trên Dashboard bán hàng.</p>
+            <div class="form-grid">
+              <div><label>Tháng giao kế hoạch</label><input type="month" id="planMonth" /></div>
+              <div><label>Loại kế hoạch</label><select id="planType"><option value="pssl">Kênh PSSL</option><option value="subs">Sản lượng phát triển thuê bao</option><option value="revenue">Doanh thu TB phát triển mới</option></select></div>
+              <div style="align-self:end"><button class="btn gray" type="button" id="planLoadBtn">Tải kế hoạch đã giao</button></div>
+            </div>
+            <div class="tbl-wrap" style="max-height:300px;overflow-y:auto;margin-top:8px"><table class="data"><thead><tr><th>Đơn vị</th><th style="width:170px">Kế hoạch</th></tr></thead><tbody id="planBody"><tr><td colspan="2">Chọn tháng và loại kế hoạch rồi bấm "Tải kế hoạch đã giao".</td></tr></tbody></table></div>
+            <div style="margin-top:8px;display:flex;gap:8px"><button class="btn blue" type="button" id="planSaveBtn">Lưu kế hoạch</button></div>
+            <div id="planMsg" style="margin-top:6px"></div>
+          </div>
 
           <div id="dtManager" class="hidden">
             <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Quản lý loại dữ liệu (chỉ admin)</h3>
@@ -1506,7 +1532,7 @@ async function requireAuth(request, env) {
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
   const user = await env.DB.prepare(
-    &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, chuc_danh, don_vi_id, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?&quot;
+    &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, chuc_danh, don_vi_id, loai_kenh, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?&quot;
   )
     .bind(payload.sub)
     .first();
@@ -2921,56 +2947,85 @@ export default {
       // NGUYEN TAC MAP: theo don vi -&gt; can cu ten don vi trong du lieu; theo
       // diem ban -&gt; can cu ma kenh hoac so eload; chi tinh cac thue bao do
       // tai khoan Eload cua diem ban (role=&#x27;user&#x27;) phat trien.
-      // Ke hoach PSSL thang (so kenh diem ban co phat sinh san luong).
-      // Admin giao ke hoach; moi user co module salesdash deu xem duoc.
-      const PSSQL_DDL = &quot;CREATE TABLE IF NOT EXISTS ke_hoach_pssl (thang TEXT PRIMARY KEY, so_luong INTEGER NOT NULL DEFAULT 0, updated_by TEXT, updated_at TEXT)&quot;;
-      if (path === &quot;/api/pssl-plan&quot; &amp;&amp; method === &quot;GET&quot;) {
-        if (!hasModule(me, &quot;salesdash&quot;)) return err(&quot;Tai khoan khong co quyen xem Dashboard ban hang&quot;, 403);
-        const thang = String(url.searchParams.get(&quot;thang&quot;) || &quot;&quot;).trim();
-        if (!/^\d{4}-\d{2}$/.test(thang)) return err(&quot;Thang khong hop le (YYYY-MM)&quot;, 422);
-        await env.DB.prepare(PSSQL_DDL).run();
-        const r = await env.DB.prepare(&quot;SELECT so_luong FROM ke_hoach_pssl WHERE thang = ?&quot;).bind(thang).first();
-        return json({ ok: true, thang, ke_hoach: r ? Number(r.so_luong) || 0 : 0 });
+      // Ke hoach kinh doanh theo thang + don vi: PSSL / san luong thue bao / doanh thu.
+      // don_vi_id = 0 la muc &quot;Toan tinh&quot; (tuong thich du lieu ke hoach PSSL cu).
+      const KEHOACH_DDL = &quot;CREATE TABLE IF NOT EXISTS ke_hoach (thang TEXT NOT NULL, don_vi_id INTEGER NOT NULL DEFAULT 0, loai TEXT NOT NULL, so_luong REAL NOT NULL DEFAULT 0, updated_by TEXT, updated_at TEXT, PRIMARY KEY (thang, don_vi_id, loai))&quot;;
+      async function ensureKeHoach(env) {
+        await env.DB.prepare(KEHOACH_DDL).run();
+        try {
+          const old = await env.DB.prepare(&quot;SELECT name FROM sqlite_master WHERE type=&#x27;table&#x27; AND name=&#x27;ke_hoach_pssl&#x27;&quot;).first();
+          if (old) {
+            await env.DB.prepare(&quot;INSERT OR IGNORE INTO ke_hoach (thang, don_vi_id, loai, so_luong, updated_by, updated_at) SELECT thang, 0, &#x27;pssl&#x27;, so_luong, updated_by, updated_at FROM ke_hoach_pssl&quot;).run();
+            await env.DB.prepare(&quot;DROP TABLE ke_hoach_pssl&quot;).run();
+          }
+        } catch (e) { /* bo qua */ }
       }
-      if (path === &quot;/api/pssl-plan&quot; &amp;&amp; method === &quot;PUT&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc giao ke hoach PSSL&quot;, 403);
+      const KEHOACH_LOAI = [&quot;pssl&quot;, &quot;subs&quot;, &quot;revenue&quot;];
+      if (path === &quot;/api/ke-hoach&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;salesdash&quot;) &amp;&amp; !hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen xem ke hoach&quot;, 403);
+        const thang = String(url.searchParams.get(&quot;thang&quot;) || &quot;&quot;).trim();
+        const loai = String(url.searchParams.get(&quot;loai&quot;) || &quot;&quot;).trim();
+        if (!/^\d{4}-\d{2}$/.test(thang)) return err(&quot;Thang khong hop le (YYYY-MM)&quot;, 422);
+        if (loai &amp;&amp; !KEHOACH_LOAI.includes(loai)) return err(&quot;Loai ke hoach khong hop le&quot;, 422);
+        await ensureKeHoach(env);
+        const binds = loai ? [thang, loai] : [thang];
+        const r = await env.DB.prepare(&quot;SELECT don_vi_id, loai, so_luong FROM ke_hoach WHERE thang = ?&quot; + (loai ? &quot; AND loai = ?&quot; : &quot;&quot;)).bind(...binds).all();
+        return json({ ok: true, thang, plans: r.results || [] });
+      }
+      if (path === &quot;/api/ke-hoach&quot; &amp;&amp; method === &quot;PUT&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc giao ke hoach&quot;, 403);
         const b = await readBody(request);
         const thang = String(b.thang || &quot;&quot;).trim();
-        const so = Math.max(0, Math.round(Number(b.so_luong) || 0));
+        const loai = String(b.loai || &quot;&quot;).trim();
+        const items = Array.isArray(b.items) ? b.items : [];
         if (!/^\d{4}-\d{2}$/.test(thang)) return err(&quot;Thang khong hop le (YYYY-MM)&quot;, 422);
-        await env.DB.prepare(PSSQL_DDL).run();
-        await env.DB.prepare(
-          &quot;INSERT INTO ke_hoach_pssl (thang, so_luong, updated_by, updated_at) VALUES (?, ?, ?, ?) &quot; +
-          &quot;ON CONFLICT(thang) DO UPDATE SET so_luong = excluded.so_luong, updated_by = excluded.updated_by, updated_at = excluded.updated_at&quot;
-        ).bind(thang, so, me.username || &quot;&quot;, saigonNow()).run();
-        return json({ ok: true, thang, ke_hoach: so });
+        if (!KEHOACH_LOAI.includes(loai)) return err(&quot;Loai ke hoach khong hop le&quot;, 422);
+        await ensureKeHoach(env);
+        const stmt = env.DB.prepare(&quot;INSERT INTO ke_hoach (thang, don_vi_id, loai, so_luong, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(thang, don_vi_id, loai) DO UPDATE SET so_luong = excluded.so_luong, updated_by = excluded.updated_by, updated_at = excluded.updated_at&quot;);
+        const batch = items.map((it) =&gt; stmt.bind(thang, Math.max(0, Math.round(Number(it.don_vi_id) || 0)), loai, Math.max(0, Number(it.so_luong) || 0), me.username || &quot;&quot;, saigonNow()));
+        if (batch.length) await env.DB.batch(batch);
+        return json({ ok: true, thang, loai, saved: batch.length });
       }
-      // Dashboard ban hang kieu dieu hanh: diem tin tong hop (KPI + so sanh
-      // MoM/YoY), bieu do xu huong 14 thang, kenh PSSL + ke hoach thang,
-      // danh gia theo don vi va theo diem ban (kem MoM tung dong).
-      // PSSL = diem ban co phat sinh san luong trong thang: co dong du lieu
-      // ban hang duoc map ve Eload cua diem ban (phat trien thue bao moi
-      // hoac giao dich ban goi).
+      // Dashboard ban hang kieu dieu hanh (moi):
+      // - Tu dong tong hop TAT CA loai du lieu ban hang (doanh thu / san luong), khong can chon.
+      // - Loai bo cung cac giao dich co ket qua &quot;Dang ky khong thanh cong&quot;.
+      // - Ky danh gia: theo thang (ky=thang) hoac theo nam (ky=nam).
+      // - PSSL = diem ban co phat sinh san luong trong ky: co dong du lieu ban hang
+      //   (bat ky loai nao) duoc map ve Eload cua diem ban.
       if (path === &quot;/api/sales-overview&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!hasModule(me, &quot;salesdash&quot;)) return err(&quot;Tai khoan khong co quyen xem Dashboard ban hang&quot;, 403);
         const types = await getDataTypes(env);
-        const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;&quot;).toUpperCase();
-        const t = types.find((x) =&gt; x.code === loai);
-        if (!t) return err(&quot;Chua chon loai du lieu ban hang&quot;, 422);
-        const salesKind = t.sales_kind || &quot;&quot;;
-        const needPrice = salesKind !== &quot;san_luong&quot;;
-        if (!t.sales_unit_col || !t.sales_eload_col || (needPrice &amp;&amp; !t.sales_price_col))
-          return err(&quot;Loai du lieu &quot; + t.code + &quot; chua cau hinh du cot cho Dashboard ban hang (can: cot Ten don vi, cot So Eload&quot; + (needPrice ? &quot;, cot Gia goi&quot; : &quot;&quot;) + &quot;).&quot;, 422);
+        const stypes = types.filter((x) =&gt; {
+          if (x.sales_kind === &quot;san_luong&quot;) return x.sales_unit_col &amp;&amp; x.sales_eload_col;
+          return (x.sales_kind === &quot;doanh_thu&quot; || !x.sales_kind) &amp;&amp; x.sales_unit_col &amp;&amp; x.sales_eload_col &amp;&amp; x.sales_price_col;
+        });
+        if (!stypes.length) return err(&quot;Chua co loai du lieu nao duoc khai bao dung cho Dashboard ban hang. Vao Quan ly du lieu dau vao &gt; Quan ly loai du lieu de thiet lap.&quot;, 422);
+        const ky = url.searchParams.get(&quot;ky&quot;) === &quot;nam&quot; ? &quot;nam&quot; : &quot;thang&quot;;
+        const nowS = saigonNow();
         let thang = String(url.searchParams.get(&quot;thang&quot;) || &quot;&quot;).trim();
-        if (!/^\d{4}-\d{2}$/.test(thang)) thang = saigonNow().slice(0, 7);
+        if (!/^\d{4}-\d{2}$/.test(thang)) thang = nowS.slice(0, 7);
+        let nam = parseInt(url.searchParams.get(&quot;nam&quot;), 10);
+        if (!nam || nam &lt; 2000 || nam &gt; 2100) nam = Number(nowS.slice(0, 4));
         const months = [];
-        { let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
-          for (let i = 13; i &gt;= 0; i--) { let mm = m - i, yy = y; while (mm &lt;= 0) { mm += 12; yy--; } months.push(yy + &quot;-&quot; + String(mm).padStart(2, &quot;0&quot;)); } }
+        let curMonths, prevMonths, c2Months, cmp1_label, cmp2_label, trendMonths, periodLabel;
+        if (ky === &quot;nam&quot;) {
+          for (let m = 1; m &lt;= 12; m++) months.push((nam - 1) + &quot;-&quot; + String(m).padStart(2, &quot;0&quot;));
+          for (let m = 1; m &lt;= 12; m++) months.push(nam + &quot;-&quot; + String(m).padStart(2, &quot;0&quot;));
+          curMonths = months.slice(12); prevMonths = months.slice(0, 12); c2Months = [];
+          cmp1_label = &quot;vs năm &quot; + (nam - 1); cmp2_label = null;
+          trendMonths = curMonths; periodLabel = &quot;năm &quot; + nam;
+        } else {
+          let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
+          for (let i = 13; i &gt;= 0; i--) { let mm = m - i, yy = y; while (mm &lt;= 0) { mm += 12; yy--; } months.push(yy + &quot;-&quot; + String(mm).padStart(2, &quot;0&quot;)); }
+          const T = months[13];
+          curMonths = [T]; prevMonths = [months[12]]; c2Months = [months[1]];
+          cmp1_label = &quot;vs tháng trước&quot;; cmp2_label = &quot;vs cùng kỳ năm trước&quot;;
+          trendMonths = months; periodLabel = &quot;tháng &quot; + Number(T.slice(5, 7)) + &quot;/&quot; + T.slice(0, 4);
+        }
         const monthSet = new Set(months);
-        const T = months[13], T1 = months[12], T12 = months[1];
         const normE = (s) =&gt; String(s == null ? &quot;&quot; : s).trim().toUpperCase().replace(/\s+/g, &quot;&quot;);
         const posRows = (await env.DB.prepare(
-          &quot;SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, d.ten_don_vi AS don_vi_ten &quot; +
+          &quot;SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, d.ten_don_vi AS don_vi_ten &quot; +
           &quot;FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id &quot; +
           &quot;WHERE u.role = &#x27;user&#x27; AND u.so_eload IS NOT NULL AND TRIM(u.so_eload) != &#x27;&#x27;&quot;
         ).all()).results || [];
@@ -2979,105 +3034,216 @@ export default {
         const normU = (s) =&gt; String(s == null ? &quot;&quot; : s).trim().toLowerCase()
           .normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/đ/g, &quot;d&quot;)
           .replace(/[–—−‐‒]/g, &quot;-&quot;).replace(/\s+/g, &quot; &quot;).replace(/\s*-\s*/g, &quot;-&quot;);
+        const allUnits = (await env.DB.prepare(&quot;SELECT id, ten_don_vi FROM don_vi&quot;).all()).results || [];
+        const unitNameToId = {};
+        for (const u of allUnits) unitNameToId[normU(u.ten_don_vi)] = u.id;
+        let scopeUnitIds = null; // null = toan tinh (admin/subadmin)
         let scopeNames = null;
         const leaderScoped = isLeaderLike &amp;&amp; me.don_vi_id;
         if (leaderScoped) {
           const urs = (await env.DB.prepare(unitSubtreeCTE() + &quot; SELECT d.id, d.ten_don_vi FROM don_vi d WHERE d.id IN (SELECT id FROM subtree)&quot;).bind(me.don_vi_id).all()).results || [];
+          scopeUnitIds = urs.map((u) =&gt; u.id);
           scopeNames = new Set(urs.map((u) =&gt; normU(u.ten_don_vi)));
+        } else if (!isPrivileged) {
+          scopeUnitIds = me.don_vi_id ? [me.don_vi_id] : [];
         }
         const ownOnly = !isPrivileged &amp;&amp; !leaderScoped;
         const meEload = normE(me.so_eload || &quot;&quot;);
-        const fKqList = url.searchParams.getAll(&quot;ket_qua&quot;).map((s) =&gt; String(s || &quot;&quot;).trim());
         const fStList = url.searchParams.getAll(&quot;loai_tb&quot;).map((s) =&gt; String(s || &quot;&quot;).trim());
-        const needCols = [t.sales_unit_col, t.sales_eload_col];
-        if (t.sales_price_col) needCols.push(t.sales_price_col);
-        if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
-        if (t.sales_qty_col) needCols.push(t.sales_qty_col);
-        if (t.sales_result_col) needCols.push(t.sales_result_col);
-        if (t.sales_subtype_col) needCols.push(t.sales_subtype_col);
+        const isDuqPos = (p) =&gt; normLoaiKenh(p.loai_kenh) === &quot;DUQ&quot;;
+        // Quy mo kenh DUQ theo pham vi
+        let scaleDuq = 0;
+        const duqPosIds = [];
+        for (const e in posByEload) {
+          const p = posByEload[e];
+          if (!isDuqPos(p)) continue;
+          if (scopeUnitIds !== null &amp;&amp; !scopeUnitIds.includes(p.don_vi_id)) continue;
+          if (ownOnly &amp;&amp; e !== meEload) continue;
+          scaleDuq++;
+          duqPosIds.push(p.id);
+        }
         const newMonthAgg = () =&gt; ({ subs: 0, revenue: 0, pssl: new Set(), units: {}, pos: {} });
         const perMonth = {};
-        const kqSet = new Set(), stSet = new Set();
-        const sortVi = (a, b) =&gt; String(a).localeCompare(String(b), &quot;vi&quot;);
-        const tables = await listMonthlyTables(env, t.prefix);
-        for (const tbl of tables) {
-          const mk = tableMonthKey(tbl);
-          if (!mk || !monthSet.has(mk)) continue;
-          const cols = (await env.DB.prepare(&quot;PRAGMA table_info(&quot; + tbl + &quot;)&quot;).all()).results || [];
-          const cn = new Set(cols.map((c) =&gt; c.name));
-          if (!needCols.every((c) =&gt; cn.has(c))) continue;
-          const rows = (await env.DB.prepare(&quot;SELECT * FROM &quot; + tbl).all()).results || [];
-          for (const r of rows) {
-            const e = normE(r[t.sales_eload_col]);
-            const pos = posByEload[e];
-            if (!pos) continue;
-            const rawU = String(r[t.sales_unit_col] == null ? &quot;&quot; : r[t.sales_unit_col]).trim();
-            const nu = normU(rawU);
-            if (scopeNames &amp;&amp; !scopeNames.has(nu)) continue;
-            if (ownOnly &amp;&amp; e !== meEload) continue;
-            const kq = t.sales_result_col ? String(r[t.sales_result_col] == null ? &quot;&quot; : r[t.sales_result_col]).trim() : &quot;&quot;;
-            const st = t.sales_subtype_col ? String(r[t.sales_subtype_col] == null ? &quot;&quot; : r[t.sales_subtype_col]).trim() : &quot;&quot;;
-            if (t.sales_result_col) kqSet.add(kq || &quot;(Trống)&quot;);
-            if (t.sales_subtype_col) stSet.add(st || &quot;(Trống)&quot;);
-            if (fKqList.length &amp;&amp; !fKqList.includes(kq)) continue;
-            if (fStList.length &amp;&amp; !fStList.includes(st)) continue;
-            const price = toNumber(r[t.sales_price_col]);
-            let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
-            if (!qty || qty &lt;= 0) qty = 1;
-            const revenue = price / 1.1 * qty;
-            const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
-            pm.subs += qty; pm.revenue += revenue; pm.pssl.add(e);
-            const u = pm.units[nu] || (pm.units[nu] = { name: rawU || &quot;(Chưa xác định)&quot;, subs: 0, revenue: 0, pssl: new Set() });
-            u.subs += qty; u.revenue += revenue; u.pssl.add(e);
-            const pp = pm.pos[e] || (pm.pos[e] = { subs: 0, revenue: 0 });
-            pp.subs += qty; pp.revenue += revenue;
+        const stSet = new Set();
+        let hasSubtypeCol = false;
+        for (const t of stypes) {
+          const needPrice = t.sales_kind !== &quot;san_luong&quot;;
+          const needCols = [t.sales_unit_col, t.sales_eload_col];
+          if (t.sales_price_col) needCols.push(t.sales_price_col);
+          if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
+          if (t.sales_qty_col) needCols.push(t.sales_qty_col);
+          if (t.sales_result_col) needCols.push(t.sales_result_col);
+          if (t.sales_subtype_col) { needCols.push(t.sales_subtype_col); hasSubtypeCol = true; }
+          const tables = await listMonthlyTables(env, t.prefix);
+          for (const tbl of tables) {
+            const mk = tableMonthKey(tbl);
+            if (!mk || !monthSet.has(mk)) continue;
+            const cols = (await env.DB.prepare(&quot;PRAGMA table_info(&quot; + tbl + &quot;)&quot;).all()).results || [];
+            const cn = new Set(cols.map((c) =&gt; c.name));
+            if (!needCols.every((c) =&gt; cn.has(c))) continue;
+            const rows = (await env.DB.prepare(&quot;SELECT * FROM &quot; + tbl).all()).results || [];
+            for (const r of rows) {
+              const e = normE(r[t.sales_eload_col]);
+              const pos = posByEload[e];
+              if (!pos) continue;
+              const rawU = String(r[t.sales_unit_col] == null ? &quot;&quot; : r[t.sales_unit_col]).trim();
+              const nu = normU(rawU);
+              if (scopeNames &amp;&amp; !scopeNames.has(nu)) continue;
+              if (ownOnly &amp;&amp; e !== meEload) continue;
+              const kq = t.sales_result_col ? String(r[t.sales_result_col] == null ? &quot;&quot; : r[t.sales_result_col]).trim() : &quot;&quot;;
+              // Loai bo cung giao dich &quot;Dang ky khong thanh cong&quot;
+              if (kq &amp;&amp; kq.toLowerCase() === &quot;đăng ký không thành công&quot;) continue;
+              const st = t.sales_subtype_col ? String(r[t.sales_subtype_col] == null ? &quot;&quot; : r[t.sales_subtype_col]).trim() : &quot;&quot;;
+              if (t.sales_subtype_col) stSet.add(st || &quot;(Trống)&quot;);
+              if (fStList.length &amp;&amp; !fStList.includes(st)) continue;
+              const price = toNumber(r[t.sales_price_col]);
+              let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
+              if (!qty || qty &lt;= 0) qty = 1;
+              const revenue = needPrice ? price / 1.1 * qty : 0;
+              const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
+              pm.subs += qty; pm.revenue += revenue; pm.pssl.add(e);
+              const u = pm.units[nu] || (pm.units[nu] = { name: rawU || &quot;(Chưa xác định)&quot;, subs: 0, revenue: 0, pssl: new Set() });
+              u.subs += qty; u.revenue += revenue; u.pssl.add(e);
+              const pp = pm.pos[e] || (pm.pos[e] = { subs: 0, revenue: 0 });
+              pp.subs += qty; pp.revenue += revenue;
+            }
           }
         }
-        const g = (mk) =&gt; perMonth[mk] || newMonthAgg();
-        const pct = (cur, prev) =&gt; prev &gt; 0 ? Math.round((cur - prev) / prev * 1000) / 10 : null;
-        const gT = g(T), gT1 = g(T1), gT12 = g(T12);
-        await env.DB.prepare(PSSQL_DDL).run();
-        const planMap = {};
+        const aggMonths = (mks) =&gt; {
+          const a = newMonthAgg();
+          for (const mk of mks) {
+            const pm = perMonth[mk]; if (!pm) continue;
+            a.subs += pm.subs; a.revenue += pm.revenue;
+            for (const e of pm.pssl) a.pssl.add(e);
+            for (const nu in pm.units) {
+              const s = pm.units[nu];
+              const u = a.units[nu] || (a.units[nu] = { name: s.name, subs: 0, revenue: 0, pssl: new Set() });
+              u.subs += s.subs; u.revenue += s.revenue;
+              for (const e of s.pssl) u.pssl.add(e);
+            }
+            for (const e in pm.pos) {
+              const s = pm.pos[e];
+              const pp = a.pos[e] || (a.pos[e] = { subs: 0, revenue: 0 });
+              pp.subs += s.subs; pp.revenue += s.revenue;
+            }
+          }
+          return a;
+        };
+        const cur = aggMonths(curMonths), prev = aggMonths(prevMonths), c2 = aggMonths(c2Months);
+        const pct = (a, b) =&gt; b &gt; 0 ? Math.round((a - b) / b * 1000) / 10 : null;
+        // Ke hoach
+        await ensureKeHoach(env);
+        const planRows = ((await env.DB.prepare(&quot;SELECT thang, don_vi_id, loai, so_luong FROM ke_hoach&quot;).all()).results || []);
+        const planSum = (mks, loai) =&gt; {
+          let total = 0, hasUnit = false;
+          for (const mk of mks) {
+            const rows = planRows.filter((r) =&gt; r.thang === mk &amp;&amp; r.loai === loai);
+            const urows = rows.filter((r) =&gt; r.don_vi_id !== 0 &amp;&amp; (scopeUnitIds === null || scopeUnitIds.includes(r.don_vi_id)));
+            if (urows.length) { hasUnit = true; total += urows.reduce((a, r) =&gt; a + (Number(r.so_luong) || 0), 0); }
+          }
+          if (!hasUnit &amp;&amp; scopeUnitIds === null) {
+            for (const mk of mks) {
+              const g = planRows.find((r) =&gt; r.thang === mk &amp;&amp; r.loai === loai &amp;&amp; r.don_vi_id === 0);
+              if (g) total += Number(g.so_luong) || 0;
+            }
+          }
+          return total;
+        };
+        const unitPlan = (nu, mks, loai) =&gt; {
+          const uid = unitNameToId[nu];
+          if (!uid) return 0;
+          let s = 0;
+          for (const mk of mks) {
+            const r = planRows.find((x) =&gt; x.thang === mk &amp;&amp; x.loai === loai &amp;&amp; x.don_vi_id === uid);
+            if (r) s += Number(r.so_luong) || 0;
+          }
+          return s;
+        };
+        const khPssl = planSum(curMonths, &quot;pssl&quot;), khSubs = planSum(curMonths, &quot;subs&quot;), khRev = planSum(curMonths, &quot;revenue&quot;);
+        const psslCount = cur.pssl.size, psslPrev = prev.pssl.size;
+        const psslDuq = [...cur.pssl].filter((e) =&gt; { const p = posByEload[e]; return p &amp;&amp; isDuqPos(p); }).length;
+        const psslDuqPrev = [...prev.pssl].filter((e) =&gt; { const p = posByEload[e]; return p &amp;&amp; isDuqPos(p); }).length;
+        const tyleDuq = scaleDuq &gt; 0 ? Math.round(psslDuq / scaleDuq * 1000) / 10 : null;
+        const tyleDuqPrev = scaleDuq &gt; 0 ? Math.round(psslDuqPrev / scaleDuq * 1000) / 10 : null;
+        // Cham soc kenh DUQ theo don vi trong ky
+        let careByUnit = [];
         try {
-          const pr = await env.DB.prepare(&quot;SELECT thang, so_luong FROM ke_hoach_pssl&quot;).all();
-          for (const r of (pr.results || [])) planMap[r.thang] = Number(r.so_luong) || 0;
-        } catch (e) { /* bo qua */ }
-        const primary = salesKind === &quot;san_luong&quot; ? &quot;subs&quot; : &quot;revenue&quot;;
-        const trend = months.map((mk) =&gt; { const a = g(mk); return { month: mk, subs: a.subs, revenue: Math.round(a.revenue) }; });
-        const psslTrend = months.slice(2).map((mk) =&gt; ({ month: mk, pssl: g(mk).pssl.size, ke_hoach: planMap[mk] || 0 }));
-        const kh = planMap[T] || 0;
-        const uT = gT.units, uT1 = gT1.units;
-        const by_unit = Object.keys(uT).map((nu) =&gt; {
-          const a = uT[nu], b = uT1[nu] || { subs: 0, revenue: 0 };
-          return { name: a.name, subs: a.subs, revenue: Math.round(a.revenue),
-            subs_mom: b.subs, subs_mom_pct: pct(a.subs, b.subs),
-            rev_mom: Math.round(b.revenue), rev_mom_pct: pct(a.revenue, b.revenue),
-            pssl: a.pssl.size };
-        }).sort((x, y) =&gt; y[primary] - x[primary]);
-        const pT = gT.pos, pT1 = gT1.pos, psslT = gT.pssl;
-        const by_pos = Object.keys(pT).map((e) =&gt; {
+          await env.DB.prepare(&quot;CREATE TABLE IF NOT EXISTS dot_cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_dot TEXT NOT NULL, ghi_chu TEXT, nguoi_tao_id INTEGER, nguoi_tao_ten TEXT, created_at TEXT)&quot;).run();
+          await env.DB.prepare(&quot;CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT)&quot;).run();
+          if (duqPosIds.length) {
+            const likeLen = ky === &quot;nam&quot; ? 4 : 7;
+            const likeVal = ky === &quot;nam&quot; ? String(nam) : curMonths[0];
+            const placeholders = duqPosIds.map(() =&gt; &quot;?&quot;).join(&quot;,&quot;);
+            const cr = await env.DB.prepare(
+              &quot;SELECT p.don_vi_id AS duid, COUNT(DISTINCT c.pos_user_id) AS duq_cs, COUNT(*) AS luot &quot; +
+              &quot;FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id &quot; +
+              &quot;WHERE substr(c.thoi_gian, 1, &quot; + likeLen + &quot;) = ? AND c.pos_user_id IN (&quot; + placeholders + &quot;) GROUP BY p.don_vi_id&quot;
+            ).bind(likeVal, ...duqPosIds).all();
+            const careMap = {};
+            for (const r of (cr.results || [])) careMap[r.duid] = r;
+            const unitDuqScale = {};
+            for (const e in posByEload) {
+              const p = posByEload[e];
+              if (!isDuqPos(p)) continue;
+              if (scopeUnitIds !== null &amp;&amp; !scopeUnitIds.includes(p.don_vi_id)) continue;
+              unitDuqScale[p.don_vi_id] = (unitDuqScale[p.don_vi_id] || 0) + 1;
+            }
+            const scopeDuids = scopeUnitIds === null ? Object.keys(unitDuqScale).map(Number) : scopeUnitIds.filter((id) =&gt; unitDuqScale[id]);
+            const duidToName = {};
+            for (const u of allUnits) duidToName[u.id] = u.ten_don_vi;
+            careByUnit = scopeDuids.map((duid) =&gt; {
+              const qm = unitDuqScale[duid] || 0;
+              const cm = careMap[duid] || { duq_cs: 0, luot: 0 };
+              const cs = Number(cm.duq_cs) || 0;
+              return { don_vi_id: duid, ten: duidToName[duid] || (&quot;Đơn vị &quot; + duid), quy_mo_duq: qm, duq_duoc_cs: cs, ty_le: qm &gt; 0 ? Math.round(cs / qm * 1000) / 10 : null, luot: Number(cm.luot) || 0 };
+            }).sort((a, b) =&gt; (b.ty_le || 0) - (a.ty_le || 0));
+          }
+        } catch (e) { /* bo qua khi chua co du lieu cham soc */ }
+        const trend = trendMonths.map((mk) =&gt; { const a = aggMonths([mk]); return { month: mk, subs: a.subs, revenue: Math.round(a.revenue) }; });
+        const psslTrendMonths = ky === &quot;nam&quot; ? curMonths : months.slice(2);
+        const psslTrend = psslTrendMonths.map((mk) =&gt; ({ month: mk, pssl: aggMonths([mk]).pssl.size, ke_hoach: planSum([mk], &quot;pssl&quot;) }));
+        const tyle = (actual, kh) =&gt; kh &gt; 0 ? Math.round(actual / kh * 1000) / 10 : null;
+        const by_unit = Object.keys(cur.units).map((nu) =&gt; {
+          const a = cur.units[nu], b = prev.units[nu] || { subs: 0, revenue: 0 };
+          const kP = unitPlan(nu, curMonths, &quot;pssl&quot;), kS = unitPlan(nu, curMonths, &quot;subs&quot;), kR = unitPlan(nu, curMonths, &quot;revenue&quot;);
+          return { name: a.name, subs: a.subs, revenue: Math.round(a.revenue), pssl: a.pssl.size,
+            subs_c1: b.subs, subs_c1_pct: pct(a.subs, b.subs),
+            rev_c1: Math.round(b.revenue), rev_c1_pct: pct(a.revenue, b.revenue),
+            kh_pssl: kP, tyle_pssl: tyle(a.pssl.size, kP),
+            kh_subs: kS, tyle_subs: tyle(a.subs, kS),
+            kh_rev: Math.round(kR), tyle_rev: tyle(a.revenue, kR) };
+        }).sort((x, y) =&gt; (y.revenue + y.subs) - (x.revenue + x.subs));
+        const by_pos = Object.keys(cur.pos).map((e) =&gt; {
           const info = posByEload[e] || {};
-          const a = pT[e], b = pT1[e] || { subs: 0, revenue: 0 };
+          const a = cur.pos[e], b = prev.pos[e] || { subs: 0, revenue: 0 };
           return { eload: info.so_eload || e, ma_kenh: info.ma_kenh || &quot;&quot;, ho_ten: info.ho_ten || e,
             don_vi_id: info.don_vi_id || null, don_vi_ten: info.don_vi_ten || &quot;&quot;,
             subs: a.subs, revenue: Math.round(a.revenue),
-            subs_mom: b.subs, subs_mom_pct: pct(a.subs, b.subs),
-            rev_mom: Math.round(b.revenue), rev_mom_pct: pct(a.revenue, b.revenue),
-            pssl: psslT.has(e) ? 1 : 0 };
-        }).sort((x, y) =&gt; y[primary] - x[primary]);
+            subs_c1: b.subs, subs_c1_pct: pct(a.subs, b.subs),
+            rev_c1: Math.round(b.revenue), rev_c1_pct: pct(a.revenue, b.revenue),
+            pssl: cur.pssl.has(e) ? 1 : 0 };
+        }).sort((x, y) =&gt; (y.revenue + y.subs) - (x.revenue + x.subs));
+        const sortVi = (a, b) =&gt; String(a).localeCompare(String(b), &quot;vi&quot;);
         return json({
-          ok: true, type: { code: t.code, name: t.name, kind: salesKind }, thang: T,
+          ok: true, ky, thang: ky === &quot;thang&quot; ? curMonths[0] : null, nam: ky === &quot;nam&quot; ? nam : null,
+          period_label: periodLabel, cmp1_label, cmp2_label,
+          types_count: stypes.length, has_subtype_col: hasSubtypeCol,
           kpi: {
-            subs: gT.subs, subs_mom: gT1.subs, subs_mom_pct: pct(gT.subs, gT1.subs),
-            subs_yoy: gT12.subs, subs_yoy_pct: pct(gT.subs, gT12.subs),
-            rev: Math.round(gT.revenue), rev_mom: Math.round(gT1.revenue), rev_mom_pct: pct(gT.revenue, gT1.revenue),
-            rev_yoy: Math.round(gT12.revenue), rev_yoy_pct: pct(gT.revenue, gT12.revenue),
+            subs: cur.subs, subs_c1: prev.subs, subs_c1_pct: pct(cur.subs, prev.subs),
+            subs_c2: c2.subs, subs_c2_pct: c2Months.length ? pct(cur.subs, c2.subs) : null,
+            rev: Math.round(cur.revenue), rev_c1: Math.round(prev.revenue), rev_c1_pct: pct(cur.revenue, prev.revenue),
+            rev_c2: Math.round(c2.revenue), rev_c2_pct: c2Months.length ? pct(cur.revenue, c2.revenue) : null,
+            kh_subs: khSubs, tyle_subs: tyle(cur.subs, khSubs),
+            kh_rev: Math.round(khRev), tyle_rev: tyle(cur.revenue, khRev),
           },
           trend,
-          pssl: { thang: gT.pssl.size, thang_truoc: gT1.pssl.size, mom_pct: pct(gT.pssl.size, gT1.pssl.size),
-            ke_hoach: kh, ty_le: kh &gt; 0 ? Math.round(gT.pssl.size / kh * 1000) / 10 : null, trend: psslTrend },
+          pssl: { count: psslCount, c1: psslPrev, c1_pct: pct(psslCount, psslPrev),
+            ke_hoach: khPssl, ty_le: tyle(psslCount, khPssl), trend: psslTrend },
+          duq: { quy_mo: scaleDuq, pssl: psslDuq, ty_le: tyleDuq, ty_le_c1: tyleDuqPrev,
+            ty_le_c1_pct: (tyleDuq != null &amp;&amp; tyleDuqPrev != null &amp;&amp; tyleDuqPrev &gt; 0) ? Math.round((tyleDuq - tyleDuqPrev) / tyleDuqPrev * 1000) / 10 : null },
+          care: { by_unit: careByUnit },
           by_unit, by_pos,
-          ket_qua_values: [...kqSet].sort(sortVi), loai_tb_values: [...stSet].sort(sortVi),
+          loai_tb_values: [...stSet].sort(sortVi),
         });
       }
       if (path === &quot;/api/sales-dashboard&quot; &amp;&amp; method === &quot;GET&quot;) {
@@ -4239,13 +4405,13 @@ function openPanel(panelId) {
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.panel === panelId));
   fillBanner();
   if (panelId === "panel-dashboard") { loadDataTypes(); loadDashboard(); }
-  if (panelId === "panel-salesdash") { loadDataTypes().then(() => loadSalesTypes()); }
+  if (panelId === "panel-salesdash") { initSalesDash(); }
   if (panelId === "panel-loginstats") loadLoginStats();
   if (panelId === "panel-packages") { $("pkgAdminBox").classList.toggle("hidden", !(me && me.role === "admin")); loadPackages(); }
   if (panelId === "panel-units") loadUnits();
   if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); }
   if (panelId === "panel-staff") { loadStaff(); loadStaffUnits(); applyStaffFormPerms(); }
-  if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); }
+  if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); $("planManager").classList.toggle("hidden", !(me && me.role === "admin")); const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("planMonth").value) $("planMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); }
   if (panelId === "panel-reports") { loadDataTypes(); loadPosList(); const crs = $("careRepSection"); if (crs) crs.classList.toggle("hidden", !(me && (me.role === "admin" || me.role === "subadmin" || isLeaderLikeMe()))); }
   if (panelId === "panel-care") loadCareBatches();
   if (panelId === "panel-channelmap") loadChannelMap();
@@ -4495,20 +4661,10 @@ document.addEventListener("change", (e) => {
   if (drop && e.target.matches(".checkdrop-panel input[type=checkbox]")) checkDropRefresh(drop.id);
 });
 
-const salesKindLabel = (k) => k === "doanh_thu" ? " — Doanh thu" : k === "san_luong" ? " — Sản lượng PTTB" : "";
-const salesTypes = () => (dataTypes || []).filter((x) => {
-  if (x.sales_kind === "san_luong") return x.sales_unit_col && x.sales_eload_col;
-  return x.sales_unit_col && x.sales_eload_col && x.sales_price_col;
-});
-function loadSalesTypes() {
-  const sel = $("salesType"), cur = sel.value;
-  const list = salesTypes();
-  sel.innerHTML = list.length
-    ? '<option value="">— Chọn loại dữ liệu —</option>' + list.map((x) => '<option value="' + esc(x.code) + '">' + esc(x.name) + " (" + esc(x.code) + ")" + esc(salesKindLabel(x.sales_kind)) + "</option>").join("")
-    : '<option value="">Chưa có loại dữ liệu nào cấu hình Dashboard bán hàng — vào Cấu hình &gt; Loại dữ liệu để thiết lập</option>';
-  sel.value = [...sel.options].some((o) => o.value === cur) ? cur : "";
+function initSalesDash() {
   const now = new Date(); const p2 = (x) => String(x).padStart(2, "0");
   if (!$("salesMonth").value) $("salesMonth").value = now.getFullYear() + "-" + p2(now.getMonth() + 1);
+  if (!$("salesYear").value) $("salesYear").value = now.getFullYear();
 }
 /* ---------------- Dashboard ban hang kieu dieu hanh ---------------- */
 let ovData = null;
@@ -4595,127 +4751,131 @@ function svgPssl(el, trend) {
   s += "</svg>";
   el.innerHTML = s;
 }
+function planChip(id, tyle, kh) {
+  const el = $(id); if (!el) return;
+  if (tyle == null) { el.className = "delta flat"; el.textContent = "chưa giao KH"; el.title = ""; }
+  else { el.className = "delta " + (tyle >= 100 ? "up" : tyle >= 80 ? "flat" : "down"); el.textContent = "đạt " + tyle.toLocaleString("vi-VN") + "% KH"; el.title = "Kế hoạch: " + fmtInt(kh); }
+}
 async function loadSalesOverview() {
-  const code = $("salesType").value;
-  const thang = $("salesMonth").value;
+  const ky = $("salesKy").value;
+  const thang = $("salesMonth").value, nam = $("salesYear").value;
   const ll = isLeaderLikeMe();
-  $("salesScope").textContent = me && (me.role === "admin" || me.role === "subadmin")
-    ? "Điểm tin điều hành kinh doanh toàn tỉnh: phát triển thuê bao di động và doanh thu bán gói (trước thuế = giá gói ÷ 1,1), so sánh với tháng trước và cùng kỳ năm trước, từ loại dữ liệu do anh thiết kế trong Cấu hình."
-    : me && ll
-    ? "Điểm tin điều hành kinh doanh trong phạm vi đơn vị của bạn (bao gồm các đơn vị trực thuộc), so sánh với tháng trước và cùng kỳ năm trước."
-    : "Điểm tin điều hành kinh doanh của chính điểm bán của bạn (theo số Eload đã khai báo), so sánh với tháng trước và cùng kỳ năm trước.";
-  if (!code) { setMsg($("salesMsg"), "Hãy chọn loại dữ liệu bán hàng.", false); return; }
-  if (!thang) { setMsg($("salesMsg"), "Hãy chọn tháng đánh giá.", false); return; }
-  const q = new URLSearchParams({ loai: code, thang });
-  checkDropGet("salesResultDrop").forEach((v) => q.append("ket_qua", v));
+  const scopeTxt = me && (me.role === "admin" || me.role === "subadmin") ? "toàn tỉnh" : me && ll ? "đơn vị của bạn (bao gồm các đơn vị trực thuộc)" : "chính điểm bán của bạn";
+  $("salesScope").textContent = "Điểm tin điều hành kinh doanh " + scopeTxt + ": tự động tổng hợp TẤT CẢ loại dữ liệu bán hàng (doanh thu + sản lượng); phát triển thuê bao di động và doanh thu bán gói (trước thuế = giá gói ÷ 1,1). Các giao dịch có kết quả \"Đăng ký không thành công\" được loại bỏ khỏi mọi số liệu.";
+  const q = new URLSearchParams({ ky });
+  if (ky === "nam") {
+    if (!nam) { setMsg($("salesMsg"), "Hãy chọn năm đánh giá.", false); return; }
+    q.set("nam", nam);
+  } else {
+    if (!thang) { setMsg($("salesMsg"), "Hãy chọn tháng đánh giá.", false); return; }
+    q.set("thang", thang);
+  }
   checkDropGet("salesSubtypeDrop").forEach((v) => q.append("loai_tb", v));
   setMsg($("salesMsg"), "Đang tổng hợp…");
   try {
     const d = await api("/api/sales-overview?" + q);
     ovData = d;
     setMsg($("salesMsg"), "");
-    const kind = (d.type && d.type.kind) || "";
-    const st = salesTypes().find((x) => x.code === code) || {};
-    const fillFilter = (boxId, dropId, values, hasCol) => {
-      const box = $(boxId);
-      if (!box) return;
-      box.classList.toggle("hidden", !hasCol);
-      if (!hasCol) { checkDropSet(dropId, [], []); return; }
-      const cur = checkDropGet(dropId);
-      checkDropSet(dropId, (values || []).map((v) => ({ value: v === "(Trống)" ? "" : v, label: v })), cur);
-    };
-    fillFilter("salesResultBox", "salesResultDrop", d.ket_qua_values, !!st.sales_result_col);
-    fillFilter("salesSubtypeBox", "salesSubtypeDrop", d.loai_tb_values, !!st.sales_subtype_col);
-    renderOvKpis(d, kind);
+    const box = $("salesSubtypeBox");
+    box.classList.toggle("hidden", !d.has_subtype_col);
+    if (d.has_subtype_col) {
+      const cur = checkDropGet("salesSubtypeDrop");
+      checkDropSet("salesSubtypeDrop", (d.loai_tb_values || []).map((v) => ({ value: v === "(Trống)" ? "" : v, label: v })), cur);
+    } else checkDropSet("salesSubtypeDrop", [], []);
+    const showRev = renderOvKpis(d);
     renderOvPlan(d);
-    renderOvUnit(d, kind);
+    renderOvCare(d);
+    renderOvUnit(d, showRev);
     renderOvPosFilter(d);
     applyOvPosFilter();
   } catch (e) { setMsg($("salesMsg"), e.message, false); }
 }
-function renderOvKpis(d, kind) {
-  const showSub = kind !== "doanh_thu", showRev = kind !== "san_luong";
-  const k = d.kpi, p = d.pssl;
-  const [yy, mm] = d.thang.split("-").map(Number);
-  const pm = mm === 1 ? 12 : mm - 1;
-  $("ovMonthSub").textContent = "— tháng " + mm + "/" + yy + " · " + d.type.name + (d.type.kind === "doanh_thu" ? " (Doanh thu)" : d.type.kind === "san_luong" ? " (Sản lượng PTTB)" : "");
-  $("kpiSubs").classList.toggle("hidden", !showSub);
-  $("kpiRev").classList.toggle("hidden", !showRev);
+function renderOvKpis(d) {
+  const k = d.kpi, p = d.pssl, u = d.duq;
+  $("ovMonthSub").textContent = "— " + d.period_label + " · tổng hợp " + d.types_count + " loại dữ liệu bán hàng";
   $("ovSubs").textContent = fmtInt(k.subs);
-  setDelta("ovSubsMom", k.subs_mom_pct, "vs T" + pm);
-  setDelta("ovSubsYoy", k.subs_yoy_pct, "vs cùng kỳ");
+  setDelta("ovSubsMom", k.subs_c1_pct, d.cmp1_label);
+  setDelta("ovSubsYoy", k.subs_c2_pct, d.cmp2_label || "");
+  $("ovSubsYoy").style.display = d.cmp2_label ? "" : "none";
+  planChip("ovSubsPlan", k.tyle_subs, k.kh_subs);
   $("ovRev").textContent = fmt(k.rev);
-  setDelta("ovRevMom", k.rev_mom_pct, "vs T" + pm);
-  setDelta("ovRevYoy", k.rev_yoy_pct, "vs cùng kỳ");
-  $("ovPssl").textContent = fmtInt(p.thang) + " kênh";
-  setDelta("ovPsslMom", p.mom_pct, "vs T" + pm);
+  setDelta("ovRevMom", k.rev_c1_pct, d.cmp1_label);
+  setDelta("ovRevYoy", k.rev_c2_pct, d.cmp2_label || "");
+  $("ovRevYoy").style.display = d.cmp2_label ? "" : "none";
+  planChip("ovRevPlan", k.tyle_rev, k.kh_rev);
+  $("ovPssl").textContent = fmtInt(p.count) + " kênh";
+  setDelta("ovPsslMom", p.c1_pct, d.cmp1_label);
   const pp = $("ovPsslPlan");
-  if (p.ty_le == null) { pp.className = "delta flat"; pp.textContent = "chưa giao KH"; }
-  else { pp.className = "delta " + (p.ty_le >= 100 ? "up" : "flat"); pp.textContent = "đạt " + p.ty_le.toLocaleString("vi-VN") + "% KH"; }
+  if (p.ty_le == null) { pp.className = "delta flat"; pp.textContent = "chưa giao KH"; pp.title = ""; }
+  else { pp.className = "delta " + (p.ty_le >= 100 ? "up" : "flat"); pp.textContent = "đạt " + p.ty_le.toLocaleString("vi-VN") + "% KH"; pp.title = "Kế hoạch: " + fmtInt(p.ke_hoach) + " kênh"; }
   $("ovPlanPct").textContent = p.ty_le == null ? "—" : p.ty_le.toLocaleString("vi-VN") + "%";
-  $("ovPlanSub").textContent = p.ke_hoach > 0 ? fmtInt(p.thang) + "/" + fmtInt(p.ke_hoach) + " kênh · lũy kế đến hôm nay" : "chưa giao kế hoạch tháng này";
-  svgTrend($("ovTrendChart"), d.trend, kind);
+  $("ovPlanSub").textContent = p.ke_hoach > 0 ? fmtInt(p.count) + "/" + fmtInt(p.ke_hoach) + " kênh · lũy kế" : "chưa giao kế hoạch kỳ này";
+  $("ovDuqScale").textContent = fmtInt(u.quy_mo) + " điểm";
+  $("ovDuqRate").textContent = u.ty_le == null ? "—" : u.ty_le.toLocaleString("vi-VN") + "%";
+  setDelta("ovDuqRateC1", u.ty_le_c1_pct, d.cmp1_label);
+  $("ovDuqRateSub").textContent = fmtInt(u.pssl) + "/" + fmtInt(u.quy_mo) + " ĐUQ có PSSL";
+  const showRev = (d.trend || []).some((r) => r.revenue > 0);
+  svgTrend($("ovTrendChart"), d.trend, showRev ? "" : "san_luong");
   svgPssl($("ovPsslChart"), p.trend);
+  return showRev;
 }
 function renderOvPlan(d) {
   const p = d.pssl;
-  const [yy, mm] = d.thang.split("-").map(Number);
-  $("planMonthLabel").textContent = mm + "/" + yy;
-  const isAdmin = me && me.role === "admin";
-  $("planInputWrap").classList.toggle("hidden", !isAdmin);
-  if (isAdmin && document.activeElement !== $("psslPlanInput")) $("psslPlanInput").value = p.ke_hoach > 0 ? p.ke_hoach : "";
-  $("psslProgText").textContent = p.ke_hoach > 0 ? fmtInt(p.thang) + " / " + fmtInt(p.ke_hoach) + " kênh" : fmtInt(p.thang) + " kênh (chưa giao kế hoạch)";
+  $("planMonthLabel").textContent = d.period_label;
+  $("psslProgText").textContent = p.ke_hoach > 0 ? fmtInt(p.count) + " / " + fmtInt(p.ke_hoach) + " kênh" : fmtInt(p.count) + " kênh (chưa giao kế hoạch)";
   $("psslProgPct").textContent = p.ty_le == null ? "" : p.ty_le.toLocaleString("vi-VN") + "%";
   $("psslProgFill").style.width = Math.min(100, p.ty_le || 0) + "%";
-  const now = new Date();
-  const daysInMonth = new Date(yy, mm, 0).getDate();
-  const isCur = now.getFullYear() === yy && now.getMonth() + 1 === mm;
-  const elapsed = isCur ? now.getDate() : daysInMonth;
-  if (p.ke_hoach > 0) {
+  if (p.ke_hoach > 0 && d.ky === "thang" && d.thang) {
+    const [yy, mm] = d.thang.split("-").map(Number);
+    const now = new Date();
+    const daysInMonth = new Date(yy, mm, 0).getDate();
+    const isCur = now.getFullYear() === yy && now.getMonth() + 1 === mm;
+    const elapsed = isCur ? now.getDate() : daysInMonth;
     const expected = (p.ke_hoach * elapsed) / daysInMonth;
-    const remain = Math.max(0, p.ke_hoach - p.thang);
+    const remain = Math.max(0, p.ke_hoach - p.count);
     const daysLeft = Math.max(0, daysInMonth - elapsed);
     let note;
-    if (p.thang >= p.ke_hoach) note = "Đã hoàn thành kế hoạch tháng.";
-    else if (p.thang >= expected) note = "Đang vượt tiến độ (cần thêm " + fmtInt(remain) + " kênh trong " + daysLeft + " ngày còn lại).";
+    if (p.count >= p.ke_hoach) note = "Đã hoàn thành kế hoạch tháng.";
+    else if (p.count >= expected) note = "Đang vượt tiến độ (cần thêm " + fmtInt(remain) + " kênh trong " + daysLeft + " ngày còn lại).";
     else note = "Đang chậm tiến độ — cần thêm " + fmtInt(remain) + " kênh trong " + daysLeft + " ngày còn lại (bình quân " + (daysLeft ? (remain / daysLeft).toFixed(1).replace(".", ",") : "—") + " kênh/ngày).";
     $("paceNote").textContent = "Hôm nay là ngày " + elapsed + "/" + daysInMonth + " của tháng. " + note;
+  } else if (p.ke_hoach > 0) {
+    $("paceNote").textContent = "Kế hoạch " + d.period_label + ": " + fmtInt(p.ke_hoach) + " kênh.";
   } else {
-    $("paceNote").textContent = "Chưa giao kế hoạch cho tháng này — admin nhập số kênh kế hoạch và bấm Lưu kế hoạch.";
+    $("paceNote").textContent = "Chưa giao kế hoạch cho " + d.period_label + " — admin giao kế hoạch trong module Quản lý dữ liệu đầu vào.";
   }
 }
-async function savePsslPlan() {
-  const thang = $("salesMonth").value;
-  const so = Math.max(0, Math.round(Number($("psslPlanInput").value) || 0));
-  if (!thang) { setMsg($("psslPlanMsg"), "Hãy chọn tháng đánh giá.", false); return; }
-  try {
-    const d = await api("/api/pssl-plan", { method: "PUT", body: JSON.stringify({ thang, so_luong: so }) });
-    setMsg($("psslPlanMsg"), "Đã lưu kế hoạch tháng " + thang.slice(5) + "/" + thang.slice(0, 4) + ": " + fmtInt(d.ke_hoach) + " kênh.", true);
-    loadSalesOverview();
-  } catch (e) { setMsg($("psslPlanMsg"), e.message, false); }
-}
-function renderOvUnit(d, kind) {
-  const showSub = kind !== "doanh_thu", showRev = kind !== "san_luong";
-  const [yy, mm] = d.thang.split("-").map(Number);
-  const pm = mm === 1 ? 12 : mm - 1;
-  $("ovUnitSub").textContent = "— tháng " + mm + "/" + yy;
-  const cols = 2 + (showSub ? 2 : 0) + (showRev ? 2 : 0);
-  $("ovUnitHead").innerHTML = "<tr><th>Đơn vị</th>" +
-    (showSub ? "<th>Thuê bao T" + mm + "</th><th>Δ vs T" + pm + "</th>" : "") +
-    (showRev ? "<th>Doanh thu T" + mm + "</th><th>Δ vs T" + pm + "</th>" : "") + "<th>Kênh PSSL</th></tr>";
+const ovPctCell = (tyle, kh) => {
+  if (tyle == null) return "<td>—</td>";
+  const cls = tyle >= 100 ? "up" : tyle >= 80 ? "flat" : "down";
+  return '<td><span class="delta ' + cls + '" title="Kế hoạch: ' + fmtInt(kh) + '">' + tyle.toLocaleString("vi-VN") + "%</span></td>";
+};
+function renderOvUnit(d, showRev) {
+  $("ovUnitSub").textContent = "— " + d.period_label;
+  const cols = 3 + 2 + (showRev ? 2 : 0) + 3;
+  $("ovUnitHead").innerHTML = "<tr><th>Đơn vị</th><th>Thuê bao</th><th>Δ</th>" +
+    (showRev ? "<th>Doanh thu</th><th>Δ</th>" : "") + "<th>Kênh PSSL</th><th>% KH PSSL</th><th>% KH TB</th><th>% KH DT</th></tr>";
   let tS = 0, tR = 0;
   const rows = d.by_unit || [];
   $("ovUnitBody").innerHTML = rows.length ? rows.map((u) => {
     tS += u.subs; tR += u.revenue;
-    return "<tr><td>" + esc(u.name) + "</td>" +
-      (showSub ? "<td>" + fmtInt(u.subs) + "</td>" + ovCellDelta(u.subs_mom_pct) : "") +
-      (showRev ? "<td>" + fmt(u.revenue) + "</td>" + ovCellDelta(u.rev_mom_pct) : "") +
-      "<td>" + fmtInt(u.pssl) + "</td></tr>";
-  }).join("") + "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td>" +
-    (showSub ? "<td><b>" + fmtInt(tS) + "</b></td><td></td>" : "") +
+    return "<tr><td>" + esc(u.name) + "</td><td>" + fmtInt(u.subs) + "</td>" + ovCellDelta(u.subs_c1_pct) +
+      (showRev ? "<td>" + fmt(u.revenue) + "</td>" + ovCellDelta(u.rev_c1_pct) : "") +
+      "<td>" + fmtInt(u.pssl) + "</td>" + ovPctCell(u.tyle_pssl, u.kh_pssl) + ovPctCell(u.tyle_subs, u.kh_subs) + ovPctCell(u.tyle_rev, u.kh_rev) + "</tr>";
+  }).join("") + "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + fmtInt(tS) + "</b></td><td></td>" +
     (showRev ? "<td><b>" + fmt(tR) + "</b></td><td></td>" : "") +
-    "<td><b>" + fmtInt(d.pssl.thang) + "</b></td></tr>"
-    : "<tr><td colspan='" + cols + "'>Không có số liệu trong tháng " + mm + "/" + yy + ".</td></tr>";
+    "<td><b>" + fmtInt(d.pssl.count) + "</b></td><td></td><td></td><td></td></tr>"
+    : "<tr><td colspan='" + cols + "'>Không có số liệu trong " + d.period_label + ".</td></tr>";
+}
+function renderOvCare(d) {
+  $("ovCareSub").textContent = "— " + d.period_label;
+  const rows = (d.care && d.care.by_unit) || [];
+  $("ovCareHead").innerHTML = "<tr><th>Đơn vị</th><th>Quy mô ĐUQ</th><th>ĐUQ được chăm sóc</th><th>Tỷ lệ</th><th>Lượt chăm sóc</th></tr>";
+  $("ovCareBody").innerHTML = rows.length ? rows.map((r) =>
+    "<tr><td>" + esc(r.ten) + "</td><td>" + fmtInt(r.quy_mo_duq) + "</td><td>" + fmtInt(r.duq_duoc_cs) + "</td>" +
+    "<td>" + (r.ty_le == null ? "—" : '<span class="delta ' + (r.ty_le >= 100 ? "up" : r.ty_le >= 50 ? "flat" : "down") + '">' + r.ty_le.toLocaleString("vi-VN") + "%</span>") + "</td>" +
+    "<td>" + fmtInt(r.luot) + "</td></tr>"
+  ).join("") : "<tr><td colspan='5'>Chưa có dữ liệu chăm sóc trong " + d.period_label + ".</td></tr>";
 }
 function renderOvPosFilter(d) {
   const sel = $("ovPosUnit"), cur = sel.value;
@@ -4727,10 +4887,9 @@ function renderOvPosFilter(d) {
 }
 function applyOvPosFilter() {
   if (!ovData) return;
-  const d = ovData, kind = (d.type && d.type.kind) || "";
-  const showSub = kind !== "doanh_thu", showRev = kind !== "san_luong";
-  const [yy, mm] = d.thang.split("-").map(Number);
-  $("ovPosSub").textContent = "— tháng " + mm + "/" + yy;
+  const d = ovData;
+  const showRev = (d.trend || []).some((r) => r.revenue > 0);
+  $("ovPosSub").textContent = "— " + d.period_label;
   const du = $("ovPosUnit").value;
   const q = ovNormSearch($("ovPosSearch").value.trim());
   const rows = (d.by_pos || []).filter((r) => {
@@ -4738,26 +4897,28 @@ function applyOvPosFilter() {
     if (q && !ovNormSearch((r.ho_ten || "") + " " + (r.ma_kenh || "") + " " + (r.eload || "")).includes(q)) return false;
     return true;
   });
-  const cols = 4 + (showSub ? 2 : 0) + (showRev ? 2 : 0);
-  $("ovPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th>" +
-    (showSub ? "<th>Thuê bao T" + mm + "</th><th>Δ</th>" : "") +
-    (showRev ? "<th>Doanh thu T" + mm + "</th><th>Δ</th>" : "") + "<th style='text-align:center'>PSSL</th></tr>";
+  const cols = 5 + (showRev ? 2 : 0);
+  $("ovPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th><th>Thuê bao</th><th>Δ</th>" +
+    (showRev ? "<th>Doanh thu</th><th>Δ</th>" : "") + "<th style='text-align:center'>PSSL</th></tr>";
   $("ovPosBody").innerHTML = rows.length ? rows.map((r) =>
     "<tr><td>" + esc(r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.don_vi_ten || "—") + "</td>" +
-    (showSub ? "<td>" + fmtInt(r.subs) + "</td>" + ovCellDelta(r.subs_mom_pct) : "") +
-    (showRev ? "<td>" + fmt(r.revenue) + "</td>" + ovCellDelta(r.rev_mom_pct) : "") +
+    "<td>" + fmtInt(r.subs) + "</td>" + ovCellDelta(r.subs_c1_pct) +
+    (showRev ? "<td>" + fmt(r.revenue) + "</td>" + ovCellDelta(r.rev_c1_pct) : "") +
     '<td style="text-align:center">' + (r.pssl ? '<span style="color:#15803d;font-weight:700">✓</span>' : "—") + "</td></tr>"
   ).join("") + "<tr style='background:var(--blue-light)'><td colspan='3'><b>Tổng cộng (" + rows.length + " điểm)</b></td>" +
-    (showSub ? "<td><b>" + fmtInt(rows.reduce((a, r) => a + r.subs, 0)) + "</b></td><td></td>" : "") +
+    "<td><b>" + fmtInt(rows.reduce((a, r) => a + r.subs, 0)) + "</b></td><td></td>" +
     (showRev ? "<td><b>" + fmt(rows.reduce((a, r) => a + r.revenue, 0)) + "</b></td><td></td>" : "") +
     '<td style="text-align:center"><b>' + rows.filter((r) => r.pssl).length + "</b></td></tr>"
     : "<tr><td colspan='" + cols + "'>Không có điểm bán nào khớp bộ lọc.</td></tr>";
 }
 $("salesBtn").addEventListener("click", () => { loadSalesOverview(); });
-$("salesType").addEventListener("change", () => { checkDropSet("salesResultDrop", [], []); checkDropSet("salesSubtypeDrop", [], []); });
+$("salesKy").addEventListener("change", () => {
+  const isNam = $("salesKy").value === "nam";
+  $("salesMonthWrap").classList.toggle("hidden", isNam);
+  $("salesYearWrap").classList.toggle("hidden", !isNam);
+});
 $("ovPosUnit").addEventListener("change", applyOvPosFilter);
 $("ovPosSearch").addEventListener("input", applyOvPosFilter);
-$("psslPlanSave").addEventListener("click", savePsslPlan);
 
 /* ---------------- Quan ly don vi (cay) ---------------- */
 let unitsCache = [];
@@ -5484,31 +5645,90 @@ function toIsoDate(v) {
   if (m) { const p = (x) => String(x).padStart(2, "0"); return m[3] + "-" + p(m[2]) + "-" + p(m[1]) + " " + p(m[4] || 0) + ":" + (m[5] || "00") + ":" + (m[6] || "00"); }
   return s;
 }
+let tablesCache = [];
+function tableMonthSortKey(name) {
+  const m = name.match(/_(\d{2})(\d{2,4})$/);
+  if (!m) return name;
+  const yy = m[2].length === 2 ? "20" + m[2] : m[2];
+  return yy + "-" + m[1] + "-" + name;
+}
+function renderTables() {
+  const f = $("tblTypeFilter").value;
+  const rows = tablesCache
+    .filter((x) => !f || x.code === f)
+    .sort((a, b) => tableMonthSortKey(b.table) < tableMonthSortKey(a.table) ? -1 : 1);
+  const canDelTable = !!me && (me.role === "admin" || (me.can_import && me.role !== "subadmin"));
+  $("tablesBody").innerHTML = rows.map((x) => {
+    const isH = x.table.startsWith("HHBG");
+    const tt = dataTypes.find((dt) => dt.code === x.code);
+    const typeName = tt ? tt.name : (isH ? "Hoa hồng bán gói" : "Tiền BCKH");
+    const mm = x.table.match(/_(\d{2})(\d{2,4})$/);
+    const lockCell = me && me.role === "admin"
+      ? "<button class='btn sm " + (x.locked ? "gray" : "blue") + "' data-lock-table='" + esc(x.table) + "' data-locked='" + (x.locked ? 1 : 0) + "'>" + (x.locked ? "Mở khóa" : "Khóa") + "</button>"
+      : (x.locked ? "<span class='pill bad'>Đã khóa</span>" : "<span class='pill ok'>Mở</span>");
+    return "<tr><td><code class='inl'>" + esc(x.table) + "</code></td><td>" + esc(typeName) + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (x.rows || 0).toLocaleString("vi-VN") + "</td><td>" + lockCell + "</td>" +
+      "<td style='white-space:nowrap'>" + (canDelTable ? "<button class='btn sm danger' data-del-table='" + esc(x.table) + "'>Xóa bảng</button>" : "") + "</td></tr>";
+  }).join("") || "<tr><td colspan='6'>Chưa import bảng nào.</td></tr>";
+  $("tablesBody").querySelectorAll("[data-del-table]").forEach((b) => b.addEventListener("click", () => delTable(b.dataset.delTable)));
+  $("tablesBody").querySelectorAll("[data-lock-table]").forEach((b) => b.addEventListener("click", async () => {
+    const name = b.dataset.lockTable;
+    const toLocked = b.dataset.locked !== "1";
+    if (!confirm((toLocked ? "Khóa" : "Mở khóa") + " thay thế cho bảng " + name + "?\n" + (toLocked ? "Sau khi khóa, chỉ admin mới thay thế được dữ liệu của bảng này." : "Sau khi mở khóa, user có quyền import cũng được thay thế dữ liệu của bảng này."))) return;
+    try { await api("/api/table-locks", { method: "POST", body: JSON.stringify({ table: name, locked: toLocked }) }); loadTables(); }
+    catch (e) { setMsg($("impMsg"), e.message, false); }
+  }));
+}
 async function loadTables() {
   try {
     const d = await api("/api/import/tables");
-    const canDelTable = !!me && (me.role === "admin" || (me.can_import && me.role !== "subadmin"));
-    $("tablesBody").innerHTML = (d.tables || []).map((t) => {
-      const isH = t.table.startsWith("HHBG");
-      const tt = dataTypes.find((x) => x.code === t.code);
-      const typeName = tt ? tt.name : (isH ? "Hoa hồng bán gói" : "Tiền BCKH");
-      const mm = t.table.match(/_(\d{2})(\d{2,4})$/);
-      const lockCell = me && me.role === "admin"
-        ? "<button class='btn sm " + (t.locked ? "gray" : "blue") + "' data-lock-table='" + esc(t.table) + "' data-locked='" + (t.locked ? 1 : 0) + "'>" + (t.locked ? "Mở khóa" : "Khóa") + "</button>"
-        : (t.locked ? "<span class='pill bad'>Đã khóa</span>" : "<span class='pill ok'>Mở</span>");
-      return "<tr><td><code class='inl'>" + esc(t.table) + "</code></td><td>" + esc(typeName) + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (t.rows || 0).toLocaleString("vi-VN") + "</td><td>" + lockCell + "</td>" +
-        "<td style='white-space:nowrap'>" + (canDelTable ? "<button class='btn sm danger' data-del-table='" + esc(t.table) + "'>Xóa bảng</button>" : "") + "</td></tr>";
-    }).join("") || "<tr><td colspan='6'>Chưa import bảng nào.</td></tr>";
-    $("tablesBody").querySelectorAll("[data-del-table]").forEach((b) => b.addEventListener("click", () => delTable(b.dataset.delTable)));
-    $("tablesBody").querySelectorAll("[data-lock-table]").forEach((b) => b.addEventListener("click", async () => {
-      const name = b.dataset.lockTable;
-      const toLocked = b.dataset.locked !== "1";
-      if (!confirm((toLocked ? "Khóa" : "Mở khóa") + " thay thế cho bảng " + name + "?\n" + (toLocked ? "Sau khi khóa, chỉ admin mới thay thế được dữ liệu của bảng này." : "Sau khi mở khóa, user có quyền import cũng được thay thế dữ liệu của bảng này."))) return;
-      try { await api("/api/table-locks", { method: "POST", body: JSON.stringify({ table: name, locked: toLocked }) }); loadTables(); }
-      catch (e) { setMsg($("impMsg"), e.message, false); }
-    }));
+    tablesCache = d.tables || [];
+    const tf = $("tblTypeFilter"), cur = tf.value;
+    const codes = [...new Set(tablesCache.map((x) => x.code))].sort();
+    tf.innerHTML = '<option value="">— Tất cả loại —</option>' + codes.map((c) => {
+      const tt = dataTypes.find((dt) => dt.code === c);
+      return '<option value="' + esc(c) + '">' + esc(tt ? tt.name : c) + " (" + esc(c) + ")</option>";
+    }).join("");
+    tf.value = codes.includes(cur) ? cur : "";
+    renderTables();
   } catch (e) { setMsg($("impMsg"), e.message, false); }
 }
+/* ---- Giao ke hoach kinh doanh (admin, trong module Quan ly du lieu dau vao) ---- */
+function planUnitRows() {
+  // "Toan tinh" (0) + don vi theo cay
+  const rows = [{ id: 0, ten: "Toàn tỉnh", depth: 0 }];
+  const byParent = {};
+  (unitsCache || []).forEach((u) => { const k = u.parent_id || 0; (byParent[k] = byParent[k] || []).push(u); });
+  Object.values(byParent).forEach((l) => l.sort((a, b) => String(a.ten_don_vi).localeCompare(String(b.ten_don_vi), "vi")));
+  const walk = (pid, depth) => { (byParent[pid] || []).forEach((u) => { rows.push({ id: u.id, ten: u.ten_don_vi, depth }); walk(u.id, depth + 1); }); };
+  walk(0, 0);
+  return rows;
+}
+async function loadPlan() {
+  const thang = $("planMonth").value, loai = $("planType").value;
+  if (!thang) { setMsg($("planMsg"), "Hãy chọn tháng giao kế hoạch.", false); return; }
+  if (!unitsCache.length) { try { await loadUnits(); } catch (e) {} }
+  let plans = [];
+  try { const d = await api("/api/ke-hoach?thang=" + thang + "&loai=" + loai); plans = d.plans || []; setMsg($("planMsg"), ""); }
+  catch (e) { setMsg($("planMsg"), e.message, false); return; }
+  const map = {};
+  plans.forEach((r) => { map[r.don_vi_id] = r.so_luong; });
+  $("planBody").innerHTML = planUnitRows().map((u) =>
+    "<tr><td>" + "↳ ".repeat(u.depth) + esc(u.ten) + "</td>" +
+    "<td><input type='number' min='0' step='any' data-plan-du='" + u.id + "' value='" + (map[u.id] != null ? map[u.id] : "") + "' placeholder='—' style='max-width:150px' /></td></tr>"
+  ).join("");
+}
+async function savePlan() {
+  const thang = $("planMonth").value, loai = $("planType").value;
+  if (!thang) { setMsg($("planMsg"), "Hãy chọn tháng giao kế hoạch.", false); return; }
+  const items = [...document.querySelectorAll("#planBody [data-plan-du]")].map((inp) => ({ don_vi_id: Number(inp.dataset.planDu), so_luong: inp.value === "" ? 0 : Number(inp.value) }));
+  try {
+    const d = await api("/api/ke-hoach", { method: "PUT", body: JSON.stringify({ thang, loai, items }) });
+    setMsg($("planMsg"), "Đã lưu " + d.saved + " chỉ tiêu kế hoạch tháng " + thang.slice(5) + "/" + thang.slice(0, 4) + ".", true);
+  } catch (e) { setMsg($("planMsg"), e.message, false); }
+}
+$("tblTypeFilter").addEventListener("change", renderTables);
+$("planLoadBtn").addEventListener("click", loadPlan);
+$("planSaveBtn").addEventListener("click", savePlan);
 async function delTable(name) {
   if (!confirm("Xóa hẳn bảng dữ liệu " + name + "?\nToàn bộ dữ liệu trong bảng sẽ bị xóa khỏi CSDL và không khôi phục được.")) return;
   try {

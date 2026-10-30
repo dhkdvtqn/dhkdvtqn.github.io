@@ -106,7 +106,7 @@ async function requireAuth(request, env) {
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
   const user = await env.DB.prepare(
-    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, chuc_danh, don_vi_id, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?"
+    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, chuc_danh, don_vi_id, loai_kenh, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?"
   )
     .bind(payload.sub)
     .first();
@@ -1521,56 +1521,85 @@ export default {
       // NGUYEN TAC MAP: theo don vi -> can cu ten don vi trong du lieu; theo
       // diem ban -> can cu ma kenh hoac so eload; chi tinh cac thue bao do
       // tai khoan Eload cua diem ban (role='user') phat trien.
-      // Ke hoach PSSL thang (so kenh diem ban co phat sinh san luong).
-      // Admin giao ke hoach; moi user co module salesdash deu xem duoc.
-      const PSSQL_DDL = "CREATE TABLE IF NOT EXISTS ke_hoach_pssl (thang TEXT PRIMARY KEY, so_luong INTEGER NOT NULL DEFAULT 0, updated_by TEXT, updated_at TEXT)";
-      if (path === "/api/pssl-plan" && method === "GET") {
-        if (!hasModule(me, "salesdash")) return err("Tai khoan khong co quyen xem Dashboard ban hang", 403);
-        const thang = String(url.searchParams.get("thang") || "").trim();
-        if (!/^\d{4}-\d{2}$/.test(thang)) return err("Thang khong hop le (YYYY-MM)", 422);
-        await env.DB.prepare(PSSQL_DDL).run();
-        const r = await env.DB.prepare("SELECT so_luong FROM ke_hoach_pssl WHERE thang = ?").bind(thang).first();
-        return json({ ok: true, thang, ke_hoach: r ? Number(r.so_luong) || 0 : 0 });
+      // Ke hoach kinh doanh theo thang + don vi: PSSL / san luong thue bao / doanh thu.
+      // don_vi_id = 0 la muc "Toan tinh" (tuong thich du lieu ke hoach PSSL cu).
+      const KEHOACH_DDL = "CREATE TABLE IF NOT EXISTS ke_hoach (thang TEXT NOT NULL, don_vi_id INTEGER NOT NULL DEFAULT 0, loai TEXT NOT NULL, so_luong REAL NOT NULL DEFAULT 0, updated_by TEXT, updated_at TEXT, PRIMARY KEY (thang, don_vi_id, loai))";
+      async function ensureKeHoach(env) {
+        await env.DB.prepare(KEHOACH_DDL).run();
+        try {
+          const old = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ke_hoach_pssl'").first();
+          if (old) {
+            await env.DB.prepare("INSERT OR IGNORE INTO ke_hoach (thang, don_vi_id, loai, so_luong, updated_by, updated_at) SELECT thang, 0, 'pssl', so_luong, updated_by, updated_at FROM ke_hoach_pssl").run();
+            await env.DB.prepare("DROP TABLE ke_hoach_pssl").run();
+          }
+        } catch (e) { /* bo qua */ }
       }
-      if (path === "/api/pssl-plan" && method === "PUT") {
-        if (!isAdmin) return err("Chi admin moi duoc giao ke hoach PSSL", 403);
+      const KEHOACH_LOAI = ["pssl", "subs", "revenue"];
+      if (path === "/api/ke-hoach" && method === "GET") {
+        if (!hasModule(me, "salesdash") && !hasModule(me, "import")) return err("Tai khoan khong co quyen xem ke hoach", 403);
+        const thang = String(url.searchParams.get("thang") || "").trim();
+        const loai = String(url.searchParams.get("loai") || "").trim();
+        if (!/^\d{4}-\d{2}$/.test(thang)) return err("Thang khong hop le (YYYY-MM)", 422);
+        if (loai && !KEHOACH_LOAI.includes(loai)) return err("Loai ke hoach khong hop le", 422);
+        await ensureKeHoach(env);
+        const binds = loai ? [thang, loai] : [thang];
+        const r = await env.DB.prepare("SELECT don_vi_id, loai, so_luong FROM ke_hoach WHERE thang = ?" + (loai ? " AND loai = ?" : "")).bind(...binds).all();
+        return json({ ok: true, thang, plans: r.results || [] });
+      }
+      if (path === "/api/ke-hoach" && method === "PUT") {
+        if (!isAdmin) return err("Chi admin moi duoc giao ke hoach", 403);
         const b = await readBody(request);
         const thang = String(b.thang || "").trim();
-        const so = Math.max(0, Math.round(Number(b.so_luong) || 0));
+        const loai = String(b.loai || "").trim();
+        const items = Array.isArray(b.items) ? b.items : [];
         if (!/^\d{4}-\d{2}$/.test(thang)) return err("Thang khong hop le (YYYY-MM)", 422);
-        await env.DB.prepare(PSSQL_DDL).run();
-        await env.DB.prepare(
-          "INSERT INTO ke_hoach_pssl (thang, so_luong, updated_by, updated_at) VALUES (?, ?, ?, ?) " +
-          "ON CONFLICT(thang) DO UPDATE SET so_luong = excluded.so_luong, updated_by = excluded.updated_by, updated_at = excluded.updated_at"
-        ).bind(thang, so, me.username || "", saigonNow()).run();
-        return json({ ok: true, thang, ke_hoach: so });
+        if (!KEHOACH_LOAI.includes(loai)) return err("Loai ke hoach khong hop le", 422);
+        await ensureKeHoach(env);
+        const stmt = env.DB.prepare("INSERT INTO ke_hoach (thang, don_vi_id, loai, so_luong, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(thang, don_vi_id, loai) DO UPDATE SET so_luong = excluded.so_luong, updated_by = excluded.updated_by, updated_at = excluded.updated_at");
+        const batch = items.map((it) => stmt.bind(thang, Math.max(0, Math.round(Number(it.don_vi_id) || 0)), loai, Math.max(0, Number(it.so_luong) || 0), me.username || "", saigonNow()));
+        if (batch.length) await env.DB.batch(batch);
+        return json({ ok: true, thang, loai, saved: batch.length });
       }
-      // Dashboard ban hang kieu dieu hanh: diem tin tong hop (KPI + so sanh
-      // MoM/YoY), bieu do xu huong 14 thang, kenh PSSL + ke hoach thang,
-      // danh gia theo don vi va theo diem ban (kem MoM tung dong).
-      // PSSL = diem ban co phat sinh san luong trong thang: co dong du lieu
-      // ban hang duoc map ve Eload cua diem ban (phat trien thue bao moi
-      // hoac giao dich ban goi).
+      // Dashboard ban hang kieu dieu hanh (moi):
+      // - Tu dong tong hop TAT CA loai du lieu ban hang (doanh thu / san luong), khong can chon.
+      // - Loai bo cung cac giao dich co ket qua "Dang ky khong thanh cong".
+      // - Ky danh gia: theo thang (ky=thang) hoac theo nam (ky=nam).
+      // - PSSL = diem ban co phat sinh san luong trong ky: co dong du lieu ban hang
+      //   (bat ky loai nao) duoc map ve Eload cua diem ban.
       if (path === "/api/sales-overview" && method === "GET") {
         if (!hasModule(me, "salesdash")) return err("Tai khoan khong co quyen xem Dashboard ban hang", 403);
         const types = await getDataTypes(env);
-        const loai = (url.searchParams.get("loai") || "").toUpperCase();
-        const t = types.find((x) => x.code === loai);
-        if (!t) return err("Chua chon loai du lieu ban hang", 422);
-        const salesKind = t.sales_kind || "";
-        const needPrice = salesKind !== "san_luong";
-        if (!t.sales_unit_col || !t.sales_eload_col || (needPrice && !t.sales_price_col))
-          return err("Loai du lieu " + t.code + " chua cau hinh du cot cho Dashboard ban hang (can: cot Ten don vi, cot So Eload" + (needPrice ? ", cot Gia goi" : "") + ").", 422);
+        const stypes = types.filter((x) => {
+          if (x.sales_kind === "san_luong") return x.sales_unit_col && x.sales_eload_col;
+          return (x.sales_kind === "doanh_thu" || !x.sales_kind) && x.sales_unit_col && x.sales_eload_col && x.sales_price_col;
+        });
+        if (!stypes.length) return err("Chua co loai du lieu nao duoc khai bao dung cho Dashboard ban hang. Vao Quan ly du lieu dau vao > Quan ly loai du lieu de thiet lap.", 422);
+        const ky = url.searchParams.get("ky") === "nam" ? "nam" : "thang";
+        const nowS = saigonNow();
         let thang = String(url.searchParams.get("thang") || "").trim();
-        if (!/^\d{4}-\d{2}$/.test(thang)) thang = saigonNow().slice(0, 7);
+        if (!/^\d{4}-\d{2}$/.test(thang)) thang = nowS.slice(0, 7);
+        let nam = parseInt(url.searchParams.get("nam"), 10);
+        if (!nam || nam < 2000 || nam > 2100) nam = Number(nowS.slice(0, 4));
         const months = [];
-        { let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
-          for (let i = 13; i >= 0; i--) { let mm = m - i, yy = y; while (mm <= 0) { mm += 12; yy--; } months.push(yy + "-" + String(mm).padStart(2, "0")); } }
+        let curMonths, prevMonths, c2Months, cmp1_label, cmp2_label, trendMonths, periodLabel;
+        if (ky === "nam") {
+          for (let m = 1; m <= 12; m++) months.push((nam - 1) + "-" + String(m).padStart(2, "0"));
+          for (let m = 1; m <= 12; m++) months.push(nam + "-" + String(m).padStart(2, "0"));
+          curMonths = months.slice(12); prevMonths = months.slice(0, 12); c2Months = [];
+          cmp1_label = "vs năm " + (nam - 1); cmp2_label = null;
+          trendMonths = curMonths; periodLabel = "năm " + nam;
+        } else {
+          let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
+          for (let i = 13; i >= 0; i--) { let mm = m - i, yy = y; while (mm <= 0) { mm += 12; yy--; } months.push(yy + "-" + String(mm).padStart(2, "0")); }
+          const T = months[13];
+          curMonths = [T]; prevMonths = [months[12]]; c2Months = [months[1]];
+          cmp1_label = "vs tháng trước"; cmp2_label = "vs cùng kỳ năm trước";
+          trendMonths = months; periodLabel = "tháng " + Number(T.slice(5, 7)) + "/" + T.slice(0, 4);
+        }
         const monthSet = new Set(months);
-        const T = months[13], T1 = months[12], T12 = months[1];
         const normE = (s) => String(s == null ? "" : s).trim().toUpperCase().replace(/\s+/g, "");
         const posRows = (await env.DB.prepare(
-          "SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, d.ten_don_vi AS don_vi_ten " +
+          "SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, d.ten_don_vi AS don_vi_ten " +
           "FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id " +
           "WHERE u.role = 'user' AND u.so_eload IS NOT NULL AND TRIM(u.so_eload) != ''"
         ).all()).results || [];
@@ -1579,105 +1608,216 @@ export default {
         const normU = (s) => String(s == null ? "" : s).trim().toLowerCase()
           .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d")
           .replace(/[–—−‐‒]/g, "-").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-");
+        const allUnits = (await env.DB.prepare("SELECT id, ten_don_vi FROM don_vi").all()).results || [];
+        const unitNameToId = {};
+        for (const u of allUnits) unitNameToId[normU(u.ten_don_vi)] = u.id;
+        let scopeUnitIds = null; // null = toan tinh (admin/subadmin)
         let scopeNames = null;
         const leaderScoped = isLeaderLike && me.don_vi_id;
         if (leaderScoped) {
           const urs = (await env.DB.prepare(unitSubtreeCTE() + " SELECT d.id, d.ten_don_vi FROM don_vi d WHERE d.id IN (SELECT id FROM subtree)").bind(me.don_vi_id).all()).results || [];
+          scopeUnitIds = urs.map((u) => u.id);
           scopeNames = new Set(urs.map((u) => normU(u.ten_don_vi)));
+        } else if (!isPrivileged) {
+          scopeUnitIds = me.don_vi_id ? [me.don_vi_id] : [];
         }
         const ownOnly = !isPrivileged && !leaderScoped;
         const meEload = normE(me.so_eload || "");
-        const fKqList = url.searchParams.getAll("ket_qua").map((s) => String(s || "").trim());
         const fStList = url.searchParams.getAll("loai_tb").map((s) => String(s || "").trim());
-        const needCols = [t.sales_unit_col, t.sales_eload_col];
-        if (t.sales_price_col) needCols.push(t.sales_price_col);
-        if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
-        if (t.sales_qty_col) needCols.push(t.sales_qty_col);
-        if (t.sales_result_col) needCols.push(t.sales_result_col);
-        if (t.sales_subtype_col) needCols.push(t.sales_subtype_col);
+        const isDuqPos = (p) => normLoaiKenh(p.loai_kenh) === "DUQ";
+        // Quy mo kenh DUQ theo pham vi
+        let scaleDuq = 0;
+        const duqPosIds = [];
+        for (const e in posByEload) {
+          const p = posByEload[e];
+          if (!isDuqPos(p)) continue;
+          if (scopeUnitIds !== null && !scopeUnitIds.includes(p.don_vi_id)) continue;
+          if (ownOnly && e !== meEload) continue;
+          scaleDuq++;
+          duqPosIds.push(p.id);
+        }
         const newMonthAgg = () => ({ subs: 0, revenue: 0, pssl: new Set(), units: {}, pos: {} });
         const perMonth = {};
-        const kqSet = new Set(), stSet = new Set();
-        const sortVi = (a, b) => String(a).localeCompare(String(b), "vi");
-        const tables = await listMonthlyTables(env, t.prefix);
-        for (const tbl of tables) {
-          const mk = tableMonthKey(tbl);
-          if (!mk || !monthSet.has(mk)) continue;
-          const cols = (await env.DB.prepare("PRAGMA table_info(" + tbl + ")").all()).results || [];
-          const cn = new Set(cols.map((c) => c.name));
-          if (!needCols.every((c) => cn.has(c))) continue;
-          const rows = (await env.DB.prepare("SELECT * FROM " + tbl).all()).results || [];
-          for (const r of rows) {
-            const e = normE(r[t.sales_eload_col]);
-            const pos = posByEload[e];
-            if (!pos) continue;
-            const rawU = String(r[t.sales_unit_col] == null ? "" : r[t.sales_unit_col]).trim();
-            const nu = normU(rawU);
-            if (scopeNames && !scopeNames.has(nu)) continue;
-            if (ownOnly && e !== meEload) continue;
-            const kq = t.sales_result_col ? String(r[t.sales_result_col] == null ? "" : r[t.sales_result_col]).trim() : "";
-            const st = t.sales_subtype_col ? String(r[t.sales_subtype_col] == null ? "" : r[t.sales_subtype_col]).trim() : "";
-            if (t.sales_result_col) kqSet.add(kq || "(Trống)");
-            if (t.sales_subtype_col) stSet.add(st || "(Trống)");
-            if (fKqList.length && !fKqList.includes(kq)) continue;
-            if (fStList.length && !fStList.includes(st)) continue;
-            const price = toNumber(r[t.sales_price_col]);
-            let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
-            if (!qty || qty <= 0) qty = 1;
-            const revenue = price / 1.1 * qty;
-            const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
-            pm.subs += qty; pm.revenue += revenue; pm.pssl.add(e);
-            const u = pm.units[nu] || (pm.units[nu] = { name: rawU || "(Chưa xác định)", subs: 0, revenue: 0, pssl: new Set() });
-            u.subs += qty; u.revenue += revenue; u.pssl.add(e);
-            const pp = pm.pos[e] || (pm.pos[e] = { subs: 0, revenue: 0 });
-            pp.subs += qty; pp.revenue += revenue;
+        const stSet = new Set();
+        let hasSubtypeCol = false;
+        for (const t of stypes) {
+          const needPrice = t.sales_kind !== "san_luong";
+          const needCols = [t.sales_unit_col, t.sales_eload_col];
+          if (t.sales_price_col) needCols.push(t.sales_price_col);
+          if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
+          if (t.sales_qty_col) needCols.push(t.sales_qty_col);
+          if (t.sales_result_col) needCols.push(t.sales_result_col);
+          if (t.sales_subtype_col) { needCols.push(t.sales_subtype_col); hasSubtypeCol = true; }
+          const tables = await listMonthlyTables(env, t.prefix);
+          for (const tbl of tables) {
+            const mk = tableMonthKey(tbl);
+            if (!mk || !monthSet.has(mk)) continue;
+            const cols = (await env.DB.prepare("PRAGMA table_info(" + tbl + ")").all()).results || [];
+            const cn = new Set(cols.map((c) => c.name));
+            if (!needCols.every((c) => cn.has(c))) continue;
+            const rows = (await env.DB.prepare("SELECT * FROM " + tbl).all()).results || [];
+            for (const r of rows) {
+              const e = normE(r[t.sales_eload_col]);
+              const pos = posByEload[e];
+              if (!pos) continue;
+              const rawU = String(r[t.sales_unit_col] == null ? "" : r[t.sales_unit_col]).trim();
+              const nu = normU(rawU);
+              if (scopeNames && !scopeNames.has(nu)) continue;
+              if (ownOnly && e !== meEload) continue;
+              const kq = t.sales_result_col ? String(r[t.sales_result_col] == null ? "" : r[t.sales_result_col]).trim() : "";
+              // Loai bo cung giao dich "Dang ky khong thanh cong"
+              if (kq && kq.toLowerCase() === "đăng ký không thành công") continue;
+              const st = t.sales_subtype_col ? String(r[t.sales_subtype_col] == null ? "" : r[t.sales_subtype_col]).trim() : "";
+              if (t.sales_subtype_col) stSet.add(st || "(Trống)");
+              if (fStList.length && !fStList.includes(st)) continue;
+              const price = toNumber(r[t.sales_price_col]);
+              let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
+              if (!qty || qty <= 0) qty = 1;
+              const revenue = needPrice ? price / 1.1 * qty : 0;
+              const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
+              pm.subs += qty; pm.revenue += revenue; pm.pssl.add(e);
+              const u = pm.units[nu] || (pm.units[nu] = { name: rawU || "(Chưa xác định)", subs: 0, revenue: 0, pssl: new Set() });
+              u.subs += qty; u.revenue += revenue; u.pssl.add(e);
+              const pp = pm.pos[e] || (pm.pos[e] = { subs: 0, revenue: 0 });
+              pp.subs += qty; pp.revenue += revenue;
+            }
           }
         }
-        const g = (mk) => perMonth[mk] || newMonthAgg();
-        const pct = (cur, prev) => prev > 0 ? Math.round((cur - prev) / prev * 1000) / 10 : null;
-        const gT = g(T), gT1 = g(T1), gT12 = g(T12);
-        await env.DB.prepare(PSSQL_DDL).run();
-        const planMap = {};
+        const aggMonths = (mks) => {
+          const a = newMonthAgg();
+          for (const mk of mks) {
+            const pm = perMonth[mk]; if (!pm) continue;
+            a.subs += pm.subs; a.revenue += pm.revenue;
+            for (const e of pm.pssl) a.pssl.add(e);
+            for (const nu in pm.units) {
+              const s = pm.units[nu];
+              const u = a.units[nu] || (a.units[nu] = { name: s.name, subs: 0, revenue: 0, pssl: new Set() });
+              u.subs += s.subs; u.revenue += s.revenue;
+              for (const e of s.pssl) u.pssl.add(e);
+            }
+            for (const e in pm.pos) {
+              const s = pm.pos[e];
+              const pp = a.pos[e] || (a.pos[e] = { subs: 0, revenue: 0 });
+              pp.subs += s.subs; pp.revenue += s.revenue;
+            }
+          }
+          return a;
+        };
+        const cur = aggMonths(curMonths), prev = aggMonths(prevMonths), c2 = aggMonths(c2Months);
+        const pct = (a, b) => b > 0 ? Math.round((a - b) / b * 1000) / 10 : null;
+        // Ke hoach
+        await ensureKeHoach(env);
+        const planRows = ((await env.DB.prepare("SELECT thang, don_vi_id, loai, so_luong FROM ke_hoach").all()).results || []);
+        const planSum = (mks, loai) => {
+          let total = 0, hasUnit = false;
+          for (const mk of mks) {
+            const rows = planRows.filter((r) => r.thang === mk && r.loai === loai);
+            const urows = rows.filter((r) => r.don_vi_id !== 0 && (scopeUnitIds === null || scopeUnitIds.includes(r.don_vi_id)));
+            if (urows.length) { hasUnit = true; total += urows.reduce((a, r) => a + (Number(r.so_luong) || 0), 0); }
+          }
+          if (!hasUnit && scopeUnitIds === null) {
+            for (const mk of mks) {
+              const g = planRows.find((r) => r.thang === mk && r.loai === loai && r.don_vi_id === 0);
+              if (g) total += Number(g.so_luong) || 0;
+            }
+          }
+          return total;
+        };
+        const unitPlan = (nu, mks, loai) => {
+          const uid = unitNameToId[nu];
+          if (!uid) return 0;
+          let s = 0;
+          for (const mk of mks) {
+            const r = planRows.find((x) => x.thang === mk && x.loai === loai && x.don_vi_id === uid);
+            if (r) s += Number(r.so_luong) || 0;
+          }
+          return s;
+        };
+        const khPssl = planSum(curMonths, "pssl"), khSubs = planSum(curMonths, "subs"), khRev = planSum(curMonths, "revenue");
+        const psslCount = cur.pssl.size, psslPrev = prev.pssl.size;
+        const psslDuq = [...cur.pssl].filter((e) => { const p = posByEload[e]; return p && isDuqPos(p); }).length;
+        const psslDuqPrev = [...prev.pssl].filter((e) => { const p = posByEload[e]; return p && isDuqPos(p); }).length;
+        const tyleDuq = scaleDuq > 0 ? Math.round(psslDuq / scaleDuq * 1000) / 10 : null;
+        const tyleDuqPrev = scaleDuq > 0 ? Math.round(psslDuqPrev / scaleDuq * 1000) / 10 : null;
+        // Cham soc kenh DUQ theo don vi trong ky
+        let careByUnit = [];
         try {
-          const pr = await env.DB.prepare("SELECT thang, so_luong FROM ke_hoach_pssl").all();
-          for (const r of (pr.results || [])) planMap[r.thang] = Number(r.so_luong) || 0;
-        } catch (e) { /* bo qua */ }
-        const primary = salesKind === "san_luong" ? "subs" : "revenue";
-        const trend = months.map((mk) => { const a = g(mk); return { month: mk, subs: a.subs, revenue: Math.round(a.revenue) }; });
-        const psslTrend = months.slice(2).map((mk) => ({ month: mk, pssl: g(mk).pssl.size, ke_hoach: planMap[mk] || 0 }));
-        const kh = planMap[T] || 0;
-        const uT = gT.units, uT1 = gT1.units;
-        const by_unit = Object.keys(uT).map((nu) => {
-          const a = uT[nu], b = uT1[nu] || { subs: 0, revenue: 0 };
-          return { name: a.name, subs: a.subs, revenue: Math.round(a.revenue),
-            subs_mom: b.subs, subs_mom_pct: pct(a.subs, b.subs),
-            rev_mom: Math.round(b.revenue), rev_mom_pct: pct(a.revenue, b.revenue),
-            pssl: a.pssl.size };
-        }).sort((x, y) => y[primary] - x[primary]);
-        const pT = gT.pos, pT1 = gT1.pos, psslT = gT.pssl;
-        const by_pos = Object.keys(pT).map((e) => {
+          await env.DB.prepare("CREATE TABLE IF NOT EXISTS dot_cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_dot TEXT NOT NULL, ghi_chu TEXT, nguoi_tao_id INTEGER, nguoi_tao_ten TEXT, created_at TEXT)").run();
+          await env.DB.prepare("CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT)").run();
+          if (duqPosIds.length) {
+            const likeLen = ky === "nam" ? 4 : 7;
+            const likeVal = ky === "nam" ? String(nam) : curMonths[0];
+            const placeholders = duqPosIds.map(() => "?").join(",");
+            const cr = await env.DB.prepare(
+              "SELECT p.don_vi_id AS duid, COUNT(DISTINCT c.pos_user_id) AS duq_cs, COUNT(*) AS luot " +
+              "FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id " +
+              "WHERE substr(c.thoi_gian, 1, " + likeLen + ") = ? AND c.pos_user_id IN (" + placeholders + ") GROUP BY p.don_vi_id"
+            ).bind(likeVal, ...duqPosIds).all();
+            const careMap = {};
+            for (const r of (cr.results || [])) careMap[r.duid] = r;
+            const unitDuqScale = {};
+            for (const e in posByEload) {
+              const p = posByEload[e];
+              if (!isDuqPos(p)) continue;
+              if (scopeUnitIds !== null && !scopeUnitIds.includes(p.don_vi_id)) continue;
+              unitDuqScale[p.don_vi_id] = (unitDuqScale[p.don_vi_id] || 0) + 1;
+            }
+            const scopeDuids = scopeUnitIds === null ? Object.keys(unitDuqScale).map(Number) : scopeUnitIds.filter((id) => unitDuqScale[id]);
+            const duidToName = {};
+            for (const u of allUnits) duidToName[u.id] = u.ten_don_vi;
+            careByUnit = scopeDuids.map((duid) => {
+              const qm = unitDuqScale[duid] || 0;
+              const cm = careMap[duid] || { duq_cs: 0, luot: 0 };
+              const cs = Number(cm.duq_cs) || 0;
+              return { don_vi_id: duid, ten: duidToName[duid] || ("Đơn vị " + duid), quy_mo_duq: qm, duq_duoc_cs: cs, ty_le: qm > 0 ? Math.round(cs / qm * 1000) / 10 : null, luot: Number(cm.luot) || 0 };
+            }).sort((a, b) => (b.ty_le || 0) - (a.ty_le || 0));
+          }
+        } catch (e) { /* bo qua khi chua co du lieu cham soc */ }
+        const trend = trendMonths.map((mk) => { const a = aggMonths([mk]); return { month: mk, subs: a.subs, revenue: Math.round(a.revenue) }; });
+        const psslTrendMonths = ky === "nam" ? curMonths : months.slice(2);
+        const psslTrend = psslTrendMonths.map((mk) => ({ month: mk, pssl: aggMonths([mk]).pssl.size, ke_hoach: planSum([mk], "pssl") }));
+        const tyle = (actual, kh) => kh > 0 ? Math.round(actual / kh * 1000) / 10 : null;
+        const by_unit = Object.keys(cur.units).map((nu) => {
+          const a = cur.units[nu], b = prev.units[nu] || { subs: 0, revenue: 0 };
+          const kP = unitPlan(nu, curMonths, "pssl"), kS = unitPlan(nu, curMonths, "subs"), kR = unitPlan(nu, curMonths, "revenue");
+          return { name: a.name, subs: a.subs, revenue: Math.round(a.revenue), pssl: a.pssl.size,
+            subs_c1: b.subs, subs_c1_pct: pct(a.subs, b.subs),
+            rev_c1: Math.round(b.revenue), rev_c1_pct: pct(a.revenue, b.revenue),
+            kh_pssl: kP, tyle_pssl: tyle(a.pssl.size, kP),
+            kh_subs: kS, tyle_subs: tyle(a.subs, kS),
+            kh_rev: Math.round(kR), tyle_rev: tyle(a.revenue, kR) };
+        }).sort((x, y) => (y.revenue + y.subs) - (x.revenue + x.subs));
+        const by_pos = Object.keys(cur.pos).map((e) => {
           const info = posByEload[e] || {};
-          const a = pT[e], b = pT1[e] || { subs: 0, revenue: 0 };
+          const a = cur.pos[e], b = prev.pos[e] || { subs: 0, revenue: 0 };
           return { eload: info.so_eload || e, ma_kenh: info.ma_kenh || "", ho_ten: info.ho_ten || e,
             don_vi_id: info.don_vi_id || null, don_vi_ten: info.don_vi_ten || "",
             subs: a.subs, revenue: Math.round(a.revenue),
-            subs_mom: b.subs, subs_mom_pct: pct(a.subs, b.subs),
-            rev_mom: Math.round(b.revenue), rev_mom_pct: pct(a.revenue, b.revenue),
-            pssl: psslT.has(e) ? 1 : 0 };
-        }).sort((x, y) => y[primary] - x[primary]);
+            subs_c1: b.subs, subs_c1_pct: pct(a.subs, b.subs),
+            rev_c1: Math.round(b.revenue), rev_c1_pct: pct(a.revenue, b.revenue),
+            pssl: cur.pssl.has(e) ? 1 : 0 };
+        }).sort((x, y) => (y.revenue + y.subs) - (x.revenue + x.subs));
+        const sortVi = (a, b) => String(a).localeCompare(String(b), "vi");
         return json({
-          ok: true, type: { code: t.code, name: t.name, kind: salesKind }, thang: T,
+          ok: true, ky, thang: ky === "thang" ? curMonths[0] : null, nam: ky === "nam" ? nam : null,
+          period_label: periodLabel, cmp1_label, cmp2_label,
+          types_count: stypes.length, has_subtype_col: hasSubtypeCol,
           kpi: {
-            subs: gT.subs, subs_mom: gT1.subs, subs_mom_pct: pct(gT.subs, gT1.subs),
-            subs_yoy: gT12.subs, subs_yoy_pct: pct(gT.subs, gT12.subs),
-            rev: Math.round(gT.revenue), rev_mom: Math.round(gT1.revenue), rev_mom_pct: pct(gT.revenue, gT1.revenue),
-            rev_yoy: Math.round(gT12.revenue), rev_yoy_pct: pct(gT.revenue, gT12.revenue),
+            subs: cur.subs, subs_c1: prev.subs, subs_c1_pct: pct(cur.subs, prev.subs),
+            subs_c2: c2.subs, subs_c2_pct: c2Months.length ? pct(cur.subs, c2.subs) : null,
+            rev: Math.round(cur.revenue), rev_c1: Math.round(prev.revenue), rev_c1_pct: pct(cur.revenue, prev.revenue),
+            rev_c2: Math.round(c2.revenue), rev_c2_pct: c2Months.length ? pct(cur.revenue, c2.revenue) : null,
+            kh_subs: khSubs, tyle_subs: tyle(cur.subs, khSubs),
+            kh_rev: Math.round(khRev), tyle_rev: tyle(cur.revenue, khRev),
           },
           trend,
-          pssl: { thang: gT.pssl.size, thang_truoc: gT1.pssl.size, mom_pct: pct(gT.pssl.size, gT1.pssl.size),
-            ke_hoach: kh, ty_le: kh > 0 ? Math.round(gT.pssl.size / kh * 1000) / 10 : null, trend: psslTrend },
+          pssl: { count: psslCount, c1: psslPrev, c1_pct: pct(psslCount, psslPrev),
+            ke_hoach: khPssl, ty_le: tyle(psslCount, khPssl), trend: psslTrend },
+          duq: { quy_mo: scaleDuq, pssl: psslDuq, ty_le: tyleDuq, ty_le_c1: tyleDuqPrev,
+            ty_le_c1_pct: (tyleDuq != null && tyleDuqPrev != null && tyleDuqPrev > 0) ? Math.round((tyleDuq - tyleDuqPrev) / tyleDuqPrev * 1000) / 10 : null },
+          care: { by_unit: careByUnit },
           by_unit, by_pos,
-          ket_qua_values: [...kqSet].sort(sortVi), loai_tb_values: [...stSet].sort(sortVi),
+          loai_tb_values: [...stSet].sort(sortVi),
         });
       }
       if (path === "/api/sales-dashboard" && method === "GET") {
