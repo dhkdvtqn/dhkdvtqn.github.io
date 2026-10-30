@@ -347,6 +347,7 @@ async function ensureTypes(env) {
     "money_col TEXT, time_col TEXT, time_fallback_col TEXT, eload_col TEXT, vi_col TEXT, " +
     "sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, key_col TEXT, kenh_col TEXT, " +
     "sales_unit_col TEXT, sales_eload_col TEXT, sales_kenh_col TEXT, sales_price_col TEXT, sales_qty_col TEXT, " +
+    "sales_result_col TEXT, sales_subtype_col TEXT, " +
     "builtin INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)"
   ).run();
   // CSDL cu co the chua co cot key_col / kenh_col (them sau) — bo sung neu thieu.
@@ -355,7 +356,7 @@ async function ensureTypes(env) {
     const names = new Set((info.results || []).map((c) => c.name));
     if (!names.has("key_col")) await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN key_col TEXT").run();
     if (!names.has("kenh_col")) await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN kenh_col TEXT").run();
-    for (const c of ["sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col"]) {
+    for (const c of ["sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col", "sales_result_col", "sales_subtype_col"]) {
       if (!names.has(c)) await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN " + c + " TEXT").run();
     }
   } catch (e) { /* PRAGMA khong co thi bo qua, cot se duoc them o lan tao bang sau */ }
@@ -1266,7 +1267,7 @@ export default {
         for (const rc of ["eload_col"]) {
           if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
         }
-        for (const rc of ["money_col", "time_col", "time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col"]) {
+        for (const rc of ["money_col", "time_col", "time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col", "sales_result_col", "sales_subtype_col"]) {
           if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
         }
         const exists = (await getDataTypes(env)).some((t) => t.code === code || t.prefix === code);
@@ -1276,12 +1277,13 @@ export default {
           type: ["money", "number", "date"].includes(c.type) ? c.type : "text",
         }));
         const r = await env.DB.prepare(
-          "INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, sales_unit_col, sales_eload_col, sales_kenh_col, sales_price_col, sales_qty_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
+          "INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, sales_unit_col, sales_eload_col, sales_kenh_col, sales_price_col, sales_qty_col, sales_result_col, sales_subtype_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
         )
           .bind(code, name, code, fmt, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || "", b.eload_col, b.vi_col || "",
             b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "", b.kenh_col || "",
-            b.sales_unit_col || "", b.sales_eload_col || "", b.sales_kenh_col || "", b.sales_price_col || "", b.sales_qty_col || "")
+            b.sales_unit_col || "", b.sales_eload_col || "", b.sales_kenh_col || "", b.sales_price_col || "", b.sales_qty_col || "",
+            b.sales_result_col || "", b.sales_subtype_col || "")
           .run();
         return json({ ok: true, id: r.meta.last_row_id, code });
       }
@@ -1309,7 +1311,7 @@ export default {
         for (const rc of ["eload_col"]) {
           if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
         }
-        for (const rc of ["money_col", "time_col", "time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col"]) {
+        for (const rc of ["money_col", "time_col", "time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col", "sales_result_col", "sales_subtype_col"]) {
           if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
         }
         const cleanCols = columns.map((c) => ({
@@ -1317,12 +1319,13 @@ export default {
           type: ["money", "number", "date"].includes(c.type) ? c.type : "text",
         }));
         await env.DB.prepare(
-          "UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ?, sales_unit_col = ?, sales_eload_col = ?, sales_kenh_col = ?, sales_price_col = ?, sales_qty_col = ? WHERE id = ?"
+          "UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ?, sales_unit_col = ?, sales_eload_col = ?, sales_kenh_col = ?, sales_price_col = ?, sales_qty_col = ?, sales_result_col = ?, sales_subtype_col = ? WHERE id = ?"
         )
           .bind(name, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || "", b.eload_col, b.vi_col || "",
             b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "", b.kenh_col || "",
-            b.sales_unit_col || "", b.sales_eload_col || "", b.sales_kenh_col || "", b.sales_price_col || "", b.sales_qty_col || "", row.id)
+            b.sales_unit_col || "", b.sales_eload_col || "", b.sales_kenh_col || "", b.sales_price_col || "", b.sales_qty_col || "",
+            b.sales_result_col || "", b.sales_subtype_col || "", row.id)
           .run();
         return json({ ok: true, code: row.code });
       }
@@ -1552,6 +1555,11 @@ export default {
         const needCols = [t.sales_unit_col, t.sales_eload_col, t.sales_price_col];
         if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
         if (t.sales_qty_col) needCols.push(t.sales_qty_col);
+        if (t.sales_result_col) needCols.push(t.sales_result_col);
+        if (t.sales_subtype_col) needCols.push(t.sales_subtype_col);
+        const fKq = String(url.searchParams.get("ket_qua") || "").trim();
+        const fSt = String(url.searchParams.get("loai_tb") || "").trim();
+        const kqSet = new Set(), stSet = new Set();
         const tables = await listMonthlyTables(env, t.prefix);
         for (const tbl of tables) {
           if (!tableInRange(tbl, t.prefix, from, to)) continue;
@@ -1564,10 +1572,16 @@ export default {
             const e = normE(r[t.sales_eload_col]);
             const pos = posByEload[e];
             if (!pos) continue;
+            const kq = t.sales_result_col ? String(r[t.sales_result_col] == null ? "" : r[t.sales_result_col]).trim() : "";
+            const st = t.sales_subtype_col ? String(r[t.sales_subtype_col] == null ? "" : r[t.sales_subtype_col]).trim() : "";
             const rawU = String(r[t.sales_unit_col] == null ? "" : r[t.sales_unit_col]).trim();
             const nu = normU(rawU);
             if (scopeNames && !scopeNames.has(nu)) continue;
             if (ownOnly && e !== meEload) continue;
+            if (t.sales_result_col) kqSet.add(kq || "(Trống)");
+            if (t.sales_subtype_col) stSet.add(st || "(Trống)");
+            if (fKq && kq !== (fKq === "(Trống)" ? "" : fKq)) continue;
+            if (fSt && st !== (fSt === "(Trống)" ? "" : fSt)) continue;
             const price = toNumber(r[t.sales_price_col]);
             let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
             if (!qty || qty <= 0) qty = 1;
@@ -1588,7 +1602,9 @@ export default {
           const p = posByEload[e];
           return { eload: p.so_eload, ma_kenh: p.ma_kenh, ho_ten: p.ho_ten, don_vi_ten: p.don_vi_ten, subs: byPos[e].subs, revenue: Math.round(byPos[e].revenue) };
         }).sort((a, b) => b.revenue - a.revenue);
-        return json({ ok: true, type: { code: t.code, name: t.name }, by_month, by_unit, by_pos, skipped_tables: skippedTables });
+        const sortVi = (a, b) => String(a).localeCompare(String(b), "vi");
+        return json({ ok: true, type: { code: t.code, name: t.name }, by_month, by_unit, by_pos, skipped_tables: skippedTables,
+          ket_qua_values: [...kqSet].sort(sortVi), loai_tb_values: [...stSet].sort(sortVi) });
       }
       if (path === "/api/reports/detail" && method === "GET") {
         if (!hasModule(me, "reports")) return err("Tai khoan khong co quyen xem bao cao", 403);

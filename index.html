@@ -940,6 +940,8 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <p class="desc" id="salesScope">Tổng hợp số liệu phát triển thuê bao di động và doanh thu bán gói di động phát triển mới (trước thuế = giá gói ÷ 1,1) theo đơn vị và theo điểm bán, từ loại dữ liệu do anh thiết kế trong Cấu hình. Chỉ tính các thuê bao do tài khoản Eload của điểm bán phát triển.</p>
           <div class="form-grid">
             <div><label>Loại dữ liệu bán hàng</label><select id="salesType"><option value="">— Chọn loại dữ liệu —</option></select></div>
+            <div id="salesResultBox" class="hidden"><label>Kết quả bán gói</label><select id="salesResult"><option value="">— Tất cả —</option></select></div>
+            <div id="salesSubtypeBox" class="hidden"><label>Loại thuê bao</label><select id="salesSubtype"><option value="">— Tất cả —</option></select></div>
             <div><label>Từ tháng</label><input type="month" id="salesFrom" /></div>
             <div><label>Đến tháng</label><input type="month" id="salesTo" /></div>
             <div style="align-self:end"><button class="btn blue" id="salesBtn">Xem tổng hợp</button></div>
@@ -1121,6 +1123,8 @@ html.is-mobile #appRoot .btn{min-height:44px}
               <div><label>Cột Mã kênh (hiển thị theo điểm bán)</label><select id="dtSalesKenh"></select></div>
               <div><label>Cột Giá gói (doanh thu trước thuế = giá gói ÷ 1,1)</label><select id="dtSalesPrice"></select></div>
               <div><label>Cột Số lượng (số thuê bao; để trống = mỗi dòng tính 1 thuê bao)</label><select id="dtSalesQty"></select></div>
+              <div><label>Cột Kết quả bán gói (lọc Dashboard bán hàng)</label><select id="dtSalesResult"></select></div>
+              <div><label>Cột Loại thuê bao (lọc Dashboard bán hàng)</label><select id="dtSalesSubtype"></select></div>
               <div class="full"><button class="btn blue" type="submit" id="dtSubmitBtn">Tạo loại dữ liệu</button> <button class="btn gray hidden" type="button" id="dtCancelBtn">Hủy sửa</button></div>
             </form>
             <div id="dtMsg"></div>
@@ -1650,6 +1654,7 @@ async function ensureTypes(env) {
     &quot;money_col TEXT, time_col TEXT, time_fallback_col TEXT, eload_col TEXT, vi_col TEXT, &quot; +
     &quot;sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, key_col TEXT, kenh_col TEXT, &quot; +
     &quot;sales_unit_col TEXT, sales_eload_col TEXT, sales_kenh_col TEXT, sales_price_col TEXT, sales_qty_col TEXT, &quot; +
+    &quot;sales_result_col TEXT, sales_subtype_col TEXT, &quot; +
     &quot;builtin INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)&quot;
   ).run();
   // CSDL cu co the chua co cot key_col / kenh_col (them sau) — bo sung neu thieu.
@@ -1658,7 +1663,7 @@ async function ensureTypes(env) {
     const names = new Set((info.results || []).map((c) =&gt; c.name));
     if (!names.has(&quot;key_col&quot;)) await env.DB.prepare(&quot;ALTER TABLE loai_du_lieu ADD COLUMN key_col TEXT&quot;).run();
     if (!names.has(&quot;kenh_col&quot;)) await env.DB.prepare(&quot;ALTER TABLE loai_du_lieu ADD COLUMN kenh_col TEXT&quot;).run();
-    for (const c of [&quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;]) {
+    for (const c of [&quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;, &quot;sales_result_col&quot;, &quot;sales_subtype_col&quot;]) {
       if (!names.has(c)) await env.DB.prepare(&quot;ALTER TABLE loai_du_lieu ADD COLUMN &quot; + c + &quot; TEXT&quot;).run();
     }
   } catch (e) { /* PRAGMA khong co thi bo qua, cot se duoc them o lan tao bang sau */ }
@@ -2569,7 +2574,7 @@ export default {
         for (const rc of [&quot;eload_col&quot;]) {
           if (!b[rc] || !keys.has(b[rc])) return err(&quot;Chua chon cot vai tro bat buoc: &quot; + rc, 422);
         }
-        for (const rc of [&quot;money_col&quot;, &quot;time_col&quot;, &quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;]) {
+        for (const rc of [&quot;money_col&quot;, &quot;time_col&quot;, &quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;, &quot;sales_result_col&quot;, &quot;sales_subtype_col&quot;]) {
           if (b[rc] &amp;&amp; !keys.has(b[rc])) return err(&quot;Cot vai tro khong nam trong danh sach cot: &quot; + rc, 422);
         }
         const exists = (await getDataTypes(env)).some((t) =&gt; t.code === code || t.prefix === code);
@@ -2579,12 +2584,13 @@ export default {
           type: [&quot;money&quot;, &quot;number&quot;, &quot;date&quot;].includes(c.type) ? c.type : &quot;text&quot;,
         }));
         const r = await env.DB.prepare(
-          &quot;INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, sales_unit_col, sales_eload_col, sales_kenh_col, sales_price_col, sales_qty_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)&quot;
+          &quot;INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, sales_unit_col, sales_eload_col, sales_kenh_col, sales_price_col, sales_qty_col, sales_result_col, sales_subtype_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)&quot;
         )
           .bind(code, name, code, fmt, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || &quot;&quot;, b.eload_col, b.vi_col || &quot;&quot;,
             b.sub_col || &quot;&quot;, b.pkg_col || &quot;&quot;, b.trans_col || &quot;&quot;, b.status_col || &quot;&quot;, b.reason_col || &quot;&quot;, b.key_col || &quot;&quot;, b.kenh_col || &quot;&quot;,
-            b.sales_unit_col || &quot;&quot;, b.sales_eload_col || &quot;&quot;, b.sales_kenh_col || &quot;&quot;, b.sales_price_col || &quot;&quot;, b.sales_qty_col || &quot;&quot;)
+            b.sales_unit_col || &quot;&quot;, b.sales_eload_col || &quot;&quot;, b.sales_kenh_col || &quot;&quot;, b.sales_price_col || &quot;&quot;, b.sales_qty_col || &quot;&quot;,
+            b.sales_result_col || &quot;&quot;, b.sales_subtype_col || &quot;&quot;)
           .run();
         return json({ ok: true, id: r.meta.last_row_id, code });
       }
@@ -2612,7 +2618,7 @@ export default {
         for (const rc of [&quot;eload_col&quot;]) {
           if (!b[rc] || !keys.has(b[rc])) return err(&quot;Chua chon cot vai tro bat buoc: &quot; + rc, 422);
         }
-        for (const rc of [&quot;money_col&quot;, &quot;time_col&quot;, &quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;]) {
+        for (const rc of [&quot;money_col&quot;, &quot;time_col&quot;, &quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;, &quot;sales_result_col&quot;, &quot;sales_subtype_col&quot;]) {
           if (b[rc] &amp;&amp; !keys.has(b[rc])) return err(&quot;Cot vai tro khong nam trong danh sach cot: &quot; + rc, 422);
         }
         const cleanCols = columns.map((c) =&gt; ({
@@ -2620,12 +2626,13 @@ export default {
           type: [&quot;money&quot;, &quot;number&quot;, &quot;date&quot;].includes(c.type) ? c.type : &quot;text&quot;,
         }));
         await env.DB.prepare(
-          &quot;UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ?, sales_unit_col = ?, sales_eload_col = ?, sales_kenh_col = ?, sales_price_col = ?, sales_qty_col = ? WHERE id = ?&quot;
+          &quot;UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ?, sales_unit_col = ?, sales_eload_col = ?, sales_kenh_col = ?, sales_price_col = ?, sales_qty_col = ?, sales_result_col = ?, sales_subtype_col = ? WHERE id = ?&quot;
         )
           .bind(name, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || &quot;&quot;, b.eload_col, b.vi_col || &quot;&quot;,
             b.sub_col || &quot;&quot;, b.pkg_col || &quot;&quot;, b.trans_col || &quot;&quot;, b.status_col || &quot;&quot;, b.reason_col || &quot;&quot;, b.key_col || &quot;&quot;, b.kenh_col || &quot;&quot;,
-            b.sales_unit_col || &quot;&quot;, b.sales_eload_col || &quot;&quot;, b.sales_kenh_col || &quot;&quot;, b.sales_price_col || &quot;&quot;, b.sales_qty_col || &quot;&quot;, row.id)
+            b.sales_unit_col || &quot;&quot;, b.sales_eload_col || &quot;&quot;, b.sales_kenh_col || &quot;&quot;, b.sales_price_col || &quot;&quot;, b.sales_qty_col || &quot;&quot;,
+            b.sales_result_col || &quot;&quot;, b.sales_subtype_col || &quot;&quot;, row.id)
           .run();
         return json({ ok: true, code: row.code });
       }
@@ -2855,6 +2862,11 @@ export default {
         const needCols = [t.sales_unit_col, t.sales_eload_col, t.sales_price_col];
         if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
         if (t.sales_qty_col) needCols.push(t.sales_qty_col);
+        if (t.sales_result_col) needCols.push(t.sales_result_col);
+        if (t.sales_subtype_col) needCols.push(t.sales_subtype_col);
+        const fKq = String(url.searchParams.get(&quot;ket_qua&quot;) || &quot;&quot;).trim();
+        const fSt = String(url.searchParams.get(&quot;loai_tb&quot;) || &quot;&quot;).trim();
+        const kqSet = new Set(), stSet = new Set();
         const tables = await listMonthlyTables(env, t.prefix);
         for (const tbl of tables) {
           if (!tableInRange(tbl, t.prefix, from, to)) continue;
@@ -2867,10 +2879,16 @@ export default {
             const e = normE(r[t.sales_eload_col]);
             const pos = posByEload[e];
             if (!pos) continue;
+            const kq = t.sales_result_col ? String(r[t.sales_result_col] == null ? &quot;&quot; : r[t.sales_result_col]).trim() : &quot;&quot;;
+            const st = t.sales_subtype_col ? String(r[t.sales_subtype_col] == null ? &quot;&quot; : r[t.sales_subtype_col]).trim() : &quot;&quot;;
             const rawU = String(r[t.sales_unit_col] == null ? &quot;&quot; : r[t.sales_unit_col]).trim();
             const nu = normU(rawU);
             if (scopeNames &amp;&amp; !scopeNames.has(nu)) continue;
             if (ownOnly &amp;&amp; e !== meEload) continue;
+            if (t.sales_result_col) kqSet.add(kq || &quot;(Trống)&quot;);
+            if (t.sales_subtype_col) stSet.add(st || &quot;(Trống)&quot;);
+            if (fKq &amp;&amp; kq !== (fKq === &quot;(Trống)&quot; ? &quot;&quot; : fKq)) continue;
+            if (fSt &amp;&amp; st !== (fSt === &quot;(Trống)&quot; ? &quot;&quot; : fSt)) continue;
             const price = toNumber(r[t.sales_price_col]);
             let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
             if (!qty || qty &lt;= 0) qty = 1;
@@ -2891,7 +2909,9 @@ export default {
           const p = posByEload[e];
           return { eload: p.so_eload, ma_kenh: p.ma_kenh, ho_ten: p.ho_ten, don_vi_ten: p.don_vi_ten, subs: byPos[e].subs, revenue: Math.round(byPos[e].revenue) };
         }).sort((a, b) =&gt; b.revenue - a.revenue);
-        return json({ ok: true, type: { code: t.code, name: t.name }, by_month, by_unit, by_pos, skipped_tables: skippedTables });
+        const sortVi = (a, b) =&gt; String(a).localeCompare(String(b), &quot;vi&quot;);
+        return json({ ok: true, type: { code: t.code, name: t.name }, by_month, by_unit, by_pos, skipped_tables: skippedTables,
+          ket_qua_values: [...kqSet].sort(sortVi), loai_tb_values: [...stSet].sort(sortVi) });
       }
       if (path === &quot;/api/reports/detail&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!hasModule(me, &quot;reports&quot;)) return err(&quot;Tai khoan khong co quyen xem bao cao&quot;, 403);
@@ -4187,11 +4207,25 @@ async function loadSalesDash() {
   if (!code) { setMsg($("salesMsg"), "Hãy chọn loại dữ liệu bán hàng (đã cấu hình cột trong Cấu hình > Loại dữ liệu).", false); return; }
   const f = $("salesFrom").value, tt = $("salesTo").value;
   if (!f || !tt || f > tt) { setMsg($("salesMsg"), "Hãy chọn khoảng tháng hợp lệ (Từ tháng ≤ Đến tháng).", false); return; }
-  const q = new URLSearchParams({ loai: code, from: f + "-01", to: tt + "-31" });
+  const q = new URLSearchParams({ loai: code, from: f + "-01", to: tt + "-31",
+    ket_qua: $("salesResult") ? $("salesResult").value : "", loai_tb: $("salesSubtype") ? $("salesSubtype").value : "" });
   setMsg($("salesMsg"), "Đang tổng hợp…");
   try {
     const d = await api("/api/sales-dashboard?" + q);
     setMsg($("salesMsg"), (d.skipped_tables || []).length ? "Lưu ý: các bảng tháng sau thiếu cột đã cấu hình nên không tính: " + d.skipped_tables.join(", ") + "." : "");
+    // Nap bo loc Ket qua ban goi / Loai thue bao (chi hien khi loai co cau hinh)
+    const st = salesTypes().find((x) => x.code === code) || {};
+    const fillFilter = (boxId, selId, values, hasCol) => {
+      const box = $(boxId), sel = $(selId);
+      if (!box || !sel) return;
+      box.classList.toggle("hidden", !hasCol);
+      if (!hasCol) { sel.value = ""; return; }
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">— Tất cả —</option>' + (values || []).map((v) => '<option value="' + esc(v) + '">' + esc(v) + "</option>").join("");
+      sel.value = [...sel.options].some((o) => o.value === cur) ? cur : "";
+    };
+    fillFilter("salesResultBox", "salesResult", d.ket_qua_values, !!st.sales_result_col);
+    fillFilter("salesSubtypeBox", "salesSubtype", d.loai_tb_values, !!st.sales_subtype_col);
     const now = new Date(); const p2 = (x) => String(x).padStart(2, "0");
     const curM = now.getFullYear() + "-" + p2(now.getMonth() + 1);
     const curY = String(now.getFullYear());
@@ -4227,6 +4261,7 @@ async function loadSalesDash() {
   } catch (e) { setMsg($("salesMsg"), e.message, false); }
 }
 $("salesBtn").addEventListener("click", () => { loadSalesDash(); });
+$("salesType").addEventListener("change", () => { $("salesResult").value = ""; $("salesSubtype").value = ""; });
 
 /* ---------------- Quan ly don vi (cay) ---------------- */
 let unitsCache = [];
@@ -5086,7 +5121,7 @@ function dtRefreshRoleSelects() {
   const cols = dtGetColumns();
   const opts = (withEmpty) => (withEmpty ? '<option value="">— Không dùng —</option>' : "") +
     cols.map((c) => '<option value="' + esc(c.key) + '">' + esc(c.label) + " (" + esc(c.key) + ")</option>").join("");
-  [["dtMoney", true], ["dtTime", true], ["dtEload", false], ["dtVi", true], ["dtSub", true], ["dtPkg", true], ["dtTrans", true], ["dtStatus", true], ["dtReason", true], ["dtTimeFb", true], ["dtKey", true], ["dtKenh", true], ["dtSalesUnit", true], ["dtSalesEload", true], ["dtSalesKenh", true], ["dtSalesPrice", true], ["dtSalesQty", true]].forEach(([id, withEmpty]) => {
+  [["dtMoney", true], ["dtTime", true], ["dtEload", false], ["dtVi", true], ["dtSub", true], ["dtPkg", true], ["dtTrans", true], ["dtStatus", true], ["dtReason", true], ["dtTimeFb", true], ["dtKey", true], ["dtKenh", true], ["dtSalesUnit", true], ["dtSalesEload", true], ["dtSalesKenh", true], ["dtSalesPrice", true], ["dtSalesQty", true], ["dtSalesResult", true], ["dtSalesSubtype", true]].forEach(([id, withEmpty]) => {
     const sel = $(id); const cur = sel.value;
     sel.innerHTML = opts(withEmpty);
     if (cols.some((c) => c.key === cur)) sel.value = cur;
@@ -5100,6 +5135,7 @@ function dtRefreshRoleSelects() {
   guess("dtKenh", ["ma_kenh"]);
   guess("dtSalesUnit", ["ten_don_vi"]); guess("dtSalesEload", ["so_eload"]); guess("dtSalesKenh", ["ma_kenh"]);
   guess("dtSalesPrice", ["gia_goi", "gia_goi_cuoc", "don_gia"]); guess("dtSalesQty", ["so_luong", "so_thue_bao"]);
+  guess("dtSalesResult", ["ket_qua_ban_goi", "ket_qua"]); guess("dtSalesSubtype", ["loai_thue_bao"]);
   const money = cols.find((c) => c.type === "money"); if (money && !$("dtMoney").value) $("dtMoney").value = money.key;
   const time = cols.find((c) => c.type === "date"); if (time && !$("dtTime").value) $("dtTime").value = time.key;
 }
@@ -5127,7 +5163,7 @@ function startDtEdit(t) {
     $("dtCols").appendChild(row);
   });
   dtRefreshRoleSelects();
-  [["dtMoney", t.money_col], ["dtTime", t.time_col], ["dtEload", t.eload_col], ["dtVi", t.vi_col], ["dtSub", t.sub_col], ["dtPkg", t.pkg_col], ["dtTrans", t.trans_col], ["dtStatus", t.status_col], ["dtReason", t.reason_col], ["dtTimeFb", t.time_fallback_col], ["dtKey", t.key_col], ["dtKenh", t.kenh_col], ["dtSalesUnit", t.sales_unit_col], ["dtSalesEload", t.sales_eload_col], ["dtSalesKenh", t.sales_kenh_col], ["dtSalesPrice", t.sales_price_col], ["dtSalesQty", t.sales_qty_col]].forEach(([id, v]) => { const s = $(id); if (v) s.value = v; });
+  [["dtMoney", t.money_col], ["dtTime", t.time_col], ["dtEload", t.eload_col], ["dtVi", t.vi_col], ["dtSub", t.sub_col], ["dtPkg", t.pkg_col], ["dtTrans", t.trans_col], ["dtStatus", t.status_col], ["dtReason", t.reason_col], ["dtTimeFb", t.time_fallback_col], ["dtKey", t.key_col], ["dtKenh", t.kenh_col], ["dtSalesUnit", t.sales_unit_col], ["dtSalesEload", t.sales_eload_col], ["dtSalesKenh", t.sales_kenh_col], ["dtSalesPrice", t.sales_price_col], ["dtSalesQty", t.sales_qty_col], ["dtSalesResult", t.sales_result_col], ["dtSalesSubtype", t.sales_subtype_col]].forEach(([id, v]) => { const s = $(id); if (v) s.value = v; });
   $("dtSubmitBtn").textContent = "Lưu thay đổi";
   $("dtCancelBtn").classList.remove("hidden");
   setMsg($("dtMsg"), "Đang sửa loại \"" + t.name + "\" (" + t.code + "). Mã loại và định dạng tên bảng không đổi được sau khi tạo; các bảng tháng đã import giữ nguyên schema cũ.");
@@ -5147,6 +5183,7 @@ $("dtForm").addEventListener("submit", async (e) => {
     time_fallback_col: $("dtTimeFb").value, key_col: $("dtKey").value, kenh_col: $("dtKenh").value,
     sales_unit_col: $("dtSalesUnit").value, sales_eload_col: $("dtSalesEload").value, sales_kenh_col: $("dtSalesKenh").value,
     sales_price_col: $("dtSalesPrice").value, sales_qty_col: $("dtSalesQty").value,
+    sales_result_col: $("dtSalesResult").value, sales_subtype_col: $("dtSalesSubtype").value,
   };
   if (!body.code || !body.name) { setMsg($("dtMsg"), "Hãy nhập mã và tên loại dữ liệu.", false); return; }
   if (!columns.length) { setMsg($("dtMsg"), "Hãy khai báo ít nhất 1 cột dữ liệu.", false); return; }
