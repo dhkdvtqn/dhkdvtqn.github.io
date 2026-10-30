@@ -895,7 +895,8 @@ html.is-mobile #appRoot .btn{min-height:44px}
     <div class="app">
       <aside class="sidebar">
         <div class="who"><b id="whoName">—</b><span id="whoRole">—</span></div>
-        <button class="nav-btn" data-panel="panel-dashboard">📈 Dashboard</button>
+        <button class="nav-btn" data-panel="panel-dashboard">📈 Dashboard chi trả hoa hồng</button>
+        <button class="nav-btn" data-panel="panel-salesdash">🛒 Dashboard bán hàng</button>
         <button class="nav-btn" data-panel="panel-units">🏢 Quản lý đơn vị</button>
         <button class="nav-btn" data-panel="panel-users">🏪 Quản lý kênh bán</button>
         <button class="nav-btn" data-panel="panel-staff">👤 Quản lý người dùng</button>
@@ -911,7 +912,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
       <div>
         <!-- DASHBOARD -->
         <section class="panel hidden" id="panel-dashboard">
-          <h2>Dashboard tổng hợp</h2>
+          <h2>Dashboard chi trả hoa hồng</h2>
           <p class="desc" id="dashScope">Tổng hợp số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng hiện tại và lũy kế từ đầu năm, từ toàn bộ các loại dữ liệu đã import lên D1.</p>
           <div style="margin:10px 0"><label>Lọc theo trạng thái chi trả: </label><select id="dashStatusFilter" title="Thành công = giao dịch có trạng thái 'Thành công' hoặc 'Đã chi trả thù lao thành công'; Không thành công = các trạng thái còn lại; Tất cả trạng thái = không lọc"><option value="success">Thành công</option><option value="fail">Không thành công</option><option value="all">Tất cả trạng thái</option></select></div>
           <h3 style="margin:14px 0 8px;color:var(--blue-dark)" id="dashMonthLabel">Tháng hiện tại</h3>
@@ -933,6 +934,35 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <div class="tbl-wrap"><table class="data"><thead><tr><th>Tháng</th><th>Số giao dịch</th><th>Số tiền chi trả</th></tr></thead><tbody id="dashYearBody"><tr><td colspan="3">Đang tải…</td></tr></tbody></table></div>
         </section>
 
+        <!-- DASHBOARD BAN HANG -->
+        <section class="panel hidden" id="panel-salesdash">
+          <h2>🛒 Dashboard bán hàng</h2>
+          <p class="desc" id="salesScope">Tổng hợp số liệu phát triển thuê bao di động và doanh thu bán gói di động phát triển mới (trước thuế = giá gói ÷ 1,1) theo đơn vị và theo điểm bán, từ loại dữ liệu do anh thiết kế trong Cấu hình. Chỉ tính các thuê bao do tài khoản Eload của điểm bán phát triển.</p>
+          <div class="form-grid">
+            <div><label>Loại dữ liệu bán hàng</label><select id="salesType"><option value="">— Chọn loại dữ liệu —</option></select></div>
+            <div><label>Từ tháng</label><input type="month" id="salesFrom" /></div>
+            <div><label>Đến tháng</label><input type="month" id="salesTo" /></div>
+            <div style="align-self:end"><button class="btn blue" id="salesBtn">Xem tổng hợp</button></div>
+          </div>
+          <div id="salesMsg" style="margin-top:8px"></div>
+          <h3 style="margin:14px 0 8px;color:var(--blue-dark)" id="salesMonthLabel">Tháng hiện tại</h3>
+          <div class="kpi-row">
+            <div class="kpi"><b id="salesMonthSubs">—</b><span>Thuê bao phát triển trong tháng</span></div>
+            <div class="kpi"><b id="salesMonthRev">—</b><span>Doanh thu bán gói trong tháng (trước thuế)</span></div>
+          </div>
+          <h3 style="margin:18px 0 8px;color:var(--blue-dark)" id="salesYearLabel">Lũy kế từ đầu năm</h3>
+          <div class="kpi-row">
+            <div class="kpi"><b id="salesYearSubs">—</b><span>Tổng thuê bao phát triển từ đầu năm</span></div>
+            <div class="kpi"><b id="salesYearRev">—</b><span>Tổng doanh thu bán gói từ đầu năm (trước thuế)</span></div>
+          </div>
+          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Số liệu theo từng tháng</h3>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Tháng</th><th>Thuê bao phát triển</th><th>Doanh thu (trước thuế)</th><th>Lũy kế thuê bao</th><th>Lũy kế doanh thu</th></tr></thead><tbody id="salesMonthBody"><tr><td colspan="5">Chưa có dữ liệu — chọn loại dữ liệu và bấm Xem tổng hợp.</td></tr></tbody></table></div>
+          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Tổng hợp theo đơn vị</h3>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Đơn vị</th><th>Thuê bao phát triển</th><th>Doanh thu (trước thuế)</th></tr></thead><tbody id="salesUnitBody"><tr><td colspan="3">—</td></tr></tbody></table></div>
+          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Tổng hợp theo điểm bán</h3>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Điểm bán</th><th>Mã kênh</th><th>Số Eload</th><th>Đơn vị</th><th>Thuê bao phát triển</th><th>Doanh thu (trước thuế)</th></tr></thead><tbody id="salesPosBody"><tr><td colspan="6">—</td></tr></tbody></table></div>
+        </section>
+
         <!-- QUAN LY DON VI -->
         <section class="panel hidden" id="panel-units">
           <h2>Quản lý đơn vị</h2>
@@ -952,7 +982,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <!-- QUAN LY KENH BAN (diem ban) -->
         <section class="panel hidden" id="panel-users">
           <h2>Quản lý kênh bán</h2>
-          <p class="desc">Tạo tài khoản cho các điểm bán thuộc kênh bán hàng. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Admin thiết lập quyền sử dụng từng module cho mỗi điểm bán ở mục bên dưới (mặc định khi tạo mới: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt). Khai báo tọa độ điểm bán để dùng cho module Chăm sóc điểm bán (nhận diện điểm trong bán kính 20m).</p>
+          <p class="desc">Tạo tài khoản cho các điểm bán thuộc kênh bán hàng. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Admin thiết lập quyền sử dụng từng module cho mỗi điểm bán ở mục bên dưới (mặc định khi tạo mới: Dashboard chi trả hoa hồng, Báo cáo thống kê, Danh mục gói cước, Cài đặt). Khai báo tọa độ điểm bán để dùng cho module Chăm sóc điểm bán (nhận diện điểm trong bán kính 20m).</p>
           <form id="userForm" class="form-grid">
             <input type="hidden" id="userId" />
             <div><label>Mã kênh bán hàng</label><input id="uChannel" placeholder="VD: KBH-VDCT-001" /></div>
@@ -1085,6 +1115,12 @@ html.is-mobile #appRoot .btn{min-height:44px}
               <div><label>Cột Thời gian dự phòng (nếu cột thời gian chính trống)</label><select id="dtTimeFb"></select></div>
               <div><label>Cột khóa map báo cáo (VD: Mã HRM/SĐT SMCS — để map dữ liệu với người dùng)</label><select id="dtKey"></select></div>
               <div><label>Cột Mã kênh (map báo cáo theo mã kênh của người dùng)</label><select id="dtKenh"></select></div>
+              <div class="full" style="margin-top:8px"><b style="color:var(--blue-dark)">Cột dùng cho Dashboard bán hàng</b> <span class="desc">(không bắt buộc — chỉ cần khi loại dữ liệu này dùng để tổng hợp phát triển thuê bao và doanh thu bán gói)</span></div>
+              <div><label>Cột Tên đơn vị (tổng hợp theo đơn vị)</label><select id="dtSalesUnit"></select></div>
+              <div><label>Cột Số Eload (chỉ tính thuê bao do Eload của điểm bán phát triển)</label><select id="dtSalesEload"></select></div>
+              <div><label>Cột Mã kênh (hiển thị theo điểm bán)</label><select id="dtSalesKenh"></select></div>
+              <div><label>Cột Giá gói (doanh thu trước thuế = giá gói ÷ 1,1)</label><select id="dtSalesPrice"></select></div>
+              <div><label>Cột Số lượng (số thuê bao; để trống = mỗi dòng tính 1 thuê bao)</label><select id="dtSalesQty"></select></div>
               <div class="full"><button class="btn blue" type="submit" id="dtSubmitBtn">Tạo loại dữ liệu</button> <button class="btn gray hidden" type="button" id="dtCancelBtn">Hủy sửa</button></div>
             </form>
             <div id="dtMsg"></div>
@@ -1447,7 +1483,7 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -&gt; giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = [&quot;dashboard&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;, &quot;channelmap&quot;, &quot;staff&quot;];
+const MODULE_KEYS = [&quot;dashboard&quot;, &quot;salesdash&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;, &quot;channelmap&quot;, &quot;staff&quot;];
 
 // Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
 // (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
@@ -1613,6 +1649,7 @@ async function ensureTypes(env) {
     &quot;prefix TEXT NOT NULL, fmt TEXT NOT NULL DEFAULT &#x27;MMYYYY&#x27;, columns_json TEXT NOT NULL, &quot; +
     &quot;money_col TEXT, time_col TEXT, time_fallback_col TEXT, eload_col TEXT, vi_col TEXT, &quot; +
     &quot;sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, key_col TEXT, kenh_col TEXT, &quot; +
+    &quot;sales_unit_col TEXT, sales_eload_col TEXT, sales_kenh_col TEXT, sales_price_col TEXT, sales_qty_col TEXT, &quot; +
     &quot;builtin INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)&quot;
   ).run();
   // CSDL cu co the chua co cot key_col / kenh_col (them sau) — bo sung neu thieu.
@@ -1621,6 +1658,9 @@ async function ensureTypes(env) {
     const names = new Set((info.results || []).map((c) =&gt; c.name));
     if (!names.has(&quot;key_col&quot;)) await env.DB.prepare(&quot;ALTER TABLE loai_du_lieu ADD COLUMN key_col TEXT&quot;).run();
     if (!names.has(&quot;kenh_col&quot;)) await env.DB.prepare(&quot;ALTER TABLE loai_du_lieu ADD COLUMN kenh_col TEXT&quot;).run();
+    for (const c of [&quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;]) {
+      if (!names.has(c)) await env.DB.prepare(&quot;ALTER TABLE loai_du_lieu ADD COLUMN &quot; + c + &quot; TEXT&quot;).run();
+    }
   } catch (e) { /* PRAGMA khong co thi bo qua, cot se duoc them o lan tao bang sau */ }
   const c = await env.DB.prepare(&quot;SELECT COUNT(*) AS n FROM loai_du_lieu&quot;).first();
   if (c &amp;&amp; c.n === 0) {
@@ -2527,7 +2567,7 @@ export default {
         for (const rc of roleCols) {
           if (!b[rc] || !keys.has(b[rc])) return err(&quot;Chua chon cot vai tro bat buoc: &quot; + rc, 422);
         }
-        for (const rc of [&quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;]) {
+        for (const rc of [&quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;]) {
           if (b[rc] &amp;&amp; !keys.has(b[rc])) return err(&quot;Cot vai tro khong nam trong danh sach cot: &quot; + rc, 422);
         }
         const exists = (await getDataTypes(env)).some((t) =&gt; t.code === code || t.prefix === code);
@@ -2537,11 +2577,12 @@ export default {
           type: [&quot;money&quot;, &quot;number&quot;, &quot;date&quot;].includes(c.type) ? c.type : &quot;text&quot;,
         }));
         const r = await env.DB.prepare(
-          &quot;INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)&quot;
+          &quot;INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, sales_unit_col, sales_eload_col, sales_kenh_col, sales_price_col, sales_qty_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)&quot;
         )
           .bind(code, name, code, fmt, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || &quot;&quot;, b.eload_col, b.vi_col || &quot;&quot;,
-            b.sub_col || &quot;&quot;, b.pkg_col || &quot;&quot;, b.trans_col || &quot;&quot;, b.status_col || &quot;&quot;, b.reason_col || &quot;&quot;, b.key_col || &quot;&quot;, b.kenh_col || &quot;&quot;)
+            b.sub_col || &quot;&quot;, b.pkg_col || &quot;&quot;, b.trans_col || &quot;&quot;, b.status_col || &quot;&quot;, b.reason_col || &quot;&quot;, b.key_col || &quot;&quot;, b.kenh_col || &quot;&quot;,
+            b.sales_unit_col || &quot;&quot;, b.sales_eload_col || &quot;&quot;, b.sales_kenh_col || &quot;&quot;, b.sales_price_col || &quot;&quot;, b.sales_qty_col || &quot;&quot;)
           .run();
         return json({ ok: true, id: r.meta.last_row_id, code });
       }
@@ -2569,7 +2610,7 @@ export default {
         for (const rc of [&quot;money_col&quot;, &quot;time_col&quot;, &quot;eload_col&quot;]) {
           if (!b[rc] || !keys.has(b[rc])) return err(&quot;Chua chon cot vai tro bat buoc: &quot; + rc, 422);
         }
-        for (const rc of [&quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;]) {
+        for (const rc of [&quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;]) {
           if (b[rc] &amp;&amp; !keys.has(b[rc])) return err(&quot;Cot vai tro khong nam trong danh sach cot: &quot; + rc, 422);
         }
         const cleanCols = columns.map((c) =&gt; ({
@@ -2577,11 +2618,12 @@ export default {
           type: [&quot;money&quot;, &quot;number&quot;, &quot;date&quot;].includes(c.type) ? c.type : &quot;text&quot;,
         }));
         await env.DB.prepare(
-          &quot;UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ? WHERE id = ?&quot;
+          &quot;UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ?, sales_unit_col = ?, sales_eload_col = ?, sales_kenh_col = ?, sales_price_col = ?, sales_qty_col = ? WHERE id = ?&quot;
         )
           .bind(name, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || &quot;&quot;, b.eload_col, b.vi_col || &quot;&quot;,
-            b.sub_col || &quot;&quot;, b.pkg_col || &quot;&quot;, b.trans_col || &quot;&quot;, b.status_col || &quot;&quot;, b.reason_col || &quot;&quot;, b.key_col || &quot;&quot;, b.kenh_col || &quot;&quot;, row.id)
+            b.sub_col || &quot;&quot;, b.pkg_col || &quot;&quot;, b.trans_col || &quot;&quot;, b.status_col || &quot;&quot;, b.reason_col || &quot;&quot;, b.key_col || &quot;&quot;, b.kenh_col || &quot;&quot;,
+            b.sales_unit_col || &quot;&quot;, b.sales_eload_col || &quot;&quot;, b.sales_kenh_col || &quot;&quot;, b.sales_price_col || &quot;&quot;, b.sales_qty_col || &quot;&quot;, row.id)
           .run();
         return json({ ok: true, code: row.code });
       }
@@ -2767,6 +2809,87 @@ export default {
           out.push({ don_vi_id: u.id, ma_don_vi: u.ma_don_vi, ten_don_vi: u.ten_don_vi, so_giao_dich: d.tong_giao_dich, tong_tien: d.tong_tien });
         }
         return json({ ok: true, units: out, pos: posUser ? { id: posUser.id, ho_ten: posUser.ho_ten, username: posUser.username } : null });
+      }
+      // Dashboard ban hang: tong hop phat trien thue bao di dong + doanh thu ban
+      // goi di dong phat trien moi (truoc thue = gia goi / 1,1) theo don vi va
+      // theo diem ban. Loai du lieu do admin thiet ke trong module Cai dat
+      // (map 5 cot sales_*: ten don vi, so eload, ma kenh, gia goi, so luong).
+      // NGUYEN TAC MAP: theo don vi -&gt; can cu ten don vi trong du lieu; theo
+      // diem ban -&gt; can cu ma kenh hoac so eload; chi tinh cac thue bao do
+      // tai khoan Eload cua diem ban (role=&#x27;user&#x27;) phat trien.
+      if (path === &quot;/api/sales-dashboard&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;salesdash&quot;)) return err(&quot;Tai khoan khong co quyen xem Dashboard ban hang&quot;, 403);
+        const types = await getDataTypes(env);
+        const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;&quot;).toUpperCase();
+        const t = types.find((x) =&gt; x.code === loai);
+        if (!t) return err(&quot;Chua chon loai du lieu ban hang&quot;, 422);
+        if (!t.sales_unit_col || !t.sales_eload_col || !t.sales_price_col)
+          return err(&quot;Loai du lieu &quot; + t.code + &quot; chua cau hinh cot cho Dashboard ban hang (can: cot Ten don vi, cot So Eload, cot Gia goi). Vao Cai dat &gt; Loai du lieu de thiet lap.&quot;, 422);
+        const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
+        const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
+        // Map Eload -&gt; diem ban (chi tinh thue bao do Eload cua diem ban phat trien)
+        const normE = (s) =&gt; String(s == null ? &quot;&quot; : s).trim().toUpperCase().replace(/\s+/g, &quot;&quot;);
+        const posRows = (await env.DB.prepare(
+          &quot;SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, d.ten_don_vi AS don_vi_ten &quot; +
+          &quot;FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id &quot; +
+          &quot;WHERE u.role = &#x27;user&#x27; AND u.so_eload IS NOT NULL AND TRIM(u.so_eload) != &#x27;&#x27;&quot;
+        ).all()).results || [];
+        const posByEload = {};
+        for (const pr2 of posRows) { const e = normE(pr2.so_eload); if (e &amp;&amp; !posByEload[e]) posByEload[e] = pr2; }
+        // Chuan hoa ten don vi de map vao cay don vi (lanh dao / chuyen vien)
+        const normU = (s) =&gt; String(s == null ? &quot;&quot; : s).trim().toLowerCase()
+          .normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/đ/g, &quot;d&quot;)
+          .replace(/[–—−‐‒]/g, &quot;-&quot;).replace(/\s+/g, &quot; &quot;).replace(/\s*-\s*/g, &quot;-&quot;);
+        let scopeNames = null;
+        const leaderScoped = isLeaderLike &amp;&amp; me.don_vi_id;
+        if (leaderScoped) {
+          const urs = (await env.DB.prepare(unitSubtreeCTE() + &quot; SELECT d.id, d.ten_don_vi FROM don_vi d WHERE d.id IN (SELECT id FROM subtree)&quot;).bind(me.don_vi_id).all()).results || [];
+          scopeNames = new Set(urs.map((u) =&gt; normU(u.ten_don_vi)));
+        }
+        const ownOnly = !isPrivileged &amp;&amp; !leaderScoped;
+        const meEload = normE(me.so_eload || &quot;&quot;);
+        const byMonth = {}, byUnit = {}, byPos = {};
+        const skippedTables = [];
+        const needCols = [t.sales_unit_col, t.sales_eload_col, t.sales_price_col];
+        if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
+        if (t.sales_qty_col) needCols.push(t.sales_qty_col);
+        const tables = await listMonthlyTables(env, t.prefix);
+        for (const tbl of tables) {
+          if (!tableInRange(tbl, t.prefix, from, to)) continue;
+          const cols = (await env.DB.prepare(&quot;PRAGMA table_info(&quot; + tbl + &quot;)&quot;).all()).results || [];
+          const cn = new Set(cols.map((c) =&gt; c.name));
+          if (!needCols.every((c) =&gt; cn.has(c))) { skippedTables.push(tbl); continue; }
+          const rows = (await env.DB.prepare(&quot;SELECT * FROM &quot; + tbl).all()).results || [];
+          const mk = tableMonthKey(tbl);
+          for (const r of rows) {
+            const e = normE(r[t.sales_eload_col]);
+            const pos = posByEload[e];
+            if (!pos) continue;
+            const rawU = String(r[t.sales_unit_col] == null ? &quot;&quot; : r[t.sales_unit_col]).trim();
+            const nu = normU(rawU);
+            if (scopeNames &amp;&amp; !scopeNames.has(nu)) continue;
+            if (ownOnly &amp;&amp; e !== meEload) continue;
+            const price = toNumber(r[t.sales_price_col]);
+            let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
+            if (!qty || qty &lt;= 0) qty = 1;
+            const revenue = price / 1.1 * qty;
+            if (!byMonth[mk]) byMonth[mk] = { subs: 0, revenue: 0 };
+            byMonth[mk].subs += qty; byMonth[mk].revenue += revenue;
+            if (!byUnit[nu]) byUnit[nu] = { name: rawU || &quot;(Chưa xác định)&quot;, subs: 0, revenue: 0 };
+            byUnit[nu].subs += qty; byUnit[nu].revenue += revenue;
+            if (!byPos[e]) byPos[e] = { subs: 0, revenue: 0 };
+            byPos[e].subs += qty; byPos[e].revenue += revenue;
+          }
+        }
+        const by_month = Object.keys(byMonth).sort().map((m) =&gt; ({ month: m, subs: byMonth[m].subs, revenue: Math.round(byMonth[m].revenue) }));
+        const by_unit = Object.values(byUnit)
+          .sort((a, b) =&gt; b.revenue - a.revenue)
+          .map((u) =&gt; ({ name: u.name, subs: u.subs, revenue: Math.round(u.revenue) }));
+        const by_pos = Object.keys(byPos).map((e) =&gt; {
+          const p = posByEload[e];
+          return { eload: p.so_eload, ma_kenh: p.ma_kenh, ho_ten: p.ho_ten, don_vi_ten: p.don_vi_ten, subs: byPos[e].subs, revenue: Math.round(byPos[e].revenue) };
+        }).sort((a, b) =&gt; b.revenue - a.revenue);
+        return json({ ok: true, type: { code: t.code, name: t.name }, by_month, by_unit, by_pos, skipped_tables: skippedTables });
       }
       if (path === &quot;/api/reports/detail&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!hasModule(me, &quot;reports&quot;)) return err(&quot;Tai khoan khong co quyen xem bao cao&quot;, 403);
@@ -3733,12 +3856,12 @@ function applyUserFormPerms() {
 }
 // Danh sach module + mac dinh khi tao moi (Dashboard, Bao cao, Goi cuoc, Cai dat)
 const MODULE_DEFS = [
-  ["dashboard", "Dashboard"], ["units", "Quản lý đơn vị"], ["users", "Quản lý kênh bán"], ["staff", "Quản lý người dùng"],
+  ["dashboard", "Dashboard chi trả hoa hồng"], ["salesdash", "Dashboard bán hàng"], ["units", "Quản lý đơn vị"], ["users", "Quản lý kênh bán"], ["staff", "Quản lý người dùng"],
   ["import", "Quản lý dữ liệu đầu vào"], ["config", "Cấu hình kết nối D1"], ["reports", "Báo cáo thống kê"],
   ["packages", "Danh mục gói cước"], ["loginstats", "Thống kê đăng nhập"], ["care", "Chăm sóc điểm bán"], ["channelmap", "Bản đồ kênh bán"], ["settings", "Cài đặt"],
 ];
 const PANEL_MODULES = {
-  "panel-dashboard": "dashboard", "panel-units": "units", "panel-users": "users", "panel-staff": "staff", "panel-import": "import",
+  "panel-dashboard": "dashboard", "panel-salesdash": "salesdash", "panel-units": "units", "panel-users": "users", "panel-staff": "staff", "panel-import": "import",
   "panel-config": "config", "panel-reports": "reports", "panel-packages": "packages",
   "panel-loginstats": "loginstats", "panel-care": "care", "panel-channelmap": "channelmap", "panel-settings": "settings",
 };
@@ -3833,6 +3956,7 @@ function openPanel(panelId) {
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.panel === panelId));
   fillBanner();
   if (panelId === "panel-dashboard") { loadDataTypes(); loadDashboard(); }
+  if (panelId === "panel-salesdash") { loadDataTypes().then(() => loadSalesTypes()); }
   if (panelId === "panel-loginstats") loadLoginStats();
   if (panelId === "panel-packages") { $("pkgAdminBox").classList.toggle("hidden", !(me && me.role === "admin")); loadPackages(); }
   if (panelId === "panel-units") loadUnits();
@@ -4033,6 +4157,74 @@ async function loadDashYearTable(loai) {
 $("dashStatusFilter").addEventListener("change", () => { loadDashboard(); });
 $("dashUnitFilter").addEventListener("change", () => { loadDashTypeTable(); loadDashYearTable($("dashYearType").value || "ALL"); });
 $("dashYearType").addEventListener("change", () => { loadDashYearTable($("dashYearType").value || "ALL"); });
+
+/* ---------------- Dashboard ban hang ---------------- */
+const fmtInt = (n) => (Math.round(Number(n) || 0)).toLocaleString("vi-VN");
+const monthLabel = (ym) => { const [y, m] = ym.split("-"); return "Tháng " + Number(m) + "/" + y; };
+// Chi cac loai du lieu da cau hinh du 3 cot bat buoc cho Dashboard ban hang
+const salesTypes = () => (dataTypes || []).filter((x) => x.sales_unit_col && x.sales_eload_col && x.sales_price_col);
+function loadSalesTypes() {
+  const sel = $("salesType"), cur = sel.value;
+  const list = salesTypes();
+  sel.innerHTML = list.length
+    ? '<option value="">— Chọn loại dữ liệu —</option>' + list.map((x) => '<option value="' + esc(x.code) + '">' + esc(x.name) + " (" + esc(x.code) + ")</option>").join("")
+    : '<option value="">Chưa có loại dữ liệu nào cấu hình Dashboard bán hàng — vào Cấu hình &gt; Loại dữ liệu để thiết lập</option>';
+  sel.value = [...sel.options].some((o) => o.value === cur) ? cur : "";
+  const now = new Date(); const p2 = (x) => String(x).padStart(2, "0");
+  if (!$("salesFrom").value) $("salesFrom").value = now.getFullYear() + "-01";
+  if (!$("salesTo").value) $("salesTo").value = now.getFullYear() + "-" + p2(now.getMonth() + 1);
+}
+async function loadSalesDash() {
+  const code = $("salesType").value;
+  const ll = isLeaderLikeMe();
+  $("salesScope").textContent = me && (me.role === "admin" || me.role === "subadmin")
+    ? "Tổng hợp số liệu phát triển thuê bao di động và doanh thu bán gói di động phát triển mới (trước thuế = giá gói ÷ 1,1) theo đơn vị và theo điểm bán, trong phạm vi toàn tỉnh, từ loại dữ liệu do anh thiết kế trong Cấu hình. Chỉ tính các thuê bao do tài khoản Eload của điểm bán phát triển."
+    : me && ll
+    ? "Tổng hợp số liệu phát triển thuê bao di động và doanh thu bán gói di động phát triển mới (trước thuế = giá gói ÷ 1,1) theo đơn vị và theo điểm bán, trong phạm vi đơn vị của bạn (bao gồm các đơn vị trực thuộc). Chỉ tính các thuê bao do tài khoản Eload của điểm bán phát triển."
+    : "Số liệu phát triển thuê bao và doanh thu bán gói của chính điểm bán của bạn (theo số Eload đã khai báo).";
+  if (!code) { setMsg($("salesMsg"), "Hãy chọn loại dữ liệu bán hàng (đã cấu hình cột trong Cấu hình > Loại dữ liệu).", false); return; }
+  const f = $("salesFrom").value, tt = $("salesTo").value;
+  if (!f || !tt || f > tt) { setMsg($("salesMsg"), "Hãy chọn khoảng tháng hợp lệ (Từ tháng ≤ Đến tháng).", false); return; }
+  const q = new URLSearchParams({ loai: code, from: f + "-01", to: tt + "-31" });
+  setMsg($("salesMsg"), "Đang tổng hợp…");
+  try {
+    const d = await api("/api/sales-dashboard?" + q);
+    setMsg($("salesMsg"), (d.skipped_tables || []).length ? "Lưu ý: các bảng tháng sau thiếu cột đã cấu hình nên không tính: " + d.skipped_tables.join(", ") + "." : "");
+    const now = new Date(); const p2 = (x) => String(x).padStart(2, "0");
+    const curM = now.getFullYear() + "-" + p2(now.getMonth() + 1);
+    const curY = String(now.getFullYear());
+    $("salesMonthLabel").textContent = monthLabel(curM) + " (tháng hiện tại)";
+    $("salesYearLabel").textContent = "Lũy kế từ đầu năm " + curY;
+    const mRow = (d.by_month || []).find((r) => r.month === curM) || { subs: 0, revenue: 0 };
+    $("salesMonthSubs").textContent = fmtInt(mRow.subs);
+    $("salesMonthRev").textContent = fmt(mRow.revenue);
+    let yS = 0, yR = 0;
+    (d.by_month || []).forEach((r) => { if (r.month >= curY + "-01" && r.month <= curM) { yS += r.subs; yR += r.revenue; } });
+    $("salesYearSubs").textContent = fmtInt(yS);
+    $("salesYearRev").textContent = fmt(yR);
+    // Bang theo thang (kem cot luy ke)
+    let cS = 0, cR = 0;
+    $("salesMonthBody").innerHTML = (d.by_month || []).length
+      ? (d.by_month || []).map((r) => { cS += r.subs; cR += r.revenue;
+          return "<tr><td>" + monthLabel(r.month) + "</td><td>" + fmtInt(r.subs) + "</td><td>" + fmt(r.revenue) + "</td><td>" + fmtInt(cS) + "</td><td>" + fmt(cR) + "</td></tr>"; }).join("")
+      : "<tr><td colspan='5'>Không có số liệu trong khoảng tháng đã chọn.</td></tr>";
+    // Bang theo don vi (+ dong tong cong)
+    let uS = 0, uR = 0;
+    $("salesUnitBody").innerHTML = (d.by_unit || []).length
+      ? (d.by_unit || []).map((u) => { uS += u.subs; uR += u.revenue;
+          return "<tr><td>" + esc(u.name) + "</td><td>" + fmtInt(u.subs) + "</td><td>" + fmt(u.revenue) + "</td></tr>"; }).join("") +
+        "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + fmtInt(uS) + "</b></td><td><b>" + fmt(uR) + "</b></td></tr>"
+      : "<tr><td colspan='3'>Không có số liệu trong khoảng tháng đã chọn.</td></tr>";
+    // Bang theo diem ban (+ dong tong cong)
+    let pS = 0, pR = 0;
+    $("salesPosBody").innerHTML = (d.by_pos || []).length
+      ? (d.by_pos || []).map((r) => { pS += r.subs; pR += r.revenue;
+          return "<tr><td>" + esc(r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.eload) + "</td><td>" + esc(r.don_vi_ten || "—") + "</td><td>" + fmtInt(r.subs) + "</td><td>" + fmt(r.revenue) + "</td></tr>"; }).join("") +
+        "<tr style='background:var(--blue-light)'><td colspan='4'><b>Tổng cộng</b></td><td><b>" + fmtInt(pS) + "</b></td><td><b>" + fmt(pR) + "</b></td></tr>"
+      : "<tr><td colspan='6'>Không có số liệu trong khoảng tháng đã chọn.</td></tr>";
+  } catch (e) { setMsg($("salesMsg"), e.message, false); }
+}
+$("salesBtn").addEventListener("click", () => { loadSalesDash(); });
 
 /* ---------------- Quan ly don vi (cay) ---------------- */
 let unitsCache = [];
@@ -4892,7 +5084,7 @@ function dtRefreshRoleSelects() {
   const cols = dtGetColumns();
   const opts = (withEmpty) => (withEmpty ? '<option value="">— Không dùng —</option>' : "") +
     cols.map((c) => '<option value="' + esc(c.key) + '">' + esc(c.label) + " (" + esc(c.key) + ")</option>").join("");
-  [["dtMoney", false], ["dtTime", false], ["dtEload", false], ["dtVi", true], ["dtSub", true], ["dtPkg", true], ["dtTrans", true], ["dtStatus", true], ["dtReason", true], ["dtTimeFb", true], ["dtKey", true], ["dtKenh", true]].forEach(([id, withEmpty]) => {
+  [["dtMoney", false], ["dtTime", false], ["dtEload", false], ["dtVi", true], ["dtSub", true], ["dtPkg", true], ["dtTrans", true], ["dtStatus", true], ["dtReason", true], ["dtTimeFb", true], ["dtKey", true], ["dtKenh", true], ["dtSalesUnit", true], ["dtSalesEload", true], ["dtSalesKenh", true], ["dtSalesPrice", true], ["dtSalesQty", true]].forEach(([id, withEmpty]) => {
     const sel = $(id); const cur = sel.value;
     sel.innerHTML = opts(withEmpty);
     if (cols.some((c) => c.key === cur)) sel.value = cur;
@@ -4904,6 +5096,8 @@ function dtRefreshRoleSelects() {
   guess("dtPkg", ["ten_goi"]);
   guess("dtKey", ["ma_hrm_sdt_smcs"]);
   guess("dtKenh", ["ma_kenh"]);
+  guess("dtSalesUnit", ["ten_don_vi"]); guess("dtSalesEload", ["so_eload"]); guess("dtSalesKenh", ["ma_kenh"]);
+  guess("dtSalesPrice", ["gia_goi", "gia_goi_cuoc", "don_gia"]); guess("dtSalesQty", ["so_luong", "so_thue_bao"]);
   const money = cols.find((c) => c.type === "money"); if (money && !$("dtMoney").value) $("dtMoney").value = money.key;
   const time = cols.find((c) => c.type === "date"); if (time && !$("dtTime").value) $("dtTime").value = time.key;
 }
@@ -4931,7 +5125,7 @@ function startDtEdit(t) {
     $("dtCols").appendChild(row);
   });
   dtRefreshRoleSelects();
-  [["dtMoney", t.money_col], ["dtTime", t.time_col], ["dtEload", t.eload_col], ["dtVi", t.vi_col], ["dtSub", t.sub_col], ["dtPkg", t.pkg_col], ["dtTrans", t.trans_col], ["dtStatus", t.status_col], ["dtReason", t.reason_col], ["dtTimeFb", t.time_fallback_col], ["dtKey", t.key_col], ["dtKenh", t.kenh_col]].forEach(([id, v]) => { const s = $(id); if (v) s.value = v; });
+  [["dtMoney", t.money_col], ["dtTime", t.time_col], ["dtEload", t.eload_col], ["dtVi", t.vi_col], ["dtSub", t.sub_col], ["dtPkg", t.pkg_col], ["dtTrans", t.trans_col], ["dtStatus", t.status_col], ["dtReason", t.reason_col], ["dtTimeFb", t.time_fallback_col], ["dtKey", t.key_col], ["dtKenh", t.kenh_col], ["dtSalesUnit", t.sales_unit_col], ["dtSalesEload", t.sales_eload_col], ["dtSalesKenh", t.sales_kenh_col], ["dtSalesPrice", t.sales_price_col], ["dtSalesQty", t.sales_qty_col]].forEach(([id, v]) => { const s = $(id); if (v) s.value = v; });
   $("dtSubmitBtn").textContent = "Lưu thay đổi";
   $("dtCancelBtn").classList.remove("hidden");
   setMsg($("dtMsg"), "Đang sửa loại \"" + t.name + "\" (" + t.code + "). Mã loại và định dạng tên bảng không đổi được sau khi tạo; các bảng tháng đã import giữ nguyên schema cũ.");
@@ -4949,6 +5143,8 @@ $("dtForm").addEventListener("submit", async (e) => {
     vi_col: $("dtVi").value, sub_col: $("dtSub").value, pkg_col: $("dtPkg").value,
     trans_col: $("dtTrans").value, status_col: $("dtStatus").value, reason_col: $("dtReason").value,
     time_fallback_col: $("dtTimeFb").value, key_col: $("dtKey").value, kenh_col: $("dtKenh").value,
+    sales_unit_col: $("dtSalesUnit").value, sales_eload_col: $("dtSalesEload").value, sales_kenh_col: $("dtSalesKenh").value,
+    sales_price_col: $("dtSalesPrice").value, sales_qty_col: $("dtSalesQty").value,
   };
   if (!body.code || !body.name) { setMsg($("dtMsg"), "Hãy nhập mã và tên loại dữ liệu.", false); return; }
   if (!columns.length) { setMsg($("dtMsg"), "Hãy khai báo ít nhất 1 cột dữ liệu.", false); return; }

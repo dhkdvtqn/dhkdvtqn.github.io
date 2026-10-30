@@ -180,7 +180,7 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -> giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = ["dashboard", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care", "channelmap", "staff"];
+const MODULE_KEYS = ["dashboard", "salesdash", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care", "channelmap", "staff"];
 
 // Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
 // (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
@@ -346,6 +346,7 @@ async function ensureTypes(env) {
     "prefix TEXT NOT NULL, fmt TEXT NOT NULL DEFAULT 'MMYYYY', columns_json TEXT NOT NULL, " +
     "money_col TEXT, time_col TEXT, time_fallback_col TEXT, eload_col TEXT, vi_col TEXT, " +
     "sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, key_col TEXT, kenh_col TEXT, " +
+    "sales_unit_col TEXT, sales_eload_col TEXT, sales_kenh_col TEXT, sales_price_col TEXT, sales_qty_col TEXT, " +
     "builtin INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)"
   ).run();
   // CSDL cu co the chua co cot key_col / kenh_col (them sau) — bo sung neu thieu.
@@ -354,6 +355,9 @@ async function ensureTypes(env) {
     const names = new Set((info.results || []).map((c) => c.name));
     if (!names.has("key_col")) await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN key_col TEXT").run();
     if (!names.has("kenh_col")) await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN kenh_col TEXT").run();
+    for (const c of ["sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col"]) {
+      if (!names.has(c)) await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN " + c + " TEXT").run();
+    }
   } catch (e) { /* PRAGMA khong co thi bo qua, cot se duoc them o lan tao bang sau */ }
   const c = await env.DB.prepare("SELECT COUNT(*) AS n FROM loai_du_lieu").first();
   if (c && c.n === 0) {
@@ -1260,7 +1264,7 @@ export default {
         for (const rc of roleCols) {
           if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
         }
-        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col"]) {
+        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col"]) {
           if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
         }
         const exists = (await getDataTypes(env)).some((t) => t.code === code || t.prefix === code);
@@ -1270,11 +1274,12 @@ export default {
           type: ["money", "number", "date"].includes(c.type) ? c.type : "text",
         }));
         const r = await env.DB.prepare(
-          "INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
+          "INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, sales_unit_col, sales_eload_col, sales_kenh_col, sales_price_col, sales_qty_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
         )
           .bind(code, name, code, fmt, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || "", b.eload_col, b.vi_col || "",
-            b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "", b.kenh_col || "")
+            b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "", b.kenh_col || "",
+            b.sales_unit_col || "", b.sales_eload_col || "", b.sales_kenh_col || "", b.sales_price_col || "", b.sales_qty_col || "")
           .run();
         return json({ ok: true, id: r.meta.last_row_id, code });
       }
@@ -1302,7 +1307,7 @@ export default {
         for (const rc of ["money_col", "time_col", "eload_col"]) {
           if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
         }
-        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col"]) {
+        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col"]) {
           if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
         }
         const cleanCols = columns.map((c) => ({
@@ -1310,11 +1315,12 @@ export default {
           type: ["money", "number", "date"].includes(c.type) ? c.type : "text",
         }));
         await env.DB.prepare(
-          "UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ? WHERE id = ?"
+          "UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ?, sales_unit_col = ?, sales_eload_col = ?, sales_kenh_col = ?, sales_price_col = ?, sales_qty_col = ? WHERE id = ?"
         )
           .bind(name, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || "", b.eload_col, b.vi_col || "",
-            b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "", b.kenh_col || "", row.id)
+            b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "", b.kenh_col || "",
+            b.sales_unit_col || "", b.sales_eload_col || "", b.sales_kenh_col || "", b.sales_price_col || "", b.sales_qty_col || "", row.id)
           .run();
         return json({ ok: true, code: row.code });
       }
@@ -1500,6 +1506,87 @@ export default {
           out.push({ don_vi_id: u.id, ma_don_vi: u.ma_don_vi, ten_don_vi: u.ten_don_vi, so_giao_dich: d.tong_giao_dich, tong_tien: d.tong_tien });
         }
         return json({ ok: true, units: out, pos: posUser ? { id: posUser.id, ho_ten: posUser.ho_ten, username: posUser.username } : null });
+      }
+      // Dashboard ban hang: tong hop phat trien thue bao di dong + doanh thu ban
+      // goi di dong phat trien moi (truoc thue = gia goi / 1,1) theo don vi va
+      // theo diem ban. Loai du lieu do admin thiet ke trong module Cai dat
+      // (map 5 cot sales_*: ten don vi, so eload, ma kenh, gia goi, so luong).
+      // NGUYEN TAC MAP: theo don vi -> can cu ten don vi trong du lieu; theo
+      // diem ban -> can cu ma kenh hoac so eload; chi tinh cac thue bao do
+      // tai khoan Eload cua diem ban (role='user') phat trien.
+      if (path === "/api/sales-dashboard" && method === "GET") {
+        if (!hasModule(me, "salesdash")) return err("Tai khoan khong co quyen xem Dashboard ban hang", 403);
+        const types = await getDataTypes(env);
+        const loai = (url.searchParams.get("loai") || "").toUpperCase();
+        const t = types.find((x) => x.code === loai);
+        if (!t) return err("Chua chon loai du lieu ban hang", 422);
+        if (!t.sales_unit_col || !t.sales_eload_col || !t.sales_price_col)
+          return err("Loai du lieu " + t.code + " chua cau hinh cot cho Dashboard ban hang (can: cot Ten don vi, cot So Eload, cot Gia goi). Vao Cai dat > Loai du lieu de thiet lap.", 422);
+        const from = url.searchParams.get("from") || "0000-01-01";
+        const to = url.searchParams.get("to") || "9999-12-31";
+        // Map Eload -> diem ban (chi tinh thue bao do Eload cua diem ban phat trien)
+        const normE = (s) => String(s == null ? "" : s).trim().toUpperCase().replace(/\s+/g, "");
+        const posRows = (await env.DB.prepare(
+          "SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, d.ten_don_vi AS don_vi_ten " +
+          "FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id " +
+          "WHERE u.role = 'user' AND u.so_eload IS NOT NULL AND TRIM(u.so_eload) != ''"
+        ).all()).results || [];
+        const posByEload = {};
+        for (const pr2 of posRows) { const e = normE(pr2.so_eload); if (e && !posByEload[e]) posByEload[e] = pr2; }
+        // Chuan hoa ten don vi de map vao cay don vi (lanh dao / chuyen vien)
+        const normU = (s) => String(s == null ? "" : s).trim().toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d")
+          .replace(/[–—−‐‒]/g, "-").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-");
+        let scopeNames = null;
+        const leaderScoped = isLeaderLike && me.don_vi_id;
+        if (leaderScoped) {
+          const urs = (await env.DB.prepare(unitSubtreeCTE() + " SELECT d.id, d.ten_don_vi FROM don_vi d WHERE d.id IN (SELECT id FROM subtree)").bind(me.don_vi_id).all()).results || [];
+          scopeNames = new Set(urs.map((u) => normU(u.ten_don_vi)));
+        }
+        const ownOnly = !isPrivileged && !leaderScoped;
+        const meEload = normE(me.so_eload || "");
+        const byMonth = {}, byUnit = {}, byPos = {};
+        const skippedTables = [];
+        const needCols = [t.sales_unit_col, t.sales_eload_col, t.sales_price_col];
+        if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
+        if (t.sales_qty_col) needCols.push(t.sales_qty_col);
+        const tables = await listMonthlyTables(env, t.prefix);
+        for (const tbl of tables) {
+          if (!tableInRange(tbl, t.prefix, from, to)) continue;
+          const cols = (await env.DB.prepare("PRAGMA table_info(" + tbl + ")").all()).results || [];
+          const cn = new Set(cols.map((c) => c.name));
+          if (!needCols.every((c) => cn.has(c))) { skippedTables.push(tbl); continue; }
+          const rows = (await env.DB.prepare("SELECT * FROM " + tbl).all()).results || [];
+          const mk = tableMonthKey(tbl);
+          for (const r of rows) {
+            const e = normE(r[t.sales_eload_col]);
+            const pos = posByEload[e];
+            if (!pos) continue;
+            const rawU = String(r[t.sales_unit_col] == null ? "" : r[t.sales_unit_col]).trim();
+            const nu = normU(rawU);
+            if (scopeNames && !scopeNames.has(nu)) continue;
+            if (ownOnly && e !== meEload) continue;
+            const price = toNumber(r[t.sales_price_col]);
+            let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
+            if (!qty || qty <= 0) qty = 1;
+            const revenue = price / 1.1 * qty;
+            if (!byMonth[mk]) byMonth[mk] = { subs: 0, revenue: 0 };
+            byMonth[mk].subs += qty; byMonth[mk].revenue += revenue;
+            if (!byUnit[nu]) byUnit[nu] = { name: rawU || "(Chưa xác định)", subs: 0, revenue: 0 };
+            byUnit[nu].subs += qty; byUnit[nu].revenue += revenue;
+            if (!byPos[e]) byPos[e] = { subs: 0, revenue: 0 };
+            byPos[e].subs += qty; byPos[e].revenue += revenue;
+          }
+        }
+        const by_month = Object.keys(byMonth).sort().map((m) => ({ month: m, subs: byMonth[m].subs, revenue: Math.round(byMonth[m].revenue) }));
+        const by_unit = Object.values(byUnit)
+          .sort((a, b) => b.revenue - a.revenue)
+          .map((u) => ({ name: u.name, subs: u.subs, revenue: Math.round(u.revenue) }));
+        const by_pos = Object.keys(byPos).map((e) => {
+          const p = posByEload[e];
+          return { eload: p.so_eload, ma_kenh: p.ma_kenh, ho_ten: p.ho_ten, don_vi_ten: p.don_vi_ten, subs: byPos[e].subs, revenue: Math.round(byPos[e].revenue) };
+        }).sort((a, b) => b.revenue - a.revenue);
+        return json({ ok: true, type: { code: t.code, name: t.name }, by_month, by_unit, by_pos, skipped_tables: skippedTables });
       }
       if (path === "/api/reports/detail" && method === "GET") {
         if (!hasModule(me, "reports")) return err("Tai khoan khong co quyen xem bao cao", 403);
