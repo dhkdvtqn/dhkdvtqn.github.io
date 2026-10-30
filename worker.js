@@ -1260,11 +1260,13 @@ export default {
           if (keys.has(c.key)) return err("Trung khoa cot: " + c.key, 422);
           keys.add(c.key);
         }
-        const roleCols = ["money_col", "time_col", "eload_col"];
-        for (const rc of roleCols) {
+        // money_col / time_col KHONG bat buoc nua (loai du lieu ban hang co the
+        // de "Khong dung") — cac loai thieu 2 cot nay tu dong khong lot vao
+        // Dashboard/Bao cao chi tra hoa hong (aggregateSummary da loc san).
+        for (const rc of ["eload_col"]) {
           if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
         }
-        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col"]) {
+        for (const rc of ["money_col", "time_col", "time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col"]) {
           if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
         }
         const exists = (await getDataTypes(env)).some((t) => t.code === code || t.prefix === code);
@@ -1304,10 +1306,10 @@ export default {
           if (keys.has(c.key)) return err("Trung khoa cot: " + c.key, 422);
           keys.add(c.key);
         }
-        for (const rc of ["money_col", "time_col", "eload_col"]) {
+        for (const rc of ["eload_col"]) {
           if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
         }
-        for (const rc of ["time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col"]) {
+        for (const rc of ["money_col", "time_col", "time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col"]) {
           if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
         }
         const cleanCols = columns.map((c) => ({

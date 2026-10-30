@@ -1103,8 +1103,8 @@ html.is-mobile #appRoot .btn{min-height:44px}
                 <div id="dtCols"></div>
                 <button class="btn sm gray" type="button" id="dtAddCol">+ Thêm cột</button>
               </div>
-              <div><label>Cột Số tiền chi trả *</label><select id="dtMoney"></select></div>
-              <div><label>Cột Thời gian (để lọc báo cáo) *</label><select id="dtTime"></select></div>
+              <div><label>Cột Số tiền chi trả (để tính Dashboard chi trả hoa hồng)</label><select id="dtMoney"></select></div>
+              <div><label>Cột Thời gian (để lọc báo cáo chi trả)</label><select id="dtTime"></select></div>
               <div><label>Cột Số Eload (map với nguoi_dung) *</label><select id="dtEload"></select></div>
               <div><label>Cột Số Ví VNPT Money (map với nguoi_dung)</label><select id="dtVi"></select></div>
               <div><label>Cột Số thuê bao</label><select id="dtSub"></select></div>
@@ -2563,11 +2563,13 @@ export default {
           if (keys.has(c.key)) return err(&quot;Trung khoa cot: &quot; + c.key, 422);
           keys.add(c.key);
         }
-        const roleCols = [&quot;money_col&quot;, &quot;time_col&quot;, &quot;eload_col&quot;];
-        for (const rc of roleCols) {
+        // money_col / time_col KHONG bat buoc nua (loai du lieu ban hang co the
+        // de &quot;Khong dung&quot;) — cac loai thieu 2 cot nay tu dong khong lot vao
+        // Dashboard/Bao cao chi tra hoa hong (aggregateSummary da loc san).
+        for (const rc of [&quot;eload_col&quot;]) {
           if (!b[rc] || !keys.has(b[rc])) return err(&quot;Chua chon cot vai tro bat buoc: &quot; + rc, 422);
         }
-        for (const rc of [&quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;]) {
+        for (const rc of [&quot;money_col&quot;, &quot;time_col&quot;, &quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;]) {
           if (b[rc] &amp;&amp; !keys.has(b[rc])) return err(&quot;Cot vai tro khong nam trong danh sach cot: &quot; + rc, 422);
         }
         const exists = (await getDataTypes(env)).some((t) =&gt; t.code === code || t.prefix === code);
@@ -2607,10 +2609,10 @@ export default {
           if (keys.has(c.key)) return err(&quot;Trung khoa cot: &quot; + c.key, 422);
           keys.add(c.key);
         }
-        for (const rc of [&quot;money_col&quot;, &quot;time_col&quot;, &quot;eload_col&quot;]) {
+        for (const rc of [&quot;eload_col&quot;]) {
           if (!b[rc] || !keys.has(b[rc])) return err(&quot;Chua chon cot vai tro bat buoc: &quot; + rc, 422);
         }
-        for (const rc of [&quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;]) {
+        for (const rc of [&quot;money_col&quot;, &quot;time_col&quot;, &quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;]) {
           if (b[rc] &amp;&amp; !keys.has(b[rc])) return err(&quot;Cot vai tro khong nam trong danh sach cot: &quot; + rc, 422);
         }
         const cleanCols = columns.map((c) =&gt; ({
@@ -5084,7 +5086,7 @@ function dtRefreshRoleSelects() {
   const cols = dtGetColumns();
   const opts = (withEmpty) => (withEmpty ? '<option value="">— Không dùng —</option>' : "") +
     cols.map((c) => '<option value="' + esc(c.key) + '">' + esc(c.label) + " (" + esc(c.key) + ")</option>").join("");
-  [["dtMoney", false], ["dtTime", false], ["dtEload", false], ["dtVi", true], ["dtSub", true], ["dtPkg", true], ["dtTrans", true], ["dtStatus", true], ["dtReason", true], ["dtTimeFb", true], ["dtKey", true], ["dtKenh", true], ["dtSalesUnit", true], ["dtSalesEload", true], ["dtSalesKenh", true], ["dtSalesPrice", true], ["dtSalesQty", true]].forEach(([id, withEmpty]) => {
+  [["dtMoney", true], ["dtTime", true], ["dtEload", false], ["dtVi", true], ["dtSub", true], ["dtPkg", true], ["dtTrans", true], ["dtStatus", true], ["dtReason", true], ["dtTimeFb", true], ["dtKey", true], ["dtKenh", true], ["dtSalesUnit", true], ["dtSalesEload", true], ["dtSalesKenh", true], ["dtSalesPrice", true], ["dtSalesQty", true]].forEach(([id, withEmpty]) => {
     const sel = $(id); const cur = sel.value;
     sel.innerHTML = opts(withEmpty);
     if (cols.some((c) => c.key === cur)) sel.value = cur;
@@ -5148,7 +5150,7 @@ $("dtForm").addEventListener("submit", async (e) => {
   };
   if (!body.code || !body.name) { setMsg($("dtMsg"), "Hãy nhập mã và tên loại dữ liệu.", false); return; }
   if (!columns.length) { setMsg($("dtMsg"), "Hãy khai báo ít nhất 1 cột dữ liệu.", false); return; }
-  if (!body.money_col || !body.time_col || !body.eload_col) { setMsg($("dtMsg"), "Bắt buộc chọn: Cột Số tiền, Cột Thời gian và Cột Số Eload (để map với người dùng).", false); return; }
+  if (!body.eload_col) { setMsg($("dtMsg"), "Bắt buộc chọn: Cột Số Eload (để map với người dùng).", false); return; }
   try {
     if (dtEditId) {
       const d = await api("/api/datatypes/" + dtEditId, { method: "PUT", body: JSON.stringify(body) });
