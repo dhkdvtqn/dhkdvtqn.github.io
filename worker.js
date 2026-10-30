@@ -1661,6 +1661,9 @@ export default {
             const cols = (await env.DB.prepare("PRAGMA table_info(" + tbl + ")").all()).results || [];
             const cn = new Set(cols.map((c) => c.name));
             if (!needCols.every((c) => cn.has(c))) continue;
+            // Quy tac TNTTTB: tim cot loai_don (khong phan biet hoa/thuong)
+            let loaiDonCol = null;
+            if (isSubsSrc) { for (const c of cn) { if (String(c).toLowerCase() === "loai_don") { loaiDonCol = c; break; } } }
             const rows = (await env.DB.prepare("SELECT * FROM " + tbl).all()).results || [];
             for (const r of rows) {
               const e = normE(r[t.sales_eload_col]);
@@ -1676,6 +1679,12 @@ export default {
               const st = t.sales_subtype_col ? String(r[t.sales_subtype_col] == null ? "" : r[t.sales_subtype_col]).trim() : "";
               if (t.sales_subtype_col) stSet.add(st || "(Trống)");
               if (fStList.length && !fStList.includes(st)) continue;
+              // Quy tac bang TNTTTB: chi dem san luong khi loai_don khong null/rong
+              // (chi ap dung khi bang co cot loai_don).
+              if (isSubsSrc && loaiDonCol) {
+                const ld = r[loaiDonCol];
+                if (ld == null || String(ld).trim() === "") continue;
+              }
               const price = toNumber(r[t.sales_price_col]);
               let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
               if (!qty || qty <= 0) qty = 1;
