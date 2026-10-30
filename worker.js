@@ -347,7 +347,7 @@ async function ensureTypes(env) {
     "money_col TEXT, time_col TEXT, time_fallback_col TEXT, eload_col TEXT, vi_col TEXT, " +
     "sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, key_col TEXT, kenh_col TEXT, " +
     "sales_unit_col TEXT, sales_eload_col TEXT, sales_kenh_col TEXT, sales_price_col TEXT, sales_qty_col TEXT, " +
-    "sales_result_col TEXT, sales_subtype_col TEXT, " +
+    "sales_result_col TEXT, sales_subtype_col TEXT, sales_kind TEXT, " +
     "builtin INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)"
   ).run();
   // CSDL cu co the chua co cot key_col / kenh_col (them sau) — bo sung neu thieu.
@@ -356,7 +356,7 @@ async function ensureTypes(env) {
     const names = new Set((info.results || []).map((c) => c.name));
     if (!names.has("key_col")) await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN key_col TEXT").run();
     if (!names.has("kenh_col")) await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN kenh_col TEXT").run();
-    for (const c of ["sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col", "sales_result_col", "sales_subtype_col"]) {
+    for (const c of ["sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col", "sales_result_col", "sales_subtype_col", "sales_kind"]) {
       if (!names.has(c)) await env.DB.prepare("ALTER TABLE loai_du_lieu ADD COLUMN " + c + " TEXT").run();
     }
   } catch (e) { /* PRAGMA khong co thi bo qua, cot se duoc them o lan tao bang sau */ }
@@ -1267,6 +1267,7 @@ export default {
         for (const rc of ["eload_col"]) {
           if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
         }
+        const salesKind = ["doanh_thu", "san_luong"].includes(b.sales_kind) ? b.sales_kind : "";
         for (const rc of ["money_col", "time_col", "time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col", "sales_result_col", "sales_subtype_col"]) {
           if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
         }
@@ -1277,13 +1278,13 @@ export default {
           type: ["money", "number", "date"].includes(c.type) ? c.type : "text",
         }));
         const r = await env.DB.prepare(
-          "INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, sales_unit_col, sales_eload_col, sales_kenh_col, sales_price_col, sales_qty_col, sales_result_col, sales_subtype_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
+          "INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, sales_unit_col, sales_eload_col, sales_kenh_col, sales_price_col, sales_qty_col, sales_result_col, sales_subtype_col, sales_kind, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
         )
           .bind(code, name, code, fmt, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || "", b.eload_col, b.vi_col || "",
             b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "", b.kenh_col || "",
             b.sales_unit_col || "", b.sales_eload_col || "", b.sales_kenh_col || "", b.sales_price_col || "", b.sales_qty_col || "",
-            b.sales_result_col || "", b.sales_subtype_col || "")
+            b.sales_result_col || "", b.sales_subtype_col || "", salesKind)
           .run();
         return json({ ok: true, id: r.meta.last_row_id, code });
       }
@@ -1311,6 +1312,7 @@ export default {
         for (const rc of ["eload_col"]) {
           if (!b[rc] || !keys.has(b[rc])) return err("Chua chon cot vai tro bat buoc: " + rc, 422);
         }
+        const salesKind = ["doanh_thu", "san_luong"].includes(b.sales_kind) ? b.sales_kind : "";
         for (const rc of ["money_col", "time_col", "time_fallback_col", "vi_col", "sub_col", "pkg_col", "trans_col", "status_col", "reason_col", "key_col", "kenh_col", "sales_unit_col", "sales_eload_col", "sales_kenh_col", "sales_price_col", "sales_qty_col", "sales_result_col", "sales_subtype_col"]) {
           if (b[rc] && !keys.has(b[rc])) return err("Cot vai tro khong nam trong danh sach cot: " + rc, 422);
         }
@@ -1319,13 +1321,13 @@ export default {
           type: ["money", "number", "date"].includes(c.type) ? c.type : "text",
         }));
         await env.DB.prepare(
-          "UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ?, sales_unit_col = ?, sales_eload_col = ?, sales_kenh_col = ?, sales_price_col = ?, sales_qty_col = ?, sales_result_col = ?, sales_subtype_col = ? WHERE id = ?"
+          "UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ?, sales_unit_col = ?, sales_eload_col = ?, sales_kenh_col = ?, sales_price_col = ?, sales_qty_col = ?, sales_result_col = ?, sales_subtype_col = ?, sales_kind = ? WHERE id = ?"
         )
           .bind(name, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || "", b.eload_col, b.vi_col || "",
             b.sub_col || "", b.pkg_col || "", b.trans_col || "", b.status_col || "", b.reason_col || "", b.key_col || "", b.kenh_col || "",
             b.sales_unit_col || "", b.sales_eload_col || "", b.sales_kenh_col || "", b.sales_price_col || "", b.sales_qty_col || "",
-            b.sales_result_col || "", b.sales_subtype_col || "", row.id)
+            b.sales_result_col || "", b.sales_subtype_col || "", salesKind, row.id)
           .run();
         return json({ ok: true, code: row.code });
       }
@@ -1525,8 +1527,12 @@ export default {
         const loai = (url.searchParams.get("loai") || "").toUpperCase();
         const t = types.find((x) => x.code === loai);
         if (!t) return err("Chua chon loai du lieu ban hang", 422);
-        if (!t.sales_unit_col || !t.sales_eload_col || !t.sales_price_col)
-          return err("Loai du lieu " + t.code + " chua cau hinh cot cho Dashboard ban hang (can: cot Ten don vi, cot So Eload, cot Gia goi). Vao Cai dat > Loai du lieu de thiet lap.", 422);
+        const salesKind = t.sales_kind || "";
+        // Doanh thu: can Ten don vi + So Eload + Gia goi.
+        // San luong PTTB: can Ten don vi + So Eload (khong can Gia goi).
+        const needPrice = salesKind !== "san_luong";
+        if (!t.sales_unit_col || !t.sales_eload_col || (needPrice && !t.sales_price_col))
+          return err("Loai du lieu " + t.code + " chua cau hinh du cot cho Dashboard ban hang (can: cot Ten don vi, cot So Eload" + (needPrice ? ", cot Gia goi" : "") + "). Vao Cai dat > Loai du lieu de thiet lap.", 422);
         const from = url.searchParams.get("from") || "0000-01-01";
         const to = url.searchParams.get("to") || "9999-12-31";
         // Map Eload -> diem ban (chi tinh thue bao do Eload cua diem ban phat trien)
@@ -1603,7 +1609,7 @@ export default {
           return { eload: p.so_eload, ma_kenh: p.ma_kenh, ho_ten: p.ho_ten, don_vi_ten: p.don_vi_ten, subs: byPos[e].subs, revenue: Math.round(byPos[e].revenue) };
         }).sort((a, b) => b.revenue - a.revenue);
         const sortVi = (a, b) => String(a).localeCompare(String(b), "vi");
-        return json({ ok: true, type: { code: t.code, name: t.name }, by_month, by_unit, by_pos, skipped_tables: skippedTables,
+        return json({ ok: true, type: { code: t.code, name: t.name, kind: salesKind }, by_month, by_unit, by_pos, skipped_tables: skippedTables,
           ket_qua_values: [...kqSet].sort(sortVi), loai_tb_values: [...stSet].sort(sortVi) });
       }
       if (path === "/api/reports/detail" && method === "GET") {

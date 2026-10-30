@@ -958,11 +958,11 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div class="kpi"><b id="salesYearRev">—</b><span>Tổng doanh thu bán gói từ đầu năm (trước thuế)</span></div>
           </div>
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Số liệu theo từng tháng</h3>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Tháng</th><th>Thuê bao phát triển</th><th>Doanh thu (trước thuế)</th><th>Lũy kế thuê bao</th><th>Lũy kế doanh thu</th></tr></thead><tbody id="salesMonthBody"><tr><td colspan="5">Chưa có dữ liệu — chọn loại dữ liệu và bấm Xem tổng hợp.</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead id="salesMonthHead"><tr><th>Tháng</th><th>Thuê bao phát triển</th><th>Doanh thu (trước thuế)</th><th>Lũy kế thuê bao</th><th>Lũy kế doanh thu</th></tr></thead><tbody id="salesMonthBody"><tr><td colspan="5">Chưa có dữ liệu — chọn loại dữ liệu và bấm Xem tổng hợp.</td></tr></tbody></table></div>
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Tổng hợp theo đơn vị</h3>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Đơn vị</th><th>Thuê bao phát triển</th><th>Doanh thu (trước thuế)</th></tr></thead><tbody id="salesUnitBody"><tr><td colspan="3">—</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead id="salesUnitHead"><tr><th>Đơn vị</th><th>Thuê bao phát triển</th><th>Doanh thu (trước thuế)</th></tr></thead><tbody id="salesUnitBody"><tr><td colspan="3">—</td></tr></tbody></table></div>
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Tổng hợp theo điểm bán</h3>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Điểm bán</th><th>Mã kênh</th><th>Số Eload</th><th>Đơn vị</th><th>Thuê bao phát triển</th><th>Doanh thu (trước thuế)</th></tr></thead><tbody id="salesPosBody"><tr><td colspan="6">—</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead id="salesPosHead"><tr><th>Điểm bán</th><th>Mã kênh</th><th>Số Eload</th><th>Đơn vị</th><th>Thuê bao phát triển</th><th>Doanh thu (trước thuế)</th></tr></thead><tbody id="salesPosBody"><tr><td colspan="6">—</td></tr></tbody></table></div>
         </section>
 
         <!-- QUAN LY DON VI -->
@@ -1117,7 +1117,9 @@ html.is-mobile #appRoot .btn{min-height:44px}
               <div><label>Cột Thời gian dự phòng (nếu cột thời gian chính trống)</label><select id="dtTimeFb"></select></div>
               <div><label>Cột khóa map báo cáo (VD: Mã HRM/SĐT SMCS — để map dữ liệu với người dùng)</label><select id="dtKey"></select></div>
               <div><label>Cột Mã kênh (map báo cáo theo mã kênh của người dùng)</label><select id="dtKenh"></select></div>
-              <div class="full" style="margin-top:8px"><b style="color:var(--blue-dark)">Cột dùng cho Dashboard bán hàng</b> <span class="desc">(không bắt buộc — chỉ cần khi loại dữ liệu này dùng để tổng hợp phát triển thuê bao và doanh thu bán gói)</span></div>
+              <div class="full" style="margin-top:8px"><b style="color:var(--blue-dark)">Dùng cho Dashboard bán hàng</b> <span class="desc">(không bắt buộc — chỉ cần khi loại dữ liệu này dùng để tổng hợp phát triển thuê bao và doanh thu bán gói)</span></div>
+              <div><label>Loại dữ liệu bán hàng</label><select id="dtSalesKind"><option value="">— Không dùng cho Dashboard bán hàng —</option><option value="doanh_thu">Doanh thu (chỉ tổng hợp doanh thu)</option><option value="san_luong">Sản lượng PTTB (chỉ tổng hợp sản lượng phát triển thuê bao)</option></select></div>
+              <div></div>
               <div><label>Cột Tên đơn vị (tổng hợp theo đơn vị)</label><select id="dtSalesUnit"></select></div>
               <div><label>Cột Số Eload (chỉ tính thuê bao do Eload của điểm bán phát triển)</label><select id="dtSalesEload"></select></div>
               <div><label>Cột Mã kênh (hiển thị theo điểm bán)</label><select id="dtSalesKenh"></select></div>
@@ -1654,7 +1656,7 @@ async function ensureTypes(env) {
     &quot;money_col TEXT, time_col TEXT, time_fallback_col TEXT, eload_col TEXT, vi_col TEXT, &quot; +
     &quot;sub_col TEXT, pkg_col TEXT, trans_col TEXT, status_col TEXT, reason_col TEXT, key_col TEXT, kenh_col TEXT, &quot; +
     &quot;sales_unit_col TEXT, sales_eload_col TEXT, sales_kenh_col TEXT, sales_price_col TEXT, sales_qty_col TEXT, &quot; +
-    &quot;sales_result_col TEXT, sales_subtype_col TEXT, &quot; +
+    &quot;sales_result_col TEXT, sales_subtype_col TEXT, sales_kind TEXT, &quot; +
     &quot;builtin INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)&quot;
   ).run();
   // CSDL cu co the chua co cot key_col / kenh_col (them sau) — bo sung neu thieu.
@@ -1663,7 +1665,7 @@ async function ensureTypes(env) {
     const names = new Set((info.results || []).map((c) =&gt; c.name));
     if (!names.has(&quot;key_col&quot;)) await env.DB.prepare(&quot;ALTER TABLE loai_du_lieu ADD COLUMN key_col TEXT&quot;).run();
     if (!names.has(&quot;kenh_col&quot;)) await env.DB.prepare(&quot;ALTER TABLE loai_du_lieu ADD COLUMN kenh_col TEXT&quot;).run();
-    for (const c of [&quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;, &quot;sales_result_col&quot;, &quot;sales_subtype_col&quot;]) {
+    for (const c of [&quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;, &quot;sales_result_col&quot;, &quot;sales_subtype_col&quot;, &quot;sales_kind&quot;]) {
       if (!names.has(c)) await env.DB.prepare(&quot;ALTER TABLE loai_du_lieu ADD COLUMN &quot; + c + &quot; TEXT&quot;).run();
     }
   } catch (e) { /* PRAGMA khong co thi bo qua, cot se duoc them o lan tao bang sau */ }
@@ -2574,6 +2576,7 @@ export default {
         for (const rc of [&quot;eload_col&quot;]) {
           if (!b[rc] || !keys.has(b[rc])) return err(&quot;Chua chon cot vai tro bat buoc: &quot; + rc, 422);
         }
+        const salesKind = [&quot;doanh_thu&quot;, &quot;san_luong&quot;].includes(b.sales_kind) ? b.sales_kind : &quot;&quot;;
         for (const rc of [&quot;money_col&quot;, &quot;time_col&quot;, &quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;, &quot;sales_result_col&quot;, &quot;sales_subtype_col&quot;]) {
           if (b[rc] &amp;&amp; !keys.has(b[rc])) return err(&quot;Cot vai tro khong nam trong danh sach cot: &quot; + rc, 422);
         }
@@ -2584,13 +2587,13 @@ export default {
           type: [&quot;money&quot;, &quot;number&quot;, &quot;date&quot;].includes(c.type) ? c.type : &quot;text&quot;,
         }));
         const r = await env.DB.prepare(
-          &quot;INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, sales_unit_col, sales_eload_col, sales_kenh_col, sales_price_col, sales_qty_col, sales_result_col, sales_subtype_col, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)&quot;
+          &quot;INSERT INTO loai_du_lieu (code, name, prefix, fmt, columns_json, money_col, time_col, time_fallback_col, eload_col, vi_col, sub_col, pkg_col, trans_col, status_col, reason_col, key_col, kenh_col, sales_unit_col, sales_eload_col, sales_kenh_col, sales_price_col, sales_qty_col, sales_result_col, sales_subtype_col, sales_kind, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)&quot;
         )
           .bind(code, name, code, fmt, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || &quot;&quot;, b.eload_col, b.vi_col || &quot;&quot;,
             b.sub_col || &quot;&quot;, b.pkg_col || &quot;&quot;, b.trans_col || &quot;&quot;, b.status_col || &quot;&quot;, b.reason_col || &quot;&quot;, b.key_col || &quot;&quot;, b.kenh_col || &quot;&quot;,
             b.sales_unit_col || &quot;&quot;, b.sales_eload_col || &quot;&quot;, b.sales_kenh_col || &quot;&quot;, b.sales_price_col || &quot;&quot;, b.sales_qty_col || &quot;&quot;,
-            b.sales_result_col || &quot;&quot;, b.sales_subtype_col || &quot;&quot;)
+            b.sales_result_col || &quot;&quot;, b.sales_subtype_col || &quot;&quot;, salesKind)
           .run();
         return json({ ok: true, id: r.meta.last_row_id, code });
       }
@@ -2618,6 +2621,7 @@ export default {
         for (const rc of [&quot;eload_col&quot;]) {
           if (!b[rc] || !keys.has(b[rc])) return err(&quot;Chua chon cot vai tro bat buoc: &quot; + rc, 422);
         }
+        const salesKind = [&quot;doanh_thu&quot;, &quot;san_luong&quot;].includes(b.sales_kind) ? b.sales_kind : &quot;&quot;;
         for (const rc of [&quot;money_col&quot;, &quot;time_col&quot;, &quot;time_fallback_col&quot;, &quot;vi_col&quot;, &quot;sub_col&quot;, &quot;pkg_col&quot;, &quot;trans_col&quot;, &quot;status_col&quot;, &quot;reason_col&quot;, &quot;key_col&quot;, &quot;kenh_col&quot;, &quot;sales_unit_col&quot;, &quot;sales_eload_col&quot;, &quot;sales_kenh_col&quot;, &quot;sales_price_col&quot;, &quot;sales_qty_col&quot;, &quot;sales_result_col&quot;, &quot;sales_subtype_col&quot;]) {
           if (b[rc] &amp;&amp; !keys.has(b[rc])) return err(&quot;Cot vai tro khong nam trong danh sach cot: &quot; + rc, 422);
         }
@@ -2626,13 +2630,13 @@ export default {
           type: [&quot;money&quot;, &quot;number&quot;, &quot;date&quot;].includes(c.type) ? c.type : &quot;text&quot;,
         }));
         await env.DB.prepare(
-          &quot;UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ?, sales_unit_col = ?, sales_eload_col = ?, sales_kenh_col = ?, sales_price_col = ?, sales_qty_col = ?, sales_result_col = ?, sales_subtype_col = ? WHERE id = ?&quot;
+          &quot;UPDATE loai_du_lieu SET name = ?, columns_json = ?, money_col = ?, time_col = ?, time_fallback_col = ?, eload_col = ?, vi_col = ?, sub_col = ?, pkg_col = ?, trans_col = ?, status_col = ?, reason_col = ?, key_col = ?, kenh_col = ?, sales_unit_col = ?, sales_eload_col = ?, sales_kenh_col = ?, sales_price_col = ?, sales_qty_col = ?, sales_result_col = ?, sales_subtype_col = ?, sales_kind = ? WHERE id = ?&quot;
         )
           .bind(name, JSON.stringify(cleanCols),
             b.money_col, b.time_col, b.time_fallback_col || &quot;&quot;, b.eload_col, b.vi_col || &quot;&quot;,
             b.sub_col || &quot;&quot;, b.pkg_col || &quot;&quot;, b.trans_col || &quot;&quot;, b.status_col || &quot;&quot;, b.reason_col || &quot;&quot;, b.key_col || &quot;&quot;, b.kenh_col || &quot;&quot;,
             b.sales_unit_col || &quot;&quot;, b.sales_eload_col || &quot;&quot;, b.sales_kenh_col || &quot;&quot;, b.sales_price_col || &quot;&quot;, b.sales_qty_col || &quot;&quot;,
-            b.sales_result_col || &quot;&quot;, b.sales_subtype_col || &quot;&quot;, row.id)
+            b.sales_result_col || &quot;&quot;, b.sales_subtype_col || &quot;&quot;, salesKind, row.id)
           .run();
         return json({ ok: true, code: row.code });
       }
@@ -2832,8 +2836,12 @@ export default {
         const loai = (url.searchParams.get(&quot;loai&quot;) || &quot;&quot;).toUpperCase();
         const t = types.find((x) =&gt; x.code === loai);
         if (!t) return err(&quot;Chua chon loai du lieu ban hang&quot;, 422);
-        if (!t.sales_unit_col || !t.sales_eload_col || !t.sales_price_col)
-          return err(&quot;Loai du lieu &quot; + t.code + &quot; chua cau hinh cot cho Dashboard ban hang (can: cot Ten don vi, cot So Eload, cot Gia goi). Vao Cai dat &gt; Loai du lieu de thiet lap.&quot;, 422);
+        const salesKind = t.sales_kind || &quot;&quot;;
+        // Doanh thu: can Ten don vi + So Eload + Gia goi.
+        // San luong PTTB: can Ten don vi + So Eload (khong can Gia goi).
+        const needPrice = salesKind !== &quot;san_luong&quot;;
+        if (!t.sales_unit_col || !t.sales_eload_col || (needPrice &amp;&amp; !t.sales_price_col))
+          return err(&quot;Loai du lieu &quot; + t.code + &quot; chua cau hinh du cot cho Dashboard ban hang (can: cot Ten don vi, cot So Eload&quot; + (needPrice ? &quot;, cot Gia goi&quot; : &quot;&quot;) + &quot;). Vao Cai dat &gt; Loai du lieu de thiet lap.&quot;, 422);
         const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         // Map Eload -&gt; diem ban (chi tinh thue bao do Eload cua diem ban phat trien)
@@ -2910,7 +2918,7 @@ export default {
           return { eload: p.so_eload, ma_kenh: p.ma_kenh, ho_ten: p.ho_ten, don_vi_ten: p.don_vi_ten, subs: byPos[e].subs, revenue: Math.round(byPos[e].revenue) };
         }).sort((a, b) =&gt; b.revenue - a.revenue);
         const sortVi = (a, b) =&gt; String(a).localeCompare(String(b), &quot;vi&quot;);
-        return json({ ok: true, type: { code: t.code, name: t.name }, by_month, by_unit, by_pos, skipped_tables: skippedTables,
+        return json({ ok: true, type: { code: t.code, name: t.name, kind: salesKind }, by_month, by_unit, by_pos, skipped_tables: skippedTables,
           ket_qua_values: [...kqSet].sort(sortVi), loai_tb_values: [...stSet].sort(sortVi) });
       }
       if (path === &quot;/api/reports/detail&quot; &amp;&amp; method === &quot;GET&quot;) {
@@ -4184,12 +4192,16 @@ $("dashYearType").addEventListener("change", () => { loadDashYearTable($("dashYe
 const fmtInt = (n) => (Math.round(Number(n) || 0)).toLocaleString("vi-VN");
 const monthLabel = (ym) => { const [y, m] = ym.split("-"); return "Tháng " + Number(m) + "/" + y; };
 // Chi cac loai du lieu da cau hinh du 3 cot bat buoc cho Dashboard ban hang
-const salesTypes = () => (dataTypes || []).filter((x) => x.sales_unit_col && x.sales_eload_col && x.sales_price_col);
+const salesKindLabel = (k) => k === "doanh_thu" ? " — Doanh thu" : k === "san_luong" ? " — Sản lượng PTTB" : "";
+const salesTypes = () => (dataTypes || []).filter((x) => {
+  if (x.sales_kind === "san_luong") return x.sales_unit_col && x.sales_eload_col;
+  return x.sales_unit_col && x.sales_eload_col && x.sales_price_col;
+});
 function loadSalesTypes() {
   const sel = $("salesType"), cur = sel.value;
   const list = salesTypes();
   sel.innerHTML = list.length
-    ? '<option value="">— Chọn loại dữ liệu —</option>' + list.map((x) => '<option value="' + esc(x.code) + '">' + esc(x.name) + " (" + esc(x.code) + ")</option>").join("")
+    ? '<option value="">— Chọn loại dữ liệu —</option>' + list.map((x) => '<option value="' + esc(x.code) + '">' + esc(x.name) + " (" + esc(x.code) + ")" + esc(salesKindLabel(x.sales_kind)) + "</option>").join("")
     : '<option value="">Chưa có loại dữ liệu nào cấu hình Dashboard bán hàng — vào Cấu hình &gt; Loại dữ liệu để thiết lập</option>';
   sel.value = [...sel.options].some((o) => o.value === cur) ? cur : "";
   const now = new Date(); const p2 = (x) => String(x).padStart(2, "0");
@@ -4238,26 +4250,44 @@ async function loadSalesDash() {
     (d.by_month || []).forEach((r) => { if (r.month >= curY + "-01" && r.month <= curM) { yS += r.subs; yR += r.revenue; } });
     $("salesYearSubs").textContent = fmtInt(yS);
     $("salesYearRev").textContent = fmt(yR);
+    // An/hien theo loai du lieu ban hang: Doanh thu -> chi cot doanh thu; San luong -> chi cot thue bao
+    const kind = (d.type && d.type.kind) || "";
+    const showSub = kind !== "doanh_thu";
+    const showRev = kind !== "san_luong";
+    $("salesMonthSubs").closest(".kpi").classList.toggle("hidden", !showSub);
+    $("salesMonthRev").closest(".kpi").classList.toggle("hidden", !showRev);
+    $("salesYearSubs").closest(".kpi").classList.toggle("hidden", !showSub);
+    $("salesYearRev").closest(".kpi").classList.toggle("hidden", !showRev);
+    const subCell = (v) => showSub ? "<td>" + fmtInt(v) + "</td>" : "";
+    const revCell = (v) => showRev ? "<td>" + fmt(v) + "</td>" : "";
+    const subCellB = (v) => showSub ? "<td><b>" + fmtInt(v) + "</b></td>" : "";
+    const revCellB = (v) => showRev ? "<td><b>" + fmt(v) + "</b></td>" : "";
     // Bang theo thang (kem cot luy ke)
+    const mCols = 1 + (showSub ? 2 : 0) + (showRev ? 2 : 0);
+    $("salesMonthHead").innerHTML = "<tr><th>Tháng</th>" + (showSub ? "<th>Thuê bao phát triển</th>" : "") + (showRev ? "<th>Doanh thu (trước thuế)</th>" : "") + (showSub ? "<th>Lũy kế thuê bao</th>" : "") + (showRev ? "<th>Lũy kế doanh thu</th>" : "") + "</tr>";
     let cS = 0, cR = 0;
     $("salesMonthBody").innerHTML = (d.by_month || []).length
       ? (d.by_month || []).map((r) => { cS += r.subs; cR += r.revenue;
-          return "<tr><td>" + monthLabel(r.month) + "</td><td>" + fmtInt(r.subs) + "</td><td>" + fmt(r.revenue) + "</td><td>" + fmtInt(cS) + "</td><td>" + fmt(cR) + "</td></tr>"; }).join("")
-      : "<tr><td colspan='5'>Không có số liệu trong khoảng tháng đã chọn.</td></tr>";
+          return "<tr><td>" + monthLabel(r.month) + "</td>" + subCell(r.subs) + revCell(r.revenue) + subCell(cS) + revCell(cR) + "</tr>"; }).join("")
+      : "<tr><td colspan='" + mCols + "'>Không có số liệu trong khoảng tháng đã chọn.</td></tr>";
     // Bang theo don vi (+ dong tong cong)
+    const uCols = 1 + (showSub ? 1 : 0) + (showRev ? 1 : 0);
+    $("salesUnitHead").innerHTML = "<tr><th>Đơn vị</th>" + (showSub ? "<th>Thuê bao phát triển</th>" : "") + (showRev ? "<th>Doanh thu (trước thuế)</th>" : "") + "</tr>";
     let uS = 0, uR = 0;
     $("salesUnitBody").innerHTML = (d.by_unit || []).length
       ? (d.by_unit || []).map((u) => { uS += u.subs; uR += u.revenue;
-          return "<tr><td>" + esc(u.name) + "</td><td>" + fmtInt(u.subs) + "</td><td>" + fmt(u.revenue) + "</td></tr>"; }).join("") +
-        "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + fmtInt(uS) + "</b></td><td><b>" + fmt(uR) + "</b></td></tr>"
-      : "<tr><td colspan='3'>Không có số liệu trong khoảng tháng đã chọn.</td></tr>";
+          return "<tr><td>" + esc(u.name) + "</td>" + subCell(u.subs) + revCell(u.revenue) + "</tr>"; }).join("") +
+        "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td>" + subCellB(uS) + revCellB(uR) + "</tr>"
+      : "<tr><td colspan='" + uCols + "'>Không có số liệu trong khoảng tháng đã chọn.</td></tr>";
     // Bang theo diem ban (+ dong tong cong)
+    const pCols = 4 + (showSub ? 1 : 0) + (showRev ? 1 : 0);
+    $("salesPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Số Eload</th><th>Đơn vị</th>" + (showSub ? "<th>Thuê bao phát triển</th>" : "") + (showRev ? "<th>Doanh thu (trước thuế)</th>" : "") + "</tr>";
     let pS = 0, pR = 0;
     $("salesPosBody").innerHTML = (d.by_pos || []).length
       ? (d.by_pos || []).map((r) => { pS += r.subs; pR += r.revenue;
-          return "<tr><td>" + esc(r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.eload) + "</td><td>" + esc(r.don_vi_ten || "—") + "</td><td>" + fmtInt(r.subs) + "</td><td>" + fmt(r.revenue) + "</td></tr>"; }).join("") +
-        "<tr style='background:var(--blue-light)'><td colspan='4'><b>Tổng cộng</b></td><td><b>" + fmtInt(pS) + "</b></td><td><b>" + fmt(pR) + "</b></td></tr>"
-      : "<tr><td colspan='6'>Không có số liệu trong khoảng tháng đã chọn.</td></tr>";
+          return "<tr><td>" + esc(r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.eload) + "</td><td>" + esc(r.don_vi_ten || "—") + "</td>" + subCell(r.subs) + revCell(r.revenue) + "</tr>"; }).join("") +
+        "<tr style='background:var(--blue-light)'><td colspan='4'><b>Tổng cộng</b></td>" + subCellB(pS) + revCellB(pR) + "</tr>"
+      : "<tr><td colspan='" + pCols + "'>Không có số liệu trong khoảng tháng đã chọn.</td></tr>";
   } catch (e) { setMsg($("salesMsg"), e.message, false); }
 }
 $("salesBtn").addEventListener("click", () => { loadSalesDash(); });
@@ -5163,6 +5193,7 @@ function startDtEdit(t) {
     $("dtCols").appendChild(row);
   });
   dtRefreshRoleSelects();
+  $("dtSalesKind").value = t.sales_kind || "";
   [["dtMoney", t.money_col], ["dtTime", t.time_col], ["dtEload", t.eload_col], ["dtVi", t.vi_col], ["dtSub", t.sub_col], ["dtPkg", t.pkg_col], ["dtTrans", t.trans_col], ["dtStatus", t.status_col], ["dtReason", t.reason_col], ["dtTimeFb", t.time_fallback_col], ["dtKey", t.key_col], ["dtKenh", t.kenh_col], ["dtSalesUnit", t.sales_unit_col], ["dtSalesEload", t.sales_eload_col], ["dtSalesKenh", t.sales_kenh_col], ["dtSalesPrice", t.sales_price_col], ["dtSalesQty", t.sales_qty_col], ["dtSalesResult", t.sales_result_col], ["dtSalesSubtype", t.sales_subtype_col]].forEach(([id, v]) => { const s = $(id); if (v) s.value = v; });
   $("dtSubmitBtn").textContent = "Lưu thay đổi";
   $("dtCancelBtn").classList.remove("hidden");
@@ -5184,6 +5215,7 @@ $("dtForm").addEventListener("submit", async (e) => {
     sales_unit_col: $("dtSalesUnit").value, sales_eload_col: $("dtSalesEload").value, sales_kenh_col: $("dtSalesKenh").value,
     sales_price_col: $("dtSalesPrice").value, sales_qty_col: $("dtSalesQty").value,
     sales_result_col: $("dtSalesResult").value, sales_subtype_col: $("dtSalesSubtype").value,
+    sales_kind: $("dtSalesKind").value,
   };
   if (!body.code || !body.name) { setMsg($("dtMsg"), "Hãy nhập mã và tên loại dữ liệu.", false); return; }
   if (!columns.length) { setMsg($("dtMsg"), "Hãy khai báo ít nhất 1 cột dữ liệu.", false); return; }
