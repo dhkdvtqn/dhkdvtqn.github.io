@@ -1640,8 +1640,14 @@ export default {
         const perMonth = {};
         const stSet = new Set();
         let hasSubtypeCol = false;
+        let hasSubsSrc = false, hasRevSrc = false;
         for (const t of stypes) {
           const needPrice = t.sales_kind !== "san_luong";
+          // Quy tac tong hop theo dung yeu cau: thue bao PTM chi tu loai "san_luong";
+          // doanh thu chi tu loai "doanh_thu" (va loai chua phan kind co cot gia).
+          const isSubsSrc = t.sales_kind === "san_luong";
+          const isRevSrc = !isSubsSrc;
+          if (isSubsSrc) hasSubsSrc = true; else hasRevSrc = true;
           const needCols = [t.sales_unit_col, t.sales_eload_col];
           if (t.sales_price_col) needCols.push(t.sales_price_col);
           if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
@@ -1673,13 +1679,14 @@ export default {
               const price = toNumber(r[t.sales_price_col]);
               let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
               if (!qty || qty <= 0) qty = 1;
-              const revenue = needPrice ? price / 1.1 * qty : 0;
+              const subAdd = isSubsSrc ? qty : 0;
+              const revAdd = isRevSrc && needPrice ? price / 1.1 * qty : 0;
               const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
-              pm.subs += qty; pm.revenue += revenue; pm.pssl.add(e);
+              pm.subs += subAdd; pm.revenue += revAdd; pm.pssl.add(e);
               const u = pm.units[nu] || (pm.units[nu] = { name: rawU || "(Chưa xác định)", subs: 0, revenue: 0, pssl: new Set() });
-              u.subs += qty; u.revenue += revenue; u.pssl.add(e);
+              u.subs += subAdd; u.revenue += revAdd; u.pssl.add(e);
               const pp = pm.pos[e] || (pm.pos[e] = { subs: 0, revenue: 0 });
-              pp.subs += qty; pp.revenue += revenue;
+              pp.subs += subAdd; pp.revenue += revAdd;
             }
           }
         }
@@ -1802,6 +1809,7 @@ export default {
           ok: true, ky, thang: ky === "thang" ? curMonths[0] : null, nam: ky === "nam" ? nam : null,
           period_label: periodLabel, cmp1_label, cmp2_label,
           types_count: stypes.length, has_subtype_col: hasSubtypeCol,
+          has_subs_src: hasSubsSrc, has_rev_src: hasRevSrc,
           kpi: {
             subs: cur.subs, subs_c1: prev.subs, subs_c1_pct: pct(cur.subs, prev.subs),
             subs_c2: c2.subs, subs_c2_pct: c2Months.length ? pct(cur.subs, c2.subs) : null,

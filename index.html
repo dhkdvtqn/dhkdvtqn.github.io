@@ -469,6 +469,7 @@
 #appRoot .delta.up {background:#e7f7ee;color:#15803d}
 #appRoot .delta.down {background:#fdecec;color:#c0392b}
 #appRoot .delta.flat {background:#eef1f6;color:#64748b}
+#appRoot .kpi-note {font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5}
 #appRoot .chart-row {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
 @media(max-width:900px){
 #appRoot .chart-row {grid-template-columns:1fr}
@@ -994,6 +995,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
               <div class="kpi-label">📱 Thuê bao phát triển mới</div>
               <b id="ovSubs">—</b>
               <div class="kpi-deltas"><span class="delta" id="ovSubsMom"></span><span class="delta" id="ovSubsYoy"></span><span class="delta" id="ovSubsPlan"></span></div>
+              <div class="kpi-note hidden" id="ovSubsNote"></div>
             </div>
             <div class="ov-kpi" id="kpiRev" style="--kc:#f59e0b">
               <div class="kpi-label">💰 Doanh thu bán gói (trước thuế)</div>
@@ -3066,8 +3068,14 @@ export default {
         const perMonth = {};
         const stSet = new Set();
         let hasSubtypeCol = false;
+        let hasSubsSrc = false, hasRevSrc = false;
         for (const t of stypes) {
           const needPrice = t.sales_kind !== &quot;san_luong&quot;;
+          // Quy tac tong hop theo dung yeu cau: thue bao PTM chi tu loai &quot;san_luong&quot;;
+          // doanh thu chi tu loai &quot;doanh_thu&quot; (va loai chua phan kind co cot gia).
+          const isSubsSrc = t.sales_kind === &quot;san_luong&quot;;
+          const isRevSrc = !isSubsSrc;
+          if (isSubsSrc) hasSubsSrc = true; else hasRevSrc = true;
           const needCols = [t.sales_unit_col, t.sales_eload_col];
           if (t.sales_price_col) needCols.push(t.sales_price_col);
           if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
@@ -3099,13 +3107,14 @@ export default {
               const price = toNumber(r[t.sales_price_col]);
               let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
               if (!qty || qty &lt;= 0) qty = 1;
-              const revenue = needPrice ? price / 1.1 * qty : 0;
+              const subAdd = isSubsSrc ? qty : 0;
+              const revAdd = isRevSrc &amp;&amp; needPrice ? price / 1.1 * qty : 0;
               const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
-              pm.subs += qty; pm.revenue += revenue; pm.pssl.add(e);
+              pm.subs += subAdd; pm.revenue += revAdd; pm.pssl.add(e);
               const u = pm.units[nu] || (pm.units[nu] = { name: rawU || &quot;(Chưa xác định)&quot;, subs: 0, revenue: 0, pssl: new Set() });
-              u.subs += qty; u.revenue += revenue; u.pssl.add(e);
+              u.subs += subAdd; u.revenue += revAdd; u.pssl.add(e);
               const pp = pm.pos[e] || (pm.pos[e] = { subs: 0, revenue: 0 });
-              pp.subs += qty; pp.revenue += revenue;
+              pp.subs += subAdd; pp.revenue += revAdd;
             }
           }
         }
@@ -3228,6 +3237,7 @@ export default {
           ok: true, ky, thang: ky === &quot;thang&quot; ? curMonths[0] : null, nam: ky === &quot;nam&quot; ? nam : null,
           period_label: periodLabel, cmp1_label, cmp2_label,
           types_count: stypes.length, has_subtype_col: hasSubtypeCol,
+          has_subs_src: hasSubsSrc, has_rev_src: hasRevSrc,
           kpi: {
             subs: cur.subs, subs_c1: prev.subs, subs_c1_pct: pct(cur.subs, prev.subs),
             subs_c2: c2.subs, subs_c2_pct: c2Months.length ? pct(cur.subs, c2.subs) : null,
@@ -4794,6 +4804,9 @@ function renderOvKpis(d) {
   const k = d.kpi, p = d.pssl, u = d.duq;
   $("ovMonthSub").textContent = "— " + d.period_label + " · tổng hợp " + d.types_count + " loại dữ liệu bán hàng";
   $("ovSubs").textContent = fmtInt(k.subs);
+  const sn = $("ovSubsNote");
+  if (d.has_subs_src === false) { sn.classList.remove("hidden"); sn.textContent = "Chưa có dữ liệu loại “Sản lượng PTTB” — số liệu thuê bao sẽ hiện khi anh import dữ liệu phát triển thuê bao."; }
+  else sn.classList.add("hidden");
   setDelta("ovSubsMom", k.subs_c1_pct, d.cmp1_label);
   setDelta("ovSubsYoy", k.subs_c2_pct, d.cmp2_label || "");
   $("ovSubsYoy").style.display = d.cmp2_label ? "" : "none";
