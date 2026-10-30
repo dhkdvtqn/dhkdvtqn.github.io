@@ -1558,7 +1558,8 @@ export default {
         const meEload = normE(me.so_eload || "");
         const byMonth = {}, byUnit = {}, byPos = {};
         const skippedTables = [];
-        const needCols = [t.sales_unit_col, t.sales_eload_col, t.sales_price_col];
+        const needCols = [t.sales_unit_col, t.sales_eload_col];
+        if (t.sales_price_col) needCols.push(t.sales_price_col);
         if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
         if (t.sales_qty_col) needCols.push(t.sales_qty_col);
         if (t.sales_result_col) needCols.push(t.sales_result_col);
