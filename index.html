@@ -516,6 +516,7 @@
 #appRoot /* Ban do kenh ban rong hon 30%: khi mo panel ban do, #appRoot khung app mo rong tu 1180px len 1431px
    (ban do tu ~836px len ~1087px, #appRoot +30%); man hinh hep hon thi lay het phan con trong, #appRoot khong tran */
 .wrap.map-wide {max-width:1431px}
+#appRoot #appView .wrap {max-width:100%}
 #appRoot .panel {background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
 #appRoot .panel h2 {color:var(--blue-deep);font-size:20px;margin-bottom:4px}
 #appRoot .panel .desc {color:var(--muted);font-size:14px;margin-bottom:16px;line-height:1.65}
@@ -4360,6 +4361,7 @@ export default {
 const DEFAULT_API_URL = "https://co-che-duq.tuanha-qnh.workers.dev"; // Dia chi Worker API mac dinh
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (Math.round(Number(n) || 0)).toLocaleString("vi-VN") + "đ";
+const fmtPct2 = (n) => Number(n).toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 /* ---------------- Trang thai dang nhap & API ---------------- */
@@ -4912,7 +4914,7 @@ function svgPssl(el, trend) {
 function planChip(id, tyle, kh) {
   const el = $(id); if (!el) return;
   if (tyle == null) { el.className = "delta flat"; el.textContent = "chưa giao KH"; el.title = ""; }
-  else { el.className = "delta " + (tyle >= 100 ? "up" : tyle >= 80 ? "flat" : "down"); el.textContent = "đạt " + tyle.toLocaleString("vi-VN") + "% KH"; el.title = "Kế hoạch: " + fmtInt(kh); }
+  else { el.className = "delta " + (tyle >= 100 ? "up" : tyle >= 80 ? "flat" : "down"); el.textContent = "đạt " + fmtPct2(tyle) + " KH"; el.title = "Kế hoạch: " + fmtInt(kh); }
 }
 async function loadSalesOverview() {
   const ky = $("salesKy").value;
@@ -4982,8 +4984,8 @@ function renderOvKpis(d) {
   setDelta("ovPsslMom", p.c1_pct, d.cmp1_label);
   const pp = $("ovPsslPlan");
   if (p.ty_le == null) { pp.className = "delta flat"; pp.textContent = "chưa giao KH"; pp.title = ""; }
-  else { pp.className = "delta " + (p.ty_le >= 100 ? "up" : "flat"); pp.textContent = "đạt " + p.ty_le.toLocaleString("vi-VN") + "% KH"; pp.title = "Kế hoạch: " + fmtInt(p.ke_hoach) + " kênh"; }
-  $("ovPlanPct").textContent = p.ty_le == null ? "—" : p.ty_le.toLocaleString("vi-VN") + "%";
+  else { pp.className = "delta " + (p.ty_le >= 100 ? "up" : "flat"); pp.textContent = "đạt " + fmtPct2(p.ty_le) + " KH"; pp.title = "Kế hoạch: " + fmtInt(p.ke_hoach) + " kênh"; }
+  $("ovPlanPct").textContent = p.ty_le == null ? "—" : fmtPct2(p.ty_le);
   $("ovPlanSub").textContent = p.ke_hoach > 0 ? fmtInt(p.count) + "/" + fmtInt(p.ke_hoach) + " kênh · lũy kế" : "chưa giao kế hoạch kỳ này";
   $("ovDuqScale").textContent = fmtInt(u.quy_mo) + " điểm";
   $("ovDuqRate").textContent = u.ty_le == null ? "—" : u.ty_le.toLocaleString("vi-VN") + "%";
@@ -4998,7 +5000,7 @@ function renderOvPlan(d) {
   const p = d.pssl;
   $("planMonthLabel").textContent = d.period_label;
   $("psslProgText").textContent = p.ke_hoach > 0 ? fmtInt(p.count) + " / " + fmtInt(p.ke_hoach) + " kênh" : fmtInt(p.count) + " kênh (chưa giao kế hoạch)";
-  $("psslProgPct").textContent = p.ty_le == null ? "" : p.ty_le.toLocaleString("vi-VN") + "%";
+  $("psslProgPct").textContent = p.ty_le == null ? "" : fmtPct2(p.ty_le);
   $("psslProgFill").style.width = Math.min(100, p.ty_le || 0) + "%";
   if (p.ke_hoach > 0 && d.ky === "thang" && d.thang) {
     const [yy, mm] = d.thang.split("-").map(Number);
@@ -5023,7 +5025,7 @@ function renderOvPlan(d) {
 const ovPctCell = (tyle, kh) => {
   if (tyle == null) return "<td>—</td>";
   const cls = tyle >= 100 ? "up" : tyle >= 80 ? "flat" : "down";
-  return '<td><span class="delta ' + cls + '" title="Kế hoạch: ' + fmtInt(kh) + '">' + tyle.toLocaleString("vi-VN") + "%</span></td>";
+  return '<td><span class="delta ' + cls + '" title="Kế hoạch: ' + fmtInt(kh) + '">' + fmtPct2(tyle) + "</span></td>";
 };
 function renderOvUnit(d, showRev) {
   $("ovUnitSub").textContent = "— " + d.period_label;
