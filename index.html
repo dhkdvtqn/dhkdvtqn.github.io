@@ -667,7 +667,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
       <div class="hl-card"><span class="v">20.000<em>đ</em></span><span class="l">BCKH / thuê bao đủ điều kiện</span></div>
       <div class="hl-card"><span class="v">25<em>%</em></span><span class="l">Hoa hồng bán gói theo giá gói</span></div>
       <div class="hl-card"><span class="v">65<em>K</em></span><span class="l">Thưởng tối đa / thuê bao PTM (≥ 50 TB)</span></div>
-      <div class="hl-card"><span class="v">50<em>K</em></span><span class="l">Khuyến khích SIM gói CKD từ 12 tháng</span></div>
+      <div class="hl-card"><span class="v">800<em>K</em></span><span class="l">Khuyến khích SIM gói CKD (tối đa/thuê bao)</span></div>
     </div>
 
     <main class="wrap">
@@ -826,23 +826,44 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <div class="num" style="background:var(--orange)">5</div>
           <div>
             <h2 id="t5">Khuyến khích phát triển SIM mua gói chu kỳ dài (CKD)</h2>
-            <div class="tag">Thưởng thêm cho mỗi thuê bao mua gói dài hạn đủ điều kiện</div>
+            <div class="tag">Thưởng thêm cho mỗi thuê bao mua gói dài hạn đủ điều kiện · Áp dụng từ 01/11/2026</div>
           </div>
         </div>
         <div class="card-body">
           <div class="ckd">
             <div class="ckd-box">
-              <div class="ckd-amt">30K</div>
+              <div class="ckd-amt">50K</div>
               <div>
                 <div class="ckd-lbl">Gói từ 6 tháng đến dưới 12 tháng</div>
-                <div class="ckd-sub">Chi trả 30.000đ / thuê bao</div>
+                <div class="ckd-sub">Chi trả 50.000đ / thuê bao</div>
+              </div>
+            </div>
+            <div class="ckd-box">
+              <div class="ckd-amt">100K</div>
+              <div>
+                <div class="ckd-lbl">Gói từ 12 tháng đến dưới 18 tháng</div>
+                <div class="ckd-sub">Chi trả 100.000đ / thuê bao</div>
+              </div>
+            </div>
+            <div class="ckd-box">
+              <div class="ckd-amt">200K</div>
+              <div>
+                <div class="ckd-lbl">Gói từ 18 tháng đến dưới 24 tháng</div>
+                <div class="ckd-sub">Chi trả 200.000đ / thuê bao</div>
+              </div>
+            </div>
+            <div class="ckd-box">
+              <div class="ckd-amt">400K</div>
+              <div>
+                <div class="ckd-lbl">Gói từ 24 tháng đến dưới 36 tháng</div>
+                <div class="ckd-sub">Chi trả 400.000đ / thuê bao</div>
               </div>
             </div>
             <div class="ckd-box hot">
-              <div class="ckd-amt">50K</div>
+              <div class="ckd-amt">800K</div>
               <div>
-                <div class="ckd-lbl">Gói từ 12 tháng trở lên</div>
-                <div class="ckd-sub">Chi trả 50.000đ / thuê bao</div>
+                <div class="ckd-lbl">Gói từ 36 tháng trở lên</div>
+                <div class="ckd-sub">Chi trả 800.000đ / thuê bao</div>
               </div>
             </div>
           </div>
@@ -4242,7 +4263,7 @@ export default {
 
           // 5. CKD
           if (cycle >= 6 && arpu >= 100000) {
-            var ckdRate = cycle >= 12 ? 50000 : 30000;
+            var ckdRate = cycle >= 36 ? 800000 : cycle >= 24 ? 400000 : cycle >= 18 ? 200000 : cycle >= 12 ? 100000 : 50000;
             var ckd = ckdRate * n; total += ckd;
             html += row('5. Khuyến khích gói CKD', fmt(ckdRate) + ' × ' + n + ' thuê bao (gói ' + cycle + ' tháng, ARPU ≥ 100K)', ckd);
           } else if (cycle >= 6) {
