@@ -1661,9 +1661,15 @@ export default {
             const cols = (await env.DB.prepare("PRAGMA table_info(" + tbl + ")").all()).results || [];
             const cn = new Set(cols.map((c) => c.name));
             if (!needCols.every((c) => cn.has(c))) continue;
-            // Quy tac TNTTTB: tim cot loai_don (khong phan biet hoa/thuong)
-            let loaiDonCol = null;
-            if (isSubsSrc) { for (const c of cn) { if (String(c).toLowerCase() === "loai_don") { loaiDonCol = c; break; } } }
+            // Quy tac TNTTTB: tim cot loai_don / vai_tro (khong phan biet hoa/thuong)
+            let loaiDonCol = null, vaiTroCol = null;
+            if (isSubsSrc) {
+              for (const c of cn) {
+                const cl = String(c).toLowerCase();
+                if (cl === "loai_don") loaiDonCol = c;
+                else if (cl === "vai_tro" || cl === "vaitro") vaiTroCol = c;
+              }
+            }
             const rows = (await env.DB.prepare("SELECT * FROM " + tbl).all()).results || [];
             for (const r of rows) {
               const e = normE(r[t.sales_eload_col]);
@@ -1685,10 +1691,14 @@ export default {
                 const ld = r[loaiDonCol];
                 if (ld == null || String(ld).trim() === "") continue;
               }
+              // Quy tac TNTTTB: chi dem san luong khi Vai tro = DUQ.
+              // Diem kenh khac van tinh PSSL, chi khong cong vao tong san luong.
+              let isDuqRow = true;
+              if (isSubsSrc && vaiTroCol) isDuqRow = normLoaiKenh(r[vaiTroCol]) === "DUQ";
               const price = toNumber(r[t.sales_price_col]);
               let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
               if (!qty || qty <= 0) qty = 1;
-              const subAdd = isSubsSrc ? qty : 0;
+              const subAdd = isSubsSrc && isDuqRow ? qty : 0;
               const revAdd = isRevSrc && needPrice ? price / 1.1 * qty : 0;
               const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
               pm.subs += subAdd; pm.revenue += revAdd; pm.pssl.add(e);
