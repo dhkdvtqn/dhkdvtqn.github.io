@@ -502,6 +502,10 @@
 #appRoot svg.chart .cb-pssl:hover {fill:#0e9488}
 #appRoot svg.chart .cdot {cursor:pointer;transition:transform .15s ease;transform-box:fill-box;transform-origin:center}
 #appRoot svg.chart .cdot:hover {transform:scale(1.8)}
+#appRoot .cell-tip-fixed {position:fixed;z-index:999;pointer-events:none;background:#0f172a;color:#e2e8f0;font-size:12px;line-height:1.65;padding:7px 11px;border-radius:8px;box-shadow:0 6px 18px rgba(2,6,23,.35);white-space:nowrap;transform:translate(-50%,0);display:none}
+#appRoot .cell-tip-fixed .tt {font-weight:700;color:#fff}
+#appRoot .cell-tip-fixed b {color:#fff}
+#appRoot .delta[data-ctip] {cursor:pointer}
 #appRoot .plan-card {background:linear-gradient(135deg,#f2f7ff,#ffffff);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:12px 0}
 #appRoot .progress {height:12px;background:#e3e9f4;border-radius:8px;overflow:hidden}
 #appRoot .progress>div {height:100%;background:linear-gradient(90deg,#2f7cf6,#14b8a6);border-radius:8px;transition:width .4s;min-width:0}
@@ -1079,6 +1083,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <div class="form-grid">
             <div><label>Lọc theo đơn vị</label><select id="ovPosUnit"><option value="">— Tất cả đơn vị —</option></select></div>
             <div><label>Tìm kiếm điểm bán</label><input id="ovPosSearch" placeholder="Tên / mã kênh / số Eload…" autocomplete="off" /></div>
+            <div><label>Điểm bán PSSL</label><select id="ovPosPssl"><option value="">— Tất cả —</option><option value="1">Có PSSL</option><option value="0">Chưa PSSL</option></select></div>
           </div>
           <div class="tbl-wrap"><table class="data"><thead id="ovPosHead"></thead><tbody id="ovPosBody"><tr><td>—</td></tr></tbody></table></div>
         </section>
@@ -3014,6 +3019,22 @@ export default {
         if (batch.length) await env.DB.batch(batch);
         return json({ ok: true, thang, loai, saved: batch.length });
       }
+      // Parse so lieu ke hoach: number tu Excel dung truc tiep; chuoi thi hieu
+      // dinh dang Viet (&quot;16.190.000&quot; -&gt; 16190000, &quot;16,19&quot; -&gt; 16.19).
+      // LUU Y: khong duoc xoa dau cham cua number (VD 130800000.00000001 la
+      // dau thap phan, xoa di se nhan gia tri len hang nghin lan).
+      const parsePlanNum = (v) =&gt; {
+        if (typeof v === &quot;number&quot;) return v;
+        const s = String(v == null ? &quot;&quot; : v).trim().replace(/\s+/g, &quot;&quot;);
+        if (!s) return NaN;
+        if (s.includes(&quot;,&quot;)) return Number(s.replace(/\./g, &quot;&quot;).replace(&quot;,&quot;, &quot;.&quot;));
+        if (s.includes(&quot;.&quot;)) {
+          const parts = s.split(&quot;.&quot;);
+          if (parts.length &gt; 1 &amp;&amp; parts.slice(1).every((q) =&gt; /^\d{3}$/.test(q))) return Number(parts.join(&quot;&quot;));
+          return Number(s);
+        }
+        return Number(s);
+      };
       if (path === &quot;/api/ke-hoach/import&quot; &amp;&amp; method === &quot;POST&quot;) {
         if (!isAdmin) return err(&quot;Chi admin moi duoc import ke hoach&quot;, 403);
         const b = await readBody(request);
@@ -3053,7 +3074,7 @@ export default {
           for (let m = 1; m &lt;= 12; m++) {
             const v = months[m - 1];
             if (v === &quot;&quot; || v == null) continue;
-            const num = Number(String(v).replace(/\./g, &quot;&quot;).replace(&quot;,&quot;, &quot;.&quot;));
+            const num = parsePlanNum(v);
             if (!isFinite(num) || num &lt; 0) { errors.push({ don_vi: uname, reason: &quot;Tháng &quot; + m + &quot;: giá trị không hợp lệ&quot; }); continue; }
             const thang = nam + &quot;-&quot; + String(m).padStart(2, &quot;0&quot;);
             const key = thang + &quot;|&quot; + duid;
@@ -4795,12 +4816,73 @@ function setDelta(id, pct, label) {
   const arrow = !ok ? "" : pct > 0 ? "▲ " : pct < 0 ? "▼ " : "● ";
   el.textContent = (!ok ? "—" : arrow + Math.abs(pct).toLocaleString("vi-VN") + "%") + " " + label;
 }
-const ovCellDelta = (pct) => {
+const ovCellDelta = (pct, tipHtml) => {
   if (pct == null || isNaN(pct)) return "<td>—</td>";
   const cls = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
   const arrow = pct > 0 ? "▲" : pct < 0 ? "▼" : "●";
-  return '<td><span class="delta ' + cls + '">' + arrow + " " + Math.abs(pct).toLocaleString("vi-VN") + "%</span></td>";
+  const tipAttr = tipHtml ? ' data-ctip="' + String(tipHtml).replace(/"/g, "&quot;") + '"' : "";
+  return '<td><span class="delta ' + cls + '"' + tipAttr + '>' + arrow + " " + Math.abs(pct).toLocaleString("vi-VN") + "%</span></td>";
 };
+// Nhan ky so sanh cho callout (T-1 hoac nam truoc)
+const cmpPeriodLabel = (d) => {
+  if (d.ky === "nam" && d.nam) return "Năm " + (Number(d.nam) - 1);
+  if (d.thang) {
+    const [y, m] = String(d.thang).split("-").map(Number);
+    let pm = m - 1, py = y;
+    if (pm < 1) { pm = 12; py--; }
+    return "Tháng " + pm + "/" + py;
+  }
+  return "Kỳ trước";
+};
+const deltaTipSubs = (d, c1) => "<div class='tt'>" + esc(cmpPeriodLabel(d)) + "</div><div>Thuê bao: <b>" + fmtInt(c1) + "</b></div>";
+const deltaTipRev = (d, c1) => "<div class='tt'>" + esc(cmpPeriodLabel(d)) + "</div><div>Doanh thu: <b>" + fmt(c1) + "</b></div>";
+// Callout position:fixed cho o bang (khong bi cat boi thanh cuon ngang)
+let _cellTipEl = null;
+function cellTipEl() {
+  if (!_cellTipEl) {
+    _cellTipEl = document.createElement("div");
+    _cellTipEl.className = "cell-tip-fixed";
+    document.body.appendChild(_cellTipEl);
+  }
+  return _cellTipEl;
+}
+function bindCellTips(scope) {
+  const tip = cellTipEl();
+  scope.querySelectorAll("[data-ctip]").forEach((elm) => {
+    elm.addEventListener("mouseenter", () => {
+      const r = elm.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+      tip.innerHTML = elm.getAttribute("data-ctip");
+      tip.style.display = "block";
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      let lx = r.left + r.width / 2;
+      lx = Math.max(tw / 2 + 8, Math.min(window.innerWidth - tw / 2 - 8, lx));
+      let ty = r.top - th - 10;
+      if (ty < 8) ty = r.bottom + 10;
+      tip.style.left = lx + "px";
+      tip.style.top = ty + "px";
+    });
+    elm.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+    elm.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (tip.style.display === "block" && tip._for === elm) { tip.style.display = "none"; return; }
+      tip._for = elm;
+      const r = elm.getBoundingClientRect();
+      tip.innerHTML = elm.getAttribute("data-ctip");
+      tip.style.display = "block";
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      let lx = Math.max(tw / 2 + 8, Math.min(window.innerWidth - tw / 2 - 8, r.left + r.width / 2));
+      let ty = r.top - th - 10;
+      if (ty < 8) ty = r.bottom + 10;
+      tip.style.left = lx + "px";
+      tip.style.top = ty + "px";
+    });
+  });
+}
+if (!window._cellTipDocBound) {
+  document.addEventListener("click", () => { if (_cellTipEl) _cellTipEl.style.display = "none"; });
+  window._cellTipDocBound = true;
+}
 // Bieu do cot (thue bao, truc trai) + duong (doanh thu, truc phai), tu ve SVG
 function svgTrend(el, trend, kind) {
   const showSub = kind !== "doanh_thu", showRev = kind !== "san_luong";
@@ -5039,13 +5121,14 @@ function renderOvUnit(d, showRev) {
   const footPct = (actual, kh) => kh > 0 ? fmtPct2(actual / kh * 100) : "—";
   const rows = sortUnitsFixed(allRows, (u) => u.name);
   $("ovUnitBody").innerHTML = rows.length ? rows.map((u) => {
-    return "<tr><td>" + esc(u.name) + "</td><td>" + fmtInt(u.subs) + "</td>" + ovCellDelta(u.subs_c1_pct) +
-      (showRev ? "<td>" + fmt(u.revenue) + "</td>" + ovCellDelta(u.rev_c1_pct) : "") +
+    return "<tr><td>" + esc(u.name) + "</td><td>" + fmtInt(u.subs) + "</td>" + ovCellDelta(u.subs_c1_pct, deltaTipSubs(d, u.subs_c1)) +
+      (showRev ? "<td>" + fmt(u.revenue) + "</td>" + ovCellDelta(u.rev_c1_pct, deltaTipRev(d, u.rev_c1)) : "") +
       "<td>" + fmtInt(u.pssl) + "</td>" + ovPctCell(u.tyle_pssl, u.kh_pssl) + ovPctCell(u.tyle_subs, u.kh_subs) + ovPctCell(u.tyle_rev, u.kh_rev) + "</tr>";
   }).join("") + "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + fmtInt(tS) + "</b></td><td></td>" +
     (showRev ? "<td><b>" + fmt(tR) + "</b></td><td></td>" : "") +
     "<td><b>" + fmtInt(d.pssl.count) + "</b></td><td><b>" + footPct(d.pssl.count, tKP) + "</b></td><td><b>" + footPct(tS, tKS) + "</b></td><td><b>" + footPct(tR, tKR) + "</b></td></tr>"
     : "<tr><td colspan='" + cols + "'>Không có số liệu trong " + d.period_label + ".</td></tr>";
+  bindCellTips($("ovUnitBody"));
 }
 function renderOvCare(d) {
   $("ovCareSub").textContent = "— " + d.period_label;
@@ -5072,9 +5155,12 @@ function applyOvPosFilter() {
   $("ovPosSub").textContent = "— " + d.period_label;
   const du = $("ovPosUnit").value;
   const q = ovNormSearch($("ovPosSearch").value.trim());
+  const fp = $("ovPosPssl").value;
   const rows = (d.by_pos || []).filter((r) => {
     if (du && String(r.don_vi_id || "") !== du) return false;
     if (q && !ovNormSearch((r.ho_ten || "") + " " + (r.ma_kenh || "") + " " + (r.eload || "")).includes(q)) return false;
+    if (fp === "1" && !r.pssl) return false;
+    if (fp === "0" && r.pssl) return false;
     return true;
   });
   const cols = 5 + (showRev ? 2 : 0);
@@ -5083,14 +5169,15 @@ function applyOvPosFilter() {
     (showRev ? "<th>Doanh thu</th><th>" + deltaHead2 + "</th>" : "") + "<th style='text-align:center'>PSSL</th></tr>";
   $("ovPosBody").innerHTML = rows.length ? rows.map((r) =>
     "<tr><td>" + esc(r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.don_vi_ten || "—") + "</td>" +
-    "<td>" + fmtInt(r.subs) + "</td>" + ovCellDelta(r.subs_c1_pct) +
-    (showRev ? "<td>" + fmt(r.revenue) + "</td>" + ovCellDelta(r.rev_c1_pct) : "") +
+    "<td>" + fmtInt(r.subs) + "</td>" + ovCellDelta(r.subs_c1_pct, deltaTipSubs(d, r.subs_c1)) +
+    (showRev ? "<td>" + fmt(r.revenue) + "</td>" + ovCellDelta(r.rev_c1_pct, deltaTipRev(d, r.rev_c1)) : "") +
     '<td style="text-align:center">' + (r.pssl ? '<span style="color:#15803d;font-weight:700">✓</span>' : "—") + "</td></tr>"
   ).join("") + "<tr style='background:var(--blue-light)'><td colspan='3'><b>Tổng cộng (" + rows.length + " điểm)</b></td>" +
     "<td><b>" + fmtInt(rows.reduce((a, r) => a + r.subs, 0)) + "</b></td><td></td>" +
     (showRev ? "<td><b>" + fmt(rows.reduce((a, r) => a + r.revenue, 0)) + "</b></td><td></td>" : "") +
     '<td style="text-align:center"><b>' + rows.filter((r) => r.pssl).length + "</b></td></tr>"
     : "<tr><td colspan='" + cols + "'>Không có điểm bán nào khớp bộ lọc.</td></tr>";
+  bindCellTips($("ovPosBody"));
 }
 $("salesBtn").addEventListener("click", () => { loadSalesOverview(); });
 $("salesKy").addEventListener("change", () => {
@@ -5100,6 +5187,7 @@ $("salesKy").addEventListener("change", () => {
 });
 $("ovPosUnit").addEventListener("change", applyOvPosFilter);
 $("ovPosSearch").addEventListener("input", applyOvPosFilter);
+$("ovPosPssl").addEventListener("change", applyOvPosFilter);
 
 /* ---------------- Quan ly don vi (cay) ---------------- */
 let unitsCache = [];
