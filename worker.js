@@ -1560,6 +1560,22 @@ export default {
         if (batch.length) await env.DB.batch(batch);
         return json({ ok: true, thang, loai, saved: batch.length });
       }
+      // Parse so lieu ke hoach: number tu Excel dung truc tiep; chuoi thi hieu
+      // dinh dang Viet ("16.190.000" -> 16190000, "16,19" -> 16.19).
+      // LUU Y: khong duoc xoa dau cham cua number (VD 130800000.00000001 la
+      // dau thap phan, xoa di se nhan gia tri len hang nghin lan).
+      const parsePlanNum = (v) => {
+        if (typeof v === "number") return v;
+        const s = String(v == null ? "" : v).trim().replace(/\s+/g, "");
+        if (!s) return NaN;
+        if (s.includes(",")) return Number(s.replace(/\./g, "").replace(",", "."));
+        if (s.includes(".")) {
+          const parts = s.split(".");
+          if (parts.length > 1 && parts.slice(1).every((q) => /^\d{3}$/.test(q))) return Number(parts.join(""));
+          return Number(s);
+        }
+        return Number(s);
+      };
       if (path === "/api/ke-hoach/import" && method === "POST") {
         if (!isAdmin) return err("Chi admin moi duoc import ke hoach", 403);
         const b = await readBody(request);
@@ -1599,7 +1615,7 @@ export default {
           for (let m = 1; m <= 12; m++) {
             const v = months[m - 1];
             if (v === "" || v == null) continue;
-            const num = Number(String(v).replace(/\./g, "").replace(",", "."));
+            const num = parsePlanNum(v);
             if (!isFinite(num) || num < 0) { errors.push({ don_vi: uname, reason: "Tháng " + m + ": giá trị không hợp lệ" }); continue; }
             const thang = nam + "-" + String(m).padStart(2, "0");
             const key = thang + "|" + duid;
