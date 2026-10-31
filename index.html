@@ -5030,11 +5030,13 @@ const ovPctCell = (tyle, kh) => {
 function renderOvUnit(d, showRev) {
   $("ovUnitSub").textContent = "— " + d.period_label;
   const cols = 3 + 2 + (showRev ? 2 : 0) + 3;
-  $("ovUnitHead").innerHTML = "<tr><th>Đơn vị</th><th>Thuê bao</th><th>Δ</th>" +
-    (showRev ? "<th>Doanh thu</th><th>Δ</th>" : "") + "<th>Kênh PSSL</th><th>% KH PSSL</th><th>% KH TB</th><th>% KH DT</th></tr>";
+  const deltaHead = d.ky === "nam" ? "Tăng/giảm năm trước" : "Tăng/giảm T-1";
+  $("ovUnitHead").innerHTML = "<tr><th>Đơn vị</th><th>Thuê bao</th><th>" + deltaHead + "</th>" +
+    (showRev ? "<th>Doanh thu</th><th>" + deltaHead + "</th>" : "") + "<th>Kênh PSSL</th><th>% KH PSSL</th><th>% KH TB</th><th>% KH DT</th></tr>";
   const allRows = d.by_unit || [];
-  let tS = 0, tR = 0;
-  allRows.forEach((u) => { tS += u.subs || 0; tR += u.revenue || 0; });
+  let tS = 0, tR = 0, tKP = 0, tKS = 0, tKR = 0;
+  allRows.forEach((u) => { tS += u.subs || 0; tR += u.revenue || 0; tKP += u.kh_pssl || 0; tKS += u.kh_subs || 0; tKR += u.kh_rev || 0; });
+  const footPct = (actual, kh) => kh > 0 ? fmtPct2(actual / kh * 100) : "—";
   const rows = sortUnitsFixed(allRows, (u) => u.name);
   $("ovUnitBody").innerHTML = rows.length ? rows.map((u) => {
     return "<tr><td>" + esc(u.name) + "</td><td>" + fmtInt(u.subs) + "</td>" + ovCellDelta(u.subs_c1_pct) +
@@ -5042,7 +5044,7 @@ function renderOvUnit(d, showRev) {
       "<td>" + fmtInt(u.pssl) + "</td>" + ovPctCell(u.tyle_pssl, u.kh_pssl) + ovPctCell(u.tyle_subs, u.kh_subs) + ovPctCell(u.tyle_rev, u.kh_rev) + "</tr>";
   }).join("") + "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + fmtInt(tS) + "</b></td><td></td>" +
     (showRev ? "<td><b>" + fmt(tR) + "</b></td><td></td>" : "") +
-    "<td><b>" + fmtInt(d.pssl.count) + "</b></td><td></td><td></td><td></td></tr>"
+    "<td><b>" + fmtInt(d.pssl.count) + "</b></td><td><b>" + footPct(d.pssl.count, tKP) + "</b></td><td><b>" + footPct(tS, tKS) + "</b></td><td><b>" + footPct(tR, tKR) + "</b></td></tr>"
     : "<tr><td colspan='" + cols + "'>Không có số liệu trong " + d.period_label + ".</td></tr>";
 }
 function renderOvCare(d) {
@@ -5076,8 +5078,9 @@ function applyOvPosFilter() {
     return true;
   });
   const cols = 5 + (showRev ? 2 : 0);
-  $("ovPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th><th>Thuê bao</th><th>Δ</th>" +
-    (showRev ? "<th>Doanh thu</th><th>Δ</th>" : "") + "<th style='text-align:center'>PSSL</th></tr>";
+  const deltaHead2 = d.ky === "nam" ? "Tăng/giảm năm trước" : "Tăng/giảm T-1";
+  $("ovPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th><th>Thuê bao</th><th>" + deltaHead2 + "</th>" +
+    (showRev ? "<th>Doanh thu</th><th>" + deltaHead2 + "</th>" : "") + "<th style='text-align:center'>PSSL</th></tr>";
   $("ovPosBody").innerHTML = rows.length ? rows.map((r) =>
     "<tr><td>" + esc(r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.don_vi_ten || "—") + "</td>" +
     "<td>" + fmtInt(r.subs) + "</td>" + ovCellDelta(r.subs_c1_pct) +
