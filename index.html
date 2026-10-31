@@ -1222,6 +1222,17 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div class="tbl-wrap" style="max-height:300px;overflow-y:auto;margin-top:8px"><table class="data"><thead><tr><th>Đơn vị</th><th style="width:170px">Kế hoạch</th></tr></thead><tbody id="planBody"><tr><td colspan="2">Chọn tháng và loại kế hoạch rồi bấm "Tải kế hoạch đã giao".</td></tr></tbody></table></div>
             <div style="margin-top:8px;display:flex;gap:8px"><button class="btn blue" type="button" id="planSaveBtn">Lưu kế hoạch</button></div>
             <div id="planMsg" style="margin-top:6px"></div>
+
+            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Import kế hoạch từ Excel (chỉ admin)</h3>
+            <p class="desc">Giao kế hoạch <b>cả năm</b> cho từng chỉ tiêu bằng file Excel: 1 cột <b>Đơn vị</b> + 12 cột <b>Tháng 1 … Tháng 12</b>. Bấm <b>"Tải file mẫu"</b> để lấy file mẫu đã điền sẵn danh sách đơn vị theo đúng thứ tự. Có 3 chế độ import: <b>Tạo mới</b> (chỉ thêm ô chưa có kế hoạch — ô đã có thì bỏ qua), <b>Cập nhật</b> (ghi đè ô đã có, thêm ô mới) và <b>Thay thế</b> (xóa toàn bộ kế hoạch của chỉ tiêu trong năm rồi import lại). Đơn vị "Chưa xác định" không giao kế hoạch được nên sẽ bị bỏ qua khi import.</p>
+            <div class="form-grid">
+              <div><label>Năm kế hoạch</label><input type="number" id="planImpYear" min="2000" max="2100" /></div>
+              <div><label>Chỉ tiêu</label><select id="planImpType"><option value="pssl">Kênh PSSL</option><option value="subs">Sản lượng phát triển thuê bao</option><option value="revenue">Doanh thu TB phát triển mới</option></select></div>
+              <div><label>Chế độ import</label><select id="planImpMode"><option value="create">Tạo mới</option><option value="update">Cập nhật</option><option value="replace">Thay thế</option></select></div>
+              <div><label>File Excel kế hoạch</label><input type="file" id="planImpFile" accept=".xlsx,.xls,.csv" /></div>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn gray" type="button" id="planTplBtn">Tải file mẫu</button><button class="btn blue" type="button" id="planImpBtn">Import kế hoạch</button></div>
+            <div id="planImpMsg" style="margin-top:6px"></div>
           </div>
 
           <div id="dtManager" class="hidden">
@@ -3002,6 +3013,60 @@ export default {
         if (batch.length) await env.DB.batch(batch);
         return json({ ok: true, thang, loai, saved: batch.length });
       }
+      if (path === &quot;/api/ke-hoach/import&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc import ke hoach&quot;, 403);
+        const b = await readBody(request);
+        const nam = parseInt(b.nam, 10);
+        const loai = String(b.loai || &quot;&quot;).trim();
+        const mode = [&quot;create&quot;, &quot;update&quot;, &quot;replace&quot;].includes(b.mode) ? b.mode : &quot;create&quot;;
+        const rows = Array.isArray(b.rows) ? b.rows : [];
+        if (!nam || nam &lt; 2000 || nam &gt; 2100) return err(&quot;Nam ke hoach khong hop le&quot;, 422);
+        if (!KEHOACH_LOAI.includes(loai)) return err(&quot;Loai ke hoach khong hop le&quot;, 422);
+        await ensureKeHoach(env);
+        const normU2 = (s) =&gt; String(s == null ? &quot;&quot; : s).trim().toLowerCase()
+          .normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/đ/g, &quot;d&quot;)
+          .replace(/[–—−‐‒]/g, &quot;-&quot;).replace(/\s+/g, &quot; &quot;).replace(/\s*-\s*/g, &quot;-&quot;);
+        const allUnits = (await env.DB.prepare(&quot;SELECT id, ten_don_vi FROM don_vi&quot;).all()).results || [];
+        const nameToId = {};
+        for (const u of allUnits) nameToId[normU2(u.ten_don_vi)] = u.id;
+        if (mode === &quot;replace&quot;) {
+          await env.DB.prepare(&quot;DELETE FROM ke_hoach WHERE substr(thang, 1, 4) = ? AND loai = ?&quot;).bind(String(nam), loai).run();
+        }
+        const exRows = (await env.DB.prepare(&quot;SELECT thang, don_vi_id FROM ke_hoach WHERE substr(thang, 1, 4) = ? AND loai = ?&quot;).bind(String(nam), loai).all()).results || [];
+        const existed = new Set(exRows.map((r) =&gt; r.thang + &quot;|&quot; + r.don_vi_id));
+        let created = 0, updated = 0, skipped = 0;
+        const errors = [];
+        const up = env.DB.prepare(&quot;INSERT INTO ke_hoach (thang, don_vi_id, loai, so_luong, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(thang, don_vi_id, loai) DO UPDATE SET so_luong = excluded.so_luong, updated_by = excluded.updated_by, updated_at = excluded.updated_at&quot;);
+        const batch = [];
+        const nowS2 = saigonNow(), by = me.username || &quot;&quot;;
+        for (const r of rows) {
+          const uname = String(r.don_vi == null ? &quot;&quot; : r.don_vi).trim();
+          if (!uname) continue;
+          const nu = normU2(uname);
+          let duid = null;
+          if (nu === &quot;toan tinh&quot;) duid = 0;
+          else if (nu === &quot;chua xac dinh&quot;) { skipped++; continue; }
+          else if (nameToId[nu] != null) duid = nameToId[nu];
+          else { errors.push({ don_vi: uname, reason: &quot;Không tìm thấy đơn vị&quot; }); continue; }
+          const months = Array.isArray(r.months) ? r.months : [];
+          for (let m = 1; m &lt;= 12; m++) {
+            const v = months[m - 1];
+            if (v === &quot;&quot; || v == null) continue;
+            const num = Number(String(v).replace(/\./g, &quot;&quot;).replace(&quot;,&quot;, &quot;.&quot;));
+            if (!isFinite(num) || num &lt; 0) { errors.push({ don_vi: uname, reason: &quot;Tháng &quot; + m + &quot;: giá trị không hợp lệ&quot; }); continue; }
+            const thang = nam + &quot;-&quot; + String(m).padStart(2, &quot;0&quot;);
+            const key = thang + &quot;|&quot; + duid;
+            if (mode === &quot;create&quot; &amp;&amp; existed.has(key)) { skipped++; continue; }
+            if (existed.has(key)) updated++; else { created++; existed.add(key); }
+            batch.push(up.bind(thang, duid, loai, num, by, nowS2));
+          }
+        }
+        for (let i = 0; i &lt; batch.length; i += 40) {
+          const chunk = batch.slice(i, i + 40);
+          if (chunk.length) await env.DB.batch(chunk);
+        }
+        return json({ ok: true, nam, loai, mode, created, updated, skipped, errors: errors.slice(0, 50) });
+      }
       // Dashboard ban hang kieu dieu hanh (moi):
       // - Tu dong tong hop TAT CA loai du lieu ban hang (doanh thu / san luong), khong can chon.
       // - Loai bo cung cac giao dich co ket qua &quot;Dang ky khong thanh cong&quot;.
@@ -3032,11 +3097,11 @@ export default {
           trendMonths = curMonths; periodLabel = &quot;năm &quot; + nam;
         } else {
           let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
-          for (let i = 11; i &gt;= 0; i--) { let mm = m - i, yy = y; while (mm &lt;= 0) { mm += 12; yy--; } months.push(yy + &quot;-&quot; + String(mm).padStart(2, &quot;0&quot;)); }
+          for (let i = 13; i &gt;= 0; i--) { let mm = m - i, yy = y; while (mm &lt;= 0) { mm += 12; yy--; } months.push(yy + &quot;-&quot; + String(mm).padStart(2, &quot;0&quot;)); }
           const T = months[13];
           curMonths = [T]; prevMonths = [months[12]]; c2Months = [months[1]];
           cmp1_label = &quot;vs tháng trước&quot;; cmp2_label = &quot;vs cùng kỳ năm trước&quot;;
-          trendMonths = months; periodLabel = &quot;tháng &quot; + Number(T.slice(5, 7)) + &quot;/&quot; + T.slice(0, 4);
+          trendMonths = months.slice(2); periodLabel = &quot;tháng &quot; + Number(T.slice(5, 7)) + &quot;/&quot; + T.slice(0, 4);
         }
         const monthSet = new Set(months);
         const normE = (s) =&gt; String(s == null ? &quot;&quot; : s).trim().toUpperCase().replace(/\s+/g, &quot;&quot;);
@@ -4454,7 +4519,8 @@ function openPanel(panelId) {
   if (panelId === "panel-units") loadUnits();
   if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); }
   if (panelId === "panel-staff") { loadStaff(); loadStaffUnits(); applyStaffFormPerms(); }
-  if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); $("planManager").classList.toggle("hidden", !(me && me.role === "admin")); const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("planMonth").value) $("planMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); }
+  if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); $("planManager").classList.toggle("hidden", !(me && me.role === "admin")); const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("planMonth").value) $("planMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1);
+    if (!$("planImpYear").value) $("planImpYear").value = pn.getFullYear(); }
   if (panelId === "panel-reports") { loadDataTypes(); loadPosList(); const crs = $("careRepSection"); if (crs) crs.classList.toggle("hidden", !(me && (me.role === "admin" || me.role === "subadmin" || isLeaderLikeMe()))); }
   if (panelId === "panel-care") loadCareBatches();
   if (panelId === "panel-channelmap") loadChannelMap();
@@ -4882,6 +4948,20 @@ async function loadSalesOverview() {
     applyOvPosFilter();
   } catch (e) { setMsg($("salesMsg"), e.message, false); }
 }
+// Thu tu hien thi don vi co dinh theo yeu cau (an VNPT Quang Ninh - don vi cha)
+const UNIT_ORDER = ["vnpt ha long", "vnpt uong bi", "vnpt cam pha", "vnpt tien yen", "vnpt mong cai", "vnpt bai chay", "vnpt dong trieu", "vnpt van don-co to"];
+const UNIT_HIDE = ["vnpt quang ninh"];
+const normOrd = (s) => String(s == null ? "" : s).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[–—−‐‒]/g, "-").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-");
+function sortUnitsFixed(rows, getName) {
+  const ord = (name) => { const i = UNIT_ORDER.indexOf(normOrd(name)); return i === -1 ? 999 : i; };
+  return (rows || [])
+    .filter((r) => !UNIT_HIDE.includes(normOrd(getName(r))))
+    .sort((a, b) => {
+      const oa = ord(getName(a)), ob = ord(getName(b));
+      if (oa !== ob) return oa - ob;
+      return String(getName(a)).localeCompare(String(getName(b)), "vi");
+    });
+}
 function renderOvKpis(d) {
   const k = d.kpi, p = d.pssl, u = d.duq;
   $("ovMonthSub").textContent = "— " + d.period_label + " · tổng hợp " + d.types_count + " loại dữ liệu bán hàng";
@@ -4950,10 +5030,11 @@ function renderOvUnit(d, showRev) {
   const cols = 3 + 2 + (showRev ? 2 : 0) + 3;
   $("ovUnitHead").innerHTML = "<tr><th>Đơn vị</th><th>Thuê bao</th><th>Δ</th>" +
     (showRev ? "<th>Doanh thu</th><th>Δ</th>" : "") + "<th>Kênh PSSL</th><th>% KH PSSL</th><th>% KH TB</th><th>% KH DT</th></tr>";
+  const allRows = d.by_unit || [];
   let tS = 0, tR = 0;
-  const rows = d.by_unit || [];
+  allRows.forEach((u) => { tS += u.subs || 0; tR += u.revenue || 0; });
+  const rows = sortUnitsFixed(allRows, (u) => u.name);
   $("ovUnitBody").innerHTML = rows.length ? rows.map((u) => {
-    tS += u.subs; tR += u.revenue;
     return "<tr><td>" + esc(u.name) + "</td><td>" + fmtInt(u.subs) + "</td>" + ovCellDelta(u.subs_c1_pct) +
       (showRev ? "<td>" + fmt(u.revenue) + "</td>" + ovCellDelta(u.rev_c1_pct) : "") +
       "<td>" + fmtInt(u.pssl) + "</td>" + ovPctCell(u.tyle_pssl, u.kh_pssl) + ovPctCell(u.tyle_subs, u.kh_subs) + ovPctCell(u.tyle_rev, u.kh_rev) + "</tr>";
@@ -4964,7 +5045,7 @@ function renderOvUnit(d, showRev) {
 }
 function renderOvCare(d) {
   $("ovCareSub").textContent = "— " + d.period_label;
-  const rows = (d.care && d.care.by_unit) || [];
+  const rows = sortUnitsFixed((d.care && d.care.by_unit) || [], (r) => r.ten);
   $("ovCareHead").innerHTML = "<tr><th>Đơn vị</th><th>Quy mô ĐUQ</th><th>ĐUQ được chăm sóc</th><th>Tỷ lệ</th><th>Lượt chăm sóc</th></tr>";
   $("ovCareBody").innerHTML = rows.length ? rows.map((r) =>
     "<tr><td>" + esc(r.ten) + "</td><td>" + fmtInt(r.quy_mo_duq) + "</td><td>" + fmtInt(r.duq_duoc_cs) + "</td>" +
@@ -4976,7 +5057,7 @@ function renderOvPosFilter(d) {
   const sel = $("ovPosUnit"), cur = sel.value;
   const units = {};
   (d.by_pos || []).forEach((r) => { if (r.don_vi_id && !units[r.don_vi_id]) units[r.don_vi_id] = r.don_vi_ten || ("Đơn vị " + r.don_vi_id); });
-  const list = Object.keys(units).map((id) => ({ id, name: units[id] })).sort((a, b) => a.name.localeCompare(b.name, "vi"));
+  const list = sortUnitsFixed(Object.keys(units).map((id) => ({ id, name: units[id] })), (u) => u.name);
   sel.innerHTML = '<option value="">— Tất cả đơn vị —</option>' + list.map((u) => '<option value="' + u.id + '">' + esc(u.name) + "</option>").join("");
   sel.value = list.some((u) => String(u.id) === cur) ? cur : "";
 }
@@ -5789,13 +5870,9 @@ async function loadTables() {
 }
 /* ---- Giao ke hoach kinh doanh (admin, trong module Quan ly du lieu dau vao) ---- */
 function planUnitRows() {
-  // "Toan tinh" (0) + don vi theo cay
+  // "Toan tinh" (0) dau, sau do don vi theo thu tu co dinh (an VNPT Quang Ninh)
   const rows = [{ id: 0, ten: "Toàn tỉnh", depth: 0 }];
-  const byParent = {};
-  (unitsCache || []).forEach((u) => { const k = u.parent_id || 0; (byParent[k] = byParent[k] || []).push(u); });
-  Object.values(byParent).forEach((l) => l.sort((a, b) => String(a.ten_don_vi).localeCompare(String(b.ten_don_vi), "vi")));
-  const walk = (pid, depth) => { (byParent[pid] || []).forEach((u) => { rows.push({ id: u.id, ten: u.ten_don_vi, depth }); walk(u.id, depth + 1); }); };
-  walk(0, 0);
+  sortUnitsFixed(unitsCache || [], (u) => u.ten_don_vi).forEach((u) => rows.push({ id: u.id, ten: u.ten_don_vi, depth: 0 }));
   return rows;
 }
 async function loadPlan() {
@@ -5824,6 +5901,66 @@ async function savePlan() {
 $("tblTypeFilter").addEventListener("change", renderTables);
 $("planLoadBtn").addEventListener("click", loadPlan);
 $("planSaveBtn").addEventListener("click", savePlan);
+function planTemplateUnits() {
+  const names = ["Toàn tỉnh"];
+  sortUnitsFixed(unitsCache || [], (u) => u.ten_don_vi).forEach((u) => names.push(u.ten_don_vi));
+  return names;
+}
+$("planTplBtn").addEventListener("click", () => {
+  try {
+    const nam = Number($("planImpYear").value) || new Date().getFullYear();
+    const loai = $("planImpType").value;
+    const loaiTen = { pssl: "Kenh_PSSL", subs: "SanLuong_TB", revenue: "DoanhThu_TB" }[loai] || loai;
+    const headers = ["Đơn vị", "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+    const rows = planTemplateUnits().map((n) => [n, "", "", "", "", "", "", "", "", "", "", "", ""]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws["!cols"] = [{ wch: 26 }, ...headers.slice(1).map(() => ({ wch: 12 }))];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "KeHoach");
+    const guide = [
+      ["HƯỚNG DẪN — FILE MẪU IMPORT KẾ HOẠCH KINH DOANH"],
+      ["1. Nhập số liệu kế hoạch từ hàng 2 trở đi, KHÔNG đổi tên cột ở hàng 1 (cột A là Đơn vị, cột B..M là Tháng 1..12). Ô để trống = không giao kế hoạch tháng đó." ],
+      ["2. Cột Đơn vị: giữ nguyên tên như file mẫu (đã đúng thứ tự hiển thị). Hàng \"Toàn tỉnh\" là kế hoạch chung cả tỉnh, dùng khi đơn vị chưa được giao riêng." ],
+      ["3. Khi import, chọn đúng Năm kế hoạch + Chỉ tiêu + Chế độ import trên màn hình rồi mới bấm Import kế hoạch." ],
+      ["4. Chế độ Tạo mới: chỉ thêm ô chưa có kế hoạch; Cập nhật: ghi đè ô đã có; Thay thế: xóa toàn bộ kế hoạch của chỉ tiêu trong năm rồi import lại." ],
+    ];
+    const wg = XLSX.utils.aoa_to_sheet(guide);
+    wg["!cols"] = [{ wch: 120 }];
+    XLSX.utils.book_append_sheet(wb, wg, "HuongDan");
+    XLSX.writeFile(wb, "Mau_ke_hoach_" + loaiTen + "_" + nam + ".xlsx");
+  } catch (e) { setMsg($("planImpMsg"), "Không tạo được file mẫu: " + e.message, false); }
+});
+$("planImpBtn").addEventListener("click", async () => {
+  const nam = Number($("planImpYear").value), loai = $("planImpType").value, mode = $("planImpMode").value;
+  const file = $("planImpFile").files[0];
+  if (!nam || nam < 2000 || nam > 2100) { setMsg($("planImpMsg"), "Hãy nhập năm kế hoạch hợp lệ.", false); return; }
+  if (!file) { setMsg($("planImpMsg"), "Hãy chọn file Excel kế hoạch trước khi import.", false); return; }
+  if (mode === "replace" && !confirm("Chế độ Thay thế sẽ XÓA toàn bộ kế hoạch của chỉ tiêu này trong năm " + nam + " rồi import lại. Tiếp tục?")) return;
+  try {
+    setMsg($("planImpMsg"), "Đang đọc file…");
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array", cellDates: true });
+    const ws = wb.Sheets["KeHoach"] || wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
+    if (!raw.length) { setMsg($("planImpMsg"), "File không có dữ liệu.", false); return; }
+    const keys = Object.keys(raw[0]);
+    const unitKey = keys.find((k) => /đơn vị|don vi/i.test(k)) || keys[0];
+    const monthKeys = [];
+    for (let m = 1; m <= 12; m++) {
+      const k = keys.find((kk) => new RegExp("tháng\\s*" + m + "([^0-9]|$)", "i").test(kk));
+      monthKeys.push(k || null);
+    }
+    const rows = raw.map((r) => ({ don_vi: String(r[unitKey] ?? "").trim(), months: monthKeys.map((k) => (k ? r[k] : "")) }))
+      .filter((r) => r.don_vi && r.months.some((v) => String(v ?? "").trim() !== ""));
+    if (!rows.length) { setMsg($("planImpMsg"), "Không tìm thấy dòng dữ liệu hợp lệ (cần cột Đơn vị + ít nhất 1 cột tháng có số liệu).", false); return; }
+    setMsg($("planImpMsg"), "Đang import " + rows.length + " đơn vị…");
+    const d = await api("/api/ke-hoach/import", { method: "POST", body: JSON.stringify({ nam, loai, mode, rows }) });
+    let msg = "Import xong năm " + d.nam + ": thêm mới " + d.created + ", cập nhật " + d.updated + ", bỏ qua " + d.skipped + " ô.";
+    if (d.errors && d.errors.length) msg += " Lỗi " + d.errors.length + ": " + d.errors.slice(0, 5).map((x) => (x.don_vi ? x.don_vi + " — " : "") + x.reason).join("; ") + (d.errors.length > 5 ? "…" : "");
+    setMsg($("planImpMsg"), msg, !(d.errors && d.errors.length));
+    loadPlan();
+  } catch (e) { setMsg($("planImpMsg"), e.message, false); }
+});
 async function delTable(name) {
   if (!confirm("Xóa hẳn bảng dữ liệu " + name + "?\nToàn bộ dữ liệu trong bảng sẽ bị xóa khỏi CSDL và không khôi phục được.")) return;
   try {

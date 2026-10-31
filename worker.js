@@ -1560,6 +1560,60 @@ export default {
         if (batch.length) await env.DB.batch(batch);
         return json({ ok: true, thang, loai, saved: batch.length });
       }
+      if (path === "/api/ke-hoach/import" && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi duoc import ke hoach", 403);
+        const b = await readBody(request);
+        const nam = parseInt(b.nam, 10);
+        const loai = String(b.loai || "").trim();
+        const mode = ["create", "update", "replace"].includes(b.mode) ? b.mode : "create";
+        const rows = Array.isArray(b.rows) ? b.rows : [];
+        if (!nam || nam < 2000 || nam > 2100) return err("Nam ke hoach khong hop le", 422);
+        if (!KEHOACH_LOAI.includes(loai)) return err("Loai ke hoach khong hop le", 422);
+        await ensureKeHoach(env);
+        const normU2 = (s) => String(s == null ? "" : s).trim().toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d")
+          .replace(/[–—−‐‒]/g, "-").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-");
+        const allUnits = (await env.DB.prepare("SELECT id, ten_don_vi FROM don_vi").all()).results || [];
+        const nameToId = {};
+        for (const u of allUnits) nameToId[normU2(u.ten_don_vi)] = u.id;
+        if (mode === "replace") {
+          await env.DB.prepare("DELETE FROM ke_hoach WHERE substr(thang, 1, 4) = ? AND loai = ?").bind(String(nam), loai).run();
+        }
+        const exRows = (await env.DB.prepare("SELECT thang, don_vi_id FROM ke_hoach WHERE substr(thang, 1, 4) = ? AND loai = ?").bind(String(nam), loai).all()).results || [];
+        const existed = new Set(exRows.map((r) => r.thang + "|" + r.don_vi_id));
+        let created = 0, updated = 0, skipped = 0;
+        const errors = [];
+        const up = env.DB.prepare("INSERT INTO ke_hoach (thang, don_vi_id, loai, so_luong, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(thang, don_vi_id, loai) DO UPDATE SET so_luong = excluded.so_luong, updated_by = excluded.updated_by, updated_at = excluded.updated_at");
+        const batch = [];
+        const nowS2 = saigonNow(), by = me.username || "";
+        for (const r of rows) {
+          const uname = String(r.don_vi == null ? "" : r.don_vi).trim();
+          if (!uname) continue;
+          const nu = normU2(uname);
+          let duid = null;
+          if (nu === "toan tinh") duid = 0;
+          else if (nu === "chua xac dinh") { skipped++; continue; }
+          else if (nameToId[nu] != null) duid = nameToId[nu];
+          else { errors.push({ don_vi: uname, reason: "Không tìm thấy đơn vị" }); continue; }
+          const months = Array.isArray(r.months) ? r.months : [];
+          for (let m = 1; m <= 12; m++) {
+            const v = months[m - 1];
+            if (v === "" || v == null) continue;
+            const num = Number(String(v).replace(/\./g, "").replace(",", "."));
+            if (!isFinite(num) || num < 0) { errors.push({ don_vi: uname, reason: "Tháng " + m + ": giá trị không hợp lệ" }); continue; }
+            const thang = nam + "-" + String(m).padStart(2, "0");
+            const key = thang + "|" + duid;
+            if (mode === "create" && existed.has(key)) { skipped++; continue; }
+            if (existed.has(key)) updated++; else { created++; existed.add(key); }
+            batch.push(up.bind(thang, duid, loai, num, by, nowS2));
+          }
+        }
+        for (let i = 0; i < batch.length; i += 40) {
+          const chunk = batch.slice(i, i + 40);
+          if (chunk.length) await env.DB.batch(chunk);
+        }
+        return json({ ok: true, nam, loai, mode, created, updated, skipped, errors: errors.slice(0, 50) });
+      }
       // Dashboard ban hang kieu dieu hanh (moi):
       // - Tu dong tong hop TAT CA loai du lieu ban hang (doanh thu / san luong), khong can chon.
       // - Loai bo cung cac giao dich co ket qua "Dang ky khong thanh cong".
@@ -1590,11 +1644,11 @@ export default {
           trendMonths = curMonths; periodLabel = "năm " + nam;
         } else {
           let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
-          for (let i = 11; i >= 0; i--) { let mm = m - i, yy = y; while (mm <= 0) { mm += 12; yy--; } months.push(yy + "-" + String(mm).padStart(2, "0")); }
+          for (let i = 13; i >= 0; i--) { let mm = m - i, yy = y; while (mm <= 0) { mm += 12; yy--; } months.push(yy + "-" + String(mm).padStart(2, "0")); }
           const T = months[13];
           curMonths = [T]; prevMonths = [months[12]]; c2Months = [months[1]];
           cmp1_label = "vs tháng trước"; cmp2_label = "vs cùng kỳ năm trước";
-          trendMonths = months; periodLabel = "tháng " + Number(T.slice(5, 7)) + "/" + T.slice(0, 4);
+          trendMonths = months.slice(2); periodLabel = "tháng " + Number(T.slice(5, 7)) + "/" + T.slice(0, 4);
         }
         const monthSet = new Set(months);
         const normE = (s) => String(s == null ? "" : s).trim().toUpperCase().replace(/\s+/g, "");
