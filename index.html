@@ -488,6 +488,20 @@
 #appRoot svg.chart .dot-rev {fill:#f59e0b;stroke:#fff;stroke-width:1}
 #appRoot svg.chart .bar-pssl {fill:#14b8a6}
 #appRoot svg.chart .line-plan {fill:none;stroke:#ef4444;stroke-width:2;stroke-dasharray:6 4}
+#appRoot #ovTrendChart, #appRoot #ovPsslChart {position:relative}
+#appRoot .chart-tip {position:absolute;z-index:5;pointer-events:none;background:#0f172a;color:#e2e8f0;font-size:12px;line-height:1.7;padding:8px 12px;border-radius:8px;box-shadow:0 6px 18px rgba(2,6,23,.35);white-space:nowrap;transform:translate(-50%,calc(-100% - 8px));display:none}
+#appRoot .chart-tip .tt {font-weight:700;color:#fff}
+#appRoot .chart-tip .tr {display:flex;align-items:center;gap:6px}
+#appRoot .chart-tip .dot {width:9px;height:9px;border-radius:3px;display:inline-block;flex:none}
+#appRoot .chart-tip b {color:#fff}
+#appRoot svg.chart .cbar {cursor:pointer;transition:transform .15s ease,fill .15s ease}
+#appRoot svg.chart .cbar:hover {transform:translateY(-4px)}
+#appRoot svg.chart .cb-sub {fill:#2f7cf6}
+#appRoot svg.chart .cb-sub:hover {fill:#1d4ed8}
+#appRoot svg.chart .cb-pssl {fill:#14b8a6}
+#appRoot svg.chart .cb-pssl:hover {fill:#0e9488}
+#appRoot svg.chart .cdot {cursor:pointer;transition:transform .15s ease;transform-box:fill-box;transform-origin:center}
+#appRoot svg.chart .cdot:hover {transform:scale(1.8)}
 #appRoot .plan-card {background:linear-gradient(135deg,#f2f7ff,#ffffff);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:12px 0}
 #appRoot .progress {height:12px;background:#e3e9f4;border-radius:8px;overflow:hidden}
 #appRoot .progress>div {height:100%;background:linear-gradient(90deg,#2f7cf6,#14b8a6);border-radius:8px;transition:width .4s;min-width:0}
@@ -1025,7 +1039,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
           </div>
           <div class="chart-row">
             <div class="chart-card">
-              <h4>Thuê bao &amp; doanh thu 14 tháng gần nhất</h4>
+              <h4>Thuê bao &amp; doanh thu 12 tháng gần nhất</h4>
               <div class="chart-legend"><span><i class="lg" style="background:#2f7cf6"></i>Thuê bao</span><span><i class="lg" style="background:#f59e0b"></i>Doanh thu (trục phải)</span></div>
               <div id="ovTrendChart"></div>
             </div>
@@ -3018,7 +3032,7 @@ export default {
           trendMonths = curMonths; periodLabel = &quot;năm &quot; + nam;
         } else {
           let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
-          for (let i = 13; i &gt;= 0; i--) { let mm = m - i, yy = y; while (mm &lt;= 0) { mm += 12; yy--; } months.push(yy + &quot;-&quot; + String(mm).padStart(2, &quot;0&quot;)); }
+          for (let i = 11; i &gt;= 0; i--) { let mm = m - i, yy = y; while (mm &lt;= 0) { mm += 12; yy--; } months.push(yy + &quot;-&quot; + String(mm).padStart(2, &quot;0&quot;)); }
           const T = months[13];
           curMonths = [T]; prevMonths = [months[12]]; c2Months = [months[1]];
           cmp1_label = &quot;vs tháng trước&quot;; cmp2_label = &quot;vs cùng kỳ năm trước&quot;;
@@ -3089,6 +3103,15 @@ export default {
             const cols = (await env.DB.prepare(&quot;PRAGMA table_info(&quot; + tbl + &quot;)&quot;).all()).results || [];
             const cn = new Set(cols.map((c) =&gt; c.name));
             if (!needCols.every((c) =&gt; cn.has(c))) continue;
+            // Quy tac TNTTTB: tim cot loai_don / vai_tro (khong phan biet hoa/thuong)
+            let loaiDonCol = null, vaiTroCol = null;
+            if (isSubsSrc) {
+              for (const c of cn) {
+                const cl = String(c).toLowerCase();
+                if (cl === &quot;loai_don&quot;) loaiDonCol = c;
+                else if (cl === &quot;vai_tro&quot; || cl === &quot;vaitro&quot;) vaiTroCol = c;
+              }
+            }
             const rows = (await env.DB.prepare(&quot;SELECT * FROM &quot; + tbl).all()).results || [];
             for (const r of rows) {
               const e = normE(r[t.sales_eload_col]);
@@ -3104,10 +3127,20 @@ export default {
               const st = t.sales_subtype_col ? String(r[t.sales_subtype_col] == null ? &quot;&quot; : r[t.sales_subtype_col]).trim() : &quot;&quot;;
               if (t.sales_subtype_col) stSet.add(st || &quot;(Trống)&quot;);
               if (fStList.length &amp;&amp; !fStList.includes(st)) continue;
+              // Quy tac bang TNTTTB: chi dem san luong khi loai_don khong null/rong
+              // (chi ap dung khi bang co cot loai_don).
+              if (isSubsSrc &amp;&amp; loaiDonCol) {
+                const ld = r[loaiDonCol];
+                if (ld == null || String(ld).trim() === &quot;&quot;) continue;
+              }
+              // Quy tac TNTTTB: chi dem san luong khi Vai tro = DUQ.
+              // Diem kenh khac van tinh PSSL, chi khong cong vao tong san luong.
+              let isDuqRow = true;
+              if (isSubsSrc &amp;&amp; vaiTroCol) isDuqRow = normLoaiKenh(r[vaiTroCol]) === &quot;DUQ&quot;;
               const price = toNumber(r[t.sales_price_col]);
               let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
               if (!qty || qty &lt;= 0) qty = 1;
-              const subAdd = isSubsSrc ? qty : 0;
+              const subAdd = isSubsSrc &amp;&amp; isDuqRow ? qty : 0;
               const revAdd = isRevSrc &amp;&amp; needPrice ? price / 1.1 * qty : 0;
               const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
               pm.subs += subAdd; pm.revenue += revAdd; pm.pssl.add(e);
@@ -4721,20 +4754,62 @@ function svgTrend(el, trend, kind) {
     if (showSub) {
       const bw = Math.min(34, cw * 0.62), x = X(i) - bw / 2;
       const h = Math.max(0, H - P.b - Ys(d.subs)), y = Ys(d.subs);
-      s += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="3" class="bar-sub"><title>' + monthLabel(d.month) + ": " + fmtInt(d.subs) + " thuê bao</title></rect>";
+      s += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(h, 2).toFixed(1) + '" rx="3" class="cbar cb-sub" data-i="' + i + '"/>';
     }
     if (i % 2 === 0 || n <= 8) s += '<text x="' + X(i).toFixed(1) + '" y="' + (H - 10) + '" class="xlab" text-anchor="middle">' + d.month.slice(5) + "/" + d.month.slice(2, 4) + "</text>";
   });
   if (showRev) {
-    s += '<polyline points="' + trend.map((d, i) => X(i).toFixed(1) + "," + Yr(d.revenue).toFixed(1)).join(" ") + '" class="line-rev"/>';
+    s += '<polyline points="' + trend.map((d, i) => X(i).toFixed(1) + "," + Yr(d.revenue).toFixed(1)).join(" ") + '" class="line-rev" style="pointer-events:none"/>';
     trend.forEach((d, i) => {
-      s += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Yr(d.revenue).toFixed(1) + '" r="3.4" class="dot-rev"><title>' + monthLabel(d.month) + ": " + fmt(d.revenue) + "</title></circle>";
+      s += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Yr(d.revenue).toFixed(1) + '" r="4.5" class="cdot" data-i="' + i + '" fill="#f59e0b" stroke="#fff" stroke-width="1.5"/>';
     });
   }
   s += "</svg>";
-  el.innerHTML = s;
+  el.innerHTML = s + '<div class="chart-tip" style="display:none"></div>';
+  const tip = el.querySelector(".chart-tip");
+  const items = [];
+  el.querySelectorAll(".cbar,.cdot").forEach((elm) => {
+    const i = Number(elm.getAttribute("data-i"));
+    items.push({ elm, html: trendTipHtml(trend[i], showSub, showRev) });
+  });
+  bindChartTips(el, tip, items);
 }
 // Bieu do cot kenh PSSL + duong ke hoach thang (net dut)
+// Gan callout tuong tac cho bieu do: hover hien popup so lieu (click cho man hinh cam ung)
+function bindChartTips(box, tip, items) {
+  if (!box._tipDocBound) {
+    document.addEventListener("click", () => { document.querySelectorAll(".chart-tip").forEach((x) => (x.style.display = "none")); });
+    box._tipDocBound = true;
+  }
+  const hide = () => { tip.style.display = "none"; };
+  items.forEach((it) => {
+    const show = () => {
+      const cr = box.getBoundingClientRect(), br = it.elm.getBoundingClientRect();
+      if (!br.width && !br.height) return;
+      tip.innerHTML = it.html;
+      tip.style.display = "block";
+      let lx = br.left - cr.left + br.width / 2;
+      lx = Math.max(72, Math.min(cr.width - 72, lx));
+      tip.style.left = lx + "px";
+      tip.style.top = br.top - cr.top + "px";
+    };
+    it.elm.addEventListener("mouseenter", show);
+    it.elm.addEventListener("mouseleave", hide);
+    it.elm.addEventListener("click", (e) => { e.stopPropagation(); show(); });
+  });
+}
+function trendTipHtml(d, showSub, showRev) {
+  let h = "<div class='tt'>" + monthLabel(d.month) + "</div>";
+  if (showSub) h += "<div class='tr'><i class='dot' style='background:#2f7cf6'></i>Thuê bao: <b>" + fmtInt(d.subs) + "</b></div>";
+  if (showRev) h += "<div class='tr'><i class='dot' style='background:#f59e0b'></i>Doanh thu: <b>" + fmtCompact(d.revenue) + "</b></div>";
+  return h;
+}
+function psslTipHtml(d) {
+  let h = "<div class='tt'>" + monthLabel(d.month) + "</div>";
+  h += "<div class='tr'><i class='dot' style='background:#14b8a6'></i>Số kênh PSSL: <b>" + d.pssl + "</b></div>";
+  if (d.ke_hoach > 0) h += "<div class='tr'><i class='dot' style='background:#ef4444'></i>Kế hoạch: <b>" + d.ke_hoach + "</b></div>";
+  return h;
+}
 function svgPssl(el, trend) {
   const W = 660, H = 300, P = { l: 40, r: 16, t: 14, b: 32 };
   const maxV = Math.max(1, ...trend.map((d) => Math.max(d.pssl, d.ke_hoach)));
@@ -4750,16 +4825,23 @@ function svgPssl(el, trend) {
   trend.forEach((d, i) => {
     const bw = Math.min(34, cw * 0.62), x = X(i) - bw / 2;
     const h = Math.max(0, H - P.b - Y(d.pssl)), y = Y(d.pssl);
-    s += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="3" class="bar-pssl"><title>' + monthLabel(d.month) + ": " + d.pssl + " kênh PSSL" + (d.ke_hoach ? " (kế hoạch " + d.ke_hoach + ")" : "") + "</title></rect>";
+    s += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(h, 2).toFixed(1) + '" rx="3" class="cbar cb-pssl" data-i="' + i + '"/>';
     if (i % 2 === 0 || n <= 8) s += '<text x="' + X(i).toFixed(1) + '" y="' + (H - 10) + '" class="xlab" text-anchor="middle">' + d.month.slice(5) + "/" + d.month.slice(2, 4) + "</text>";
   });
   const planPts = trend.map((d, i) => (d.ke_hoach > 0 ? X(i).toFixed(1) + "," + Y(d.ke_hoach).toFixed(1) : null)).filter(Boolean);
-  if (planPts.length > 1) s += '<polyline points="' + planPts.join(" ") + '" class="line-plan"/>';
+  if (planPts.length > 1) s += '<polyline points="' + planPts.join(" ") + '" class="line-plan" style="pointer-events:none"/>';
   trend.forEach((d, i) => {
-    if (d.ke_hoach > 0) s += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.ke_hoach).toFixed(1) + '" r="3" fill="#ef4444"><title>' + monthLabel(d.month) + ": kế hoạch " + d.ke_hoach + " kênh</title></circle>";
+    if (d.ke_hoach > 0) s += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.ke_hoach).toFixed(1) + '" r="4" class="cdot" data-i="' + i + '" fill="#ef4444" stroke="#fff" stroke-width="1.5"/>';
   });
   s += "</svg>";
-  el.innerHTML = s;
+  el.innerHTML = s + '<div class="chart-tip" style="display:none"></div>';
+  const tip = el.querySelector(".chart-tip");
+  const items = [];
+  el.querySelectorAll(".cbar,.cdot").forEach((elm) => {
+    const i = Number(elm.getAttribute("data-i"));
+    items.push({ elm, html: psslTipHtml(trend[i]) });
+  });
+  bindChartTips(el, tip, items);
 }
 function planChip(id, tyle, kh) {
   const el = $(id); if (!el) return;

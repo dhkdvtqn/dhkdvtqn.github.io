@@ -1590,7 +1590,7 @@ export default {
           trendMonths = curMonths; periodLabel = "năm " + nam;
         } else {
           let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
-          for (let i = 13; i >= 0; i--) { let mm = m - i, yy = y; while (mm <= 0) { mm += 12; yy--; } months.push(yy + "-" + String(mm).padStart(2, "0")); }
+          for (let i = 11; i >= 0; i--) { let mm = m - i, yy = y; while (mm <= 0) { mm += 12; yy--; } months.push(yy + "-" + String(mm).padStart(2, "0")); }
           const T = months[13];
           curMonths = [T]; prevMonths = [months[12]]; c2Months = [months[1]];
           cmp1_label = "vs tháng trước"; cmp2_label = "vs cùng kỳ năm trước";
