@@ -1,7 +1,7 @@
 // Service worker - VNPT Kênh bán. Điều hướng: ưu tiên mạng, rớt mạng dùng bản cache.
 // API (workers.dev) luôn đi mạng, không cache.
 const CACHE = "vnpt-kenhban-v1";
-const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png"];
+const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
