@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "vn.vnptquangninh.kenhban",
+      "sha256_cert_fingerprints": ["EC:AC:F1:80:17:AB:D8:4A:1D:AF:10:C8:8D:04:97:0E:37:84:17:58:9B:9F:86:1A:45:82:5D:DF:2A:24:86:C7"]
+    }
+  }
+]
