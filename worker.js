@@ -1883,9 +1883,16 @@ export default {
             kh_subs: kS, tyle_subs: tyle(a.subs, kS),
             kh_rev: Math.round(kR), tyle_rev: tyle(a.revenue, kR) };
         }).sort((x, y) => (y.revenue + y.subs) - (x.revenue + x.subs));
-        const by_pos = Object.keys(cur.pos).map((e) => {
+        // Liet ke TOAN BO diem ban trong pham vi (ke ca diem chua co PSSL trong ky);
+        // bo loc "Diem ban PSSL" tren giao dien se loc hien thi (mac dinh: Co PSSL).
+        const by_pos = Object.keys(posByEload).filter((e) => {
+          const p = posByEload[e];
+          if (scopeUnitIds !== null && !scopeUnitIds.includes(p.don_vi_id)) return false;
+          if (ownOnly && e !== meEload) return false;
+          return true;
+        }).map((e) => {
           const info = posByEload[e] || {};
-          const a = cur.pos[e], b = prev.pos[e] || { subs: 0, revenue: 0 };
+          const a = cur.pos[e] || { subs: 0, revenue: 0 }, b = prev.pos[e] || { subs: 0, revenue: 0 };
           return { eload: info.so_eload || e, ma_kenh: info.ma_kenh || "", ho_ten: info.ho_ten || e,
             don_vi_id: info.don_vi_id || null, don_vi_ten: info.don_vi_ten || "",
             subs: a.subs, revenue: Math.round(a.revenue),

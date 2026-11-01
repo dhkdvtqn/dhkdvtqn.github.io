@@ -1118,7 +1118,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <div class="form-grid">
             <div><label>Lọc theo đơn vị</label><select id="ovPosUnit"><option value="">— Tất cả đơn vị —</option></select></div>
             <div><label>Tìm kiếm điểm bán</label><input id="ovPosSearch" placeholder="Tên / mã kênh / số Eload…" autocomplete="off" /></div>
-            <div><label>Điểm bán PSSL</label><select id="ovPosPssl"><option value="">— Tất cả —</option><option value="1">Có PSSL</option><option value="0">Chưa PSSL</option></select></div>
+            <div><label>Điểm bán PSSL</label><select id="ovPosPssl"><option value="">— Tất cả —</option><option value="1" selected>Có PSSL</option><option value="0">Chưa PSSL</option></select></div>
           </div>
           <div class="tbl-wrap"><table class="data"><thead id="ovPosHead"></thead><tbody id="ovPosBody"><tr><td>—</td></tr></tbody></table></div>
         </section>
@@ -3377,9 +3377,16 @@ export default {
             kh_subs: kS, tyle_subs: tyle(a.subs, kS),
             kh_rev: Math.round(kR), tyle_rev: tyle(a.revenue, kR) };
         }).sort((x, y) =&gt; (y.revenue + y.subs) - (x.revenue + x.subs));
-        const by_pos = Object.keys(cur.pos).map((e) =&gt; {
+        // Liet ke TOAN BO diem ban trong pham vi (ke ca diem chua co PSSL trong ky);
+        // bo loc &quot;Diem ban PSSL&quot; tren giao dien se loc hien thi (mac dinh: Co PSSL).
+        const by_pos = Object.keys(posByEload).filter((e) =&gt; {
+          const p = posByEload[e];
+          if (scopeUnitIds !== null &amp;&amp; !scopeUnitIds.includes(p.don_vi_id)) return false;
+          if (ownOnly &amp;&amp; e !== meEload) return false;
+          return true;
+        }).map((e) =&gt; {
           const info = posByEload[e] || {};
-          const a = cur.pos[e], b = prev.pos[e] || { subs: 0, revenue: 0 };
+          const a = cur.pos[e] || { subs: 0, revenue: 0 }, b = prev.pos[e] || { subs: 0, revenue: 0 };
           return { eload: info.so_eload || e, ma_kenh: info.ma_kenh || &quot;&quot;, ho_ten: info.ho_ten || e,
             don_vi_id: info.don_vi_id || null, don_vi_ten: info.don_vi_ten || &quot;&quot;,
             subs: a.subs, revenue: Math.round(a.revenue),
