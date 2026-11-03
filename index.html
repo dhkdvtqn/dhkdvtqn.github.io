@@ -1252,6 +1252,32 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <div class="tbl-wrap" style="max-height:215px;overflow-y:auto"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th>Khóa thay thế</th><th></th></tr></thead><tbody id="tablesBody"><tr><td colspan="6">Đang tải…</td></tr></tbody></table></div>
           <div class="note"><b>Trường dữ liệu HHBG:</b> Tên Eload, Số Eload, Số Ví, Số thuê bao, Loại thuê bao, Chu kỳ chi trả, Tên gói cước, Giá gói cước, Thời gian giao dịch, Trans ID, Kênh thực hiện, Thù lao chi trả, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.<br/><b>Trường dữ liệu BCKH:</b> Số Eload, Tên Eload, Số thuê bao, Thời gian kích hoạt, Hoa hồng BCKH, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.</div>
 
+          <div id="kbManager">
+            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Import danh sách kênh bán (theo tháng)</h3>
+            <p class="desc">Danh sách kênh bán biến động hàng tháng — mỗi tháng import 1 file Excel, hệ thống tạo bảng <code class="inl">kenh_ban_MMYYYY</code>. Khi tổng hợp báo cáo, hệ thống <b>ưu tiên map đơn vị và tên kênh bán từ bảng của tháng đó</b>; bảng người dùng chỉ dùng để map phụ khi bảng tháng không map được. Chọn file xong hệ thống tự nhận diện các cột cần thiết (mã kênh, tên điểm bán, số Eload, đơn vị, loại kênh, mã NV quản lý) và <b>loại bỏ các cột không liên quan</b> — anh kiểm tra lại bảng đối chiếu bên dưới trước khi bấm Import.</p>
+            <div class="form-grid">
+              <div><label>Tháng / Năm</label><div style="display:flex;gap:8px"><input type="number" id="kbMonth" min="1" max="12" /><input type="number" id="kbYear" min="2020" max="2100" /></div></div>
+              <div><label>Chế độ import</label><select id="kbMode"><option value="create">Tạo mới — chỉ import khi tháng này chưa có danh sách (chặn import trùng)</option><option value="append">Cập nhật — thêm vào danh sách hiện có của tháng</option><option value="replace">Thay thế — xóa danh sách cũ của tháng, import lại từ đầu</option></select></div>
+              <div><label>File Excel danh sách kênh</label><input type="file" id="kbFile" accept=".xlsx,.xls,.csv" /></div>
+              <div style="align-self:end"><button class="btn blue" type="button" id="kbImpBtn">Import danh sách kênh</button></div>
+            </div>
+            <div id="kbMapPreview" style="margin-top:6px"></div>
+            <div id="kbMsg" style="margin-top:6px"></div>
+          </div>
+
+          <div id="cbManager">
+            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Import danh sách CBCNV (theo tháng)</h3>
+            <p class="desc">Danh sách nhân sự VNPT Quảng Ninh biến động hàng tháng — mỗi tháng import 1 file Excel, hệ thống tạo bảng <code class="inl">cbcnv_MMYYYY</code>. Bảng này dùng để <b>map đơn vị và thông tin nhân viên quản lý kênh bán</b> (qua mã HRM của người quản lý trong danh sách kênh). Cũng tự loại bỏ các cột không liên quan khi import.</p>
+            <div class="form-grid">
+              <div><label>Tháng / Năm</label><div style="display:flex;gap:8px"><input type="number" id="cbMonth" min="1" max="12" /><input type="number" id="cbYear" min="2020" max="2100" /></div></div>
+              <div><label>Chế độ import</label><select id="cbMode"><option value="create">Tạo mới — chỉ import khi tháng này chưa có danh sách (chặn import trùng)</option><option value="append">Cập nhật — thêm vào danh sách hiện có của tháng</option><option value="replace">Thay thế — xóa danh sách cũ của tháng, import lại từ đầu</option></select></div>
+              <div><label>File Excel danh sách CBCNV</label><input type="file" id="cbFile" accept=".xlsx,.xls,.csv" /></div>
+              <div style="align-self:end"><button class="btn blue" type="button" id="cbImpBtn">Import danh sách CBCNV</button></div>
+            </div>
+            <div id="cbMapPreview" style="margin-top:6px"></div>
+            <div id="cbMsg" style="margin-top:6px"></div>
+          </div>
+
           <div id="planManager" class="hidden">
             <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Giao kế hoạch kinh doanh (chỉ admin)</h3>
             <p class="desc">Giao kế hoạch theo tháng và theo từng đơn vị cho 3 chỉ tiêu: <b>kênh PSSL</b>, <b>sản lượng phát triển thuê bao</b> và <b>doanh thu thuê bao di động phát triển mới</b>. Số liệu kế hoạch dùng để đánh giá tỷ lệ hoàn thành trên Dashboard bán hàng.</p>
@@ -1911,7 +1937,38 @@ function typeColumnsSQL(t) {
 }
 // Dung &quot;nguon bao cao&quot; tu 1 loai du lieu: cot tien, cot thoi gian va dieu kien
 // phan quyen (user thuong chi thay dong co so_eload / so_vi cua chinh minh).
-function buildSource(t, meUser, overrideUnitId) {
+// ---- Danh sach kenh ban / CBCNV theo thang (import hang thang) ----
+// Moi thang 1 bang: kenh_ban_MMYYYY, cbcnv_MMYYYY. Khi tong hop bao cao,
+// he thong UU TIEN map don vi + ten kenh tu bang cua thang do; bang
+// nguoi_dung chi dung de map phu khi bang thang khong map duoc.
+const KENH_BAN_PREFIX = &quot;kenh_ban&quot;;
+const CBCNV_PREFIX = &quot;cbcnv&quot;;
+const KENH_BAN_COLS = [[&quot;ma_kenh&quot;, &quot;TEXT&quot;], [&quot;ten_diem_ban&quot;, &quot;TEXT&quot;], [&quot;so_eload&quot;, &quot;TEXT&quot;], [&quot;don_vi&quot;, &quot;TEXT&quot;], [&quot;don_vi_id&quot;, &quot;INTEGER&quot;], [&quot;loai_kenh&quot;, &quot;TEXT&quot;], [&quot;ma_nv_quan_ly&quot;, &quot;TEXT&quot;]];
+const CBCNV_COLS = [[&quot;ma_hrm&quot;, &quot;TEXT&quot;], [&quot;ho_ten&quot;, &quot;TEXT&quot;], [&quot;sdt&quot;, &quot;TEXT&quot;], [&quot;don_vi&quot;, &quot;TEXT&quot;], [&quot;don_vi_id&quot;, &quot;INTEGER&quot;], [&quot;chuc_danh&quot;, &quot;TEXT&quot;]];
+// monthKey &quot;YYYY-MM&quot; -&gt; ten bang &quot;prefix_MMYYYY&quot;
+function monthTableName(prefix, mk) {
+  const m = String(mk || &quot;&quot;).match(/^(\d{4})-(\d{2})$/);
+  if (!m) return null;
+  return prefix + &quot;_&quot; + m[2] + m[1];
+}
+async function monthTableExists(env, prefix, mk) {
+  const name = monthTableName(prefix, mk);
+  if (!name) return null;
+  const r = await env.DB.prepare(&quot;SELECT name FROM sqlite_master WHERE type=&#x27;table&#x27; AND name = ?&quot;).bind(name).first();
+  return r ? name : null;
+}
+// Bang kenh_ban/cbcnv cua thang chua bang du lieu (table: HHBG_102026...).
+// Tra ve { kbTable, cbTable } (ten bang hoac null neu thang do chua import).
+async function mapTablesFor(env, table) {
+  const mk = tableMonthKey(table);
+  if (!mk) return {};
+  return {
+    kbTable: await monthTableExists(env, KENH_BAN_PREFIX, mk),
+    cbTable: await monthTableExists(env, CBCNV_PREFIX, mk),
+  };
+}
+
+function buildSource(t, meUser, overrideUnitId, mapTables) {
   const time = t.time_fallback_col
     ? &quot;COALESCE(NULLIF(&quot; + t.time_col + &quot;, &#x27;&#x27;), &quot; + t.time_fallback_col + &quot;)&quot;
     : t.time_col;
@@ -1929,21 +1986,35 @@ function buildSource(t, meUser, overrideUnitId) {
   // Loc theo don vi (danh cho Lanh dao don vi): cac giao dich cua user
   // thuoc don vi cua lanh dao VA MOI DON VI TRUC THUOC trong cay don vi
   // (don_vi.parent_id) — vi du lanh dao cap tinh thay toan tinh, lanh dao
-  // cap khu vuc chi thay khu vuc do + cac don vi con cua no. Map qua
-  // so_eload / so_vi trong bang nguoi_dung.
+  // cap khu vuc chi thay khu vuc do + cac don vi con cua no.
+  // UU TIEN map qua bang thang (kenh_ban_MMYYYY / cbcnv_MMYYYY) cua thang
+  // du lieu; nguoi_dung chi la fallback khi bang thang khong map duoc
+  // (dinh danh khong co trong bang thang, hoac co nhung chua gan don vi).
   // overrideUnitId: khi loc bao cao theo 1 don vi cu the (tham so don_vi),
   // cay lay goc tai don vi do thay vi don vi cua nguoi dung.
+  const mt = mapTables || {};
   const unitRoot = overrideUnitId != null ? overrideUnitId : meUser.don_vi_id;
   const unitParts = [], unitBinds = [];
-  if (unitRoot) {
-    const subtree = &quot;WITH RECURSIVE subtree(id) AS (SELECT ? UNION ALL SELECT d.id FROM don_vi d JOIN subtree s ON d.parent_id = s.id)&quot;;
-    if (t.eload_col) { unitParts.push(t.eload_col + &quot; IN (&quot; + subtree + &quot; SELECT so_eload FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))&quot;); unitBinds.push(unitRoot); }
-    if (t.vi_col) { unitParts.push(t.vi_col + &quot; IN (&quot; + subtree + &quot; SELECT so_vi FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))&quot;); unitBinds.push(unitRoot); }
-    if (t.key_col) {
-      unitParts.push(t.key_col + &quot; IN (&quot; + subtree + &quot; SELECT ma_hrm FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))&quot;); unitBinds.push(unitRoot);
-      unitParts.push(t.key_col + &quot; IN (&quot; + subtree + &quot; SELECT sdt_nhan_vien FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))&quot;); unitBinds.push(unitRoot);
+  // Doan SQL &quot;dataCol IN (danh sach dinh danh thuoc cay don vi)&quot;.
+  // monthCols: cot dinh danh trong bang thang; userCols: cot tuong ung trong
+  // nguoi_dung. Khong co bang thang -&gt; giu nguyen logic cu.
+  const subtree = &quot;WITH RECURSIVE subtree(id) AS (SELECT ? UNION ALL SELECT d.id FROM don_vi d JOIN subtree s ON d.parent_id = s.id)&quot;;
+  const mapUnit = (dataCol, monthCols, userCols, monthTable) =&gt; {
+    if (!monthTable) {
+      return userCols.map((uc) =&gt; dataCol + &quot; IN (&quot; + subtree + &quot; SELECT &quot; + uc + &quot; FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))&quot;);
     }
-    if (t.kenh_col) { unitParts.push(t.kenh_col + &quot; IN (&quot; + subtree + &quot; SELECT ma_kenh FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))&quot;); unitBinds.push(unitRoot); }
+    const prim = monthCols.map((mc) =&gt; &#x27;SELECT &quot;&#x27; + mc + &#x27;&quot; AS idf, don_vi_id FROM &quot;&#x27; + monthTable + &#x27;&quot; WHERE don_vi_id IS NOT NULL&#x27;).join(&quot; UNION &quot;);
+    const fb = userCols.map((uc) =&gt; {
+      const notMapped = monthCols.map((mc) =&gt; &#x27;NOT EXISTS (SELECT 1 FROM &quot;&#x27; + monthTable + &#x27;&quot; m WHERE m.&quot;&#x27; + mc + &#x27;&quot; = nguoi_dung.&quot;&#x27; + uc + &#x27;&quot; AND m.don_vi_id IS NOT NULL)&#x27;).join(&quot; AND &quot;);
+      return &quot;SELECT &quot; + uc + &quot; AS idf, don_vi_id FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND &quot; + notMapped;
+    }).join(&quot; UNION &quot;);
+    return [dataCol + &quot; IN (&quot; + subtree + &quot; SELECT idf FROM (&quot; + prim + &quot; UNION &quot; + fb + &quot;) WHERE don_vi_id IN (SELECT id FROM subtree))&quot;];
+  };
+  if (unitRoot) {
+    if (t.eload_col) for (const p of mapUnit(t.eload_col, [&quot;so_eload&quot;], [&quot;so_eload&quot;], mt.kbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
+    if (t.vi_col) { unitParts.push(t.vi_col + &quot; IN (&quot; + subtree + &quot; SELECT so_vi FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))&quot;); unitBinds.push(unitRoot); }
+    if (t.key_col) for (const p of mapUnit(t.key_col, [&quot;ma_hrm&quot;, &quot;sdt&quot;], [&quot;ma_hrm&quot;, &quot;sdt_nhan_vien&quot;], mt.cbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
+    if (t.kenh_col) for (const p of mapUnit(t.kenh_col, [&quot;ma_kenh&quot;], [&quot;ma_kenh&quot;], mt.kbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
   }
   // Loc &quot;Chua xac dinh&quot; (don_vi ao, chi admin/subadmin): cac dong KHONG map
   // duoc voi bat ky user nao co don vi (user chua gan don vi hoac dong khong
@@ -1955,6 +2026,12 @@ function buildSource(t, meUser, overrideUnitId) {
   if (t.vi_col) unmappedParts.push(&quot;(&quot; + t.vi_col + &quot; IS NOT NULL AND &quot; + t.vi_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.vi_col + &quot; IN (SELECT so_vi FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND so_vi IS NOT NULL AND so_vi &lt;&gt; &#x27;&#x27;))&quot;);
   if (t.key_col) unmappedParts.push(&quot;((&quot; + t.key_col + &quot; IS NOT NULL AND &quot; + t.key_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.key_col + &quot; IN (SELECT ma_hrm FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND ma_hrm IS NOT NULL AND ma_hrm &lt;&gt; &#x27;&#x27;)) OR (&quot; + t.key_col + &quot; IS NOT NULL AND &quot; + t.key_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.key_col + &quot; IN (SELECT sdt_nhan_vien FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND sdt_nhan_vien IS NOT NULL AND sdt_nhan_vien &lt;&gt; &#x27;&#x27;)))&quot;);
   if (t.kenh_col) unmappedParts.push(&quot;(&quot; + t.kenh_col + &quot; IS NOT NULL AND &quot; + t.kenh_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.kenh_col + &quot; IN (SELECT ma_kenh FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND ma_kenh IS NOT NULL AND ma_kenh &lt;&gt; &#x27;&#x27;))&quot;);
+  // Bang thang cung duoc tinh la &quot;da map&quot; (uu tien truoc nguoi_dung)
+  if (mt.kbTable) {
+    if (t.eload_col) unmappedParts.push(&quot;(&quot; + t.eload_col + &quot; IS NOT NULL AND &quot; + t.eload_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.eload_col + &quot; IN (SELECT so_eload FROM \&quot;&quot; + mt.kbTable + &quot;\&quot; WHERE don_vi_id IS NOT NULL AND so_eload IS NOT NULL AND so_eload &lt;&gt; &#x27;&#x27;))&quot;);
+    if (t.kenh_col) unmappedParts.push(&quot;(&quot; + t.kenh_col + &quot; IS NOT NULL AND &quot; + t.kenh_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.kenh_col + &quot; IN (SELECT ma_kenh FROM \&quot;&quot; + mt.kbTable + &quot;\&quot; WHERE don_vi_id IS NOT NULL AND ma_kenh IS NOT NULL AND ma_kenh &lt;&gt; &#x27;&#x27;))&quot;);
+  }
+  if (mt.cbTable &amp;&amp; t.key_col) unmappedParts.push(&quot;((&quot; + t.key_col + &quot; IS NOT NULL AND &quot; + t.key_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.key_col + &quot; IN (SELECT ma_hrm FROM \&quot;&quot; + mt.cbTable + &quot;\&quot; WHERE don_vi_id IS NOT NULL AND ma_hrm IS NOT NULL AND ma_hrm &lt;&gt; &#x27;&#x27;)) OR (&quot; + t.key_col + &quot; IS NOT NULL AND &quot; + t.key_col + &quot; &lt;&gt; &#x27;&#x27; AND &quot; + t.key_col + &quot; IN (SELECT sdt FROM \&quot;&quot; + mt.cbTable + &quot;\&quot; WHERE don_vi_id IS NOT NULL AND sdt IS NOT NULL AND sdt &lt;&gt; &#x27;&#x27;)))&quot;);
   const unmapped = unmappedParts.length ? &quot;NOT (&quot; + unmappedParts.join(&quot; OR &quot;) + &quot;)&quot; : &quot;1=1&quot;;
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
@@ -2042,9 +2119,10 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
   const groupExpr = group === &quot;month&quot; ? &quot;substr(tg, 1, 7)&quot; : &quot;substr(tg, 1, 10)&quot;;
   const stFilter = parseStatusFilter(statusFilter);
   const types = await getDataTypes(env);
-  const sources = types
-    .filter((t) =&gt; (loai === &quot;ALL&quot; || t.code === loai) &amp;&amp; t.money_col &amp;&amp; t.time_col)
-    .map((t) =&gt; buildSource(t, posUser || me, scopeUnit));
+  // Build source THEO TUNG BANG THANG: thang nao lay bang kenh_ban/cbcnv cua
+  // thang do de map don vi (uu tien), nguoi_dung chi fallback.
+  const srcTypes = types
+    .filter((t) =&gt; (loai === &quot;ALL&quot; || t.code === loai) &amp;&amp; t.money_col &amp;&amp; t.time_col);
   // Truy van tung bang thang roi cong don ket qua trong JS.
   // (Cach cu ghep tat ca bang bang UNION ALL thanh 1 cau SQL khong lo
   //  se vuot gioi han &quot;too many terms in compound SELECT&quot; cua D1.)
@@ -2054,10 +2132,11 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
   // hai dinh dang deu khong doc duoc, thay vi lam hong toan bo bao cao.
   const skippedTables = [];
   const legacyTables = [];
-  for (const s of sources) {
-    const tables = await listMonthlyTables(env, s.prefix);
+  for (const tp of srcTypes) {
+    const tables = await listMonthlyTables(env, tp.prefix);
     for (const t of tables) {
-      if (!tableInRange(t, s.prefix, from, to)) continue;
+      if (!tableInRange(t, tp.prefix, from, to)) continue;
+      const mapTables = await mapTablesFor(env, t);
       const runSummaryTable = async (src) =&gt; {
         const buildSQL = (withStatus) =&gt; {
           const innerCols = [src.time + &quot; AS tg&quot;, src.money + &quot; AS tien&quot;];
@@ -2100,11 +2179,11 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
         return { rows: r.results || [], withStatus: false };
       };
       let res, usedLegacy = false;
-      try { res = await runSummaryTable(s); }
+      try { res = await runSummaryTable(buildSource(tp, posUser || me, scopeUnit, mapTables)); }
       catch (e) {
-        const legacy = LEGACY_SCHEMAS[s.code];
-        if (!legacy || !s.type) { skippedTables.push(t); continue; }
-        try { res = await runSummaryTable(buildSource({ ...s.type, ...legacy }, posUser || me, scopeUnit)); usedLegacy = true; }
+        const legacy = LEGACY_SCHEMAS[tp.code];
+        if (!legacy) { skippedTables.push(t); continue; }
+        try { res = await runSummaryTable(buildSource({ ...tp, ...legacy }, posUser || me, scopeUnit, mapTables)); usedLegacy = true; }
         catch (e2) { skippedTables.push(t); continue; }
       }
       if (usedLegacy) legacyTables.push(t);
@@ -2847,6 +2926,14 @@ export default {
             out.push({ table: name, code: t.code, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
           }
         }
+        // Bang danh sach kenh ban / CBCNV theo thang
+        for (const [pfx, code] of [[KENH_BAN_PREFIX, &quot;KENH_BAN&quot;], [CBCNV_PREFIX, &quot;CBCNV&quot;]]) {
+          const tables = await listMonthlyTables(env, pfx);
+          for (const name of tables) {
+            const c = await env.DB.prepare(&#x27;SELECT COUNT(*) AS n FROM &quot;&#x27; + name + &#x27;&quot;&#x27;).first();
+            out.push({ table: name, code, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
+          }
+        }
         return json({ ok: true, tables: out });
       }
       // ---- Xoa bang du lieu da import ----
@@ -2856,7 +2943,8 @@ export default {
         if (!isAdmin &amp;&amp; (isSubAdmin || !me.can_import)) return err(&quot;Tai khoan khong co quyen xoa bang du lieu (SubAdmin khong duoc phep xoa bang)&quot;, 403);
         const name = tblMatch[1];
         const types = await getDataTypes(env);
-        const okName = types.some((t) =&gt; new RegExp(&quot;^&quot; + t.prefix + &quot;_\\d{4,6}$&quot;).test(name));
+        const okName = types.some((t) =&gt; new RegExp(&quot;^&quot; + t.prefix + &quot;_\\d{4,6}$&quot;).test(name)) ||
+          /^(kenh_ban|cbcnv)_\d{6}$/.test(name);
         if (!okName) return err(&quot;Ten bang khong hop le&quot;, 422);
         await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + name + &#x27;&quot;&#x27;).run();
         return json({ ok: true, table: name });
@@ -2935,6 +3023,76 @@ export default {
             const vals = colNames.map((n) =&gt; {
               const v = row[n];
               return numericCols.has(n) ? toNumber(v) : toText(v);
+            });
+            vals.push(me.username);
+            return env.DB.prepare(sql).bind(...vals);
+          });
+          await env.DB.batch(batch);
+          inserted += batch.length;
+        }
+        return json({ ok: true, table, inserted, mode });
+      }
+
+      // ---- Import danh sach kenh ban / CBCNV theo thang ----
+      // Moi thang 1 bang: kenh_ban_MMYYYY / cbcnv_MMYYYY. Client tu map cot
+      // Excel ve truong chuan va loai bo cot khong lien quan truoc khi gui;
+      // server chi nhan cac truong chuan, tu giai don_vi -&gt; don_vi_id.
+      if ((path === &quot;/api/kenh-ban/import&quot; || path === &quot;/api/cbcnv/import&quot;) &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
+        const isKenh = path === &quot;/api/kenh-ban/import&quot;;
+        const prefix = isKenh ? KENH_BAN_PREFIX : CBCNV_PREFIX;
+        const label = isKenh ? &quot;danh sach kenh ban&quot; : &quot;danh sach CBCNV&quot;;
+        const b = await readBody(request);
+        const mode = b.mode === &quot;replace&quot; ? &quot;replace&quot; : b.mode === &quot;create&quot; ? &quot;create&quot; : &quot;append&quot;;
+        const thang = Number(b.thang);
+        const nam = Number(b.nam);
+        if (!thang || thang &lt; 1 || thang &gt; 12 || !nam) return err(&quot;Thang/nam import khong hop le&quot;, 422);
+        const table = prefix + &quot;_&quot; + String(thang).padStart(2, &quot;0&quot;) + nam;
+        const columns = isKenh ? KENH_BAN_COLS : CBCNV_COLS;
+        const colNames = columns.map(([n]) =&gt; n);
+        const rawRows = Array.isArray(b.rows) ? b.rows : [];
+        const rows = rawRows.filter((row) =&gt; {
+          if (!row || typeof row !== &quot;object&quot;) return false;
+          return colNames.some((n) =&gt; {
+            const v = row[n];
+            return v !== null &amp;&amp; v !== undefined &amp;&amp; String(v).trim() !== &quot;&quot;;
+          });
+        });
+        if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
+        if (mode === &quot;replace&quot; &amp;&amp; !isAdmin) {
+          const locked = await isTableLocked(env, table);
+          if (locked) return err(&quot;Bang &quot; + table + &quot; dang bi khoa thay the. Chi admin moi duoc thay the. Lien he admin de mo khoa neu can.&quot;, 403);
+        }
+        if (mode === &quot;create&quot;) {
+          const ex = await env.DB.prepare(&quot;SELECT name FROM sqlite_master WHERE type=&#x27;table&#x27; AND name = ?&quot;).bind(table).first();
+          if (ex) return err(&quot;Bang &quot; + label + &quot; thang &quot; + thang + &quot;/&quot; + nam + &quot; da ton tai. Hay dung che do &#x27;Cap nhat&#x27; de nap them, hoac &#x27;Thay the&#x27; de nap lai tu dau.&quot;, 409);
+        }
+        if (mode === &quot;replace&quot;) {
+          await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + table + &#x27;&quot;&#x27;).run();
+        }
+        await env.DB.prepare(createTableSQL(table, columns)).run();
+        // Giai ten don vi -&gt; don_vi_id (khong dau, khong phan biet hoa/thuong)
+        const normU = (s) =&gt; String(s == null ? &quot;&quot; : s).trim().toLowerCase()
+          .normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/đ/g, &quot;d&quot;)
+          .replace(/[–—−‐‒]/g, &quot;-&quot;).replace(/\s+/g, &quot; &quot;).replace(/\s*-\s*/g, &quot;-&quot;);
+        const units = (await env.DB.prepare(&quot;SELECT id, ten_don_vi FROM don_vi&quot;).all()).results || [];
+        const unitMap = {};
+        for (const u of units) unitMap[normU(u.ten_don_vi)] = u.id;
+        const sql =
+          &#x27;INSERT INTO &quot;&#x27; + table + &#x27;&quot; (&#x27; + colNames.map((n) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot;&#x27;).join(&quot;, &quot;) +
+          &quot;, imported_by) VALUES (&quot; + colNames.map(() =&gt; &quot;?&quot;).join(&quot;, &quot;) + &quot;, ?)&quot;;
+        let inserted = 0;
+        const CHUNK = 100;
+        for (let i = 0; i &lt; rows.length; i += CHUNK) {
+          const batch = rows.slice(i, i + CHUNK).map((row) =&gt; {
+            const vals = colNames.map((n) =&gt; {
+              if (n === &quot;don_vi_id&quot;) {
+                const id = unitMap[normU(row.don_vi)];
+                return id != null ? id : null;
+              }
+              const v = row[n];
+              return v === undefined || v === null ? null : String(v).trim();
             });
             vals.push(me.username);
             return env.DB.prepare(sql).bind(...vals);
@@ -3377,6 +3535,30 @@ export default {
             kh_subs: kS, tyle_subs: tyle(a.subs, kS),
             kh_rev: Math.round(kR), tyle_rev: tyle(a.revenue, kR) };
         }).sort((x, y) =&gt; (y.revenue + y.subs) - (x.revenue + x.subs));
+        // Thong tin kenh ban theo thang (uu tien bang kenh_ban cua thang hien tai
+        // trong ky): ten diem ban + nhan vien quan ly (map qua bang cbcnv
+        // cung thang). Hien thi bo sung, khong doi logic tong hop.
+        let chanInfo = {};
+        try {
+          const kbT = curMonths.length ? await monthTableExists(env, KENH_BAN_PREFIX, curMonths[0]) : null;
+          if (kbT) {
+            const cbT = await monthTableExists(env, CBCNV_PREFIX, curMonths[0]);
+            const mgr = {};
+            if (cbT) {
+              const mrs = (await env.DB.prepare(&#x27;SELECT ma_hrm, ho_ten FROM &quot;&#x27; + cbT + &#x27;&quot;&#x27;).all()).results || [];
+              for (const m of mrs) { const k = String(m.ma_hrm == null ? &quot;&quot; : m.ma_hrm).trim(); if (k &amp;&amp; !mgr[k]) mgr[k] = m.ho_ten; }
+            }
+            const krs = (await env.DB.prepare(&#x27;SELECT ma_kenh, so_eload, ten_diem_ban, ma_nv_quan_ly FROM &quot;&#x27; + kbT + &#x27;&quot;&#x27;).all()).results || [];
+            for (const r of krs) {
+              const qlKey = String(r.ma_nv_quan_ly == null ? &quot;&quot; : r.ma_nv_quan_ly).trim();
+              const info = { ten_diem_ban: r.ten_diem_ban || &quot;&quot;, quan_ly: mgr[qlKey] || &quot;&quot; };
+              const k1 = String(r.ma_kenh == null ? &quot;&quot; : r.ma_kenh).trim();
+              const k2 = String(r.so_eload == null ? &quot;&quot; : r.so_eload).trim().toUpperCase().replace(/\s+/g, &quot;&quot;);
+              if (k1 &amp;&amp; !chanInfo[k1]) chanInfo[k1] = info;
+              if (k2 &amp;&amp; !chanInfo[k2]) chanInfo[k2] = info;
+            }
+          }
+        } catch (e2) { /* bo qua khi chua co bang thang */ }
         // Liet ke TOAN BO diem ban trong pham vi (ke ca diem chua co PSSL trong ky);
         // bo loc &quot;Diem ban PSSL&quot; tren giao dien se loc hien thi (mac dinh: Co PSSL).
         const by_pos = Object.keys(posByEload).filter((e) =&gt; {
@@ -3386,8 +3568,10 @@ export default {
           return true;
         }).map((e) =&gt; {
           const info = posByEload[e] || {};
+          const ci = chanInfo[info.ma_kenh || &quot;&quot;] || chanInfo[e] || {};
           const a = cur.pos[e] || { subs: 0, revenue: 0 }, b = prev.pos[e] || { subs: 0, revenue: 0 };
           return { eload: info.so_eload || e, ma_kenh: info.ma_kenh || &quot;&quot;, ho_ten: info.ho_ten || e,
+            ten_diem_ban: ci.ten_diem_ban || &quot;&quot;, quan_ly: ci.quan_ly || &quot;&quot;,
             don_vi_id: info.don_vi_id || null, don_vi_ten: info.don_vi_ten || &quot;&quot;,
             subs: a.subs, revenue: Math.round(a.revenue),
             subs_c1: b.subs, subs_c1_pct: pct(a.subs, b.subs),
@@ -3529,13 +3713,13 @@ export default {
         const skippedTables = [];
         const legacyTables = [];
         const types = await getDataTypes(env);
-        const sources = types
-          .filter((t) =&gt; (loai === &quot;ALL&quot; || t.code === loai) &amp;&amp; t.money_col &amp;&amp; t.time_col)
-          .map((t) =&gt; buildSource(t, posUser || me, scopeUnit));
-        for (const s of sources) {
-          const tables = await listMonthlyTables(env, s.prefix);
+        const srcTypes = types
+          .filter((t) =&gt; (loai === &quot;ALL&quot; || t.code === loai) &amp;&amp; t.money_col &amp;&amp; t.time_col);
+        for (const tp of srcTypes) {
+          const tables = await listMonthlyTables(env, tp.prefix);
           for (const t of tables) {
-            if (!tableInRange(t, s.prefix, from, to)) continue;
+            if (!tableInRange(t, tp.prefix, from, to)) continue;
+            const mapTables = await mapTablesFor(env, t);
             const runDetailTable = async (src) =&gt; {
               const sel = [
                 &quot;&#x27;&quot; + src.code + &quot;&#x27; AS loai&quot;,
@@ -3564,12 +3748,12 @@ export default {
               binds.push(limit);
               return env.DB.prepare(sql).bind(...binds).all();
             };
-            let res, usedLegacy = false, usedSrc = s;
-            try { res = await runDetailTable(s); }
+            let res, usedLegacy = false, usedSrc = buildSource(tp, posUser || me, scopeUnit, mapTables);
+            try { res = await runDetailTable(usedSrc); }
             catch (e) {
-              const legacy = LEGACY_SCHEMAS[s.code];
-              if (!legacy || !s.type) { skippedTables.push(t); continue; }
-              try { usedSrc = buildSource({ ...s.type, ...legacy }, posUser || me, scopeUnit); res = await runDetailTable(usedSrc); usedLegacy = true; }
+              const legacy = LEGACY_SCHEMAS[tp.code];
+              if (!legacy) { skippedTables.push(t); continue; }
+              try { usedSrc = buildSource({ ...tp, ...legacy }, posUser || me, scopeUnit, mapTables); res = await runDetailTable(usedSrc); usedLegacy = true; }
               catch (e2) { skippedTables.push(t); continue; }
             }
             if (usedLegacy) legacyTables.push(t);
@@ -4585,7 +4769,9 @@ function openPanel(panelId) {
   if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); }
   if (panelId === "panel-staff") { loadStaff(); loadStaffUnits(); applyStaffFormPerms(); }
   if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); $("planManager").classList.toggle("hidden", !(me && me.role === "admin")); const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("planMonth").value) $("planMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1);
-    if (!$("planImpYear").value) $("planImpYear").value = pn.getFullYear(); }
+    if (!$("planImpYear").value) $("planImpYear").value = pn.getFullYear();
+    if (!$("kbMonth").value) $("kbMonth").value = pn.getMonth() + 1; if (!$("kbYear").value) $("kbYear").value = pn.getFullYear();
+    if (!$("cbMonth").value) $("cbMonth").value = pn.getMonth() + 1; if (!$("cbYear").value) $("cbYear").value = pn.getFullYear(); }
   if (panelId === "panel-reports") { loadDataTypes(); loadPosList(); const crs = $("careRepSection"); if (crs) crs.classList.toggle("hidden", !(me && (me.role === "admin" || me.role === "subadmin" || isLeaderLikeMe()))); }
   if (panelId === "panel-care") loadCareBatches();
   if (panelId === "panel-channelmap") loadChannelMap();
@@ -5200,21 +5386,21 @@ function applyOvPosFilter() {
   const fp = $("ovPosPssl").value;
   const rows = (d.by_pos || []).filter((r) => {
     if (du && String(r.don_vi_id || "") !== du) return false;
-    if (q && !ovNormSearch((r.ho_ten || "") + " " + (r.ma_kenh || "") + " " + (r.eload || "")).includes(q)) return false;
+    if (q && !ovNormSearch((r.ten_diem_ban || "") + " " + (r.ho_ten || "") + " " + (r.ma_kenh || "") + " " + (r.eload || "") + " " + (r.quan_ly || "")).includes(q)) return false;
     if (fp === "1" && !r.pssl) return false;
     if (fp === "0" && r.pssl) return false;
     return true;
   });
-  const cols = 5 + (showRev ? 2 : 0);
+  const cols = 6 + (showRev ? 2 : 0);
   const deltaHead2 = d.ky === "nam" ? "Tăng/giảm năm trước" : "Tăng/giảm T-1";
-  $("ovPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th><th>Thuê bao</th><th>" + deltaHead2 + "</th>" +
+  $("ovPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th><th>NV quản lý</th><th>Thuê bao</th><th>" + deltaHead2 + "</th>" +
     (showRev ? "<th>Doanh thu</th><th>" + deltaHead2 + "</th>" : "") + "<th style='text-align:center'>PSSL</th></tr>";
   $("ovPosBody").innerHTML = rows.length ? rows.map((r) =>
-    "<tr><td>" + esc(r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.don_vi_ten || "—") + "</td>" +
+    "<tr><td>" + esc(r.ten_diem_ban || r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.don_vi_ten || "—") + "</td><td>" + esc(r.quan_ly || "—") + "</td>" +
     "<td>" + fmtInt(r.subs) + "</td>" + ovCellDelta(r.subs_c1_pct, deltaTipSubs(d, r.subs_c1)) +
     (showRev ? "<td>" + fmt(r.revenue) + "</td>" + ovCellDelta(r.rev_c1_pct, deltaTipRev(d, r.rev_c1)) : "") +
     '<td style="text-align:center">' + (r.pssl ? '<span style="color:#15803d;font-weight:700">✓</span>' : "—") + "</td></tr>"
-  ).join("") + "<tr style='background:var(--blue-light)'><td colspan='3'><b>Tổng cộng (" + rows.length + " điểm)</b></td>" +
+  ).join("") + "<tr style='background:var(--blue-light)'><td colspan='4'><b>Tổng cộng (" + rows.length + " điểm)</b></td>" +
     "<td><b>" + fmtInt(rows.reduce((a, r) => a + r.subs, 0)) + "</b></td><td></td>" +
     (showRev ? "<td><b>" + fmt(rows.reduce((a, r) => a + r.revenue, 0)) + "</b></td><td></td>" : "") +
     '<td style="text-align:center"><b>' + rows.filter((r) => r.pssl).length + "</b></td></tr>"
@@ -5972,7 +6158,8 @@ function renderTables() {
   $("tablesBody").innerHTML = rows.map((x) => {
     const isH = x.table.startsWith("HHBG");
     const tt = dataTypes.find((dt) => dt.code === x.code);
-    const typeName = tt ? tt.name : (isH ? "Hoa hồng bán gói" : "Tiền BCKH");
+    const FIXED_TN = { KENH_BAN: "Danh sách kênh bán", CBCNV: "Danh sách CBCNV" };
+    const typeName = tt ? tt.name : (FIXED_TN[x.code] || (isH ? "Hoa hồng bán gói" : "Tiền BCKH"));
     const mm = x.table.match(/_(\d{2})(\d{2,4})$/);
     const lockCell = me && me.role === "admin"
       ? "<button class='btn sm " + (x.locked ? "gray" : "blue") + "' data-lock-table='" + esc(x.table) + "' data-locked='" + (x.locked ? 1 : 0) + "'>" + (x.locked ? "Mở khóa" : "Khóa") + "</button>"
@@ -5995,9 +6182,11 @@ async function loadTables() {
     tablesCache = d.tables || [];
     const tf = $("tblTypeFilter"), cur = tf.value;
     const codes = [...new Set(tablesCache.map((x) => x.code))].sort();
+    const FIXED_NAMES = { KENH_BAN: "Danh sách kênh bán", CBCNV: "Danh sách CBCNV" };
     tf.innerHTML = '<option value="">— Tất cả loại —</option>' + codes.map((c) => {
       const tt = dataTypes.find((dt) => dt.code === c);
-      return '<option value="' + esc(c) + '">' + esc(tt ? tt.name : c) + " (" + esc(c) + ")</option>";
+      const nm = tt ? tt.name : (FIXED_NAMES[c] || c);
+      return '<option value="' + esc(c) + '">' + esc(nm) + " (" + esc(c) + ")</option>";
     }).join("");
     tf.value = codes.includes(cur) ? cur : "";
     renderTables();
@@ -6096,6 +6285,113 @@ $("planImpBtn").addEventListener("click", async () => {
     loadPlan();
   } catch (e) { setMsg($("planImpMsg"), e.message, false); }
 });
+/* ---- Import danh sach kenh ban / CBCNV theo thang ---- */
+// Truong chuan + tu khoa nhan dien cot Excel (chuan hoa: thuong, khong dau, chi giu a-z0-9)
+const KB_FIELDS = [
+  { key: "ma_kenh", label: "Mã kênh", kws: ["makenh", "mkenh", "makenhban", "madiemban"] },
+  { key: "ten_diem_ban", label: "Tên điểm bán", kws: ["tendiemban", "tenkenh", "tencuahang", "diemban", "tenquay", "tendiem"] },
+  { key: "so_eload", label: "Số Eload", kws: ["soeload", "eload"] },
+  { key: "don_vi", label: "Đơn vị", kws: ["donvi", "tendonvi", "donviquanly"] },
+  { key: "loai_kenh", label: "Loại kênh", kws: ["loaikenh", "loaidiem", "loaidiemban"], exact: ["loai"] },
+  { key: "ma_nv_quan_ly", label: "Mã NV quản lý", kws: ["manhanvienquanly", "nhanvienquanly", "manvquanly", "mahrmquanly", "nguoiquanly", "maql"], exact: ["ql"] },
+];
+const CB_FIELDS = [
+  { key: "ma_hrm", label: "Mã HRM", kws: ["mahrm", "manhanvien", "manv"] },
+  { key: "ho_ten", label: "Họ tên", kws: ["hoten", "hovaten", "tennhanvien", "tennv"], exact: ["ten"] },
+  { key: "sdt", label: "SĐT", kws: ["sdt", "sodienthoai", "dienthoai"] },
+  { key: "don_vi", label: "Đơn vị", kws: ["donvi", "tendonvi", "donvicongtac"] },
+  { key: "chuc_danh", label: "Chức danh", kws: ["chucdanh", "chucvu"] },
+];
+const normHdr = (s) => ovNormSearch(s).replace(/[^a-z0-9]/g, "");
+function autoMapColumns(headers, fields) {
+  const used = new Set(), map = {}, scored = [];
+  headers.forEach((h) => {
+    const nh = normHdr(h);
+    if (!nh) return;
+    let best = null;
+    fields.forEach((f) => {
+      const kws = (f.kws || []).concat((f.exact || []).map((x) => "EX:" + x));
+      for (const kw0 of kws) {
+        const exactOnly = kw0.startsWith("EX:");
+        const kw = exactOnly ? kw0.slice(3) : kw0;
+        let score = 0;
+        if (nh === kw) score = 3;
+        else if (!exactOnly && (nh.startsWith(kw) || nh.endsWith(kw))) score = 2;
+        else if (!exactOnly && nh.includes(kw)) score = kw.length < 5 ? 0 : 1;
+        if (score > 0 && (!best || score > best.score)) best = { f, score };
+      }
+    });
+    if (best) scored.push({ h, f: best.f, score: best.score });
+  });
+  scored.sort((a, b) => b.score - a.score);
+  for (const s of scored) {
+    if (!map[s.f.key] && !used.has(s.h)) { map[s.f.key] = s.h; used.add(s.h); }
+  }
+  return { map, dropped: headers.filter((h) => !used.has(h)) };
+}
+function renderMapPreview(el, fields, headers, map, dropped) {
+  if (!headers.length) { el.innerHTML = ""; return; }
+  const kept = fields.filter((f) => map[f.key]).map((f) =>
+    "<tr><td>" + esc(map[f.key]) + "</td><td style='text-align:center'>→</td><td><b>" + esc(f.label) + "</b></td></tr>").join("");
+  const miss = fields.filter((f) => !map[f.key]).map((f) =>
+    "<tr><td colspan='3' style='color:#b45309'>Không tìm thấy cột cho: <b>" + esc(f.label) + "</b></td></tr>").join("");
+  el.innerHTML = "<div class='note' style='margin-top:8px'><b>Đối chiếu cột</b> (" + headers.length + " cột trong file):" +
+    "<div class='tbl-wrap' style='max-height:180px;overflow-y:auto;margin-top:6px'><table class='data'><thead><tr><th>Cột trong file</th><th></th><th>Trường hệ thống</th></tr></thead><tbody>" +
+    kept + miss + "</tbody></table></div>" +
+    (dropped.length ? "<div style='margin-top:6px'>Sẽ <b>loại bỏ</b> " + dropped.length + " cột không liên quan: " + esc(dropped.join(", ")) + "</div>"
+      : "<div style='margin-top:6px;color:#15803d'>Không có cột thừa nào.</div>") + "</div>";
+}
+function setupListImport(cfg) {
+  const fileEl = $(cfg.fileId);
+  let lastMap = null, lastHeaders = [], lastRows = [];
+  fileEl.addEventListener("change", async () => {
+    lastMap = null; lastRows = []; lastHeaders = [];
+    $(cfg.previewId).innerHTML = ""; setMsg($(cfg.msgId), "");
+    const file = fileEl.files[0];
+    if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      if (!raw.length) { setMsg($(cfg.msgId), "File không có dòng dữ liệu nào.", false); return; }
+      lastHeaders = Object.keys(raw[0]);
+      lastRows = raw;
+      const r = autoMapColumns(lastHeaders, cfg.fields);
+      lastMap = r.map;
+      renderMapPreview($(cfg.previewId), cfg.fields, lastHeaders, r.map, r.dropped);
+    } catch (e) { setMsg($(cfg.msgId), "Không đọc được file: " + e.message, false); }
+  });
+  $(cfg.btnId).addEventListener("click", async () => {
+    const thang = Number($(cfg.monthId).value), nam = Number($(cfg.yearId).value);
+    const mode = $(cfg.modeId).value;
+    if (!thang || thang < 1 || thang > 12 || !nam || nam < 2000 || nam > 2100) { setMsg($(cfg.msgId), "Hãy nhập tháng/năm import hợp lệ.", false); return; }
+    const file = fileEl.files[0];
+    if (!file) { setMsg($(cfg.msgId), "Hãy chọn file Excel trước khi import.", false); return; }
+    if (!lastMap) { setMsg($(cfg.msgId), "File chưa đọc xong — hãy đợi bảng đối chiếu hiện ra rồi bấm lại.", false); return; }
+    const ids = cfg.idKeys.filter((k) => lastMap[k]);
+    if (!ids.length) { setMsg($(cfg.msgId), "Không nhận diện được cột định danh (" + cfg.idLabels + "). Hãy kiểm tra lại tên cột trong file.", false); return; }
+    const rows = lastRows.map((r) => {
+      const o = {};
+      for (const f of cfg.fields) o[f.key] = lastMap[f.key] ? String(r[lastMap[f.key]] ?? "").trim() : "";
+      return o;
+    }).filter((o) => Object.values(o).some((v) => v !== ""));
+    if (!rows.length) { setMsg($(cfg.msgId), "Không có dòng dữ liệu hợp lệ.", false); return; }
+    const mm = String(thang).padStart(2, "0");
+    if (mode === "replace" && !confirm("Chế độ THAY THẾ sẽ xóa toàn bộ " + cfg.label + " tháng " + mm + "/" + nam + " rồi import lại từ file này.\nAnh có chắc chắn muốn tiếp tục?")) return;
+    try {
+      $(cfg.btnId).disabled = true;
+      setMsg($(cfg.msgId), "Đang import " + rows.length + " dòng " + cfg.label + " tháng " + mm + "/" + nam + "…");
+      const d = await api(cfg.api, { method: "POST", body: JSON.stringify({ thang, nam, mode, rows }) });
+      setMsg($(cfg.msgId), "Import xong: " + d.inserted + " dòng vào bảng " + d.table + ".", true);
+      fileEl.value = ""; $(cfg.previewId).innerHTML = ""; lastMap = null; lastRows = [];
+      loadTables();
+    } catch (e) { setMsg($(cfg.msgId), e.message, false); }
+    finally { $(cfg.btnId).disabled = false; }
+  });
+}
+setupListImport({ fileId: "kbFile", monthId: "kbMonth", yearId: "kbYear", modeId: "kbMode", btnId: "kbImpBtn", previewId: "kbMapPreview", msgId: "kbMsg", api: "/api/kenh-ban/import", fields: KB_FIELDS, label: "danh sách kênh bán", idKeys: ["ma_kenh", "so_eload"], idLabels: "Mã kênh / Số Eload" });
+setupListImport({ fileId: "cbFile", monthId: "cbMonth", yearId: "cbYear", modeId: "cbMode", btnId: "cbImpBtn", previewId: "cbMapPreview", msgId: "cbMsg", api: "/api/cbcnv/import", fields: CB_FIELDS, label: "danh sách CBCNV", idKeys: ["ma_hrm", "sdt"], idLabels: "Mã HRM / SĐT" });
 async function delTable(name) {
   if (!confirm("Xóa hẳn bảng dữ liệu " + name + "?\nToàn bộ dữ liệu trong bảng sẽ bị xóa khỏi CSDL và không khôi phục được.")) return;
   try {

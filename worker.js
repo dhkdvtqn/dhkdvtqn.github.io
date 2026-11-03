@@ -417,7 +417,38 @@ function typeColumnsSQL(t) {
 }
 // Dung "nguon bao cao" tu 1 loai du lieu: cot tien, cot thoi gian va dieu kien
 // phan quyen (user thuong chi thay dong co so_eload / so_vi cua chinh minh).
-function buildSource(t, meUser, overrideUnitId) {
+// ---- Danh sach kenh ban / CBCNV theo thang (import hang thang) ----
+// Moi thang 1 bang: kenh_ban_MMYYYY, cbcnv_MMYYYY. Khi tong hop bao cao,
+// he thong UU TIEN map don vi + ten kenh tu bang cua thang do; bang
+// nguoi_dung chi dung de map phu khi bang thang khong map duoc.
+const KENH_BAN_PREFIX = "kenh_ban";
+const CBCNV_PREFIX = "cbcnv";
+const KENH_BAN_COLS = [["ma_kenh", "TEXT"], ["ten_diem_ban", "TEXT"], ["so_eload", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["loai_kenh", "TEXT"], ["ma_nv_quan_ly", "TEXT"]];
+const CBCNV_COLS = [["ma_hrm", "TEXT"], ["ho_ten", "TEXT"], ["sdt", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["chuc_danh", "TEXT"]];
+// monthKey "YYYY-MM" -> ten bang "prefix_MMYYYY"
+function monthTableName(prefix, mk) {
+  const m = String(mk || "").match(/^(\d{4})-(\d{2})$/);
+  if (!m) return null;
+  return prefix + "_" + m[2] + m[1];
+}
+async function monthTableExists(env, prefix, mk) {
+  const name = monthTableName(prefix, mk);
+  if (!name) return null;
+  const r = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").bind(name).first();
+  return r ? name : null;
+}
+// Bang kenh_ban/cbcnv cua thang chua bang du lieu (table: HHBG_102026...).
+// Tra ve { kbTable, cbTable } (ten bang hoac null neu thang do chua import).
+async function mapTablesFor(env, table) {
+  const mk = tableMonthKey(table);
+  if (!mk) return {};
+  return {
+    kbTable: await monthTableExists(env, KENH_BAN_PREFIX, mk),
+    cbTable: await monthTableExists(env, CBCNV_PREFIX, mk),
+  };
+}
+
+function buildSource(t, meUser, overrideUnitId, mapTables) {
   const time = t.time_fallback_col
     ? "COALESCE(NULLIF(" + t.time_col + ", ''), " + t.time_fallback_col + ")"
     : t.time_col;
@@ -435,21 +466,35 @@ function buildSource(t, meUser, overrideUnitId) {
   // Loc theo don vi (danh cho Lanh dao don vi): cac giao dich cua user
   // thuoc don vi cua lanh dao VA MOI DON VI TRUC THUOC trong cay don vi
   // (don_vi.parent_id) — vi du lanh dao cap tinh thay toan tinh, lanh dao
-  // cap khu vuc chi thay khu vuc do + cac don vi con cua no. Map qua
-  // so_eload / so_vi trong bang nguoi_dung.
+  // cap khu vuc chi thay khu vuc do + cac don vi con cua no.
+  // UU TIEN map qua bang thang (kenh_ban_MMYYYY / cbcnv_MMYYYY) cua thang
+  // du lieu; nguoi_dung chi la fallback khi bang thang khong map duoc
+  // (dinh danh khong co trong bang thang, hoac co nhung chua gan don vi).
   // overrideUnitId: khi loc bao cao theo 1 don vi cu the (tham so don_vi),
   // cay lay goc tai don vi do thay vi don vi cua nguoi dung.
+  const mt = mapTables || {};
   const unitRoot = overrideUnitId != null ? overrideUnitId : meUser.don_vi_id;
   const unitParts = [], unitBinds = [];
-  if (unitRoot) {
-    const subtree = "WITH RECURSIVE subtree(id) AS (SELECT ? UNION ALL SELECT d.id FROM don_vi d JOIN subtree s ON d.parent_id = s.id)";
-    if (t.eload_col) { unitParts.push(t.eload_col + " IN (" + subtree + " SELECT so_eload FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(unitRoot); }
-    if (t.vi_col) { unitParts.push(t.vi_col + " IN (" + subtree + " SELECT so_vi FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(unitRoot); }
-    if (t.key_col) {
-      unitParts.push(t.key_col + " IN (" + subtree + " SELECT ma_hrm FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(unitRoot);
-      unitParts.push(t.key_col + " IN (" + subtree + " SELECT sdt_nhan_vien FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(unitRoot);
+  // Doan SQL "dataCol IN (danh sach dinh danh thuoc cay don vi)".
+  // monthCols: cot dinh danh trong bang thang; userCols: cot tuong ung trong
+  // nguoi_dung. Khong co bang thang -> giu nguyen logic cu.
+  const subtree = "WITH RECURSIVE subtree(id) AS (SELECT ? UNION ALL SELECT d.id FROM don_vi d JOIN subtree s ON d.parent_id = s.id)";
+  const mapUnit = (dataCol, monthCols, userCols, monthTable) => {
+    if (!monthTable) {
+      return userCols.map((uc) => dataCol + " IN (" + subtree + " SELECT " + uc + " FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))");
     }
-    if (t.kenh_col) { unitParts.push(t.kenh_col + " IN (" + subtree + " SELECT ma_kenh FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(unitRoot); }
+    const prim = monthCols.map((mc) => 'SELECT "' + mc + '" AS idf, don_vi_id FROM "' + monthTable + '" WHERE don_vi_id IS NOT NULL').join(" UNION ");
+    const fb = userCols.map((uc) => {
+      const notMapped = monthCols.map((mc) => 'NOT EXISTS (SELECT 1 FROM "' + monthTable + '" m WHERE m."' + mc + '" = nguoi_dung."' + uc + '" AND m.don_vi_id IS NOT NULL)').join(" AND ");
+      return "SELECT " + uc + " AS idf, don_vi_id FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND " + notMapped;
+    }).join(" UNION ");
+    return [dataCol + " IN (" + subtree + " SELECT idf FROM (" + prim + " UNION " + fb + ") WHERE don_vi_id IN (SELECT id FROM subtree))"];
+  };
+  if (unitRoot) {
+    if (t.eload_col) for (const p of mapUnit(t.eload_col, ["so_eload"], ["so_eload"], mt.kbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
+    if (t.vi_col) { unitParts.push(t.vi_col + " IN (" + subtree + " SELECT so_vi FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(unitRoot); }
+    if (t.key_col) for (const p of mapUnit(t.key_col, ["ma_hrm", "sdt"], ["ma_hrm", "sdt_nhan_vien"], mt.cbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
+    if (t.kenh_col) for (const p of mapUnit(t.kenh_col, ["ma_kenh"], ["ma_kenh"], mt.kbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
   }
   // Loc "Chua xac dinh" (don_vi ao, chi admin/subadmin): cac dong KHONG map
   // duoc voi bat ky user nao co don vi (user chua gan don vi hoac dong khong
@@ -461,6 +506,12 @@ function buildSource(t, meUser, overrideUnitId) {
   if (t.vi_col) unmappedParts.push("(" + t.vi_col + " IS NOT NULL AND " + t.vi_col + " <> '' AND " + t.vi_col + " IN (SELECT so_vi FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND so_vi IS NOT NULL AND so_vi <> ''))");
   if (t.key_col) unmappedParts.push("((" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT ma_hrm FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND ma_hrm IS NOT NULL AND ma_hrm <> '')) OR (" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT sdt_nhan_vien FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND sdt_nhan_vien IS NOT NULL AND sdt_nhan_vien <> '')))");
   if (t.kenh_col) unmappedParts.push("(" + t.kenh_col + " IS NOT NULL AND " + t.kenh_col + " <> '' AND " + t.kenh_col + " IN (SELECT ma_kenh FROM nguoi_dung WHERE don_vi_id IS NOT NULL AND ma_kenh IS NOT NULL AND ma_kenh <> ''))");
+  // Bang thang cung duoc tinh la "da map" (uu tien truoc nguoi_dung)
+  if (mt.kbTable) {
+    if (t.eload_col) unmappedParts.push("(" + t.eload_col + " IS NOT NULL AND " + t.eload_col + " <> '' AND " + t.eload_col + " IN (SELECT so_eload FROM \"" + mt.kbTable + "\" WHERE don_vi_id IS NOT NULL AND so_eload IS NOT NULL AND so_eload <> ''))");
+    if (t.kenh_col) unmappedParts.push("(" + t.kenh_col + " IS NOT NULL AND " + t.kenh_col + " <> '' AND " + t.kenh_col + " IN (SELECT ma_kenh FROM \"" + mt.kbTable + "\" WHERE don_vi_id IS NOT NULL AND ma_kenh IS NOT NULL AND ma_kenh <> ''))");
+  }
+  if (mt.cbTable && t.key_col) unmappedParts.push("((" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT ma_hrm FROM \"" + mt.cbTable + "\" WHERE don_vi_id IS NOT NULL AND ma_hrm IS NOT NULL AND ma_hrm <> '')) OR (" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT sdt FROM \"" + mt.cbTable + "\" WHERE don_vi_id IS NOT NULL AND sdt IS NOT NULL AND sdt <> '')))");
   const unmapped = unmappedParts.length ? "NOT (" + unmappedParts.join(" OR ") + ")" : "1=1";
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
@@ -548,9 +599,10 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
   const groupExpr = group === "month" ? "substr(tg, 1, 7)" : "substr(tg, 1, 10)";
   const stFilter = parseStatusFilter(statusFilter);
   const types = await getDataTypes(env);
-  const sources = types
-    .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col)
-    .map((t) => buildSource(t, posUser || me, scopeUnit));
+  // Build source THEO TUNG BANG THANG: thang nao lay bang kenh_ban/cbcnv cua
+  // thang do de map don vi (uu tien), nguoi_dung chi fallback.
+  const srcTypes = types
+    .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col);
   // Truy van tung bang thang roi cong don ket qua trong JS.
   // (Cach cu ghep tat ca bang bang UNION ALL thanh 1 cau SQL khong lo
   //  se vuot gioi han "too many terms in compound SELECT" cua D1.)
@@ -560,10 +612,11 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
   // hai dinh dang deu khong doc duoc, thay vi lam hong toan bo bao cao.
   const skippedTables = [];
   const legacyTables = [];
-  for (const s of sources) {
-    const tables = await listMonthlyTables(env, s.prefix);
+  for (const tp of srcTypes) {
+    const tables = await listMonthlyTables(env, tp.prefix);
     for (const t of tables) {
-      if (!tableInRange(t, s.prefix, from, to)) continue;
+      if (!tableInRange(t, tp.prefix, from, to)) continue;
+      const mapTables = await mapTablesFor(env, t);
       const runSummaryTable = async (src) => {
         const buildSQL = (withStatus) => {
           const innerCols = [src.time + " AS tg", src.money + " AS tien"];
@@ -606,11 +659,11 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
         return { rows: r.results || [], withStatus: false };
       };
       let res, usedLegacy = false;
-      try { res = await runSummaryTable(s); }
+      try { res = await runSummaryTable(buildSource(tp, posUser || me, scopeUnit, mapTables)); }
       catch (e) {
-        const legacy = LEGACY_SCHEMAS[s.code];
-        if (!legacy || !s.type) { skippedTables.push(t); continue; }
-        try { res = await runSummaryTable(buildSource({ ...s.type, ...legacy }, posUser || me, scopeUnit)); usedLegacy = true; }
+        const legacy = LEGACY_SCHEMAS[tp.code];
+        if (!legacy) { skippedTables.push(t); continue; }
+        try { res = await runSummaryTable(buildSource({ ...tp, ...legacy }, posUser || me, scopeUnit, mapTables)); usedLegacy = true; }
         catch (e2) { skippedTables.push(t); continue; }
       }
       if (usedLegacy) legacyTables.push(t);
@@ -1353,6 +1406,14 @@ export default {
             out.push({ table: name, code: t.code, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
           }
         }
+        // Bang danh sach kenh ban / CBCNV theo thang
+        for (const [pfx, code] of [[KENH_BAN_PREFIX, "KENH_BAN"], [CBCNV_PREFIX, "CBCNV"]]) {
+          const tables = await listMonthlyTables(env, pfx);
+          for (const name of tables) {
+            const c = await env.DB.prepare('SELECT COUNT(*) AS n FROM "' + name + '"').first();
+            out.push({ table: name, code, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
+          }
+        }
         return json({ ok: true, tables: out });
       }
       // ---- Xoa bang du lieu da import ----
@@ -1362,7 +1423,8 @@ export default {
         if (!isAdmin && (isSubAdmin || !me.can_import)) return err("Tai khoan khong co quyen xoa bang du lieu (SubAdmin khong duoc phep xoa bang)", 403);
         const name = tblMatch[1];
         const types = await getDataTypes(env);
-        const okName = types.some((t) => new RegExp("^" + t.prefix + "_\\d{4,6}$").test(name));
+        const okName = types.some((t) => new RegExp("^" + t.prefix + "_\\d{4,6}$").test(name)) ||
+          /^(kenh_ban|cbcnv)_\d{6}$/.test(name);
         if (!okName) return err("Ten bang khong hop le", 422);
         await env.DB.prepare('DROP TABLE IF EXISTS "' + name + '"').run();
         return json({ ok: true, table: name });
@@ -1441,6 +1503,76 @@ export default {
             const vals = colNames.map((n) => {
               const v = row[n];
               return numericCols.has(n) ? toNumber(v) : toText(v);
+            });
+            vals.push(me.username);
+            return env.DB.prepare(sql).bind(...vals);
+          });
+          await env.DB.batch(batch);
+          inserted += batch.length;
+        }
+        return json({ ok: true, table, inserted, mode });
+      }
+
+      // ---- Import danh sach kenh ban / CBCNV theo thang ----
+      // Moi thang 1 bang: kenh_ban_MMYYYY / cbcnv_MMYYYY. Client tu map cot
+      // Excel ve truong chuan va loai bo cot khong lien quan truoc khi gui;
+      // server chi nhan cac truong chuan, tu giai don_vi -> don_vi_id.
+      if ((path === "/api/kenh-ban/import" || path === "/api/cbcnv/import") && method === "POST") {
+        if (!isAdmin && !me.can_import) return err("Tai khoan khong co quyen import du lieu", 403);
+        if (!hasModule(me, "import")) return err("Tai khoan khong co quyen su dung module Quan ly du lieu dau vao", 403);
+        const isKenh = path === "/api/kenh-ban/import";
+        const prefix = isKenh ? KENH_BAN_PREFIX : CBCNV_PREFIX;
+        const label = isKenh ? "danh sach kenh ban" : "danh sach CBCNV";
+        const b = await readBody(request);
+        const mode = b.mode === "replace" ? "replace" : b.mode === "create" ? "create" : "append";
+        const thang = Number(b.thang);
+        const nam = Number(b.nam);
+        if (!thang || thang < 1 || thang > 12 || !nam) return err("Thang/nam import khong hop le", 422);
+        const table = prefix + "_" + String(thang).padStart(2, "0") + nam;
+        const columns = isKenh ? KENH_BAN_COLS : CBCNV_COLS;
+        const colNames = columns.map(([n]) => n);
+        const rawRows = Array.isArray(b.rows) ? b.rows : [];
+        const rows = rawRows.filter((row) => {
+          if (!row || typeof row !== "object") return false;
+          return colNames.some((n) => {
+            const v = row[n];
+            return v !== null && v !== undefined && String(v).trim() !== "";
+          });
+        });
+        if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
+        if (mode === "replace" && !isAdmin) {
+          const locked = await isTableLocked(env, table);
+          if (locked) return err("Bang " + table + " dang bi khoa thay the. Chi admin moi duoc thay the. Lien he admin de mo khoa neu can.", 403);
+        }
+        if (mode === "create") {
+          const ex = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").bind(table).first();
+          if (ex) return err("Bang " + label + " thang " + thang + "/" + nam + " da ton tai. Hay dung che do 'Cap nhat' de nap them, hoac 'Thay the' de nap lai tu dau.", 409);
+        }
+        if (mode === "replace") {
+          await env.DB.prepare('DROP TABLE IF EXISTS "' + table + '"').run();
+        }
+        await env.DB.prepare(createTableSQL(table, columns)).run();
+        // Giai ten don vi -> don_vi_id (khong dau, khong phan biet hoa/thuong)
+        const normU = (s) => String(s == null ? "" : s).trim().toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d")
+          .replace(/[–—−‐‒]/g, "-").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-");
+        const units = (await env.DB.prepare("SELECT id, ten_don_vi FROM don_vi").all()).results || [];
+        const unitMap = {};
+        for (const u of units) unitMap[normU(u.ten_don_vi)] = u.id;
+        const sql =
+          'INSERT INTO "' + table + '" (' + colNames.map((n) => '"' + n + '"').join(", ") +
+          ", imported_by) VALUES (" + colNames.map(() => "?").join(", ") + ", ?)";
+        let inserted = 0;
+        const CHUNK = 100;
+        for (let i = 0; i < rows.length; i += CHUNK) {
+          const batch = rows.slice(i, i + CHUNK).map((row) => {
+            const vals = colNames.map((n) => {
+              if (n === "don_vi_id") {
+                const id = unitMap[normU(row.don_vi)];
+                return id != null ? id : null;
+              }
+              const v = row[n];
+              return v === undefined || v === null ? null : String(v).trim();
             });
             vals.push(me.username);
             return env.DB.prepare(sql).bind(...vals);
@@ -1883,6 +2015,30 @@ export default {
             kh_subs: kS, tyle_subs: tyle(a.subs, kS),
             kh_rev: Math.round(kR), tyle_rev: tyle(a.revenue, kR) };
         }).sort((x, y) => (y.revenue + y.subs) - (x.revenue + x.subs));
+        // Thong tin kenh ban theo thang (uu tien bang kenh_ban cua thang hien tai
+        // trong ky): ten diem ban + nhan vien quan ly (map qua bang cbcnv
+        // cung thang). Hien thi bo sung, khong doi logic tong hop.
+        let chanInfo = {};
+        try {
+          const kbT = curMonths.length ? await monthTableExists(env, KENH_BAN_PREFIX, curMonths[0]) : null;
+          if (kbT) {
+            const cbT = await monthTableExists(env, CBCNV_PREFIX, curMonths[0]);
+            const mgr = {};
+            if (cbT) {
+              const mrs = (await env.DB.prepare('SELECT ma_hrm, ho_ten FROM "' + cbT + '"').all()).results || [];
+              for (const m of mrs) { const k = String(m.ma_hrm == null ? "" : m.ma_hrm).trim(); if (k && !mgr[k]) mgr[k] = m.ho_ten; }
+            }
+            const krs = (await env.DB.prepare('SELECT ma_kenh, so_eload, ten_diem_ban, ma_nv_quan_ly FROM "' + kbT + '"').all()).results || [];
+            for (const r of krs) {
+              const qlKey = String(r.ma_nv_quan_ly == null ? "" : r.ma_nv_quan_ly).trim();
+              const info = { ten_diem_ban: r.ten_diem_ban || "", quan_ly: mgr[qlKey] || "" };
+              const k1 = String(r.ma_kenh == null ? "" : r.ma_kenh).trim();
+              const k2 = String(r.so_eload == null ? "" : r.so_eload).trim().toUpperCase().replace(/\s+/g, "");
+              if (k1 && !chanInfo[k1]) chanInfo[k1] = info;
+              if (k2 && !chanInfo[k2]) chanInfo[k2] = info;
+            }
+          }
+        } catch (e2) { /* bo qua khi chua co bang thang */ }
         // Liet ke TOAN BO diem ban trong pham vi (ke ca diem chua co PSSL trong ky);
         // bo loc "Diem ban PSSL" tren giao dien se loc hien thi (mac dinh: Co PSSL).
         const by_pos = Object.keys(posByEload).filter((e) => {
@@ -1892,8 +2048,10 @@ export default {
           return true;
         }).map((e) => {
           const info = posByEload[e] || {};
+          const ci = chanInfo[info.ma_kenh || ""] || chanInfo[e] || {};
           const a = cur.pos[e] || { subs: 0, revenue: 0 }, b = prev.pos[e] || { subs: 0, revenue: 0 };
           return { eload: info.so_eload || e, ma_kenh: info.ma_kenh || "", ho_ten: info.ho_ten || e,
+            ten_diem_ban: ci.ten_diem_ban || "", quan_ly: ci.quan_ly || "",
             don_vi_id: info.don_vi_id || null, don_vi_ten: info.don_vi_ten || "",
             subs: a.subs, revenue: Math.round(a.revenue),
             subs_c1: b.subs, subs_c1_pct: pct(a.subs, b.subs),
@@ -2035,13 +2193,13 @@ export default {
         const skippedTables = [];
         const legacyTables = [];
         const types = await getDataTypes(env);
-        const sources = types
-          .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col)
-          .map((t) => buildSource(t, posUser || me, scopeUnit));
-        for (const s of sources) {
-          const tables = await listMonthlyTables(env, s.prefix);
+        const srcTypes = types
+          .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col);
+        for (const tp of srcTypes) {
+          const tables = await listMonthlyTables(env, tp.prefix);
           for (const t of tables) {
-            if (!tableInRange(t, s.prefix, from, to)) continue;
+            if (!tableInRange(t, tp.prefix, from, to)) continue;
+            const mapTables = await mapTablesFor(env, t);
             const runDetailTable = async (src) => {
               const sel = [
                 "'" + src.code + "' AS loai",
@@ -2070,12 +2228,12 @@ export default {
               binds.push(limit);
               return env.DB.prepare(sql).bind(...binds).all();
             };
-            let res, usedLegacy = false, usedSrc = s;
-            try { res = await runDetailTable(s); }
+            let res, usedLegacy = false, usedSrc = buildSource(tp, posUser || me, scopeUnit, mapTables);
+            try { res = await runDetailTable(usedSrc); }
             catch (e) {
-              const legacy = LEGACY_SCHEMAS[s.code];
-              if (!legacy || !s.type) { skippedTables.push(t); continue; }
-              try { usedSrc = buildSource({ ...s.type, ...legacy }, posUser || me, scopeUnit); res = await runDetailTable(usedSrc); usedLegacy = true; }
+              const legacy = LEGACY_SCHEMAS[tp.code];
+              if (!legacy) { skippedTables.push(t); continue; }
+              try { usedSrc = buildSource({ ...tp, ...legacy }, posUser || me, scopeUnit, mapTables); res = await runDetailTable(usedSrc); usedLegacy = true; }
               catch (e2) { skippedTables.push(t); continue; }
             }
             if (usedLegacy) legacyTables.push(t);
