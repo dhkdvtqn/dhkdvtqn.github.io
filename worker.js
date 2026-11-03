@@ -423,8 +423,8 @@ function typeColumnsSQL(t) {
 // nguoi_dung chi dung de map phu khi bang thang khong map duoc.
 const KENH_BAN_PREFIX = "kenh_ban";
 const CBCNV_PREFIX = "cbcnv";
-const KENH_BAN_COLS = [["ma_kenh", "TEXT"], ["ten_diem_ban", "TEXT"], ["so_eload", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["loai_kenh", "TEXT"], ["ma_nv_quan_ly", "TEXT"]];
-const CBCNV_COLS = [["ma_hrm", "TEXT"], ["ho_ten", "TEXT"], ["sdt", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["chuc_danh", "TEXT"]];
+const KENH_BAN_COLS = [["ma_kenh", "TEXT"], ["iddaily", "TEXT"], ["ten_diem_ban", "TEXT"], ["so_eload", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["loai_kenh", "TEXT"], ["ma_nv_quan_ly", "TEXT"], ["ten_nv_bh", "TEXT"], ["lat", "TEXT"], ["lng", "TEXT"]];
+const CBCNV_COLS = [["ma_hrm", "TEXT"], ["ho_ten", "TEXT"], ["sdt", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["chuc_danh", "TEXT"], ["ma_smcs", "TEXT"]];
 // monthKey "YYYY-MM" -> ten bang "prefix_MMYYYY"
 function monthTableName(prefix, mk) {
   const m = String(mk || "").match(/^(\d{4})-(\d{2})$/);
@@ -493,8 +493,8 @@ function buildSource(t, meUser, overrideUnitId, mapTables) {
   if (unitRoot) {
     if (t.eload_col) for (const p of mapUnit(t.eload_col, ["so_eload"], ["so_eload"], mt.kbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
     if (t.vi_col) { unitParts.push(t.vi_col + " IN (" + subtree + " SELECT so_vi FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(unitRoot); }
-    if (t.key_col) for (const p of mapUnit(t.key_col, ["ma_hrm", "sdt"], ["ma_hrm", "sdt_nhan_vien"], mt.cbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
-    if (t.kenh_col) for (const p of mapUnit(t.kenh_col, ["ma_kenh"], ["ma_kenh"], mt.kbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
+    if (t.key_col) for (const p of mapUnit(t.key_col, ["ma_hrm", "sdt", "ma_smcs"], ["ma_hrm", "sdt_nhan_vien"], mt.cbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
+    if (t.kenh_col) for (const p of mapUnit(t.kenh_col, ["ma_kenh", "iddaily"], ["ma_kenh"], mt.kbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
   }
   // Loc "Chua xac dinh" (don_vi ao, chi admin/subadmin): cac dong KHONG map
   // duoc voi bat ky user nao co don vi (user chua gan don vi hoac dong khong
@@ -509,9 +509,9 @@ function buildSource(t, meUser, overrideUnitId, mapTables) {
   // Bang thang cung duoc tinh la "da map" (uu tien truoc nguoi_dung)
   if (mt.kbTable) {
     if (t.eload_col) unmappedParts.push("(" + t.eload_col + " IS NOT NULL AND " + t.eload_col + " <> '' AND " + t.eload_col + " IN (SELECT so_eload FROM \"" + mt.kbTable + "\" WHERE don_vi_id IS NOT NULL AND so_eload IS NOT NULL AND so_eload <> ''))");
-    if (t.kenh_col) unmappedParts.push("(" + t.kenh_col + " IS NOT NULL AND " + t.kenh_col + " <> '' AND " + t.kenh_col + " IN (SELECT ma_kenh FROM \"" + mt.kbTable + "\" WHERE don_vi_id IS NOT NULL AND ma_kenh IS NOT NULL AND ma_kenh <> ''))");
+    if (t.kenh_col) unmappedParts.push("(" + t.kenh_col + " IS NOT NULL AND " + t.kenh_col + " <> '' AND (" + t.kenh_col + " IN (SELECT ma_kenh FROM \"" + mt.kbTable + "\" WHERE don_vi_id IS NOT NULL AND ma_kenh IS NOT NULL AND ma_kenh <> '') OR " + t.kenh_col + " IN (SELECT iddaily FROM \"" + mt.kbTable + "\" WHERE don_vi_id IS NOT NULL AND iddaily IS NOT NULL AND iddaily <> '')))");
   }
-  if (mt.cbTable && t.key_col) unmappedParts.push("((" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT ma_hrm FROM \"" + mt.cbTable + "\" WHERE don_vi_id IS NOT NULL AND ma_hrm IS NOT NULL AND ma_hrm <> '')) OR (" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT sdt FROM \"" + mt.cbTable + "\" WHERE don_vi_id IS NOT NULL AND sdt IS NOT NULL AND sdt <> '')))");
+  if (mt.cbTable && t.key_col) unmappedParts.push("((" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT ma_hrm FROM \"" + mt.cbTable + "\" WHERE don_vi_id IS NOT NULL AND ma_hrm IS NOT NULL AND ma_hrm <> '')) OR (" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT sdt FROM \"" + mt.cbTable + "\" WHERE don_vi_id IS NOT NULL AND sdt IS NOT NULL AND sdt <> '')) OR (" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT ma_smcs FROM \"" + mt.cbTable + "\" WHERE don_vi_id IS NOT NULL AND ma_smcs IS NOT NULL AND ma_smcs <> '')))");
   const unmapped = unmappedParts.length ? "NOT (" + unmappedParts.join(" OR ") + ")" : "1=1";
   return {
     code: t.code, prefix: t.prefix, money: t.money_col, time,
@@ -1552,13 +1552,25 @@ export default {
           await env.DB.prepare('DROP TABLE IF EXISTS "' + table + '"').run();
         }
         await env.DB.prepare(createTableSQL(table, columns)).run();
-        // Giai ten don vi -> don_vi_id (khong dau, khong phan biet hoa/thuong)
+        // Giai ten don vi -> don_vi_id (khong dau, khong phan biet hoa/thuong).
+        // Khop chinh xac truoc; neu khong co thi khop "ten don vi chua cum tu"
+        // (VD: "Van Don" -> "VNPT Van Don - Co To", "Dia ban" ghi "Ha Long"
+        // -> "VNPT Ha Long") vi file kenh/CBCNV ghi quan/huyen/dia ban.
         const normU = (s) => String(s == null ? "" : s).trim().toLowerCase()
           .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d")
           .replace(/[–—−‐‒]/g, "-").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-");
         const units = (await env.DB.prepare("SELECT id, ten_don_vi FROM don_vi").all()).results || [];
         const unitMap = {};
         for (const u of units) unitMap[normU(u.ten_don_vi)] = u.id;
+        const resolveUnitId = (text) => {
+          const n = normU(text);
+          if (!n) return null;
+          if (unitMap[n] != null) return unitMap[n];
+          for (const u of units) {
+            if (normU(u.ten_don_vi).includes(n)) return u.id;
+          }
+          return null;
+        };
         const sql =
           'INSERT INTO "' + table + '" (' + colNames.map((n) => '"' + n + '"').join(", ") +
           ", imported_by) VALUES (" + colNames.map(() => "?").join(", ") + ", ?)";
@@ -1568,8 +1580,7 @@ export default {
           const batch = rows.slice(i, i + CHUNK).map((row) => {
             const vals = colNames.map((n) => {
               if (n === "don_vi_id") {
-                const id = unitMap[normU(row.don_vi)];
-                return id != null ? id : null;
+                return resolveUnitId(row.don_vi);
               }
               const v = row[n];
               return v === undefined || v === null ? null : String(v).trim();
@@ -2028,13 +2039,15 @@ export default {
               const mrs = (await env.DB.prepare('SELECT ma_hrm, ho_ten FROM "' + cbT + '"').all()).results || [];
               for (const m of mrs) { const k = String(m.ma_hrm == null ? "" : m.ma_hrm).trim(); if (k && !mgr[k]) mgr[k] = m.ho_ten; }
             }
-            const krs = (await env.DB.prepare('SELECT ma_kenh, so_eload, ten_diem_ban, ma_nv_quan_ly FROM "' + kbT + '"').all()).results || [];
+            const krs = (await env.DB.prepare('SELECT ma_kenh, iddaily, so_eload, ten_diem_ban, ma_nv_quan_ly FROM "' + kbT + '"').all()).results || [];
             for (const r of krs) {
               const qlKey = String(r.ma_nv_quan_ly == null ? "" : r.ma_nv_quan_ly).trim();
               const info = { ten_diem_ban: r.ten_diem_ban || "", quan_ly: mgr[qlKey] || "" };
               const k1 = String(r.ma_kenh == null ? "" : r.ma_kenh).trim();
+              const k1b = String(r.iddaily == null ? "" : r.iddaily).trim();
               const k2 = String(r.so_eload == null ? "" : r.so_eload).trim().toUpperCase().replace(/\s+/g, "");
               if (k1 && !chanInfo[k1]) chanInfo[k1] = info;
+              if (k1b && !chanInfo[k1b]) chanInfo[k1b] = info;
               if (k2 && !chanInfo[k2]) chanInfo[k2] = info;
             }
           }
