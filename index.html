@@ -5571,7 +5571,7 @@ async function loadSalesReport() {
     srData = d;
     setMsg($("srMsg"), "");
     $("srSubs").textContent = fmtInt(d.kpi.subs);
-    $("srRev").textContent = fmt(d.kpi.revenue);
+    $("srRev").textContent = fmt(d.kpi.rev);
     $("srPssl").textContent = fmtInt(d.pssl.count);
     $("srDuq").textContent = d.duq.ty_le == null ? "—" : d.duq.ty_le.toLocaleString("vi-VN") + "%";
     renderSrUnit(d);
@@ -6362,8 +6362,8 @@ function renderTypeOptions() {
   impS.innerHTML = sales.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + " (" + esc(t.code) + ")</option>").join("");
   if (curImpS && sales.some((t) => t.code === curImpS)) impS.value = curImpS;
   const rep = $("repType"), curRep = rep.value;
-  rep.innerHTML = '<option value="ALL">Tất cả các loại dữ liệu</option>' + dataTypes.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + "</option>").join("");
-  if (curRep && (curRep === "ALL" || dataTypes.some((t) => t.code === curRep))) rep.value = curRep;
+  rep.innerHTML = '<option value="ALL">Tất cả các loại dữ liệu</option>' + comm.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + "</option>").join("");
+  if (curRep && (curRep === "ALL" || comm.some((t) => t.code === curRep))) rep.value = curRep;
 }
 function normHeader(h) { return String(h || "").trim().toLowerCase().replace(/\s+/g, " "); }
 function toIsoDate(v) {
