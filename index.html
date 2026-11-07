@@ -1999,7 +1999,7 @@ function typeColumnsSQL(t) {
 const KENH_BAN_PREFIX = &quot;kenh_ban&quot;;
 const CBCNV_PREFIX = &quot;cbcnv&quot;;
 const KENH_BAN_COLS = [[&quot;ma_kenh&quot;, &quot;TEXT&quot;], [&quot;iddaily&quot;, &quot;TEXT&quot;], [&quot;ten_diem_ban&quot;, &quot;TEXT&quot;], [&quot;so_eload&quot;, &quot;TEXT&quot;], [&quot;don_vi&quot;, &quot;TEXT&quot;], [&quot;don_vi_id&quot;, &quot;INTEGER&quot;], [&quot;loai_kenh&quot;, &quot;TEXT&quot;], [&quot;ma_nv_quan_ly&quot;, &quot;TEXT&quot;], [&quot;ten_nv_bh&quot;, &quot;TEXT&quot;], [&quot;lat&quot;, &quot;TEXT&quot;], [&quot;lng&quot;, &quot;TEXT&quot;]];
-const CBCNV_COLS = [[&quot;ma_hrm&quot;, &quot;TEXT&quot;], [&quot;ho_ten&quot;, &quot;TEXT&quot;], [&quot;sdt&quot;, &quot;TEXT&quot;], [&quot;don_vi&quot;, &quot;TEXT&quot;], [&quot;don_vi_id&quot;, &quot;INTEGER&quot;], [&quot;chuc_danh&quot;, &quot;TEXT&quot;], [&quot;ma_smcs&quot;, &quot;TEXT&quot;]];
+const CBCNV_COLS = [[&quot;ma_hrm&quot;, &quot;TEXT&quot;], [&quot;phong_ban&quot;, &quot;TEXT&quot;], [&quot;bo_phan&quot;, &quot;TEXT&quot;], [&quot;ho_ten&quot;, &quot;TEXT&quot;], [&quot;chuc_danh&quot;, &quot;TEXT&quot;], [&quot;vi_tri_cong_viec&quot;, &quot;TEXT&quot;], [&quot;email&quot;, &quot;TEXT&quot;], [&quot;sdt&quot;, &quot;TEXT&quot;], [&quot;user_ccbs&quot;, &quot;TEXT&quot;], [&quot;user_dhsxkd&quot;, &quot;TEXT&quot;], [&quot;ma_smcs&quot;, &quot;TEXT&quot;], [&quot;user_ccos&quot;, &quot;TEXT&quot;], [&quot;don_vi&quot;, &quot;TEXT&quot;], [&quot;don_vi_id&quot;, &quot;INTEGER&quot;], [&quot;loai_lao_dong&quot;, &quot;TEXT&quot;], [&quot;khoi&quot;, &quot;TEXT&quot;]];
 // monthKey &quot;YYYY-MM&quot; -&gt; ten bang &quot;prefix_MMYYYY&quot;
 function monthTableName(prefix, mk) {
   const m = String(mk || &quot;&quot;).match(/^(\d{4})-(\d{2})$/);
@@ -2274,6 +2274,15 @@ function createTableSQL(table, columns) {
     &#x27;CREATE TABLE IF NOT EXISTS &quot;&#x27; + table + &#x27;&quot; (id INTEGER PRIMARY KEY AUTOINCREMENT, &#x27; +
     cols + &#x27;, imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP)&#x27;
   );
+}
+// Bo sung cot moi cho bang thang cu (VD: cbcnv_102026 chi co 7 cot cu) khi
+// import them (che do Cap nhat) — tranh loi INSERT vao cot khong ton tai.
+async function ensureListColumns(env, table, columns) {
+  const res = await env.DB.prepare(&quot;PRAGMA table_info(&quot; + table + &quot;)&quot;).all();
+  const have = new Set((res.results || []).map((r) =&gt; r.name));
+  for (const [n, t] of columns) {
+    if (!have.has(n)) await env.DB.prepare(&#x27;ALTER TABLE &quot;&#x27; + table + &#x27;&quot; ADD COLUMN &quot;&#x27; + n + &#x27;&quot; &#x27; + t).run();
+  }
 }
 async function listMonthlyTables(env, prefix) {
   const res = await env.DB.prepare(
@@ -3067,6 +3076,7 @@ export default {
           await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + table + &#x27;&quot;&#x27;).run();
         }
         await env.DB.prepare(createTableSQL(table, columns)).run();
+        await ensureListColumns(env, table, columns);
         const numericCols = new Set(columns.filter(([, t]) =&gt; t === &quot;REAL&quot;).map(([n]) =&gt; n));
         const sql =
           &#x27;INSERT INTO &quot;&#x27; + table + &#x27;&quot; (&#x27; + colNames.map((n) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot;&#x27;).join(&quot;, &quot;) +
@@ -3127,6 +3137,7 @@ export default {
           await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + table + &#x27;&quot;&#x27;).run();
         }
         await env.DB.prepare(createTableSQL(table, columns)).run();
+        await ensureListColumns(env, table, columns);
         // Giai ten don vi -&gt; don_vi_id (khong dau, khong phan biet hoa/thuong).
         // Khop chinh xac truoc; neu khong co thi khop &quot;ten don vi chua cum tu&quot;
         // (VD: &quot;Van Don&quot; -&gt; &quot;VNPT Van Don - Co To&quot;, &quot;Dia ban&quot; ghi &quot;Ha Long&quot;
@@ -6554,11 +6565,20 @@ const KB_FIELDS = [
 ];
 const CB_FIELDS = [
   { key: "ma_hrm", label: "Mã NV mới", kws: ["manvmoi", "mahrm", "manv"] },
+  { key: "phong_ban", label: "Phòng ban", kws: ["phongban"] },
+  { key: "bo_phan", label: "Bộ phận", kws: ["bophan"] },
   { key: "ho_ten", label: "Họ và tên", kws: ["hoten", "hovaten", "tennhanvien", "tennv"], exact: ["ten"] },
-  { key: "sdt", label: "Số ĐT", kws: ["sdt", "sodt", "sodienthoai", "dienthoai"] },
-  { key: "don_vi", label: "Địa bàn → Đơn vị", kws: ["diaban", "donvi", "tendonvi"] },
   { key: "chuc_danh", label: "Chức danh công việc", kws: ["chucdanhcongviec", "chucdanh", "chucvu"] },
+  { key: "vi_tri_cong_viec", label: "Vị trí công việc", kws: ["vitricongviec"] },
+  { key: "email", label: "Email", kws: ["email"] },
+  { key: "sdt", label: "Số ĐT", kws: ["sdt", "sodt", "sodienthoai", "dienthoai"] },
+  { key: "user_ccbs", label: "User CCBS", kws: ["userccbs"] },
+  { key: "user_dhsxkd", label: "User ĐHSXKD", kws: ["userdhsxkd"] },
   { key: "ma_smcs", label: "Mã SMCS", kws: ["masmcs"] },
+  { key: "user_ccos", label: "User CCOS", kws: ["userccos"] },
+  { key: "don_vi", label: "Địa bàn → Đơn vị", kws: ["diaban", "donvi", "tendonvi"] },
+  { key: "loai_lao_dong", label: "Loại lao động", kws: ["loailaodong"] },
+  { key: "khoi", label: "Khối", kws: ["khoi"] },
 ];
 const normHdr = (s) => ovNormSearch(s).replace(/[^a-z0-9]/g, "");
 function autoMapColumns(headers, fields) {

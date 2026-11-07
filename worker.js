@@ -424,7 +424,7 @@ function typeColumnsSQL(t) {
 const KENH_BAN_PREFIX = "kenh_ban";
 const CBCNV_PREFIX = "cbcnv";
 const KENH_BAN_COLS = [["ma_kenh", "TEXT"], ["iddaily", "TEXT"], ["ten_diem_ban", "TEXT"], ["so_eload", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["loai_kenh", "TEXT"], ["ma_nv_quan_ly", "TEXT"], ["ten_nv_bh", "TEXT"], ["lat", "TEXT"], ["lng", "TEXT"]];
-const CBCNV_COLS = [["ma_hrm", "TEXT"], ["ho_ten", "TEXT"], ["sdt", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["chuc_danh", "TEXT"], ["ma_smcs", "TEXT"]];
+const CBCNV_COLS = [["ma_hrm", "TEXT"], ["phong_ban", "TEXT"], ["bo_phan", "TEXT"], ["ho_ten", "TEXT"], ["chuc_danh", "TEXT"], ["vi_tri_cong_viec", "TEXT"], ["email", "TEXT"], ["sdt", "TEXT"], ["user_ccbs", "TEXT"], ["user_dhsxkd", "TEXT"], ["ma_smcs", "TEXT"], ["user_ccos", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["loai_lao_dong", "TEXT"], ["khoi", "TEXT"]];
 // monthKey "YYYY-MM" -> ten bang "prefix_MMYYYY"
 function monthTableName(prefix, mk) {
   const m = String(mk || "").match(/^(\d{4})-(\d{2})$/);
@@ -699,6 +699,15 @@ function createTableSQL(table, columns) {
     'CREATE TABLE IF NOT EXISTS "' + table + '" (id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
     cols + ', imported_by TEXT, imported_at TEXT DEFAULT CURRENT_TIMESTAMP)'
   );
+}
+// Bo sung cot moi cho bang thang cu (VD: cbcnv_102026 chi co 7 cot cu) khi
+// import them (che do Cap nhat) — tranh loi INSERT vao cot khong ton tai.
+async function ensureListColumns(env, table, columns) {
+  const res = await env.DB.prepare("PRAGMA table_info(" + table + ")").all();
+  const have = new Set((res.results || []).map((r) => r.name));
+  for (const [n, t] of columns) {
+    if (!have.has(n)) await env.DB.prepare('ALTER TABLE "' + table + '" ADD COLUMN "' + n + '" ' + t).run();
+  }
 }
 async function listMonthlyTables(env, prefix) {
   const res = await env.DB.prepare(
@@ -1492,6 +1501,7 @@ export default {
           await env.DB.prepare('DROP TABLE IF EXISTS "' + table + '"').run();
         }
         await env.DB.prepare(createTableSQL(table, columns)).run();
+        await ensureListColumns(env, table, columns);
         const numericCols = new Set(columns.filter(([, t]) => t === "REAL").map(([n]) => n));
         const sql =
           'INSERT INTO "' + table + '" (' + colNames.map((n) => '"' + n + '"').join(", ") +
@@ -1552,6 +1562,7 @@ export default {
           await env.DB.prepare('DROP TABLE IF EXISTS "' + table + '"').run();
         }
         await env.DB.prepare(createTableSQL(table, columns)).run();
+        await ensureListColumns(env, table, columns);
         // Giai ten don vi -> don_vi_id (khong dau, khong phan biet hoa/thuong).
         // Khop chinh xac truoc; neu khong co thi khop "ten don vi chua cum tu"
         // (VD: "Van Don" -> "VNPT Van Don - Co To", "Dia ban" ghi "Ha Long"
