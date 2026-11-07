@@ -423,7 +423,7 @@ function typeColumnsSQL(t) {
 // nguoi_dung chi dung de map phu khi bang thang khong map duoc.
 const KENH_BAN_PREFIX = "kenh_ban";
 const CBCNV_PREFIX = "cbcnv";
-const KENH_BAN_COLS = [["ma_kenh", "TEXT"], ["iddaily", "TEXT"], ["ten_diem_ban", "TEXT"], ["so_eload", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["loai_kenh", "TEXT"], ["ma_nv_quan_ly", "TEXT"], ["ten_nv_bh", "TEXT"], ["lat", "TEXT"], ["lng", "TEXT"]];
+const KENH_BAN_COLS = [["iddaily", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["ten_diem_ban", "TEXT"], ["id_hrm", "TEXT"], ["ma_kenh", "TEXT"], ["loai_kenh", "TEXT"], ["ngay_khai_bao", "TEXT"], ["quan_huyen", "TEXT"], ["phuong_xa", "TEXT"], ["dia_chi", "TEXT"], ["lat", "TEXT"], ["lng", "TEXT"], ["ten_nv_bh", "TEXT"], ["ma_nv_quan_ly", "TEXT"], ["so_eload", "TEXT"], ["trang_thai_phe_duyet", "TEXT"], ["user_ccbs", "TEXT"], ["phuong_xa_moi", "TEXT"]];
 const CBCNV_COLS = [["ma_hrm", "TEXT"], ["phong_ban", "TEXT"], ["bo_phan", "TEXT"], ["ho_ten", "TEXT"], ["chuc_danh", "TEXT"], ["vi_tri_cong_viec", "TEXT"], ["email", "TEXT"], ["sdt", "TEXT"], ["user_ccbs", "TEXT"], ["user_dhsxkd", "TEXT"], ["ma_smcs", "TEXT"], ["user_ccos", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["loai_lao_dong", "TEXT"], ["khoi", "TEXT"]];
 // monthKey "YYYY-MM" -> ten bang "prefix_MMYYYY"
 function monthTableName(prefix, mk) {
@@ -494,7 +494,7 @@ function buildSource(t, meUser, overrideUnitId, mapTables) {
     if (t.eload_col) for (const p of mapUnit(t.eload_col, ["so_eload"], ["so_eload"], mt.kbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
     if (t.vi_col) { unitParts.push(t.vi_col + " IN (" + subtree + " SELECT so_vi FROM nguoi_dung WHERE don_vi_id IN (SELECT id FROM subtree))"); unitBinds.push(unitRoot); }
     if (t.key_col) for (const p of mapUnit(t.key_col, ["ma_hrm", "sdt", "ma_smcs"], ["ma_hrm", "sdt_nhan_vien"], mt.cbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
-    if (t.kenh_col) for (const p of mapUnit(t.kenh_col, ["ma_kenh", "iddaily"], ["ma_kenh"], mt.kbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
+    if (t.kenh_col) for (const p of mapUnit(t.kenh_col, ["ma_kenh", "iddaily", "id_hrm"], ["ma_kenh"], mt.kbTable)) { unitParts.push(p); unitBinds.push(unitRoot); }
   }
   // Loc "Chua xac dinh" (don_vi ao, chi admin/subadmin): cac dong KHONG map
   // duoc voi bat ky user nao co don vi (user chua gan don vi hoac dong khong
@@ -509,7 +509,7 @@ function buildSource(t, meUser, overrideUnitId, mapTables) {
   // Bang thang cung duoc tinh la "da map" (uu tien truoc nguoi_dung)
   if (mt.kbTable) {
     if (t.eload_col) unmappedParts.push("(" + t.eload_col + " IS NOT NULL AND " + t.eload_col + " <> '' AND " + t.eload_col + " IN (SELECT so_eload FROM \"" + mt.kbTable + "\" WHERE don_vi_id IS NOT NULL AND so_eload IS NOT NULL AND so_eload <> ''))");
-    if (t.kenh_col) unmappedParts.push("(" + t.kenh_col + " IS NOT NULL AND " + t.kenh_col + " <> '' AND (" + t.kenh_col + " IN (SELECT ma_kenh FROM \"" + mt.kbTable + "\" WHERE don_vi_id IS NOT NULL AND ma_kenh IS NOT NULL AND ma_kenh <> '') OR " + t.kenh_col + " IN (SELECT iddaily FROM \"" + mt.kbTable + "\" WHERE don_vi_id IS NOT NULL AND iddaily IS NOT NULL AND iddaily <> '')))");
+    if (t.kenh_col) unmappedParts.push("(" + t.kenh_col + " IS NOT NULL AND " + t.kenh_col + " <> '' AND (" + t.kenh_col + " IN (SELECT ma_kenh FROM \"" + mt.kbTable + "\" WHERE don_vi_id IS NOT NULL AND ma_kenh IS NOT NULL AND ma_kenh <> '') OR " + t.kenh_col + " IN (SELECT iddaily FROM \"" + mt.kbTable + "\" WHERE don_vi_id IS NOT NULL AND iddaily IS NOT NULL AND iddaily <> '') OR " + t.kenh_col + " IN (SELECT id_hrm FROM \" + mt.kbTable + \" WHERE don_vi_id IS NOT NULL AND id_hrm IS NOT NULL AND id_hrm <> '')))");
   }
   if (mt.cbTable && t.key_col) unmappedParts.push("((" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT ma_hrm FROM \"" + mt.cbTable + "\" WHERE don_vi_id IS NOT NULL AND ma_hrm IS NOT NULL AND ma_hrm <> '')) OR (" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT sdt FROM \"" + mt.cbTable + "\" WHERE don_vi_id IS NOT NULL AND sdt IS NOT NULL AND sdt <> '')) OR (" + t.key_col + " IS NOT NULL AND " + t.key_col + " <> '' AND " + t.key_col + " IN (SELECT ma_smcs FROM \"" + mt.cbTable + "\" WHERE don_vi_id IS NOT NULL AND ma_smcs IS NOT NULL AND ma_smcs <> '')))");
   const unmapped = unmappedParts.length ? "NOT (" + unmappedParts.join(" OR ") + ")" : "1=1";
@@ -1591,7 +1591,7 @@ export default {
           const batch = rows.slice(i, i + CHUNK).map((row) => {
             const vals = colNames.map((n) => {
               if (n === "don_vi_id") {
-                return resolveUnitId(row.don_vi);
+                return resolveUnitId(row.don_vi || row.quan_huyen);
               }
               const v = row[n];
               return v === undefined || v === null ? null : String(v).trim();
@@ -2047,18 +2047,30 @@ export default {
             const cbT = await monthTableExists(env, CBCNV_PREFIX, curMonths[0]);
             const mgr = {};
             if (cbT) {
-              const mrs = (await env.DB.prepare('SELECT ma_hrm, ho_ten FROM "' + cbT + '"').all()).results || [];
-              for (const m of mrs) { const k = String(m.ma_hrm == null ? "" : m.ma_hrm).trim(); if (k && !mgr[k]) mgr[k] = m.ho_ten; }
+              const mrs = (await env.DB.prepare('SELECT * FROM "' + cbT + '"').all()).results || [];
+              for (const m of mrs) {
+                const nm = m.ho_ten || "";
+                if (!nm) continue;
+                const kS = String(m.ma_smcs == null ? "" : m.ma_smcs).trim();
+                const kH = String(m.ma_hrm == null ? "" : m.ma_hrm).trim();
+                const kU = String(m.user_ccbs == null ? "" : m.user_ccbs).trim();
+                if (kS && !mgr[kS]) mgr[kS] = nm;
+                if (kH && !mgr[kH]) mgr[kH] = nm;
+                if (kU && !mgr[kU]) mgr[kU] = nm;
+              }
             }
-            const krs = (await env.DB.prepare('SELECT ma_kenh, iddaily, so_eload, ten_diem_ban, ma_nv_quan_ly FROM "' + kbT + '"').all()).results || [];
+            const krs = (await env.DB.prepare('SELECT * FROM "' + kbT + '"').all()).results || [];
             for (const r of krs) {
               const qlKey = String(r.ma_nv_quan_ly == null ? "" : r.ma_nv_quan_ly).trim();
-              const info = { ten_diem_ban: r.ten_diem_ban || "", quan_ly: mgr[qlKey] || "" };
+              const ucKey = String(r.user_ccbs == null ? "" : r.user_ccbs).trim();
+              const info = { ten_diem_ban: r.ten_diem_ban || "", quan_ly: mgr[qlKey] || mgr[ucKey] || "" };
               const k1 = String(r.ma_kenh == null ? "" : r.ma_kenh).trim();
               const k1b = String(r.iddaily == null ? "" : r.iddaily).trim();
+              const k1c = String(r.id_hrm == null ? "" : r.id_hrm).trim();
               const k2 = String(r.so_eload == null ? "" : r.so_eload).trim().toUpperCase().replace(/\s+/g, "");
               if (k1 && !chanInfo[k1]) chanInfo[k1] = info;
               if (k1b && !chanInfo[k1b]) chanInfo[k1b] = info;
+              if (k1c && !chanInfo[k1c]) chanInfo[k1c] = info;
               if (k2 && !chanInfo[k2]) chanInfo[k2] = info;
             }
           }
