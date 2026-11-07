@@ -1004,7 +1004,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <div class="who"><b id="whoName">—</b><span id="whoRole">—</span></div>
         <button class="nav-btn" data-panel="panel-dashboard">📈 Dashboard chi trả hoa hồng</button>
         <button class="nav-btn" data-panel="panel-salesdash">🛒 Dashboard bán hàng</button>
-        <div class="nav-group" data-group="admin">
+        <div class="nav-group closed" data-group="admin">
           <button class="nav-group-head" type="button">🛠️ Công cụ dành cho Admin <span class="nav-caret">▾</span></button>
           <div class="nav-group-body">
             <button class="nav-btn nav-sub" data-panel="panel-units">🏢 Quản lý đơn vị</button>
@@ -1015,7 +1015,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
           </div>
         </div>
         <button class="nav-btn" data-panel="panel-packages">📦 Danh mục gói cước</button>
-        <div class="nav-group" data-group="reports">
+        <div class="nav-group closed" data-group="reports">
           <button class="nav-group-head" type="button">📊 Báo cáo thống kê <span class="nav-caret">▾</span></button>
           <div class="nav-group-body">
             <button class="nav-btn nav-sub" data-panel="panel-reports">📊 Báo cáo chi trả hoa hồng</button>
@@ -1023,7 +1023,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <button class="nav-btn nav-sub" data-panel="panel-carereport">🧭 Báo cáo chăm sóc điểm bán</button>
           </div>
         </div>
-        <div class="nav-group" data-group="import">
+        <div class="nav-group closed" data-group="import">
           <button class="nav-group-head" type="button">📥 Quản lý dữ liệu đầu vào <span class="nav-caret">▾</span></button>
           <div class="nav-group-body">
             <button class="nav-btn nav-sub" data-panel="panel-import">📥 Import dữ liệu chi trả hoa hồng</button>
@@ -4894,7 +4894,15 @@ function openPanel(panelId, btn) {
   // Active: danh dau dung nut duoc bam (nhieu muc menu co the chung 1 panel)
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.remove("active"));
   const activeBtn = btn || document.querySelector('.nav-btn[data-panel="' + panelId + '"]');
-  if (activeBtn) activeBtn.classList.add("active");
+  if (activeBtn) {
+    activeBtn.classList.add("active");
+    // Menu mac dinh thu gon: mo dung nhom chua muc dang xem, dong cac nhom khac
+    const grp = activeBtn.closest(".nav-group");
+    if (grp) {
+      document.querySelectorAll(".nav-group").forEach((o) => o.classList.add("closed"));
+      grp.classList.remove("closed");
+    }
+  }
   fillBanner();
   if (panelId === "panel-dashboard") { loadDataTypes(); loadDashboard(); }
   if (panelId === "panel-salesdash") { initSalesDash(); }
@@ -4918,7 +4926,13 @@ function openPanel(panelId, btn) {
 }
 document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel, b)));
 // Thu gon / mo nhom menu
-document.querySelectorAll(".nav-group-head").forEach((h) => h.addEventListener("click", () => h.closest(".nav-group").classList.toggle("closed")));
+document.querySelectorAll(".nav-group-head").forEach((h) => h.addEventListener("click", () => {
+  const g = h.closest(".nav-group");
+  const willOpen = g.classList.contains("closed");
+  // Accordion: mo nhom nay thi dong het cac nhom khac; bam lai nhom dang mo thi thu gon
+  document.querySelectorAll(".nav-group").forEach((o) => o.classList.add("closed"));
+  if (willOpen) g.classList.remove("closed");
+}));
 
 function showLogin() {
   $("loginModal").classList.remove("hidden");
