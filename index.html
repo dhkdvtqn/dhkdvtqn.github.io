@@ -1019,19 +1019,19 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <button class="nav-group-head" type="button">📊 Báo cáo thống kê <span class="nav-caret">▾</span></button>
           <div class="nav-group-body">
             <button class="nav-btn nav-sub" data-panel="panel-reports">📊 Báo cáo chi trả hoa hồng</button>
-            <button class="nav-btn nav-sub" data-panel="panel-salesdash" data-section="ovUnitSec">🛒 Báo cáo kết quả bán hàng</button>
-            <button class="nav-btn nav-sub" data-panel="panel-reports" data-section="careRepSection">🧭 Báo cáo chăm sóc điểm bán</button>
+            <button class="nav-btn nav-sub" data-panel="panel-salesreport">🛒 Báo cáo kết quả bán hàng</button>
+            <button class="nav-btn nav-sub" data-panel="panel-carereport">🧭 Báo cáo chăm sóc điểm bán</button>
           </div>
         </div>
         <div class="nav-group" data-group="import">
           <button class="nav-group-head" type="button">📥 Quản lý dữ liệu đầu vào <span class="nav-caret">▾</span></button>
           <div class="nav-group-body">
-            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="importForm" data-imp-kind="commission">📥 Import dữ liệu chi trả hoa hồng</button>
-            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="importForm" data-imp-kind="sales">📈 Import dữ liệu kết quả bán hàng</button>
-            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="kbManager">🏪 Import danh sách kênh bán hàng</button>
-            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="cbManager">👤 Import danh sách CBCNV</button>
-            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="planManager">🎯 Giao/import kế hoạch kinh doanh</button>
-            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="dtManager">🗂️ Quản lý loại dữ liệu</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import">📥 Import dữ liệu chi trả hoa hồng</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import-sales">📈 Import dữ liệu kết quả bán hàng</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import-kb">🏪 Import danh sách kênh bán hàng</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import-cb">👤 Import danh sách CBCNV</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import-plan">🎯 Giao/import kế hoạch kinh doanh</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import-types">🗂️ Quản lý loại dữ liệu</button>
           </div>
         </div>
         <button class="nav-btn" data-panel="panel-channelmap">🗺️ Bản đồ kênh bán</button>
@@ -1269,8 +1269,8 @@ html.is-mobile #appRoot .btn{min-height:44px}
 
         <!-- QUAN LY DU LIEU DAU VAO -->
         <section class="panel hidden" id="panel-import">
-          <h2>Quản lý dữ liệu đầu vào</h2>
-          <p class="desc">Import dữ liệu chi trả từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng: <code class="inl">HHBG_MMYYYY</code> cho hoa hồng bán gói và <code class="inl">BCKH_MMYY</code> cho tiền BCKH. Khi import có 3 chế độ: <b>Tạo mới</b> (chỉ import khi tháng này chưa có dữ liệu — chặn import trùng), <b>Cập nhật</b> (thêm dữ liệu mới vào bảng của tháng) hoặc <b>Thay thế</b> (xóa toàn bộ dữ liệu cũ của tháng rồi import lại). Chế độ Thay thế tuân theo khóa bảng: bảng của tháng hiện tại mặc định mở, bảng của các tháng trước mặc định khóa (chỉ admin mới thay thế được); admin khóa/mở từng bảng trong danh sách bảng đã import bên dưới. Các cột trong file không khớp với mẫu dữ liệu sẽ tự động bị loại bỏ, không import vào CSDL.</p>
+          <h2>Import dữ liệu chi trả hoa hồng</h2>
+          <p class="desc">Import dữ liệu chi trả hoa hồng từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng: <code class="inl">HHBG_MMYYYY</code> cho hoa hồng bán gói và <code class="inl">BCKH_MMYY</code> cho tiền BCKH. Khi import có 3 chế độ: <b>Tạo mới</b> (chỉ import khi tháng này chưa có dữ liệu — chặn import trùng), <b>Cập nhật</b> (thêm dữ liệu mới vào bảng của tháng) hoặc <b>Thay thế</b> (xóa toàn bộ dữ liệu cũ của tháng rồi import lại). Chế độ Thay thế tuân theo khóa bảng: bảng của tháng hiện tại mặc định mở, bảng của các tháng trước mặc định khóa (chỉ admin mới thay thế được); admin khóa/mở từng bảng trong danh sách bảng đã import bên dưới. Các cột trong file không khớp với mẫu dữ liệu sẽ tự động bị loại bỏ, không import vào CSDL. Mục này <b>chỉ liệt kê các loại dữ liệu chi trả hoa hồng</b>; dữ liệu kết quả bán hàng import ở mục <b>Import dữ liệu kết quả bán hàng</b>.</p>
           <form id="importForm" class="form-grid">
             <div><label>Loại dữ liệu</label><select id="impType"><option value="HHBG">Chi trả hoa hồng bán gói (HHBG)</option><option value="BCKH">Chi trả tiền BCKH (BCKH)</option></select></div>
             <div><label>Tháng / Năm import</label><div style="display:flex;gap:8px"><input type="number" id="impMonth" min="1" max="12" /><input type="number" id="impYear" min="2020" max="2100" /></div></div>
@@ -1285,9 +1285,29 @@ html.is-mobile #appRoot .btn{min-height:44px}
           </div>
           <div class="tbl-wrap" style="max-height:215px;overflow-y:auto"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th>Khóa thay thế</th><th></th></tr></thead><tbody id="tablesBody"><tr><td colspan="6">Đang tải…</td></tr></tbody></table></div>
           <div class="note"><b>Trường dữ liệu HHBG:</b> Tên Eload, Số Eload, Số Ví, Số thuê bao, Loại thuê bao, Chu kỳ chi trả, Tên gói cước, Giá gói cước, Thời gian giao dịch, Trans ID, Kênh thực hiện, Thù lao chi trả, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.<br/><b>Trường dữ liệu BCKH:</b> Số Eload, Tên Eload, Số thuê bao, Thời gian kích hoạt, Hoa hồng BCKH, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.</div>
+        </section>
 
-          <div id="kbManager">
-            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Import danh sách kênh bán (theo tháng)</h3>
+        <section class="panel hidden" id="panel-import-sales">
+          <h2>Import dữ liệu kết quả bán hàng</h2>
+          <p class="desc">Import dữ liệu kết quả bán hàng (doanh thu / sản lượng phát triển thuê bao) từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng theo cấu hình loại dữ liệu. Mục này <b>chỉ liệt kê các loại dữ liệu đã cấu hình cho Dashboard bán hàng</b> (loại Doanh thu / Sản lượng PTTB); dữ liệu chi trả hoa hồng import ở mục <b>Import dữ liệu chi trả hoa hồng</b>. Các cột trong file không khớp với mẫu dữ liệu sẽ tự động bị loại bỏ, không import vào CSDL.</p>
+          <form id="importFormS" class="form-grid">
+            <div><label>Loại dữ liệu</label><select id="impTypeS"></select></div>
+            <div><label>Tháng / Năm import</label><div style="display:flex;gap:8px"><input type="number" id="impMonthS" min="1" max="12" /><input type="number" id="impYearS" min="2020" max="2100" /></div></div>
+            <div><label>Chế độ import</label><select id="impModeS"><option value="create">Tạo mới — chỉ import khi tháng này chưa có dữ liệu (chặn import trùng)</option><option value="append">Cập nhật — thêm vào dữ liệu hiện có của tháng</option><option value="replace">Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu</option></select></div>
+            <div><label>File Excel dữ liệu</label><input type="file" id="impFileS" accept=".xlsx,.xls,.csv" /></div>
+            <div class="full"><button class="btn blue" type="submit" id="impBtnS">Import lên D1</button></div>
+          </form>
+          <div id="impMsgS"></div>
+          <div style="display:flex;gap:12px;align-items:flex-end;justify-content:space-between;margin:18px 0 8px;flex-wrap:wrap">
+            <h3 style="margin:0;color:var(--blue-dark)">Các bảng dữ liệu bán hàng đã import</h3>
+            <div style="min-width:220px"><label>Bộ lọc theo loại dữ liệu</label><select id="tblTypeFilterS"><option value="">— Tất cả loại —</option></select></div>
+          </div>
+          <div class="tbl-wrap" style="max-height:215px;overflow-y:auto"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th>Khóa thay thế</th><th></th></tr></thead><tbody id="tablesBodyS"><tr><td colspan="6">Đang tải…</td></tr></tbody></table></div>
+          <div class="note"><b>Quy tắc tổng hợp Dashboard bán hàng:</b> doanh thu trước thuế = giá gói ÷ 1,1; chỉ tính thuê bao do Eload của điểm bán phát triển; thuê bao PTM chỉ tổng hợp từ loại Sản lượng PTTB; giao dịch có kết quả "Đăng ký không thành công" bị loại khỏi mọi số liệu. Các cột dữ liệu của từng loại lấy theo cấu hình trong mục <b>Quản lý loại dữ liệu</b>.</div>
+        </section>
+
+        <section class="panel hidden" id="panel-import-kb">
+          <h2>Import danh sách kênh bán hàng</h2>
             <p class="desc">Danh sách kênh bán biến động hàng tháng — mỗi tháng import 1 file Excel, hệ thống tạo bảng <code class="inl">kenh_ban_MMYYYY</code>. Khi tổng hợp báo cáo, hệ thống <b>ưu tiên map đơn vị và tên kênh bán từ bảng của tháng đó</b>; bảng người dùng chỉ dùng để map phụ khi bảng tháng không map được. Chọn file xong hệ thống tự nhận diện các cột cần thiết (mã kênh, tên điểm bán, số Eload, đơn vị, loại kênh, mã NV quản lý) và <b>loại bỏ các cột không liên quan</b> — anh kiểm tra lại bảng đối chiếu bên dưới trước khi bấm Import.</p>
             <div class="form-grid">
               <div><label>Tháng / Năm</label><div style="display:flex;gap:8px"><input type="number" id="kbMonth" min="1" max="12" /><input type="number" id="kbYear" min="2020" max="2100" /></div></div>
@@ -1297,10 +1317,10 @@ html.is-mobile #appRoot .btn{min-height:44px}
             </div>
             <div id="kbMapPreview" style="margin-top:6px"></div>
             <div id="kbMsg" style="margin-top:6px"></div>
-          </div>
+        </section>
 
-          <div id="cbManager">
-            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Import danh sách CBCNV (theo tháng)</h3>
+        <section class="panel hidden" id="panel-import-cb">
+          <h2>Import danh sách CBCNV</h2>
             <p class="desc">Danh sách nhân sự VNPT Quảng Ninh biến động hàng tháng — mỗi tháng import 1 file Excel, hệ thống tạo bảng <code class="inl">cbcnv_MMYYYY</code>. Bảng này dùng để <b>map đơn vị và thông tin nhân viên quản lý kênh bán</b> (qua mã HRM của người quản lý trong danh sách kênh). Cũng tự loại bỏ các cột không liên quan khi import.</p>
             <div class="form-grid">
               <div><label>Tháng / Năm</label><div style="display:flex;gap:8px"><input type="number" id="cbMonth" min="1" max="12" /><input type="number" id="cbYear" min="2020" max="2100" /></div></div>
@@ -1310,9 +1330,10 @@ html.is-mobile #appRoot .btn{min-height:44px}
             </div>
             <div id="cbMapPreview" style="margin-top:6px"></div>
             <div id="cbMsg" style="margin-top:6px"></div>
-          </div>
+        </section>
 
-          <div id="planManager" class="hidden">
+        <section class="panel hidden" id="panel-import-plan">
+          <h2>Giao/import kế hoạch kinh doanh</h2>
             <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Giao kế hoạch kinh doanh (chỉ admin)</h3>
             <p class="desc">Giao kế hoạch theo tháng và theo từng đơn vị cho 3 chỉ tiêu: <b>kênh PSSL</b>, <b>sản lượng phát triển thuê bao</b> và <b>doanh thu thuê bao di động phát triển mới</b>. Số liệu kế hoạch dùng để đánh giá tỷ lệ hoàn thành trên Dashboard bán hàng.</p>
             <div class="form-grid">
@@ -1334,10 +1355,10 @@ html.is-mobile #appRoot .btn{min-height:44px}
             </div>
             <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn gray" type="button" id="planTplBtn">Tải file mẫu</button><button class="btn blue" type="button" id="planImpBtn">Import kế hoạch</button></div>
             <div id="planImpMsg" style="margin-top:6px"></div>
-          </div>
+        </section>
 
-          <div id="dtManager" class="hidden">
-            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Quản lý loại dữ liệu (chỉ admin)</h3>
+        <section class="panel hidden" id="panel-import-types">
+          <h2>Quản lý loại dữ liệu</h2>
             <p class="desc">Ngoài 2 loại mặc định, admin có thể tạo thêm loại dữ liệu chi trả mới. Khi tạo loại mới, hãy khai báo các cột dữ liệu (đúng tên cột trong file Excel) và chọn các cột "vai trò" để hệ thống map dữ liệu với bảng người dùng (nguoi_dung): <b>cột Số Eload</b> và <b>cột Số Ví</b> là căn cứ để mỗi điểm bán chỉ xem được dữ liệu của mình trong Báo cáo thống kê; <b>cột Số tiền</b> và <b>cột Thời gian</b> dùng để tính báo cáo. Tạo xong là import được ngay, không cần thao tác gì thêm — bảng dữ liệu tháng sẽ tự được tạo trên D1 theo dạng MÃ_MMYYYY hoặc MÃ_MMYY tùy chọn.</p>
             <div id="dtList" style="margin-bottom:14px"></div>
             <form id="dtForm" class="form-grid">
@@ -1375,8 +1396,8 @@ html.is-mobile #appRoot .btn{min-height:44px}
               <div class="full"><button class="btn blue" type="submit" id="dtSubmitBtn">Tạo loại dữ liệu</button> <button class="btn gray hidden" type="button" id="dtCancelBtn">Hủy sửa</button></div>
             </form>
             <div id="dtMsg"></div>
-          </div>
         </section>
+
 
         <!-- CAU HINH KET NOI D1 -->
         <section class="panel hidden" id="panel-config">
@@ -4220,7 +4241,7 @@ export default {
 
         <!-- BAO CAO THONG KE -->
         <section class="panel hidden" id="panel-reports">
-          <h2>Báo cáo thống kê</h2>
+          <h2>Báo cáo chi trả hoa hồng</h2>
           <p class="desc">Xem báo cáo chi trả hoa hồng của các loại dữ liệu đã import lên D1, theo ngày (chọn từ ngày đến ngày) hoặc theo tháng (chọn tháng). Tài khoản điểm bán chỉ nhìn thấy dữ liệu gắn với số Eload / số Ví của mình; admin xem được toàn bộ.</p>
           <form id="repForm" class="form-grid">
             <div><label>Loại dữ liệu</label><select id="repType"><option value="ALL">Tất cả các loại dữ liệu</option><option value="HHBG">Hoa hồng bán gói</option><option value="BCKH">Tiền BCKH</option></select></div>
@@ -4240,15 +4261,54 @@ export default {
           <div id="repPosNote" class="desc hidden" style="margin:6px 0;color:var(--blue-dark)"></div>
           <div class="kpi-row"><div class="kpi"><b id="repTotalTx">—</b><span>Tổng số giao dịch</span></div><div class="kpi"><b id="repTotalMoney">—</b><span>Tổng số tiền chi trả</span></div></div>
           <div class="tbl-wrap"><table class="data"><thead id="repHead"><tr><th>Kỳ</th><th>Số giao dịch</th><th>Tổng tiền chi trả</th></tr></thead><tbody id="repBody"><tr><td colspan="3">Chưa có dữ liệu — hãy chọn khoảng thời gian và bấm báo cáo.</td></tr></tbody></table></div>
-          <div id="careRepSection">
-          <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Báo cáo chăm sóc điểm bán</h3>
-          <p class="desc">Tổng hợp và chi tiết công tác chăm sóc kênh bán trong cùng khoảng ngày/tháng đã chọn ở trên. Lãnh đạo đơn vị chỉ thấy số liệu của các điểm bán trong cây đơn vị của mình.</p>
+        </section>
+
+        <section class="panel hidden" id="panel-salesreport">
+          <h2>Báo cáo kết quả bán hàng</h2>
+          <p class="desc">Báo cáo phát triển thuê bao và doanh thu bán gói theo tháng hoặc theo năm, tổng hợp từ tất cả loại dữ liệu bán hàng đã import. Doanh thu trước thuế = giá gói ÷ 1,1; chỉ tính thuê bao do Eload của điểm bán phát triển; giao dịch có kết quả "Đăng ký không thành công" bị loại khỏi mọi số liệu.</p>
+          <div class="form-grid">
+            <div><label>Kỳ đánh giá</label><select id="srKy"><option value="thang">Theo tháng</option><option value="nam">Theo năm</option></select></div>
+            <div id="srMonthWrap"><label>Tháng đánh giá</label><input type="month" id="srMonth" /></div>
+            <div class="hidden" id="srYearWrap"><label>Năm đánh giá</label><input type="number" id="srYear" min="2020" max="2100" /></div>
+            <div style="align-self:end"><button class="btn blue" type="button" id="srBtn">Xem báo cáo</button></div>
+          </div>
+          <div id="srMsg"></div>
+          <div class="kpi-row">
+            <div class="kpi"><b id="srSubs">—</b><span>Thuê bao phát triển</span></div>
+            <div class="kpi"><b id="srRev">—</b><span>Doanh thu (trước thuế)</span></div>
+            <div class="kpi"><b id="srPssl">—</b><span>Kênh có PSSL</span></div>
+            <div class="kpi"><b id="srDuq">—</b><span>Tỷ lệ ĐUQ có PSSL</span></div>
+          </div>
+          <h3 class="sec-title" id="srUnitSec">🏢 Đánh giá theo đơn vị <span class="sec-sub" id="srUnitSub"></span></h3>
+          <div class="tbl-wrap"><table class="data"><thead id="srUnitHead"><tr><th>Đơn vị</th><th>Thuê bao</th><th>Tăng/giảm T-1</th><th>Doanh thu</th><th>Tăng/giảm T-1</th><th>Kênh PSSL</th><th>% KH PSSL</th><th>% KH TB</th><th>% KH DT</th></tr></thead><tbody id="srUnitBody"><tr><td colspan="9">Chưa có số liệu — hãy chọn kỳ và bấm "Xem báo cáo".</td></tr></tbody></table></div>
+          <h3 class="sec-title">🏪 Đánh giá theo điểm bán <span class="sec-sub" id="srPosSub"></span></h3>
+          <div class="form-grid">
+            <div><label>Lọc theo đơn vị</label><select id="srPosUnit"><option value="">— Tất cả đơn vị —</option></select></div>
+            <div><label>Tìm điểm bán</label><input id="srPosSearch" placeholder="Tên điểm, mã kênh, số Eload, NV quản lý…" /></div>
+            <div><label>Điểm bán PSSL</label><select id="srPosPssl"><option value="1">Có PSSL</option><option value="">Tất cả</option><option value="0">Chưa PSSL</option></select></div>
+          </div>
+          <div class="tbl-wrap"><table class="data"><thead id="srPosHead"><tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th><th>NV quản lý</th><th>Thuê bao</th><th>Tăng/giảm T-1</th><th>Doanh thu</th><th>Tăng/giảm T-1</th><th style="text-align:center">PSSL</th></tr></thead><tbody id="srPosBody"><tr><td colspan="9">Chưa có số liệu — hãy chọn kỳ và bấm "Xem báo cáo".</td></tr></tbody></table></div>
+        </section>
+
+        <section class="panel hidden" id="panel-carereport">
+          <h2>Báo cáo chăm sóc điểm bán</h2>
+          <p class="desc">Tổng hợp và chi tiết công tác chăm sóc kênh bán theo khoảng ngày hoặc theo tháng. Lãnh đạo đơn vị chỉ thấy số liệu của các điểm bán trong cây đơn vị của mình.</p>
+          <div class="form-grid">
+            <div><label>Kiểu báo cáo</label><select id="crMode"><option value="day">Theo ngày</option><option value="month">Theo tháng</option></select></div>
+            <div class="full" id="crDayBox">
+              <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:170px"><label>Từ ngày</label><input type="date" id="crFrom" /></div>
+                <div style="flex:1;min-width:170px"><label>Đến ngày</label><input type="date" id="crTo" /></div>
+              </div>
+            </div>
+            <div class="full hidden" id="crMonthBox"><label>Chọn tháng</label><input type="month" id="crMonth" style="max-width:280px" /></div>
+          </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn blue" type="button" id="careRepSummaryBtn">Báo cáo tổng hợp chăm sóc</button><button class="btn gray" type="button" id="careRepDetailBtn">Báo cáo chi tiết chăm sóc</button><button class="btn gray" type="button" id="careRepExportBtn">Xuất Excel</button></div>
           <div id="careRepMsg"></div>
           <div class="kpi-row"><div class="kpi"><b id="careRepTotal">—</b><span>Tổng lượt chăm sóc</span></div><div class="kpi"><b id="careRepPos">—</b><span>Số điểm đã chăm sóc</span></div></div>
           <div class="tbl-wrap"><table class="data"><thead id="careRepHead"><tr><th>Đợt chăm sóc</th><th>Số lượt</th><th>Số điểm</th></tr></thead><tbody id="careRepBody"><tr><td colspan="3">Chưa có dữ liệu — hãy chọn khoảng thời gian và bấm báo cáo.</td></tr></tbody></table></div>
-          </div>
         </section>
+
 
         <!-- DANH MUC GOI CUOC -->
         <section class="panel hidden" id="panel-packages">
@@ -4715,7 +4775,8 @@ const MODULE_DEFS = [
 ];
 const PANEL_MODULES = {
   "panel-dashboard": "dashboard", "panel-salesdash": "salesdash", "panel-units": "units", "panel-users": "users", "panel-staff": "staff", "panel-import": "import",
-  "panel-config": "config", "panel-reports": "reports", "panel-packages": "packages",
+  "panel-config": "config", "panel-reports": "reports", "panel-salesreport": "salesdash", "panel-carereport": "reports", "panel-packages": "packages",
+  "panel-import-sales": "import", "panel-import-kb": "import", "panel-import-cb": "import", "panel-import-plan": "import", "panel-import-types": "import",
   "panel-loginstats": "loginstats", "panel-care": "care", "panel-channelmap": "channelmap", "panel-settings": "settings",
 };
 const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
@@ -4731,9 +4792,12 @@ function renderModuleCheckboxes(elId, name, checked) {
   $(elId).innerHTML = MODULE_DEFS.map(([k, label]) => '<label class="checkline"><input type="checkbox" name="' + name + '" value="' + k + '"' + (checked.includes(k) ? " checked" : "") + " /> " + esc(label) + "</label>").join("");
 }
 renderModuleCheckboxes("uModulesList", "uModule", DEFAULT_MODULES);
-function applyImportPerms() {
+const IMP_CFG = { type: "impType", month: "impMonth", year: "impYear", mode: "impMode", msg: "impMsg" };
+const IMP_CFG_S = { type: "impTypeS", month: "impMonthS", year: "impYearS", mode: "impModeS", msg: "impMsgS" };
+function applyImportPerms(cfg) {
+  cfg = cfg || IMP_CFG;
   if (!me) return;
-  const sel = $("impMode");
+  const sel = $(cfg.mode);
   if (!sel) return;
   const opt = sel.querySelector('option[value="replace"]');
   if (!opt) return;
@@ -4743,8 +4807,8 @@ function applyImportPerms() {
     return;
   }
   // User khong phai admin: khoa/mo thay the theo trang thai khoa cua bang thang dang chon
-  const dtype = dataTypes.find((t) => t.code === $("impType").value) || dataTypes[0];
-  const thang = Number($("impMonth").value), nam = Number($("impYear").value);
+  const dtype = dataTypes.find((t) => t.code === $(cfg.type).value) || dataTypes[0];
+  const thang = Number($(cfg.month).value), nam = Number($(cfg.year).value);
   if (!dtype || !thang || !nam) {
     opt.disabled = false;
     opt.textContent = "Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu";
@@ -4760,9 +4824,12 @@ function applyImportPerms() {
     if (d.locked && sel.value === "replace") sel.value = "create";
   }).catch(() => { /* giu nguyen; may chu se chan neu bang bi khoa */ });
 }
-$("impType").addEventListener("change", applyImportPerms);
-$("impMonth").addEventListener("change", applyImportPerms);
-$("impYear").addEventListener("change", applyImportPerms);
+$("impType").addEventListener("change", () => applyImportPerms());
+$("impMonth").addEventListener("change", () => applyImportPerms());
+$("impYear").addEventListener("change", () => applyImportPerms());
+$("impTypeS").addEventListener("change", () => applyImportPerms(IMP_CFG_S));
+$("impMonthS").addEventListener("change", () => applyImportPerms(IMP_CFG_S));
+$("impYearS").addEventListener("change", () => applyImportPerms(IMP_CFG_S));
 function refreshAuthUI() {
   const logged = !!me;
   $("loginBtn").classList.toggle("hidden", logged);
@@ -4789,7 +4856,9 @@ function refreshAuthUI() {
       let show = true;
       if (p === "panel-units" || p === "panel-config") show = me.role === "admin";
       if (p === "panel-users" || p === "panel-loginstats" || p === "panel-staff") show = me.role === "admin" || me.role === "subadmin";
-      if (p === "panel-import") show = me.role === "admin" || me.can_import;
+      if (p === "panel-import" || p === "panel-import-sales" || p === "panel-import-kb" || p === "panel-import-cb") show = me.role === "admin" || me.can_import;
+      if (p === "panel-import-plan" || p === "panel-import-types") show = me.role === "admin";
+      if (p === "panel-carereport") show = me.role === "admin" || me.role === "subadmin" || isLeaderLikeMe();
       if (p === "panel-care") show = me.role === "admin" || me.role === "leader";
       const key = PANEL_MODULES[p];
       if (show && me.role !== "admin" && me.modules && key && !me.modules.includes(key)) show = false;
@@ -4823,21 +4892,18 @@ function openPanel(panelId, btn) {
   if (panelId === "panel-units") loadUnits();
   if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); }
   if (panelId === "panel-staff") { loadStaff(); loadStaffUnits(); applyStaffFormPerms(); }
-  if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); $("planManager").classList.toggle("hidden", !(me && me.role === "admin")); const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("planMonth").value) $("planMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1);
-    if (!$("planImpYear").value) $("planImpYear").value = pn.getFullYear();
-    if (!$("kbMonth").value) $("kbMonth").value = pn.getMonth() + 1; if (!$("kbYear").value) $("kbYear").value = pn.getFullYear();
-    if (!$("cbMonth").value) $("cbMonth").value = pn.getMonth() + 1; if (!$("cbYear").value) $("cbYear").value = pn.getFullYear(); }
-  if (panelId === "panel-reports") { loadDataTypes(); loadPosList(); const crs = $("careRepSection"); if (crs) crs.classList.toggle("hidden", !(me && (me.role === "admin" || me.role === "subadmin" || isLeaderLikeMe()))); }
+  if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); const pn = new Date(); if (!$("impMonth").value) $("impMonth").value = pn.getMonth() + 1; if (!$("impYear").value) $("impYear").value = pn.getFullYear(); }
+  if (panelId === "panel-import-sales") { loadTables(); loadDataTypes(); applyImportPerms(IMP_CFG_S); const pn = new Date(); if (!$("impMonthS").value) $("impMonthS").value = pn.getMonth() + 1; if (!$("impYearS").value) $("impYearS").value = pn.getFullYear(); }
+  if (panelId === "panel-import-kb") { const pn = new Date(); if (!$("kbMonth").value) $("kbMonth").value = pn.getMonth() + 1; if (!$("kbYear").value) $("kbYear").value = pn.getFullYear(); }
+  if (panelId === "panel-import-cb") { const pn = new Date(); if (!$("cbMonth").value) $("cbMonth").value = pn.getMonth() + 1; if (!$("cbYear").value) $("cbYear").value = pn.getFullYear(); }
+  if (panelId === "panel-import-plan") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("planMonth").value) $("planMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("planImpYear").value) $("planImpYear").value = pn.getFullYear(); }
+  if (panelId === "panel-import-types") loadDataTypes();
+  if (panelId === "panel-reports") { loadDataTypes(); loadPosList(); }
+  if (panelId === "panel-salesreport") initSalesReport();
+  if (panelId === "panel-carereport") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); const ym = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("crFrom").value) $("crFrom").value = ym + "-01"; if (!$("crTo").value) $("crTo").value = ym + "-" + new Date(pn.getFullYear(), pn.getMonth() + 1, 0).getDate(); if (!$("crMonth").value) $("crMonth").value = ym; }
   if (panelId === "panel-care") loadCareBatches();
   if (panelId === "panel-channelmap") loadChannelMap();
   if (panelId === "panel-config") $("cfgApiUrl").value = apiBase;
-  // Dieu huong theo muc menu con: chon loai import (5.1/5.2) + cuon toi section tuong ung
-  if (btn) {
-    const kind = btn.dataset.impKind;
-    if (kind) setImpTypeByKind(kind);
-    const sec = btn.dataset.section;
-    if (sec) setTimeout(() => { const el = $(sec); if (el && !el.classList.contains("hidden")) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 80);
-  }
 }
 document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel, b)));
 // Thu gon / mo nhom menu
@@ -5480,6 +5546,109 @@ $("salesKy").addEventListener("change", () => {
 $("ovPosUnit").addEventListener("change", applyOvPosFilter);
 $("ovPosSearch").addEventListener("input", applyOvPosFilter);
 $("ovPosPssl").addEventListener("change", applyOvPosFilter);
+
+/* ---------------- Bao cao ket qua ban hang (4.2) ---------------- */
+let srData = null;
+function initSalesReport() {
+  const now = new Date(); const p2 = (x) => String(x).padStart(2, "0");
+  if (!$("srMonth").value) $("srMonth").value = now.getFullYear() + "-" + p2(now.getMonth() + 1);
+  if (!$("srYear").value) $("srYear").value = now.getFullYear();
+}
+async function loadSalesReport() {
+  const ky = $("srKy").value;
+  const thang = $("srMonth").value, nam = $("srYear").value;
+  const q = new URLSearchParams({ ky });
+  if (ky === "nam") {
+    if (!nam) { setMsg($("srMsg"), "Hãy chọn năm đánh giá.", false); return; }
+    q.set("nam", nam);
+  } else {
+    if (!thang) { setMsg($("srMsg"), "Hãy chọn tháng đánh giá.", false); return; }
+    q.set("thang", thang);
+  }
+  setMsg($("srMsg"), "Đang tổng hợp…");
+  try {
+    const d = await api("/api/sales-overview?" + q);
+    srData = d;
+    setMsg($("srMsg"), "");
+    $("srSubs").textContent = fmtInt(d.kpi.subs);
+    $("srRev").textContent = fmt(d.kpi.revenue);
+    $("srPssl").textContent = fmtInt(d.pssl.count);
+    $("srDuq").textContent = d.duq.ty_le == null ? "—" : d.duq.ty_le.toLocaleString("vi-VN") + "%";
+    renderSrUnit(d);
+    renderSrPosFilter(d);
+    applySrPosFilter();
+  } catch (e) { setMsg($("srMsg"), e.message, false); }
+}
+function renderSrUnit(d) {
+  $("srUnitSub").textContent = "— " + d.period_label;
+  const showRev = (d.trend || []).some((r) => r.revenue > 0);
+  const cols = 3 + 2 + (showRev ? 2 : 0) + 3;
+  const deltaHead = d.ky === "nam" ? "Tăng/giảm năm trước" : "Tăng/giảm T-1";
+  $("srUnitHead").innerHTML = "<tr><th>Đơn vị</th><th>Thuê bao</th><th>" + deltaHead + "</th>" +
+    (showRev ? "<th>Doanh thu</th><th>" + deltaHead + "</th>" : "") + "<th>Kênh PSSL</th><th>% KH PSSL</th><th>% KH TB</th><th>% KH DT</th></tr>";
+  const allRows = d.by_unit || [];
+  let tS = 0, tR = 0, tKP = 0, tKS = 0, tKR = 0;
+  allRows.forEach((u) => { tS += u.subs || 0; tR += u.revenue || 0; tKP += u.kh_pssl || 0; tKS += u.kh_subs || 0; tKR += u.kh_rev || 0; });
+  const footPct = (actual, kh) => kh > 0 ? fmtPct2(actual / kh * 100) : "—";
+  const rows = sortUnitsFixed(allRows, (u) => u.name);
+  $("srUnitBody").innerHTML = rows.length ? rows.map((u) => {
+    return "<tr><td>" + esc(u.name) + "</td><td>" + fmtInt(u.subs) + "</td>" + ovCellDelta(u.subs_c1_pct, deltaTipSubs(d, u.subs_c1)) +
+      (showRev ? "<td>" + fmt(u.revenue) + "</td>" + ovCellDelta(u.rev_c1_pct, deltaTipRev(d, u.rev_c1)) : "") +
+      "<td>" + fmtInt(u.pssl) + "</td>" + ovPctCell(u.tyle_pssl, u.kh_pssl) + ovPctCell(u.tyle_subs, u.kh_subs) + ovPctCell(u.tyle_rev, u.kh_rev) + "</tr>";
+  }).join("") + "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + fmtInt(tS) + "</b></td><td></td>" +
+    (showRev ? "<td><b>" + fmt(tR) + "</b></td><td></td>" : "") +
+    "<td><b>" + fmtInt(d.pssl.count) + "</b></td><td><b>" + footPct(d.pssl.count, tKP) + "</b></td><td><b>" + footPct(tS, tKS) + "</b></td><td><b>" + footPct(tR, tKR) + "</b></td></tr>"
+    : "<tr><td colspan='" + cols + "'>Không có số liệu trong " + d.period_label + ".</td></tr>";
+  bindCellTips($("srUnitBody"));
+}
+function renderSrPosFilter(d) {
+  const sel = $("srPosUnit"), cur = sel.value;
+  const units = {};
+  (d.by_pos || []).forEach((r) => { if (r.don_vi_id && !units[r.don_vi_id]) units[r.don_vi_id] = r.don_vi_ten || ("Đơn vị " + r.don_vi_id); });
+  const list = sortUnitsFixed(Object.keys(units).map((id) => ({ id, name: units[id] })), (u) => u.name);
+  sel.innerHTML = '<option value="">— Tất cả đơn vị —</option>' + list.map((u) => '<option value="' + u.id + '">' + esc(u.name) + "</option>").join("");
+  sel.value = list.some((u) => String(u.id) === cur) ? cur : "";
+}
+function applySrPosFilter() {
+  if (!srData) return;
+  const d = srData;
+  const showRev = (d.trend || []).some((r) => r.revenue > 0);
+  $("srPosSub").textContent = "— " + d.period_label;
+  const du = $("srPosUnit").value;
+  const q = ovNormSearch($("srPosSearch").value.trim());
+  const fp = $("srPosPssl").value;
+  const rows = (d.by_pos || []).filter((r) => {
+    if (du && String(r.don_vi_id || "") !== du) return false;
+    if (q && !ovNormSearch((r.ten_diem_ban || "") + " " + (r.ho_ten || "") + " " + (r.ma_kenh || "") + " " + (r.eload || "") + " " + (r.quan_ly || "")).includes(q)) return false;
+    if (fp === "1" && !r.pssl) return false;
+    if (fp === "0" && r.pssl) return false;
+    return true;
+  });
+  const cols = 6 + (showRev ? 2 : 0);
+  const deltaHead2 = d.ky === "nam" ? "Tăng/giảm năm trước" : "Tăng/giảm T-1";
+  $("srPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th><th>NV quản lý</th><th>Thuê bao</th><th>" + deltaHead2 + "</th>" +
+    (showRev ? "<th>Doanh thu</th><th>" + deltaHead2 + "</th>" : "") + "<th style='text-align:center'>PSSL</th></tr>";
+  $("srPosBody").innerHTML = rows.length ? rows.map((r) =>
+    "<tr><td>" + esc(r.ten_diem_ban || r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.don_vi_ten || "—") + "</td><td>" + esc(r.quan_ly || "—") + "</td>" +
+    "<td>" + fmtInt(r.subs) + "</td>" + ovCellDelta(r.subs_c1_pct, deltaTipSubs(d, r.subs_c1)) +
+    (showRev ? "<td>" + fmt(r.revenue) + "</td>" + ovCellDelta(r.rev_c1_pct, deltaTipRev(d, r.rev_c1)) : "") +
+    '<td style="text-align:center">' + (r.pssl ? '<span style="color:#15803d;font-weight:700">✓</span>' : "—") + "</td></tr>"
+  ).join("") + "<tr style='background:var(--blue-light)'><td colspan='4'><b>Tổng cộng (" + rows.length + " điểm)</b></td>" +
+    "<td><b>" + fmtInt(rows.reduce((a, r) => a + r.subs, 0)) + "</b></td><td></td>" +
+    (showRev ? "<td><b>" + fmt(rows.reduce((a, r) => a + r.revenue, 0)) + "</b></td><td></td>" : "") +
+    '<td style="text-align:center"><b>' + rows.filter((r) => r.pssl).length + "</b></td></tr>"
+    : "<tr><td colspan='" + cols + "'>Không có điểm bán nào khớp bộ lọc.</td></tr>";
+  bindCellTips($("srPosBody"));
+}
+$("srBtn").addEventListener("click", () => { loadSalesReport(); });
+$("srKy").addEventListener("change", () => {
+  const isNam = $("srKy").value === "nam";
+  $("srMonthWrap").classList.toggle("hidden", isNam);
+  $("srYearWrap").classList.toggle("hidden", !isNam);
+});
+$("srPosUnit").addEventListener("change", applySrPosFilter);
+$("srPosSearch").addEventListener("input", applySrPosFilter);
+$("srPosPssl").addEventListener("change", applySrPosFilter);
 
 /* ---------------- Quan ly don vi (cay) ---------------- */
 let unitsCache = [];
@@ -6181,26 +6350,17 @@ async function loadDataTypes() {
   } catch (e) { /* Worker chua cap nhat: dung 2 loai mac dinh */ }
   renderTypeOptions();
   renderDtList();
-  if (me) $("dtManager").classList.toggle("hidden", me.role !== "admin");
-}
-let pendingImpKind = null;
-// Menu 5.1 (chi tra hoa hong) = loai khong co sales_kind; 5.2 (ket qua ban hang) = loai co sales_kind.
-// Goi truoc khi loadDataTypes xong thi de pending, renderTypeOptions se ap dung khi co danh sach.
-function setImpTypeByKind(kind) {
-  const pick = () => {
-    const t = kind === "sales"
-      ? dataTypes.find((x) => x.sales_kind)
-      : dataTypes.find((x) => !x.sales_kind);
-    if (t) { $("impType").value = t.code; applyImportPerms(); return true; }
-    return false;
-  };
-  if (!pick()) pendingImpKind = kind;
 }
 function renderTypeOptions() {
+  // 5.1 chi liet ke loai chi tra (khong co sales_kind); 5.2 chi liet ke loai ban hang (co sales_kind)
+  const comm = dataTypes.filter((t) => !t.sales_kind);
+  const sales = dataTypes.filter((t) => t.sales_kind);
   const imp = $("impType"), curImp = imp.value;
-  imp.innerHTML = dataTypes.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + " (" + esc(t.code) + ")</option>").join("");
-  if (curImp && dataTypes.some((t) => t.code === curImp)) imp.value = curImp;
-  if (pendingImpKind) { const k = pendingImpKind; pendingImpKind = null; setImpTypeByKind(k); }
+  imp.innerHTML = comm.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + " (" + esc(t.code) + ")</option>").join("");
+  if (curImp && comm.some((t) => t.code === curImp)) imp.value = curImp;
+  const impS = $("impTypeS"), curImpS = impS.value;
+  impS.innerHTML = sales.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + " (" + esc(t.code) + ")</option>").join("");
+  if (curImpS && sales.some((t) => t.code === curImpS)) impS.value = curImpS;
   const rep = $("repType"), curRep = rep.value;
   rep.innerHTML = '<option value="ALL">Tất cả các loại dữ liệu</option>' + dataTypes.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + "</option>").join("");
   if (curRep && (curRep === "ALL" || dataTypes.some((t) => t.code === curRep))) rep.value = curRep;
@@ -6227,13 +6387,18 @@ function tableMonthSortKey(name) {
   const yy = m[2].length === 2 ? "20" + m[2] : m[2];
   return yy + "-" + m[1] + "-" + name;
 }
-function renderTables() {
-  const f = $("tblTypeFilter").value;
+// kind: "commission" = loai chi tra + danh sach kenh/CBCNV; "sales" = chi loai co sales_kind
+function isSalesTypeCode(code) {
+  const t = dataTypes.find((dt) => dt.code === code);
+  return !!(t && t.sales_kind);
+}
+function renderTablesInto(kind, tbodyId, filterId, msgId, emptyText) {
+  const f = $(filterId).value;
   const rows = tablesCache
-    .filter((x) => !f || x.code === f)
+    .filter((x) => (kind === "sales" ? isSalesTypeCode(x.code) : !isSalesTypeCode(x.code)) && (!f || x.code === f))
     .sort((a, b) => tableMonthSortKey(b.table) < tableMonthSortKey(a.table) ? -1 : 1);
   const canDelTable = !!me && (me.role === "admin" || (me.can_import && me.role !== "subadmin"));
-  $("tablesBody").innerHTML = rows.map((x) => {
+  $(tbodyId).innerHTML = rows.map((x) => {
     const isH = x.table.startsWith("HHBG");
     const tt = dataTypes.find((dt) => dt.code === x.code);
     const FIXED_TN = { KENH_BAN: "Danh sách kênh bán", CBCNV: "Danh sách CBCNV" };
@@ -6244,29 +6409,38 @@ function renderTables() {
       : (x.locked ? "<span class='pill bad'>Đã khóa</span>" : "<span class='pill ok'>Mở</span>");
     return "<tr><td><code class='inl'>" + esc(x.table) + "</code></td><td>" + esc(typeName) + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (x.rows || 0).toLocaleString("vi-VN") + "</td><td>" + lockCell + "</td>" +
       "<td style='white-space:nowrap'>" + (canDelTable ? "<button class='btn sm danger' data-del-table='" + esc(x.table) + "'>Xóa bảng</button>" : "") + "</td></tr>";
-  }).join("") || "<tr><td colspan='6'>Chưa import bảng nào.</td></tr>";
-  $("tablesBody").querySelectorAll("[data-del-table]").forEach((b) => b.addEventListener("click", () => delTable(b.dataset.delTable)));
-  $("tablesBody").querySelectorAll("[data-lock-table]").forEach((b) => b.addEventListener("click", async () => {
+  }).join("") || "<tr><td colspan='6'>" + emptyText + "</td></tr>";
+  $(tbodyId).querySelectorAll("[data-del-table]").forEach((b) => b.addEventListener("click", () => delTable(b.dataset.delTable, msgId)));
+  $(tbodyId).querySelectorAll("[data-lock-table]").forEach((b) => b.addEventListener("click", async () => {
     const name = b.dataset.lockTable;
     const toLocked = b.dataset.locked !== "1";
     if (!confirm((toLocked ? "Khóa" : "Mở khóa") + " thay thế cho bảng " + name + "?\n" + (toLocked ? "Sau khi khóa, chỉ admin mới thay thế được dữ liệu của bảng này." : "Sau khi mở khóa, user có quyền import cũng được thay thế dữ liệu của bảng này."))) return;
     try { await api("/api/table-locks", { method: "POST", body: JSON.stringify({ table: name, locked: toLocked }) }); loadTables(); }
-    catch (e) { setMsg($("impMsg"), e.message, false); }
+    catch (e) { setMsg($(msgId), e.message, false); }
   }));
+}
+function renderTables() {
+  renderTablesInto("commission", "tablesBody", "tblTypeFilter", "impMsg", "Chưa import bảng nào.");
+  renderTablesInto("sales", "tablesBodyS", "tblTypeFilterS", "impMsgS", "Chưa import bảng bán hàng nào.");
+}
+function fillTableFilter(selId, kind) {
+  const tf = $(selId), cur = tf.value;
+  const codes = [...new Set(tablesCache.map((x) => x.code))]
+    .filter((c) => kind === "sales" ? isSalesTypeCode(c) : !isSalesTypeCode(c)).sort();
+  const FIXED_NAMES = { KENH_BAN: "Danh sách kênh bán", CBCNV: "Danh sách CBCNV" };
+  tf.innerHTML = '<option value="">— Tất cả loại —</option>' + codes.map((c) => {
+    const tt = dataTypes.find((dt) => dt.code === c);
+    const nm = tt ? tt.name : (FIXED_NAMES[c] || c);
+    return '<option value="' + esc(c) + '">' + esc(nm) + " (" + esc(c) + ")</option>";
+  }).join("");
+  tf.value = codes.includes(cur) ? cur : "";
 }
 async function loadTables() {
   try {
     const d = await api("/api/import/tables");
     tablesCache = d.tables || [];
-    const tf = $("tblTypeFilter"), cur = tf.value;
-    const codes = [...new Set(tablesCache.map((x) => x.code))].sort();
-    const FIXED_NAMES = { KENH_BAN: "Danh sách kênh bán", CBCNV: "Danh sách CBCNV" };
-    tf.innerHTML = '<option value="">— Tất cả loại —</option>' + codes.map((c) => {
-      const tt = dataTypes.find((dt) => dt.code === c);
-      const nm = tt ? tt.name : (FIXED_NAMES[c] || c);
-      return '<option value="' + esc(c) + '">' + esc(nm) + " (" + esc(c) + ")</option>";
-    }).join("");
-    tf.value = codes.includes(cur) ? cur : "";
+    fillTableFilter("tblTypeFilter", "commission");
+    fillTableFilter("tblTypeFilterS", "sales");
     renderTables();
   } catch (e) { setMsg($("impMsg"), e.message, false); }
 }
@@ -6301,6 +6475,7 @@ async function savePlan() {
   } catch (e) { setMsg($("planMsg"), e.message, false); }
 }
 $("tblTypeFilter").addEventListener("change", renderTables);
+$("tblTypeFilterS").addEventListener("change", renderTables);
 $("planLoadBtn").addEventListener("click", loadPlan);
 $("planSaveBtn").addEventListener("click", savePlan);
 function planTemplateUnits() {
@@ -6475,57 +6650,62 @@ function setupListImport(cfg) {
 }
 setupListImport({ fileId: "kbFile", monthId: "kbMonth", yearId: "kbYear", modeId: "kbMode", btnId: "kbImpBtn", previewId: "kbMapPreview", msgId: "kbMsg", api: "/api/kenh-ban/import", fields: KB_FIELDS, label: "danh sách kênh bán", idKeys: ["ma_kenh", "iddaily", "so_eload"], idLabels: "Mã điểm bán / IDDAILY / Số Eload" });
 setupListImport({ fileId: "cbFile", monthId: "cbMonth", yearId: "cbYear", modeId: "cbMode", btnId: "cbImpBtn", previewId: "cbMapPreview", msgId: "cbMsg", api: "/api/cbcnv/import", fields: CB_FIELDS, label: "danh sách CBCNV", idKeys: ["ma_hrm", "ma_smcs", "sdt"], idLabels: "Mã NV mới / Mã SMCS / SĐT" });
-async function delTable(name) {
+async function delTable(name, msgId) {
   if (!confirm("Xóa hẳn bảng dữ liệu " + name + "?\nToàn bộ dữ liệu trong bảng sẽ bị xóa khỏi CSDL và không khôi phục được.")) return;
   try {
     await api("/api/import/tables/" + encodeURIComponent(name), { method: "DELETE" });
-    setMsg($("impMsg"), "Đã xóa bảng dữ liệu " + name + ".");
+    setMsg($(msgId || "impMsg"), "Đã xóa bảng dữ liệu " + name + ".");
     loadTables();
-  } catch (e) { setMsg($("impMsg"), e.message, false); }
+  } catch (e) { setMsg($(msgId || "impMsg"), e.message, false); }
 }
-$("importForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const file = $("impFile").files[0];
-  if (!file) { setMsg($("impMsg"), "Hãy chọn file Excel trước khi import.", false); return; }
-  const dtype = dataTypes.find((t) => t.code === $("impType").value) || dataTypes[0];
-  const loai = dtype.code;
-  const mode = $("impMode").value;
-  const modeLabel = mode === "replace" ? "Thay thế" : mode === "create" ? "Tạo mới" : "Cập nhật";
-  const thang = Number($("impMonth").value), nam = Number($("impYear").value);
-  if (!thang || !nam) { setMsg($("impMsg"), "Hãy nhập tháng/năm import.", false); return; }
-  const mm = String(thang).padStart(2, "0");
-  const tableName = dtype.prefix + "_" + mm + (dtype.fmt === "MMYY" ? String(nam).slice(-2) : nam);
-  if (mode === "replace" && !confirm("Chế độ THAY THẾ sẽ xóa toàn bộ dữ liệu hiện có trong bảng " + tableName + " rồi import lại từ file này.\nAnh có chắc chắn muốn tiếp tục?")) return;
-  try {
-    $("impBtn").disabled = true;
-    setMsg($("impMsg"), "Đang đọc file Excel…");
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: "array", cellDates: true });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
-    if (!raw.length) throw new Error("File không có dòng dữ liệu nào.");
-    const map = buildHeaderMap(dtype);
-    const dateFields = dateFieldsOf(dtype);
-    const ignored = new Set();
-    const rows = raw.map((r) => {
-      const o = {};
-      Object.keys(r).forEach((k) => {
-        const f = map[normHeader(k)];
-        if (f) o[f] = dateFields.has(f) ? toIsoDate(r[k]) : r[k];
-        else if (String(k).trim()) ignored.add(String(k).trim());
-      });
-      return o;
-    }).filter((o) => Object.keys(o).length);
-    if (!rows.length) throw new Error("Không có cột nào trong file khớp với mẫu dữ liệu của loại " + loai + ". Hãy kiểm tra lại hàng tiêu đề của file Excel.");
-    setMsg($("impMsg"), "Đang import " + rows.length.toLocaleString("vi-VN") + " dòng lên D1 (" + modeLabel + ")…");
-    const d = await api("/api/import", { method: "POST", body: JSON.stringify({ loai, thang, nam, mode, rows }) });
-    let msg = "Import thành công " + (d.inserted || 0).toLocaleString("vi-VN") + " dòng vào bảng " + d.table + " (chế độ " + modeLabel + ").";
-    if (ignored.size) msg += " Đã tự động bỏ qua " + ignored.size + " cột không khớp với mẫu: " + [...ignored].join(", ") + ".";
-    setMsg($("impMsg"), msg);
-    loadTables();
-  } catch (err) { setMsg($("impMsg"), err.message, false); }
-  finally { $("impBtn").disabled = false; }
-});
+function setupDataImportForm(cfg) {
+  $(cfg.form).addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const file = $(cfg.file).files[0];
+    if (!file) { setMsg($(cfg.msg), "Hãy chọn file Excel trước khi import.", false); return; }
+    const dtype = dataTypes.find((t) => t.code === $(cfg.type).value);
+    if (!dtype) { setMsg($(cfg.msg), cfg.errNoType, false); return; }
+    const loai = dtype.code;
+    const mode = $(cfg.mode).value;
+    const modeLabel = mode === "replace" ? "Thay thế" : mode === "create" ? "Tạo mới" : "Cập nhật";
+    const thang = Number($(cfg.month).value), nam = Number($(cfg.year).value);
+    if (!thang || !nam) { setMsg($(cfg.msg), "Hãy nhập tháng/năm import.", false); return; }
+    const mm = String(thang).padStart(2, "0");
+    const tableName = dtype.prefix + "_" + mm + (dtype.fmt === "MMYY" ? String(nam).slice(-2) : nam);
+    if (mode === "replace" && !confirm("Chế độ THAY THẾ sẽ xóa toàn bộ dữ liệu hiện có trong bảng " + tableName + " rồi import lại từ file này.\nAnh có chắc chắn muốn tiếp tục?")) return;
+    try {
+      $(cfg.btn).disabled = true;
+      setMsg($(cfg.msg), "Đang đọc file Excel…");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      if (!raw.length) throw new Error("File không có dòng dữ liệu nào.");
+      const map = buildHeaderMap(dtype);
+      const dateFields = dateFieldsOf(dtype);
+      const ignored = new Set();
+      const rows = raw.map((r) => {
+        const o = {};
+        Object.keys(r).forEach((k) => {
+          const f = map[normHeader(k)];
+          if (f) o[f] = dateFields.has(f) ? toIsoDate(r[k]) : r[k];
+          else if (String(k).trim()) ignored.add(String(k).trim());
+        });
+        return o;
+      }).filter((o) => Object.keys(o).length);
+      if (!rows.length) throw new Error("Không có cột nào trong file khớp với mẫu dữ liệu của loại " + loai + ". Hãy kiểm tra lại hàng tiêu đề của file Excel.");
+      setMsg($(cfg.msg), "Đang import " + rows.length.toLocaleString("vi-VN") + " dòng lên D1 (" + modeLabel + ")…");
+      const d = await api("/api/import", { method: "POST", body: JSON.stringify({ loai, thang, nam, mode, rows }) });
+      let msg = "Import thành công " + (d.inserted || 0).toLocaleString("vi-VN") + " dòng vào bảng " + d.table + " (chế độ " + modeLabel + ").";
+      if (ignored.size) msg += " Đã tự động bỏ qua " + ignored.size + " cột không khớp với mẫu: " + [...ignored].join(", ") + ".";
+      setMsg($(cfg.msg), msg);
+      loadTables();
+    } catch (err) { setMsg($(cfg.msg), err.message, false); }
+    finally { $(cfg.btn).disabled = false; }
+  });
+}
+setupDataImportForm({ form: "importForm", type: "impType", month: "impMonth", year: "impYear", mode: "impMode", file: "impFile", btn: "impBtn", msg: "impMsg", errNoType: "Chưa có loại dữ liệu chi trả. Hãy tạo loại dữ liệu trong mục Quản lý loại dữ liệu trước." });
+setupDataImportForm({ form: "importFormS", type: "impTypeS", month: "impMonthS", year: "impYearS", mode: "impModeS", file: "impFileS", btn: "impBtnS", msg: "impMsgS", errNoType: "Chưa có loại dữ liệu bán hàng. Hãy tạo loại dữ liệu Doanh thu / Sản lượng PTTB trong mục Quản lý loại dữ liệu trước." });
 
 /* ---------------- Quan ly loai du lieu (admin) ---------------- */
 function slugKey(s) {
@@ -7030,6 +7210,11 @@ $("repMode").addEventListener("change", () => {
   $("repDayBox").classList.toggle("hidden", month);
   $("repMonthBox").classList.toggle("hidden", !month);
 });
+$("crMode").addEventListener("change", () => {
+  const month = $("crMode").value === "month";
+  $("crDayBox").classList.toggle("hidden", month);
+  $("crMonthBox").classList.toggle("hidden", !month);
+});
 $("repSummaryBtn").addEventListener("click", async () => {
   const p = repRange();
   if (!p) { setMsg($("repMsg"), "Hãy chọn khoảng ngày hoặc tháng cần xem báo cáo.", false); return; }
@@ -7210,8 +7395,19 @@ $("chMapNamesBtn").addEventListener("click", () => {
 });
 
 /* ---------------- Bao cao cham soc diem ban ---------------- */
+function careRepRange() {
+  if ($("crMode").value === "month") {
+    const v = $("crMonth").value;
+    if (!v) return null;
+    const [y, m] = v.split("-").map(Number);
+    const last = new Date(y, m, 0).getDate();
+    return { from: v + "-01", to: v + "-" + String(last).padStart(2, "0") };
+  }
+  if (!$("crFrom").value || !$("crTo").value) return null;
+  return { from: $("crFrom").value, to: $("crTo").value };
+}
 $("careRepSummaryBtn").addEventListener("click", async () => {
-  const p = repRange();
+  const p = careRepRange();
   if (!p) { setMsg($("careRepMsg"), "Hãy chọn khoảng ngày hoặc tháng cần xem báo cáo.", false); return; }
   try {
     setMsg($("careRepMsg"), "Đang tải báo cáo…");
@@ -7233,7 +7429,7 @@ $("careRepSummaryBtn").addEventListener("click", async () => {
   } catch (e) { setMsg($("careRepMsg"), e.message, false); }
 });
 $("careRepDetailBtn").addEventListener("click", async () => {
-  const p = repRange();
+  const p = careRepRange();
   if (!p) { setMsg($("careRepMsg"), "Hãy chọn khoảng ngày hoặc tháng cần xem báo cáo.", false); return; }
   try {
     setMsg($("careRepMsg"), "Đang tải chi tiết…");
@@ -7253,7 +7449,7 @@ $("careRepDetailBtn").addEventListener("click", async () => {
 
 /* ---------------- Thong ke dang nhap ---------------- */
 $("careRepExportBtn").addEventListener("click", async () => {
-  const p = repRange();
+  const p = careRepRange();
   if (!p) { setMsg($("careRepMsg"), "Hãy chọn khoảng ngày hoặc tháng cần xem báo cáo.", false); return; }
   try {
     setMsg($("careRepMsg"), "Đang tạo file Excel…");
