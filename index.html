@@ -462,6 +462,14 @@
 #appRoot .nav-btn {display:flex;width:100%;text-align:left;gap:9px;align-items:center;background:none;border:none;padding:11px 10px;border-radius:10px;font-size:14.5px;font-weight:600;color:var(--ink)}
 #appRoot .nav-btn:hover {background:var(--blue-light)}
 #appRoot .nav-btn.active {background:var(--blue);color:#fff}
+#appRoot .nav-group {margin:2px 0}
+#appRoot .nav-group-head {display:flex;width:100%;text-align:left;gap:9px;align-items:center;background:none;border:none;padding:11px 10px;border-radius:10px;font-size:14.5px;font-weight:700;color:var(--ink);cursor:pointer}
+#appRoot .nav-group-head:hover {background:var(--blue-light)}
+#appRoot .nav-group-head .nav-caret {margin-left:auto;transition:transform .15s;font-size:12px}
+#appRoot .nav-group.closed .nav-caret {transform:rotate(-90deg)}
+#appRoot .nav-group.closed .nav-group-body {display:none}
+#appRoot .nav-group-body {padding-left:14px}
+#appRoot .nav-btn.nav-sub {font-size:14px;padding:9px 10px}
 #appRoot /* ---------- Ban do kenh ban ---------- */
 .pos-pin {width:30px;height:30px;border-radius:9px;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1}
 #appRoot .checkdrop {position:relative}
@@ -606,6 +614,10 @@
 #appRoot .sidebar {display:flex;flex-wrap:wrap;gap:8px;padding:10px}
 #appRoot .sidebar .who {flex:1 1 100%;padding:4px 6px 10px}
 #appRoot .nav-btn {width:auto;flex:1 0 auto;justify-content:center;white-space:nowrap;padding:12px 10px;font-size:14px}
+#appRoot .nav-group {flex:1 1 100%}
+#appRoot .nav-group-body {display:flex;flex-wrap:wrap;gap:8px;padding-left:0}
+#appRoot .nav-group.closed .nav-group-body {display:none}
+#appRoot .nav-btn.nav-sub {flex:1 0 auto}
 #appRoot .panel {padding:14px}
 #appRoot .panel h2 {font-size:18px}
 #appRoot .form-grid {grid-template-columns:1fr !important}
@@ -992,16 +1004,38 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <div class="who"><b id="whoName">—</b><span id="whoRole">—</span></div>
         <button class="nav-btn" data-panel="panel-dashboard">📈 Dashboard chi trả hoa hồng</button>
         <button class="nav-btn" data-panel="panel-salesdash">🛒 Dashboard bán hàng</button>
-        <button class="nav-btn" data-panel="panel-units">🏢 Quản lý đơn vị</button>
-        <button class="nav-btn" data-panel="panel-users">🏪 Quản lý kênh bán</button>
-        <button class="nav-btn" data-panel="panel-staff">👤 Quản lý người dùng</button>
-        <button class="nav-btn" data-panel="panel-import">📥 Quản lý dữ liệu đầu vào</button>
-        <button class="nav-btn" data-panel="panel-config">🗄️ Cấu hình kết nối D1</button>
-        <button class="nav-btn" data-panel="panel-reports">📊 Báo cáo thống kê</button>
-        <button class="nav-btn" data-panel="panel-packages">📦 Danh mục gói cước</button>
-        <button class="nav-btn" data-panel="panel-care">🧭 Chăm sóc điểm bán</button>
+        <div class="nav-group" data-group="admin">
+          <button class="nav-group-head" type="button">🛠️ Công cụ dành cho Admin <span class="nav-caret">▾</span></button>
+          <div class="nav-group-body">
+            <button class="nav-btn nav-sub" data-panel="panel-units">🏢 Quản lý đơn vị</button>
+            <button class="nav-btn nav-sub" data-panel="panel-staff">👤 Quản lý người dùng</button>
+            <button class="nav-btn nav-sub" data-panel="panel-users">🏪 Quản lý kênh bán</button>
+            <button class="nav-btn nav-sub" data-panel="panel-config">🗄️ Cấu hình kết nối D1</button>
+            <button class="nav-btn nav-sub" data-panel="panel-packages">📦 Danh mục gói cước</button>
+            <button class="nav-btn nav-sub" data-panel="panel-loginstats">🔑 Thống kê đăng nhập</button>
+          </div>
+        </div>
+        <div class="nav-group" data-group="reports">
+          <button class="nav-group-head" type="button">📊 Báo cáo thống kê <span class="nav-caret">▾</span></button>
+          <div class="nav-group-body">
+            <button class="nav-btn nav-sub" data-panel="panel-reports">📊 Báo cáo chi trả hoa hồng</button>
+            <button class="nav-btn nav-sub" data-panel="panel-salesdash" data-section="ovUnitSec">🛒 Báo cáo kết quả bán hàng</button>
+            <button class="nav-btn nav-sub" data-panel="panel-reports" data-section="careRepSection">🧭 Báo cáo chăm sóc điểm bán</button>
+          </div>
+        </div>
+        <div class="nav-group" data-group="import">
+          <button class="nav-group-head" type="button">📥 Quản lý dữ liệu đầu vào <span class="nav-caret">▾</span></button>
+          <div class="nav-group-body">
+            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="importForm" data-imp-kind="commission">📥 Import dữ liệu chi trả hoa hồng</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="importForm" data-imp-kind="sales">📈 Import dữ liệu kết quả bán hàng</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="kbManager">🏪 Import danh sách kênh bán hàng</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="cbManager">👤 Import danh sách CBCNV</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="planManager">🎯 Giao/import kế hoạch kinh doanh</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import" data-section="dtManager">🗂️ Quản lý loại dữ liệu</button>
+          </div>
+        </div>
         <button class="nav-btn" data-panel="panel-channelmap">🗺️ Bản đồ kênh bán</button>
-        <button class="nav-btn" data-panel="panel-loginstats">🔑 Thống kê đăng nhập</button>
+        <button class="nav-btn" data-panel="panel-care">🧭 Chăm sóc điểm bán</button>
         <button class="nav-btn" data-panel="panel-settings">⚙️ Cài đặt</button>
       </aside>
       <div>
@@ -1110,7 +1144,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <div class="tbl-wrap"><table class="data"><thead id="ovCareHead"></thead><tbody id="ovCareBody"><tr><td>—</td></tr></tbody></table></div>
 
           <!-- DANH GIA THEO DON VI -->
-          <h3 class="sec-title">🏢 Đánh giá theo đơn vị <span class="sec-sub" id="ovUnitSub"></span></h3>
+          <h3 class="sec-title" id="ovUnitSec">🏢 Đánh giá theo đơn vị <span class="sec-sub" id="ovUnitSub"></span></h3>
           <div class="tbl-wrap"><table class="data"><thead id="ovUnitHead"></thead><tbody id="ovUnitBody"><tr><td>—</td></tr></tbody></table></div>
 
           <!-- DANH GIA THEO DIEM BAN -->
@@ -4761,18 +4795,26 @@ function refreshAuthUI() {
       if (show && me.role !== "admin" && me.modules && key && !me.modules.includes(key)) show = false;
       b.classList.toggle("hidden", !show);
     });
+    // An ca nhom neu moi muc con trong nhom deu bi an (phan quyen)
+    document.querySelectorAll(".nav-group").forEach((g) => {
+      const anyVisible = [...g.querySelectorAll(".nav-btn")].some((b) => !b.classList.contains("hidden"));
+      g.classList.toggle("hidden", !anyVisible);
+    });
     $("setEload").value = me.so_eload || "";
     $("setWallet").value = me.so_vi || "";
   }
   $("publicView").classList.toggle("hidden", logged);
   $("appView").classList.toggle("hidden", !logged);
 }
-function openPanel(panelId) {
+function openPanel(panelId, btn) {
   // Mo panel Ban do kenh ban -> mo rong khung app de ban do rong them ~30%; roi panel thi tra ve 1180px
   const aw = document.querySelector("#appView .wrap");
   if (aw) aw.classList.toggle("map-wide", panelId === "panel-channelmap");
   document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("hidden", p.id !== panelId));
-  document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.panel === panelId));
+  // Active: danh dau dung nut duoc bam (nhieu muc menu co the chung 1 panel)
+  document.querySelectorAll(".nav-btn").forEach((b) => b.classList.remove("active"));
+  const activeBtn = btn || document.querySelector('.nav-btn[data-panel="' + panelId + '"]');
+  if (activeBtn) activeBtn.classList.add("active");
   fillBanner();
   if (panelId === "panel-dashboard") { loadDataTypes(); loadDashboard(); }
   if (panelId === "panel-salesdash") { initSalesDash(); }
@@ -4789,8 +4831,17 @@ function openPanel(panelId) {
   if (panelId === "panel-care") loadCareBatches();
   if (panelId === "panel-channelmap") loadChannelMap();
   if (panelId === "panel-config") $("cfgApiUrl").value = apiBase;
+  // Dieu huong theo muc menu con: chon loai import (5.1/5.2) + cuon toi section tuong ung
+  if (btn) {
+    const kind = btn.dataset.impKind;
+    if (kind) setImpTypeByKind(kind);
+    const sec = btn.dataset.section;
+    if (sec) setTimeout(() => { const el = $(sec); if (el && !el.classList.contains("hidden")) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 80);
+  }
 }
-document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel)));
+document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel, b)));
+// Thu gon / mo nhom menu
+document.querySelectorAll(".nav-group-head").forEach((h) => h.addEventListener("click", () => h.closest(".nav-group").classList.toggle("closed")));
 
 function showLogin() {
   $("loginModal").classList.remove("hidden");
@@ -6132,10 +6183,24 @@ async function loadDataTypes() {
   renderDtList();
   if (me) $("dtManager").classList.toggle("hidden", me.role !== "admin");
 }
+let pendingImpKind = null;
+// Menu 5.1 (chi tra hoa hong) = loai khong co sales_kind; 5.2 (ket qua ban hang) = loai co sales_kind.
+// Goi truoc khi loadDataTypes xong thi de pending, renderTypeOptions se ap dung khi co danh sach.
+function setImpTypeByKind(kind) {
+  const pick = () => {
+    const t = kind === "sales"
+      ? dataTypes.find((x) => x.sales_kind)
+      : dataTypes.find((x) => !x.sales_kind);
+    if (t) { $("impType").value = t.code; applyImportPerms(); return true; }
+    return false;
+  };
+  if (!pick()) pendingImpKind = kind;
+}
 function renderTypeOptions() {
   const imp = $("impType"), curImp = imp.value;
   imp.innerHTML = dataTypes.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + " (" + esc(t.code) + ")</option>").join("");
   if (curImp && dataTypes.some((t) => t.code === curImp)) imp.value = curImp;
+  if (pendingImpKind) { const k = pendingImpKind; pendingImpKind = null; setImpTypeByKind(k); }
   const rep = $("repType"), curRep = rep.value;
   rep.innerHTML = '<option value="ALL">Tất cả các loại dữ liệu</option>' + dataTypes.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + "</option>").join("");
   if (curRep && (curRep === "ALL" || dataTypes.some((t) => t.code === curRep))) rep.value = curRep;
