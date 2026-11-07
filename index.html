@@ -1032,6 +1032,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <button class="nav-btn nav-sub" data-panel="panel-import-cb">👤 Import danh sách CBCNV</button>
             <button class="nav-btn nav-sub" data-panel="panel-import-plan">🎯 Giao/import kế hoạch kinh doanh</button>
             <button class="nav-btn nav-sub" data-panel="panel-import-types">🗂️ Quản lý loại dữ liệu</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import-loaikenh">🏷️ Cấu hình loại kênh bán</button>
           </div>
         </div>
         <button class="nav-btn" data-panel="panel-channelmap">🗺️ Bản đồ kênh bán</button>
@@ -1398,6 +1399,33 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <div id="dtMsg"></div>
         </section>
 
+        <section class="panel hidden" id="panel-import-loaikenh">
+          <h2>5.7 Cấu hình loại kênh bán</h2>
+          <p class="desc">Admin định nghĩa từng <b>Loại điểm bán</b> (giá trị trong cột "Loại điểm bán" của file danh sách kênh bán) tương ứng với <b>Hạng kênh</b> nào (VD: ĐUQ, ĐBL, Chuỗi, ĐGD, GARA, ĐDV). Khi import danh sách kênh bán, hệ thống tra bảng này để xác định hạng kênh của từng điểm bán và lưu vào cột "Hạng kênh". Điểm bán nào có loại chưa được định nghĩa thì để trống hạng kênh và được báo lại sau khi import.</p>
+          <div class="card">
+            <div class="row">
+              <label>Loại điểm bán <input id="lkLoai" placeholder="VD: Đại lý ủy quyền" autocomplete="off" /></label>
+              <label>Hạng kênh <input id="lkHang" list="lkHangList" placeholder="VD: ĐUQ" autocomplete="off" /><datalist id="lkHangList"><option value="ĐUQ"></option><option value="ĐBL"></option><option value="Chuỗi"></option><option value="ĐGD"></option><option value="GARA"></option><option value="ĐDV"></option></datalist></label>
+              <button id="lkSaveBtn" class="btn primary">Lưu định nghĩa</button>
+              <button id="lkCancelBtn" class="btn gray hidden">Hủy sửa</button>
+            </div>
+            <div id="lkMsg" class="msg"></div>
+          </div>
+          <div class="card">
+            <h3>Danh sách định nghĩa</h3>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Loại điểm bán</th><th>Hạng kênh</th><th></th></tr></thead><tbody id="lkBody"></tbody></table></div>
+          </div>
+          <div class="card">
+            <h3>Áp dụng lại cho bảng tháng đã import</h3>
+            <p class="desc">Dùng khi thêm/sửa định nghĩa sau khi đã import — hệ thống tra lại bảng định nghĩa và cập nhật cột Hạng kênh cho toàn bộ điểm bán của tháng đó.</p>
+            <div class="row">
+              <label>Tháng <input id="lkMonth" type="number" min="1" max="12" style="width:80px" /></label>
+              <label>Năm <input id="lkYear" type="number" style="width:100px" /></label>
+              <button id="lkApplyBtn" class="btn">Áp dụng hạng kênh</button>
+            </div>
+            <div id="lkApplyMsg" class="msg"></div>
+          </div>
+        </section>
 
         <!-- CAU HINH KET NOI D1 -->
         <section class="panel hidden" id="panel-config">
@@ -1998,7 +2026,7 @@ function typeColumnsSQL(t) {
 // nguoi_dung chi dung de map phu khi bang thang khong map duoc.
 const KENH_BAN_PREFIX = &quot;kenh_ban&quot;;
 const CBCNV_PREFIX = &quot;cbcnv&quot;;
-const KENH_BAN_COLS = [[&quot;iddaily&quot;, &quot;TEXT&quot;], [&quot;don_vi&quot;, &quot;TEXT&quot;], [&quot;don_vi_id&quot;, &quot;INTEGER&quot;], [&quot;ten_diem_ban&quot;, &quot;TEXT&quot;], [&quot;id_hrm&quot;, &quot;TEXT&quot;], [&quot;ma_kenh&quot;, &quot;TEXT&quot;], [&quot;loai_kenh&quot;, &quot;TEXT&quot;], [&quot;ngay_khai_bao&quot;, &quot;TEXT&quot;], [&quot;quan_huyen&quot;, &quot;TEXT&quot;], [&quot;phuong_xa&quot;, &quot;TEXT&quot;], [&quot;dia_chi&quot;, &quot;TEXT&quot;], [&quot;lat&quot;, &quot;TEXT&quot;], [&quot;lng&quot;, &quot;TEXT&quot;], [&quot;ten_nv_bh&quot;, &quot;TEXT&quot;], [&quot;ma_nv_quan_ly&quot;, &quot;TEXT&quot;], [&quot;so_eload&quot;, &quot;TEXT&quot;], [&quot;trang_thai_phe_duyet&quot;, &quot;TEXT&quot;], [&quot;user_ccbs&quot;, &quot;TEXT&quot;], [&quot;phuong_xa_moi&quot;, &quot;TEXT&quot;]];
+const KENH_BAN_COLS = [[&quot;iddaily&quot;, &quot;TEXT&quot;], [&quot;don_vi&quot;, &quot;TEXT&quot;], [&quot;don_vi_id&quot;, &quot;INTEGER&quot;], [&quot;ten_diem_ban&quot;, &quot;TEXT&quot;], [&quot;id_hrm&quot;, &quot;TEXT&quot;], [&quot;ma_kenh&quot;, &quot;TEXT&quot;], [&quot;loai_kenh&quot;, &quot;TEXT&quot;], [&quot;hang_kenh&quot;, &quot;TEXT&quot;], [&quot;ngay_khai_bao&quot;, &quot;TEXT&quot;], [&quot;quan_huyen&quot;, &quot;TEXT&quot;], [&quot;phuong_xa&quot;, &quot;TEXT&quot;], [&quot;dia_chi&quot;, &quot;TEXT&quot;], [&quot;lat&quot;, &quot;TEXT&quot;], [&quot;lng&quot;, &quot;TEXT&quot;], [&quot;ten_nv_bh&quot;, &quot;TEXT&quot;], [&quot;ma_nv_quan_ly&quot;, &quot;TEXT&quot;], [&quot;so_eload&quot;, &quot;TEXT&quot;], [&quot;trang_thai_phe_duyet&quot;, &quot;TEXT&quot;], [&quot;user_ccbs&quot;, &quot;TEXT&quot;], [&quot;phuong_xa_moi&quot;, &quot;TEXT&quot;]];
 const CBCNV_COLS = [[&quot;ma_hrm&quot;, &quot;TEXT&quot;], [&quot;phong_ban&quot;, &quot;TEXT&quot;], [&quot;bo_phan&quot;, &quot;TEXT&quot;], [&quot;ho_ten&quot;, &quot;TEXT&quot;], [&quot;chuc_danh&quot;, &quot;TEXT&quot;], [&quot;vi_tri_cong_viec&quot;, &quot;TEXT&quot;], [&quot;email&quot;, &quot;TEXT&quot;], [&quot;sdt&quot;, &quot;TEXT&quot;], [&quot;user_ccbs&quot;, &quot;TEXT&quot;], [&quot;user_dhsxkd&quot;, &quot;TEXT&quot;], [&quot;ma_smcs&quot;, &quot;TEXT&quot;], [&quot;user_ccos&quot;, &quot;TEXT&quot;], [&quot;don_vi&quot;, &quot;TEXT&quot;], [&quot;don_vi_id&quot;, &quot;INTEGER&quot;], [&quot;loai_lao_dong&quot;, &quot;TEXT&quot;], [&quot;khoi&quot;, &quot;TEXT&quot;]];
 // monthKey &quot;YYYY-MM&quot; -&gt; ten bang &quot;prefix_MMYYYY&quot;
 function monthTableName(prefix, mk) {
@@ -3098,7 +3126,24 @@ export default {
         return json({ ok: true, table, inserted, mode });
       }
 
-      // ---- Import danh sach kenh ban / CBCNV theo thang ----
+      // ---- Dinh nghia loai kenh ban (module 5.7 &quot;Cau hinh loai kenh ban&quot;) ----
+// Admin dinh nghia: Loai diem ban (nhu trong file danh sach kenh) -&gt; Hang kenh
+// (VD: ĐUQ, ĐBL, Chuoi, ĐGD, GARA, ĐDV). He thong tra bang nay khi import
+// danh sach kenh ban de xac dinh hang kenh cua tung diem ban.
+async function ensureLoaikenh(env) {
+  await env.DB.prepare(
+    &quot;CREATE TABLE IF NOT EXISTS loai_kenh_ban (id INTEGER PRIMARY KEY AUTOINCREMENT, loai_diem_ban TEXT NOT NULL UNIQUE, hang_kenh TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT)&quot;
+  ).run();
+}
+// Chuan hoa khoa tra cuu (khong dau, khong phan biet hoa/thuong) — dung chung
+// cho bang dinh nghia va gia tri &quot;Loai diem ban&quot; trong file kenh.
+function normKbKey(s) {
+  return String(s == null ? &quot;&quot; : s).trim().toLowerCase()
+    .normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/đ/g, &quot;d&quot;)
+    .replace(/[–—−‐‒]/g, &quot;-&quot;).replace(/\s+/g, &quot; &quot;).replace(/\s*-\s*/g, &quot;-&quot;);
+}
+
+// ---- Import danh sach kenh ban / CBCNV theo thang ----
       // Moi thang 1 bang: kenh_ban_MMYYYY / cbcnv_MMYYYY. Client tu map cot
       // Excel ve truong chuan va loai bo cot khong lien quan truoc khi gui;
       // server chi nhan cac truong chuan, tu giai don_vi -&gt; don_vi_id.
@@ -3157,9 +3202,29 @@ export default {
           }
           return null;
         };
+        // Giai &quot;Loai diem ban&quot; -&gt; &quot;Hang kenh&quot; qua bang dinh nghia loai_kenh_ban
+        // (chi ap dung cho import danh sach kenh ban).
+        let hangMap = new Map();
+        if (isKenh) {
+          try {
+            await ensureLoaikenh(env);
+            const defs = (await env.DB.prepare(&quot;SELECT loai_diem_ban, hang_kenh FROM loai_kenh_ban&quot;).all()).results || [];
+            for (const d of defs) {
+              const k = normU(d.loai_diem_ban);
+              if (k &amp;&amp; !hangMap.has(k)) hangMap.set(k, d.hang_kenh);
+            }
+          } catch (e) { /* chua co bang dinh nghia -&gt; khong map */ }
+        }
         const sql =
           &#x27;INSERT INTO &quot;&#x27; + table + &#x27;&quot; (&#x27; + colNames.map((n) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot;&#x27;).join(&quot;, &quot;) +
           &quot;, imported_by) VALUES (&quot; + colNames.map(() =&gt; &quot;?&quot;).join(&quot;, &quot;) + &quot;, ?)&quot;;
+        let unmapped = 0;
+        if (isKenh) {
+          for (const row of rows) {
+            const raw = row.loai_kenh;
+            if (raw !== undefined &amp;&amp; raw !== null &amp;&amp; String(raw).trim() !== &quot;&quot; &amp;&amp; !hangMap.has(normU(raw))) unmapped++;
+          }
+        }
         let inserted = 0;
         const CHUNK = 100;
         for (let i = 0; i &lt; rows.length; i += CHUNK) {
@@ -3167,6 +3232,11 @@ export default {
             const vals = colNames.map((n) =&gt; {
               if (n === &quot;don_vi_id&quot;) {
                 return resolveUnitId(row.don_vi || row.quan_huyen);
+              }
+              if (n === &quot;hang_kenh&quot;) {
+                const raw = row.loai_kenh;
+                if (raw === undefined || raw === null || String(raw).trim() === &quot;&quot;) return null;
+                return hangMap.get(normU(raw)) || null;
               }
               const v = row[n];
               return v === undefined || v === null ? null : String(v).trim();
@@ -3177,7 +3247,76 @@ export default {
           await env.DB.batch(batch);
           inserted += batch.length;
         }
-        return json({ ok: true, table, inserted, mode });
+        return json({ ok: true, table, inserted, mode, unmapped });
+      }
+
+      // ---- Cau hinh loai kenh ban (module 5.7, chi admin) ----
+      // Bang dinh nghia: Loai diem ban -&gt; Hang kenh. He thong tra bang nay
+      // khi import danh sach kenh ban de xac dinh hang kenh tung diem ban.
+      if (path === &quot;/api/loai-kenh-ban&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc xem cau hinh loai kenh ban&quot;, 403);
+        await ensureLoaikenh(env);
+        const res = await env.DB.prepare(&quot;SELECT id, loai_diem_ban, hang_kenh FROM loai_kenh_ban ORDER BY loai_diem_ban&quot;).all();
+        return json({ ok: true, rows: res.results || [] });
+      }
+      if (path === &quot;/api/loai-kenh-ban&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc sua cau hinh loai kenh ban&quot;, 403);
+        const b = await readBody(request);
+        const id = Number(b.id) || 0;
+        const loai = String(b.loai_diem_ban || &quot;&quot;).trim();
+        const hang = String(b.hang_kenh || &quot;&quot;).trim();
+        if (!loai || !hang) return err(&quot;Nhap du Loai diem ban va Hang kenh&quot;, 422);
+        await ensureLoaikenh(env);
+        const all = (await env.DB.prepare(&quot;SELECT id, loai_diem_ban FROM loai_kenh_ban&quot;).all()).results || [];
+        const nk = normKbKey(loai);
+        const dup = all.find((r) =&gt; r.id !== id &amp;&amp; r.loai_diem_ban !== loai &amp;&amp; normKbKey(r.loai_diem_ban) === nk);
+        if (dup) return err(&quot;Da co dinh nghia tuong tu cho: &quot; + dup.loai_diem_ban, 409);
+        if (id) {
+          const ex = await env.DB.prepare(&quot;SELECT id FROM loai_kenh_ban WHERE id = ?&quot;).bind(id).first();
+          if (!ex) return err(&quot;Dinh nghia khong ton tai&quot;, 404);
+          await env.DB.prepare(&quot;UPDATE loai_kenh_ban SET loai_diem_ban = ?, hang_kenh = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?&quot;).bind(loai, hang, id).run();
+          return json({ ok: true, id });
+        }
+        const r = await env.DB.prepare(&quot;INSERT INTO loai_kenh_ban (loai_diem_ban, hang_kenh) VALUES (?, ?) ON CONFLICT(loai_diem_ban) DO UPDATE SET hang_kenh = excluded.hang_kenh, updated_at = CURRENT_TIMESTAMP&quot;).bind(loai, hang).run();
+        return json({ ok: true, id: (r.meta &amp;&amp; r.meta.last_row_id) || 0 });
+      }
+      if (path === &quot;/api/loai-kenh-ban&quot; &amp;&amp; method === &quot;DELETE&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc xoa cau hinh loai kenh ban&quot;, 403);
+        const id = Number(new URL(request.url).searchParams.get(&quot;id&quot;)) || 0;
+        if (!id) return err(&quot;Thieu id&quot;, 422);
+        await ensureLoaikenh(env);
+        await env.DB.prepare(&quot;DELETE FROM loai_kenh_ban WHERE id = ?&quot;).bind(id).run();
+        return json({ ok: true });
+      }
+      if (path === &quot;/api/loai-kenh-ban/ap-dung&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc ap dung hang kenh&quot;, 403);
+        const b = await readBody(request);
+        const thang = Number(b.thang), nam = Number(b.nam);
+        if (!thang || thang &lt; 1 || thang &gt; 12 || !nam) return err(&quot;Thang/nam khong hop le&quot;, 422);
+        const table = KENH_BAN_PREFIX + &quot;_&quot; + String(thang).padStart(2, &quot;0&quot;) + nam;
+        const ex = await env.DB.prepare(&quot;SELECT name FROM sqlite_master WHERE type=&#x27;table&#x27; AND name = ?&quot;).bind(table).first();
+        if (!ex) return err(&quot;Chua co bang danh sach kenh ban thang &quot; + thang + &quot;/&quot; + nam, 404);
+        await ensureLoaikenh(env);
+        await ensureListColumns(env, table, KENH_BAN_COLS);
+        const defs = (await env.DB.prepare(&quot;SELECT loai_diem_ban, hang_kenh FROM loai_kenh_ban&quot;).all()).results || [];
+        const hangMap2 = new Map();
+        for (const d of defs) {
+          const k = normKbKey(d.loai_diem_ban);
+          if (k &amp;&amp; !hangMap2.has(k)) hangMap2.set(k, d.hang_kenh);
+        }
+        const rows = (await env.DB.prepare(&#x27;SELECT id, loai_kenh FROM &quot;&#x27; + table + &#x27;&quot;&#x27;).all()).results || [];
+        let mapped = 0, unmapped = 0;
+        const batch = [];
+        for (const r of rows) {
+          const raw = r.loai_kenh;
+          if (raw === undefined || raw === null || String(raw).trim() === &quot;&quot;) continue;
+          const h = hangMap2.get(normKbKey(raw));
+          if (!h) { unmapped++; continue; }
+          batch.push(env.DB.prepare(&#x27;UPDATE &quot;&#x27; + table + &#x27;&quot; SET hang_kenh = ? WHERE id = ?&#x27;).bind(h, r.id));
+          mapped++;
+        }
+        if (batch.length) await env.DB.batch(batch);
+        return json({ ok: true, table, total: rows.length, mapped, unmapped });
       }
 
       // ---- Bao cao thong ke ----
@@ -4799,7 +4938,7 @@ const MODULE_DEFS = [
 const PANEL_MODULES = {
   "panel-dashboard": "dashboard", "panel-salesdash": "salesdash", "panel-units": "units", "panel-users": "users", "panel-staff": "staff", "panel-import": "import",
   "panel-config": "config", "panel-reports": "reports", "panel-salesreport": "salesdash", "panel-carereport": "reports", "panel-packages": "packages",
-  "panel-import-sales": "import", "panel-import-kb": "import", "panel-import-cb": "import", "panel-import-plan": "import", "panel-import-types": "import",
+  "panel-import-sales": "import", "panel-import-kb": "import", "panel-import-cb": "import", "panel-import-plan": "import", "panel-import-types": "import", "panel-import-loaikenh": "import",
   "panel-loginstats": "loginstats", "panel-care": "care", "panel-channelmap": "channelmap", "panel-settings": "settings",
 };
 const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
@@ -4880,7 +5019,7 @@ function refreshAuthUI() {
       if (p === "panel-units" || p === "panel-config") show = me.role === "admin";
       if (p === "panel-users" || p === "panel-loginstats" || p === "panel-staff") show = me.role === "admin" || me.role === "subadmin";
       if (p === "panel-import" || p === "panel-import-sales" || p === "panel-import-kb" || p === "panel-import-cb") show = me.role === "admin" || me.can_import;
-      if (p === "panel-import-plan" || p === "panel-import-types") show = me.role === "admin";
+      if (p === "panel-import-plan" || p === "panel-import-types" || p === "panel-import-loaikenh") show = me.role === "admin";
       if (p === "panel-carereport") show = me.role === "admin" || me.role === "subadmin" || isLeaderLikeMe();
       if (p === "panel-care") show = me.role === "admin" || me.role === "leader";
       const key = PANEL_MODULES[p];
@@ -4929,6 +5068,7 @@ function openPanel(panelId, btn) {
   if (panelId === "panel-import-cb") { const pn = new Date(); if (!$("cbMonth").value) $("cbMonth").value = pn.getMonth() + 1; if (!$("cbYear").value) $("cbYear").value = pn.getFullYear(); }
   if (panelId === "panel-import-plan") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("planMonth").value) $("planMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("planImpYear").value) $("planImpYear").value = pn.getFullYear(); }
   if (panelId === "panel-import-types") loadDataTypes();
+  if (panelId === "panel-import-loaikenh") { loadLoaikenh(); const pn = new Date(); if (!$("lkMonth").value) $("lkMonth").value = pn.getMonth() + 1; if (!$("lkYear").value) $("lkYear").value = pn.getFullYear(); }
   if (panelId === "panel-reports") { loadDataTypes(); loadPosList(); }
   if (panelId === "panel-salesreport") initSalesReport();
   if (panelId === "panel-carereport") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); const ym = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("crFrom").value) $("crFrom").value = ym + "-01"; if (!$("crTo").value) $("crTo").value = ym + "-" + new Date(pn.getFullYear(), pn.getMonth() + 1, 0).getDate(); if (!$("crMonth").value) $("crMonth").value = ym; }
@@ -6695,7 +6835,7 @@ function setupListImport(cfg) {
       $(cfg.btnId).disabled = true;
       setMsg($(cfg.msgId), "Đang import " + rows.length + " dòng " + cfg.label + " tháng " + mm + "/" + nam + "…");
       const d = await api(cfg.api, { method: "POST", body: JSON.stringify({ thang, nam, mode, rows }) });
-      setMsg($(cfg.msgId), "Import xong: " + d.inserted + " dòng vào bảng " + d.table + ".", true);
+      setMsg($(cfg.msgId), "Import xong: " + d.inserted + " dòng vào bảng " + d.table + "." + (d.unmapped ? " " + d.unmapped + " dòng chưa map được Hạng kênh (chưa có định nghĩa loại điểm bán — vào mục 5.7 để thêm)." : ""), true);
       fileEl.value = ""; $(cfg.previewId).innerHTML = ""; lastMap = null; lastRows = [];
       loadTables();
     } catch (e) { setMsg($(cfg.msgId), e.message, false); }
@@ -6704,6 +6844,62 @@ function setupListImport(cfg) {
 }
 setupListImport({ fileId: "kbFile", monthId: "kbMonth", yearId: "kbYear", modeId: "kbMode", btnId: "kbImpBtn", previewId: "kbMapPreview", msgId: "kbMsg", api: "/api/kenh-ban/import", fields: KB_FIELDS, label: "danh sách kênh bán", idKeys: ["ma_kenh", "iddaily", "id_hrm", "so_eload"], idLabels: "Mã điểm bán / IDDAILY / ID điểm bán HRM / Số Eload" });
 setupListImport({ fileId: "cbFile", monthId: "cbMonth", yearId: "cbYear", modeId: "cbMode", btnId: "cbImpBtn", previewId: "cbMapPreview", msgId: "cbMsg", api: "/api/cbcnv/import", fields: CB_FIELDS, label: "danh sách CBCNV", idKeys: ["ma_hrm", "ma_smcs", "sdt"], idLabels: "Mã NV mới / Mã SMCS / SĐT" });
+/* ---- 5.7 Cau hinh loai kenh ban ---- */
+let lkEditId = 0;
+let lkRows = [];
+async function loadLoaikenh() {
+  try {
+    const d = await api("/api/loai-kenh-ban");
+    lkRows = d.rows || [];
+    const el = $("lkBody");
+    el.innerHTML = lkRows.length ? lkRows.map((r) =>
+      "<tr><td>" + esc(r.loai_diem_ban) + "</td><td><b>" + esc(r.hang_kenh) + "</b></td>" +
+      "<td style='white-space:nowrap'><button class='btn sm' data-edit-lk='" + r.id + "'>Sửa</button> " +
+      "<button class='btn sm gray' data-del-lk='" + r.id + "'>Xóa</button></td></tr>").join("")
+      : "<tr><td colspan='3' class='desc'>Chưa có định nghĩa nào — thêm dòng đầu tiên ở form trên.</td></tr>";
+    el.querySelectorAll("[data-edit-lk]").forEach((b) => b.addEventListener("click", () => {
+      const r = lkRows.find((x) => x.id === Number(b.dataset.editLk));
+      if (!r) return;
+      lkEditId = r.id;
+      $("lkLoai").value = r.loai_diem_ban;
+      $("lkHang").value = r.hang_kenh;
+      $("lkSaveBtn").textContent = "Cập nhật định nghĩa";
+      $("lkCancelBtn").classList.remove("hidden");
+      $("lkLoai").focus();
+    }));
+    el.querySelectorAll("[data-del-lk]").forEach((b) => b.addEventListener("click", async () => {
+      const r = lkRows.find((x) => x.id === Number(b.dataset.delLk));
+      if (!r) return;
+      if (!confirm("Xóa định nghĩa '" + r.loai_diem_ban + "' → '" + r.hang_kenh + "'?")) return;
+      try { await api("/api/loai-kenh-ban?id=" + r.id, { method: "DELETE" }); setMsg($("lkMsg"), "Đã xóa định nghĩa.", true); loadLoaikenh(); }
+      catch (e) { setMsg($("lkMsg"), e.message, false); }
+    }));
+  } catch (e) { setMsg($("lkMsg"), e.message, false); }
+}
+function lkResetForm() {
+  lkEditId = 0;
+  $("lkLoai").value = ""; $("lkHang").value = "";
+  $("lkSaveBtn").textContent = "Lưu định nghĩa";
+  $("lkCancelBtn").classList.add("hidden");
+}
+$("lkSaveBtn").addEventListener("click", async () => {
+  const loai = $("lkLoai").value.trim(), hang = $("lkHang").value.trim();
+  if (!loai || !hang) { setMsg($("lkMsg"), "Nhập đủ Loại điểm bán và Hạng kênh.", false); return; }
+  try {
+    await api("/api/loai-kenh-ban", { method: "POST", body: JSON.stringify({ id: lkEditId || undefined, loai_diem_ban: loai, hang_kenh: hang }) });
+    setMsg($("lkMsg"), lkEditId ? "Đã cập nhật định nghĩa." : "Đã thêm định nghĩa mới.", true);
+    lkResetForm(); loadLoaikenh();
+  } catch (e) { setMsg($("lkMsg"), e.message, false); }
+});
+$("lkCancelBtn").addEventListener("click", () => { lkResetForm(); setMsg($("lkMsg"), "", true); });
+$("lkApplyBtn").addEventListener("click", async () => {
+  const thang = Number($("lkMonth").value), nam = Number($("lkYear").value);
+  if (!thang || thang < 1 || thang > 12 || !nam) { setMsg($("lkApplyMsg"), "Nhập tháng (1-12) và năm hợp lệ.", false); return; }
+  try {
+    const d = await api("/api/loai-kenh-ban/ap-dung", { method: "POST", body: JSON.stringify({ thang, nam }) });
+    setMsg($("lkApplyMsg"), "Đã áp dụng cho bảng " + d.table + ": " + d.mapped + "/" + d.total + " điểm map được Hạng kênh" + (d.unmapped ? ", " + d.unmapped + " điểm chưa có định nghĩa." : "."), true);
+  } catch (e) { setMsg($("lkApplyMsg"), e.message, false); }
+});
 async function delTable(name, msgId) {
   if (!confirm("Xóa hẳn bảng dữ liệu " + name + "?\nToàn bộ dữ liệu trong bảng sẽ bị xóa khỏi CSDL và không khôi phục được.")) return;
   try {

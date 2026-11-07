@@ -423,7 +423,7 @@ function typeColumnsSQL(t) {
 // nguoi_dung chi dung de map phu khi bang thang khong map duoc.
 const KENH_BAN_PREFIX = "kenh_ban";
 const CBCNV_PREFIX = "cbcnv";
-const KENH_BAN_COLS = [["iddaily", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["ten_diem_ban", "TEXT"], ["id_hrm", "TEXT"], ["ma_kenh", "TEXT"], ["loai_kenh", "TEXT"], ["ngay_khai_bao", "TEXT"], ["quan_huyen", "TEXT"], ["phuong_xa", "TEXT"], ["dia_chi", "TEXT"], ["lat", "TEXT"], ["lng", "TEXT"], ["ten_nv_bh", "TEXT"], ["ma_nv_quan_ly", "TEXT"], ["so_eload", "TEXT"], ["trang_thai_phe_duyet", "TEXT"], ["user_ccbs", "TEXT"], ["phuong_xa_moi", "TEXT"]];
+const KENH_BAN_COLS = [["iddaily", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["ten_diem_ban", "TEXT"], ["id_hrm", "TEXT"], ["ma_kenh", "TEXT"], ["loai_kenh", "TEXT"], ["hang_kenh", "TEXT"], ["ngay_khai_bao", "TEXT"], ["quan_huyen", "TEXT"], ["phuong_xa", "TEXT"], ["dia_chi", "TEXT"], ["lat", "TEXT"], ["lng", "TEXT"], ["ten_nv_bh", "TEXT"], ["ma_nv_quan_ly", "TEXT"], ["so_eload", "TEXT"], ["trang_thai_phe_duyet", "TEXT"], ["user_ccbs", "TEXT"], ["phuong_xa_moi", "TEXT"]];
 const CBCNV_COLS = [["ma_hrm", "TEXT"], ["phong_ban", "TEXT"], ["bo_phan", "TEXT"], ["ho_ten", "TEXT"], ["chuc_danh", "TEXT"], ["vi_tri_cong_viec", "TEXT"], ["email", "TEXT"], ["sdt", "TEXT"], ["user_ccbs", "TEXT"], ["user_dhsxkd", "TEXT"], ["ma_smcs", "TEXT"], ["user_ccos", "TEXT"], ["don_vi", "TEXT"], ["don_vi_id", "INTEGER"], ["loai_lao_dong", "TEXT"], ["khoi", "TEXT"]];
 // monthKey "YYYY-MM" -> ten bang "prefix_MMYYYY"
 function monthTableName(prefix, mk) {
@@ -1523,7 +1523,24 @@ export default {
         return json({ ok: true, table, inserted, mode });
       }
 
-      // ---- Import danh sach kenh ban / CBCNV theo thang ----
+      // ---- Dinh nghia loai kenh ban (module 5.7 "Cau hinh loai kenh ban") ----
+// Admin dinh nghia: Loai diem ban (nhu trong file danh sach kenh) -> Hang kenh
+// (VD: ĐUQ, ĐBL, Chuoi, ĐGD, GARA, ĐDV). He thong tra bang nay khi import
+// danh sach kenh ban de xac dinh hang kenh cua tung diem ban.
+async function ensureLoaikenh(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS loai_kenh_ban (id INTEGER PRIMARY KEY AUTOINCREMENT, loai_diem_ban TEXT NOT NULL UNIQUE, hang_kenh TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT)"
+  ).run();
+}
+// Chuan hoa khoa tra cuu (khong dau, khong phan biet hoa/thuong) — dung chung
+// cho bang dinh nghia va gia tri "Loai diem ban" trong file kenh.
+function normKbKey(s) {
+  return String(s == null ? "" : s).trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d")
+    .replace(/[–—−‐‒]/g, "-").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-");
+}
+
+// ---- Import danh sach kenh ban / CBCNV theo thang ----
       // Moi thang 1 bang: kenh_ban_MMYYYY / cbcnv_MMYYYY. Client tu map cot
       // Excel ve truong chuan va loai bo cot khong lien quan truoc khi gui;
       // server chi nhan cac truong chuan, tu giai don_vi -> don_vi_id.
@@ -1582,9 +1599,29 @@ export default {
           }
           return null;
         };
+        // Giai "Loai diem ban" -> "Hang kenh" qua bang dinh nghia loai_kenh_ban
+        // (chi ap dung cho import danh sach kenh ban).
+        let hangMap = new Map();
+        if (isKenh) {
+          try {
+            await ensureLoaikenh(env);
+            const defs = (await env.DB.prepare("SELECT loai_diem_ban, hang_kenh FROM loai_kenh_ban").all()).results || [];
+            for (const d of defs) {
+              const k = normU(d.loai_diem_ban);
+              if (k && !hangMap.has(k)) hangMap.set(k, d.hang_kenh);
+            }
+          } catch (e) { /* chua co bang dinh nghia -> khong map */ }
+        }
         const sql =
           'INSERT INTO "' + table + '" (' + colNames.map((n) => '"' + n + '"').join(", ") +
           ", imported_by) VALUES (" + colNames.map(() => "?").join(", ") + ", ?)";
+        let unmapped = 0;
+        if (isKenh) {
+          for (const row of rows) {
+            const raw = row.loai_kenh;
+            if (raw !== undefined && raw !== null && String(raw).trim() !== "" && !hangMap.has(normU(raw))) unmapped++;
+          }
+        }
         let inserted = 0;
         const CHUNK = 100;
         for (let i = 0; i < rows.length; i += CHUNK) {
@@ -1592,6 +1629,11 @@ export default {
             const vals = colNames.map((n) => {
               if (n === "don_vi_id") {
                 return resolveUnitId(row.don_vi || row.quan_huyen);
+              }
+              if (n === "hang_kenh") {
+                const raw = row.loai_kenh;
+                if (raw === undefined || raw === null || String(raw).trim() === "") return null;
+                return hangMap.get(normU(raw)) || null;
               }
               const v = row[n];
               return v === undefined || v === null ? null : String(v).trim();
@@ -1602,7 +1644,76 @@ export default {
           await env.DB.batch(batch);
           inserted += batch.length;
         }
-        return json({ ok: true, table, inserted, mode });
+        return json({ ok: true, table, inserted, mode, unmapped });
+      }
+
+      // ---- Cau hinh loai kenh ban (module 5.7, chi admin) ----
+      // Bang dinh nghia: Loai diem ban -> Hang kenh. He thong tra bang nay
+      // khi import danh sach kenh ban de xac dinh hang kenh tung diem ban.
+      if (path === "/api/loai-kenh-ban" && method === "GET") {
+        if (!isAdmin) return err("Chi admin moi duoc xem cau hinh loai kenh ban", 403);
+        await ensureLoaikenh(env);
+        const res = await env.DB.prepare("SELECT id, loai_diem_ban, hang_kenh FROM loai_kenh_ban ORDER BY loai_diem_ban").all();
+        return json({ ok: true, rows: res.results || [] });
+      }
+      if (path === "/api/loai-kenh-ban" && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi duoc sua cau hinh loai kenh ban", 403);
+        const b = await readBody(request);
+        const id = Number(b.id) || 0;
+        const loai = String(b.loai_diem_ban || "").trim();
+        const hang = String(b.hang_kenh || "").trim();
+        if (!loai || !hang) return err("Nhap du Loai diem ban va Hang kenh", 422);
+        await ensureLoaikenh(env);
+        const all = (await env.DB.prepare("SELECT id, loai_diem_ban FROM loai_kenh_ban").all()).results || [];
+        const nk = normKbKey(loai);
+        const dup = all.find((r) => r.id !== id && r.loai_diem_ban !== loai && normKbKey(r.loai_diem_ban) === nk);
+        if (dup) return err("Da co dinh nghia tuong tu cho: " + dup.loai_diem_ban, 409);
+        if (id) {
+          const ex = await env.DB.prepare("SELECT id FROM loai_kenh_ban WHERE id = ?").bind(id).first();
+          if (!ex) return err("Dinh nghia khong ton tai", 404);
+          await env.DB.prepare("UPDATE loai_kenh_ban SET loai_diem_ban = ?, hang_kenh = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(loai, hang, id).run();
+          return json({ ok: true, id });
+        }
+        const r = await env.DB.prepare("INSERT INTO loai_kenh_ban (loai_diem_ban, hang_kenh) VALUES (?, ?) ON CONFLICT(loai_diem_ban) DO UPDATE SET hang_kenh = excluded.hang_kenh, updated_at = CURRENT_TIMESTAMP").bind(loai, hang).run();
+        return json({ ok: true, id: (r.meta && r.meta.last_row_id) || 0 });
+      }
+      if (path === "/api/loai-kenh-ban" && method === "DELETE") {
+        if (!isAdmin) return err("Chi admin moi duoc xoa cau hinh loai kenh ban", 403);
+        const id = Number(new URL(request.url).searchParams.get("id")) || 0;
+        if (!id) return err("Thieu id", 422);
+        await ensureLoaikenh(env);
+        await env.DB.prepare("DELETE FROM loai_kenh_ban WHERE id = ?").bind(id).run();
+        return json({ ok: true });
+      }
+      if (path === "/api/loai-kenh-ban/ap-dung" && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi duoc ap dung hang kenh", 403);
+        const b = await readBody(request);
+        const thang = Number(b.thang), nam = Number(b.nam);
+        if (!thang || thang < 1 || thang > 12 || !nam) return err("Thang/nam khong hop le", 422);
+        const table = KENH_BAN_PREFIX + "_" + String(thang).padStart(2, "0") + nam;
+        const ex = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").bind(table).first();
+        if (!ex) return err("Chua co bang danh sach kenh ban thang " + thang + "/" + nam, 404);
+        await ensureLoaikenh(env);
+        await ensureListColumns(env, table, KENH_BAN_COLS);
+        const defs = (await env.DB.prepare("SELECT loai_diem_ban, hang_kenh FROM loai_kenh_ban").all()).results || [];
+        const hangMap2 = new Map();
+        for (const d of defs) {
+          const k = normKbKey(d.loai_diem_ban);
+          if (k && !hangMap2.has(k)) hangMap2.set(k, d.hang_kenh);
+        }
+        const rows = (await env.DB.prepare('SELECT id, loai_kenh FROM "' + table + '"').all()).results || [];
+        let mapped = 0, unmapped = 0;
+        const batch = [];
+        for (const r of rows) {
+          const raw = r.loai_kenh;
+          if (raw === undefined || raw === null || String(raw).trim() === "") continue;
+          const h = hangMap2.get(normKbKey(raw));
+          if (!h) { unmapped++; continue; }
+          batch.push(env.DB.prepare('UPDATE "' + table + '" SET hang_kenh = ? WHERE id = ?').bind(h, r.id));
+          mapped++;
+        }
+        if (batch.length) await env.DB.batch(batch);
+        return json({ ok: true, table, total: rows.length, mapped, unmapped });
       }
 
       // ---- Bao cao thong ke ----
