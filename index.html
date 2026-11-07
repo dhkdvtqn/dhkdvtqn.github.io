@@ -1011,10 +1011,10 @@ html.is-mobile #appRoot .btn{min-height:44px}
             <button class="nav-btn nav-sub" data-panel="panel-staff">👤 Quản lý người dùng</button>
             <button class="nav-btn nav-sub" data-panel="panel-users">🏪 Quản lý kênh bán</button>
             <button class="nav-btn nav-sub" data-panel="panel-config">🗄️ Cấu hình kết nối D1</button>
-            <button class="nav-btn nav-sub" data-panel="panel-packages">📦 Danh mục gói cước</button>
             <button class="nav-btn nav-sub" data-panel="panel-loginstats">🔑 Thống kê đăng nhập</button>
           </div>
         </div>
+        <button class="nav-btn" data-panel="panel-packages">📦 Danh mục gói cước</button>
         <div class="nav-group" data-group="reports">
           <button class="nav-group-head" type="button">📊 Báo cáo thống kê <span class="nav-caret">▾</span></button>
           <div class="nav-group-body">
@@ -3487,7 +3487,7 @@ export default {
               let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
               if (!qty || qty &lt;= 0) qty = 1;
               const subAdd = isSubsSrc &amp;&amp; isDuqRow ? qty : 0;
-              const revAdd = isRevSrc &amp;&amp; needPrice ? price / 1.1 * qty : 0;
+              const revAdd = isRevSrc &amp;&amp; needPrice ? Math.round(price / 1.1 * qty) : 0;
               const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
               pm.subs += subAdd; pm.revenue += revAdd; pm.pssl.add(e);
               const u = pm.units[nu] || (pm.units[nu] = { name: rawU || &quot;(Chưa xác định)&quot;, subs: 0, revenue: 0, pssl: new Set() });
@@ -3743,7 +3743,7 @@ export default {
             const price = toNumber(r[t.sales_price_col]);
             let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
             if (!qty || qty &lt;= 0) qty = 1;
-            const revenue = price / 1.1 * qty;
+            const revenue = Math.round(price / 1.1 * qty);
             if (!byMonth[mk]) byMonth[mk] = { subs: 0, revenue: 0 };
             byMonth[mk].subs += qty; byMonth[mk].revenue += revenue;
             if (!byUnit[nu]) byUnit[nu] = { name: rawU || &quot;(Chưa xác định)&quot;, subs: 0, revenue: 0 };

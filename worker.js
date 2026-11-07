@@ -1912,7 +1912,7 @@ export default {
               let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
               if (!qty || qty <= 0) qty = 1;
               const subAdd = isSubsSrc && isDuqRow ? qty : 0;
-              const revAdd = isRevSrc && needPrice ? price / 1.1 * qty : 0;
+              const revAdd = isRevSrc && needPrice ? Math.round(price / 1.1 * qty) : 0;
               const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
               pm.subs += subAdd; pm.revenue += revAdd; pm.pssl.add(e);
               const u = pm.units[nu] || (pm.units[nu] = { name: rawU || "(Chưa xác định)", subs: 0, revenue: 0, pssl: new Set() });
@@ -2168,7 +2168,7 @@ export default {
             const price = toNumber(r[t.sales_price_col]);
             let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
             if (!qty || qty <= 0) qty = 1;
-            const revenue = price / 1.1 * qty;
+            const revenue = Math.round(price / 1.1 * qty);
             if (!byMonth[mk]) byMonth[mk] = { subs: 0, revenue: 0 };
             byMonth[mk].subs += qty; byMonth[mk].revenue += revenue;
             if (!byUnit[nu]) byUnit[nu] = { name: rawU || "(Chưa xác định)", subs: 0, revenue: 0 };
