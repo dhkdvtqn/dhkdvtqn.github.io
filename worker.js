@@ -1998,8 +1998,10 @@ function normKbKey(s) {
       // - Tu dong tong hop TAT CA loai du lieu ban hang (doanh thu / san luong), khong can chon.
       // - Loai bo cung cac giao dich co ket qua "Dang ky khong thanh cong".
       // - Ky danh gia: theo thang (ky=thang) hoac theo nam (ky=nam).
-      // - PSSL = diem ban co phat sinh san luong trong ky: co dong du lieu ban hang
-      //   (bat ky loai nao) duoc map ve Eload cua diem ban.
+      // - PSSL = diem ban co phat sinh san luong trong ky: co phat trien moi
+      //   thue bao (dong san luong TNTTTB tinh duoc) HOAC co doanh thu ban
+      //   goi > 0d (dong SMCS). Dong chi xuat hien trong bang ma khong sinh
+      //   ra thue bao nao va doanh thu 0d thi KHONG tinh PSSL.
       if (path === "/api/sales-overview" && method === "GET") {
         if (!hasModule(me, "salesdash")) return err("Tai khoan khong co quyen xem Dashboard ban hang", 403);
         const types = await getDataTypes(env);
@@ -2125,8 +2127,8 @@ function normKbKey(s) {
                 const ld = r[loaiDonCol];
                 if (ld == null || String(ld).trim() === "") continue;
               }
-              // Quy tac TNTTTB: chi dem san luong khi Vai tro = DUQ.
-              // Diem kenh khac van tinh PSSL, chi khong cong vao tong san luong.
+              // Quy tac TNTTTB: chi dem san luong khi Vai tro = DUQ; dong vai
+              // tro khac khong sinh san luong thi cung khong tinh PSSL.
               let isDuqRow = true;
               if (isSubsSrc && vaiTroCol) isDuqRow = normLoaiKenh(r[vaiTroCol]) === "DUQ";
               const price = toNumber(r[t.sales_price_col]);
@@ -2134,10 +2136,13 @@ function normKbKey(s) {
               if (!qty || qty <= 0) qty = 1;
               const subAdd = isSubsSrc && isDuqRow ? qty : 0;
               const revAdd = isRevSrc && needPrice ? Math.round(price / 1.1 * qty) : 0;
+              // PSSL chi khi dong nay thuc su sinh ra san luong: co thue bao
+              // moi (subAdd > 0) hoac co doanh thu > 0d (revAdd > 0).
+              const hasPssl = subAdd > 0 || revAdd > 0;
               const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
-              pm.subs += subAdd; pm.revenue += revAdd; pm.pssl.add(e);
+              pm.subs += subAdd; pm.revenue += revAdd; if (hasPssl) pm.pssl.add(e);
               const u = pm.units[nu] || (pm.units[nu] = { name: rawU || "(Chưa xác định)", subs: 0, revenue: 0, pssl: new Set() });
-              u.subs += subAdd; u.revenue += revAdd; u.pssl.add(e);
+              u.subs += subAdd; u.revenue += revAdd; if (hasPssl) u.pssl.add(e);
               const pp = pm.pos[e] || (pm.pos[e] = { subs: 0, revenue: 0 });
               pp.subs += subAdd; pp.revenue += revAdd;
             }
