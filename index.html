@@ -5275,7 +5275,11 @@ function dashSelMonth() {
   if (!m) return { y: now.getFullYear(), mo: now.getMonth() };
   return { y: Number(m[1]), mo: Number(m[2]) - 1 };
 }
+// Ma lan tai Dashboard: doi thang/bo loc lien tiep se chay nhieu lan tai song
+// song; chi lan tai moi nhat duoc hien thi, cac lan cu ve sau se bi bo.
+let dashLoadSeq = 0;
 async function loadDashboard() {
+  const mySeq = ++dashLoadSeq;
   const now = new Date();
   const p2 = (x) => String(x).padStart(2, "0");
   if ($("dashMonth") && !$("dashMonth").value) $("dashMonth").value = now.getFullYear() + "-" + p2(now.getMonth() + 1);
@@ -5305,10 +5309,14 @@ async function loadDashboard() {
     dataTypes.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + " (" + esc(t.code) + ")</option>").join("");
   dys.value = [...dys.options].some((o) => o.value === curY) ? curY : "ALL";
   try {
+    // Dang tai so thang moi: hien "…" thay vi giu so thang cu (de khong nham).
+    $("dashMonthTx").textContent = "…"; $("dashMonthMoney").textContent = "…";
+    $("dashYearTx").textContent = "…"; $("dashYearMoney").textContent = "…";
     const [dm, dy] = await Promise.all([
       api("/api/reports/summary?" + new URLSearchParams({ loai: "ALL", from: mFrom, to: mTo, group: "day", trang_thai: dashStatusVal() })),
       api("/api/reports/summary?" + new URLSearchParams({ loai: "ALL", from: yFrom, to: yTo, group: "month", trang_thai: dashStatusVal() })),
     ]);
+    if (mySeq !== dashLoadSeq) return; // da co lan tai moi hon: bo ket qua cu nay
     $("dashMonthTx").textContent = (dm.tong_giao_dich || 0).toLocaleString("vi-VN");
     $("dashMonthMoney").textContent = fmt(dm.tong_tien);
     $("dashYearTx").textContent = (dy.tong_giao_dich || 0).toLocaleString("vi-VN");
@@ -5316,11 +5324,11 @@ async function loadDashboard() {
     renderDashYearBody(dy.rows);
     const skipped = [...new Set([...(dm.skipped_tables || []), ...(dy.skipped_tables || [])])];
     setMsg($("dashMsg"), skipped.length ? "Lưu ý: các bảng tháng sau không đọc được theo cả mẫu mới lẫn mẫu cũ nên không tính vào Dashboard: " + skipped.join(", ") + "." : "");
-  } catch (e) { setMsg($("dashMsg"), e.message, false); }
+  } catch (e) { if (mySeq === dashLoadSeq) setMsg($("dashMsg"), e.message, false); }
   // Nap lua chon loc don vi cho Dashboard (admin/subadmin: toan bo; lanh dao:
   // cay don vi cua minh; user thuong: an loc) roi nap bang theo loai.
   loadDashUnitOptions();
-  await loadDashTypeTable();
+  await loadDashTypeTable(mySeq);
 }
 
 async function loadDashUnitOptions() {
@@ -5364,7 +5372,7 @@ async function loadDashUnitOptions() {
     sel.value = [...sel.options].some((o) => o.value === cur) ? cur : "";
   } catch (e) { row.classList.add("hidden"); }
 }
-async function loadDashTypeTable() {
+async function loadDashTypeTable(seq) {
   const { y, mo } = dashSelMonth(); const p2 = (x) => String(x).padStart(2, "0");
   const mFrom = y + "-" + p2(mo + 1) + "-01";
   const mTo = y + "-" + p2(mo + 1) + "-" + p2(new Date(y, mo + 1, 0).getDate());
@@ -5378,6 +5386,7 @@ async function loadDashTypeTable() {
         return { name: t.name, tx: d.tong_giao_dich || 0, money: d.tong_tien || 0 };
       } catch (e) { return { name: t.name, tx: 0, money: 0 }; }
     }));
+    if (seq !== undefined && seq !== dashLoadSeq) return; // lan tai cu: bo
     $("dashTypeBody").innerHTML = per.map((r) => "<tr><td>" + esc(r.name) + "</td><td>" + r.tx.toLocaleString("vi-VN") + "</td><td>" + fmt(r.money) + "</td></tr>").join("");
   } catch (e) { /* bo qua */ }
 }
