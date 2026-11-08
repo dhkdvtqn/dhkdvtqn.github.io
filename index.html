@@ -1044,7 +1044,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
         <section class="panel hidden" id="panel-dashboard">
           <h2>Dashboard chi trả hoa hồng</h2>
           <p class="desc" id="dashScope">Tổng hợp số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng hiện tại và lũy kế từ đầu năm, từ toàn bộ các loại dữ liệu đã import lên D1.</p>
-          <div style="margin:10px 0"><label>Lọc theo trạng thái chi trả: </label><select id="dashStatusFilter" title="Thành công = giao dịch có trạng thái 'Thành công' hoặc 'Đã chi trả thù lao thành công'; Không thành công = các trạng thái còn lại; Tất cả trạng thái = không lọc"><option value="success">Thành công</option><option value="fail">Không thành công</option><option value="all">Tất cả trạng thái</option></select></div>
+          <div style="margin:10px 0"><label>Lọc theo trạng thái chi trả: </label><select id="dashStatusFilter" title="Thành công = giao dịch có trạng thái 'Thành công' hoặc 'Đã chi trả thù lao thành công'; Không thành công = các trạng thái còn lại; Tất cả trạng thái = không lọc"><option value="success">Thành công</option><option value="fail">Không thành công</option><option value="all">Tất cả trạng thái</option></select> <label style="margin-left:14px">Chọn tháng: </label><input type="month" id="dashMonth" /></div>
           <h3 style="margin:14px 0 8px;color:var(--blue-dark)" id="dashMonthLabel">Tháng hiện tại</h3>
           <div class="kpi-row">
             <div class="kpi"><b id="dashMonthTx">—</b><span>Số lượng giao dịch trong tháng</span></div>
@@ -1057,9 +1057,9 @@ html.is-mobile #appRoot .btn{min-height:44px}
           </div>
           <div id="dashMsg"></div>
           <div id="dashUnitRow" style="margin-bottom:10px"><label>Lọc theo đơn vị (áp dụng cho 2 bảng dưới): </label><select id="dashUnitFilter"><option value="">Tất cả đơn vị trong phạm vi của bạn</option></select></div>
-          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Chi tiết tháng hiện tại theo loại dữ liệu</h3>
+          <h3 style="margin:18px 0 8px;color:var(--blue-dark)" id="dashTypeTitle">Chi tiết tháng hiện tại theo loại dữ liệu</h3>
           <div class="tbl-wrap"><table class="data"><thead><tr><th>Loại dữ liệu</th><th>Số giao dịch</th><th>Số tiền chi trả</th></tr></thead><tbody id="dashTypeBody"><tr><td colspan="3">Đang tải…</td></tr></tbody></table></div>
-          <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Số liệu theo từng tháng trong năm</h3>
+          <h3 style="margin:18px 0 8px;color:var(--blue-dark)" id="dashYearTitle">Số liệu theo từng tháng trong năm</h3>
           <div style="margin-bottom:10px"><label>Lọc bảng theo loại chi trả: </label><select id="dashYearType"><option value="ALL">Tất cả các loại chi trả</option></select></div>
           <div class="tbl-wrap"><table class="data"><thead><tr><th>Tháng</th><th>Số giao dịch</th><th>Số tiền chi trả</th></tr></thead><tbody id="dashYearBody"><tr><td colspan="3">Đang tải…</td></tr></tbody></table></div>
         </section>
@@ -1213,10 +1213,21 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Danh sách điểm bán</h3>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
             <div style="min-width:260px;flex:1;max-width:380px"><label>Lọc theo đơn vị</label><select id="userUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
+            <div style="min-width:260px;flex:1;max-width:380px"><label>Tìm kiếm</label><input id="userSearch" placeholder="Mã kênh, tên điểm bán, số Eload…" autocomplete="off" /></div>
             <div><span id="userCount" class="desc"></span></div>
             <div style="margin-left:auto"><button class="btn danger" type="button" id="uDelSel" title="Xóa các người dùng đã đánh dấu">Xóa</button></div>
           </div>
           <div class="tbl-wrap"><table class="data"><thead><tr><th><input type="checkbox" id="uSelAll" title="Đánh dấu tất cả" /></th><th data-sort="ma_kenh">Mã kênh</th><th data-sort="ho_ten">Họ tên / điểm bán</th><th data-sort="username">User</th><th data-sort="so_eload">Số Eload</th><th data-sort="so_vi">Số Ví</th><th data-sort="don_vi">Đơn vị</th><th data-sort="toado">Tọa độ điểm bán</th><th data-sort="ten_nv">Nhân viên quản lý</th><th data-sort="sdt_nv">SĐT NV quản lý</th><th data-sort="ma_hrm">Mã HRM</th><th data-sort="leader">Lãnh đạo phụ trách</th><th data-sort="loai_kenh">Loại kênh bán</th><th data-sort="can_import">Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="15">Đang tải…</td></tr></tbody></table></div>
+          <div class="card hidden" id="syncKbCard" style="margin-top:18px">
+            <h3 style="margin:0 0 8px;color:var(--blue-dark)">🔄 Đồng bộ kênh bán hàng từ bảng kênh bán đã import</h3>
+            <p class="desc">Đồng bộ sẽ <b>thay thế toàn bộ</b> danh sách điểm bán ở trên theo bảng kênh bán của tháng đã chọn: điểm có trong bảng mới thì tạo mới (mật khẩu <code class="inl">Vnpt@2026</code>) hoặc cập nhật tên, đơn vị, loại kênh, số Eload, tọa độ; mã kênh không có trong bảng mới thì <b>xóa tài khoản</b>. Chỉ admin thực hiện được.</p>
+            <div class="row">
+              <label>Bảng kênh bán tháng <select id="syncKbTable"><option value="">— Chưa có bảng kênh bán nào —</option></select></label>
+              <button id="syncKbPreviewBtn" class="btn">Xem trước đồng bộ</button>
+            </div>
+            <div id="syncKbPreview" style="margin-top:10px"></div>
+            <div id="syncKbMsg" class="msg"></div>
+          </div>
           <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import điểm bán từ Excel</h3>
           <p class="desc">Tải file mẫu về, điền thông tin người dùng vào file rồi import lên hệ thống. Có 3 chế độ import: <b>Tạo mới</b> (chỉ thêm user chưa có — user đã tồn tại thì bỏ qua), <b>Cập nhật</b> (user đã có thì cập nhật các trường có dữ liệu mới trong file, trường để trống thì giữ nguyên; chưa có thì tạo mới), <b>Thay thế</b> (user đã có thì ghi đè toàn bộ thông tin theo file, trường để trống thì xóa; chưa có thì tạo mới). Lưu ý: import không thay đổi loại tài khoản, quyền import và quyền module của user đã có (đổi các quyền này trong form Sửa); mật khẩu để trống thì giữ nguyên mật khẩu cũ (tạo mới thì dùng mặc định <code class="inl">Vnpt@2026</code>).</p>
           <div style="margin-bottom:10px;max-width:520px"><label>Chế độ import</label><select id="uImpMode"><option value="create">Tạo mới — chỉ thêm user chưa có, user đã tồn tại thì bỏ qua</option><option value="update">Cập nhật — user đã có thì cập nhật các trường có dữ liệu mới (trường trống giữ nguyên), chưa có thì tạo mới</option><option value="replace">Thay thế — user đã có thì ghi đè toàn bộ theo file (trường trống thì xóa), chưa có thì tạo mới</option></select></div>
@@ -3319,6 +3330,105 @@ function normKbKey(s) {
         return json({ ok: true, table, total: rows.length, mapped, unmapped });
       }
 
+      // ---- Dong bo kenh ban tu bang danh sach kenh ban da import ----
+      // Admin chon 1 bang kenh_ban_MMYYYY; dong bo THAY THE toan bo danh sach
+      // diem ban (nguoi_dung role=&#x27;user&#x27;): co trong bang moi -&gt; tao moi/cap nhat;
+      // ma kenh khong co trong bang moi -&gt; xoa tai khoan.
+      // dry_run=true: chi tra ke hoach (tao/cap nhat/xoa/bo qua), khong ghi.
+      if (path === &quot;/api/kenh-ban/sync&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc dong bo kenh ban&quot;, 403);
+        const b = await readBody(request);
+        const thang = Number(b.thang), nam = Number(b.nam);
+        const dryRun = b.dry_run === true || b.dry_run === &quot;true&quot;;
+        if (!thang || thang &lt; 1 || thang &gt; 12 || !nam) return err(&quot;Thang/nam khong hop le&quot;, 422);
+        const table = KENH_BAN_PREFIX + &quot;_&quot; + String(thang).padStart(2, &quot;0&quot;) + nam;
+        const ex = await env.DB.prepare(&quot;SELECT name FROM sqlite_master WHERE type=&#x27;table&#x27; AND name = ?&quot;).bind(table).first();
+        if (!ex) return err(&quot;Chua co bang danh sach kenh ban thang &quot; + thang + &quot;/&quot; + nam, 404);
+        const kbRows = (await env.DB.prepare(&#x27;SELECT * FROM &quot;&#x27; + table + &#x27;&quot;&#x27;).all()).results || [];
+        const users = (await env.DB.prepare(&quot;SELECT * FROM nguoi_dung WHERE role = &#x27;user&#x27;&quot;).all()).results || [];
+        const usedUsernames = new Set((await env.DB.prepare(&quot;SELECT username FROM nguoi_dung&quot;).all()).results.map((x) =&gt; String(x.username || &quot;&quot;).trim()).filter(Boolean));
+        const trim = (v) =&gt; String(v == null ? &quot;&quot; : v).trim();
+        const usersByCode = new Map();
+        for (const u of users) {
+          const c = trim(u.ma_kenh);
+          if (c &amp;&amp; !usersByCode.has(c)) usersByCode.set(c, u);
+        }
+        const matchedIds = new Set();
+        const plannedNames = new Set();
+        const plan = [];
+        let skipped = 0;
+        for (const r of kbRows) {
+          // Khop tai khoan CHI theo ma kenh: Ma diem ban / ID diem ban HRM /
+          // IDDAILY (so voi ma_kenh cua tai khoan). So Eload chi la truong
+          // du lieu duoc dong bo theo, khong dung de nhan dien diem ban.
+          const codes = [r.ma_kenh, r.id_hrm, r.iddaily].map(trim).filter(Boolean);
+          let u = null;
+          for (const c of codes) { if (usersByCode.has(c)) { u = usersByCode.get(c); break; } }
+          if (u) { matchedIds.add(u.id); plan.push({ action: &quot;update&quot;, user: u, row: r }); }
+          else if (!codes.length) skipped++;
+          else if (usedUsernames.has(codes[0]) || plannedNames.has(codes[0])) skipped++;
+          else { plannedNames.add(codes[0]); plan.push({ action: &quot;create&quot;, row: r }); }
+        }
+        const toDelete = users.filter((u) =&gt; !matchedIds.has(u.id));
+        const createdSample = plan.filter((p) =&gt; p.action === &quot;create&quot;).slice(0, 5).map((p) =&gt; trim(p.row.ten_diem_ban) || trim(p.row.ma_kenh) || trim(p.row.id_hrm) || trim(p.row.iddaily));
+        const deletedSample = toDelete.slice(0, 5).map((u) =&gt; (trim(u.ho_ten) || trim(u.username)) + (trim(u.ma_kenh) ? &quot; (&quot; + trim(u.ma_kenh) + &quot;)&quot; : &quot;&quot;));
+        const createdN = plan.filter((p) =&gt; p.action === &quot;create&quot;).length;
+        const updatedN = plan.filter((p) =&gt; p.action === &quot;update&quot;).length;
+        if (dryRun) {
+          return json({ ok: true, table, dry_run: true, total_rows: kbRows.length, total_users: users.length,
+            created: createdN, updated: updatedN, deleted: toDelete.length, skipped,
+            created_sample: createdSample, deleted_sample: deletedSample });
+        }
+        // --- Ap dung ---
+        let created = 0, updated = 0, deleted = 0;
+        for (const p of plan) {
+          if (p.action === &quot;update&quot;) {
+            const u = p.user, r = p.row;
+            const rawLoai = trim(r.hang_kenh) || trim(r.loai_kenh);
+            const latP = parseCoordField(r.lat, -90, 90);
+            const lngP = parseCoordField(r.lng, -180, 180);
+            await env.DB.prepare(
+              &quot;UPDATE nguoi_dung SET ho_ten = ?, don_vi_id = ?, loai_kenh = ?, so_eload = ?, lat = ?, lng = ? WHERE id = ?&quot;
+            ).bind(
+              trim(r.ten_diem_ban) || u.ho_ten,
+              (r.don_vi_id !== null &amp;&amp; r.don_vi_id !== undefined &amp;&amp; r.don_vi_id !== &quot;&quot;) ? Number(r.don_vi_id) : u.don_vi_id,
+              rawLoai ? (normLoaiKenh(rawLoai) || rawLoai) : u.loai_kenh,
+              trim(r.so_eload) || u.so_eload,
+              (!latP.error &amp;&amp; latP.val !== null) ? latP.val : u.lat,
+              (!lngP.error &amp;&amp; lngP.val !== null) ? lngP.val : u.lng,
+              u.id
+            ).run();
+            updated++;
+          } else {
+            const r = p.row;
+            const code = [r.ma_kenh, r.id_hrm, r.iddaily].map(trim).filter(Boolean)[0];
+            const salt = randomSalt();
+            const hash = await hashPassword(&quot;Vnpt@2026&quot;, salt);
+            const rawLoai = trim(r.hang_kenh) || trim(r.loai_kenh);
+            const latP = parseCoordField(r.lat, -90, 90);
+            const lngP = parseCoordField(r.lng, -180, 180);
+            await env.DB.prepare(
+              &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, ma_nhan_vien, chuc_danh, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, &#x27;user&#x27;, ?, &#x27;&#x27;, &#x27;&#x27;, &#x27;&#x27;, &#x27;&#x27;, &#x27;&#x27;, &#x27;&#x27;, ?, NULL, ?, 0, ?, ?, ?)&quot;
+            ).bind(
+              code, trim(r.ten_diem_ban) || code, code, hash, salt, trim(r.so_eload),
+              (r.don_vi_id !== null &amp;&amp; r.don_vi_id !== undefined &amp;&amp; r.don_vi_id !== &quot;&quot;) ? Number(r.don_vi_id) : null,
+              rawLoai ? (normLoaiKenh(rawLoai) || rawLoai) : &quot;&quot;,
+              JSON.stringify(DEFAULT_MODULES),
+              latP.error ? null : latP.val, lngP.error ? null : lngP.val
+            ).run();
+            created++;
+          }
+        }
+        for (const u of toDelete) {
+          if (u.id === me.id) { skipped++; continue; }
+          const leadRef = await env.DB.prepare(&quot;SELECT COUNT(*) AS c FROM nguoi_dung WHERE leader_id = ?&quot;).bind(u.id).first();
+          if (leadRef &amp;&amp; leadRef.c &gt; 0) { skipped++; continue; }
+          await env.DB.prepare(&quot;DELETE FROM nguoi_dung WHERE id = ?&quot;).bind(u.id).run();
+          deleted++;
+        }
+        return json({ ok: true, table, created, updated, deleted, skipped, total_rows: kbRows.length, total_users: users.length });
+      }
+
       // ---- Bao cao thong ke ----
       // Danh sach diem ban cho bo loc &quot;Theo diem ban&quot; trong Bao cao thong ke.
       // Admin/subadmin: toan bo diem ban; lanh dao (va chuyen vien tuong
@@ -5060,7 +5170,7 @@ function openPanel(panelId, btn) {
   if (panelId === "panel-loginstats") loadLoginStats();
   if (panelId === "panel-packages") { $("pkgAdminBox").classList.toggle("hidden", !(me && me.role === "admin")); loadPackages(); }
   if (panelId === "panel-units") loadUnits();
-  if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); }
+  if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); loadSyncKbTables(); }
   if (panelId === "panel-staff") { loadStaff(); loadStaffUnits(); applyStaffFormPerms(); }
   if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); const pn = new Date(); if (!$("impMonth").value) $("impMonth").value = pn.getMonth() + 1; if (!$("impYear").value) $("impYear").value = pn.getFullYear(); }
   if (panelId === "panel-import-sales") { loadTables(); loadDataTypes(); applyImportPerms(IMP_CFG_S); const pn = new Date(); if (!$("impMonthS").value) $("impMonthS").value = pn.getMonth() + 1; if (!$("impYearS").value) $("impYearS").value = pn.getFullYear(); }
@@ -5157,15 +5267,28 @@ function renderDashYearBody(rows) {
    success = chi tinh giao dich "Thanh cong" / "Da chi tra thu lao thanh cong";
    fail = cac trang thai con lai. */
 const dashStatusVal = () => ($("dashStatusFilter") && $("dashStatusFilter").value) || "success";
+// Thang dang xem tren Dashboard chi tra hoa hong (mac dinh thang hien tai).
+function dashSelMonth() {
+  const v = ($("dashMonth") && $("dashMonth").value) || "";
+  const m = v.match(/^(\d{4})-(\d{2})$/);
+  const now = new Date();
+  if (!m) return { y: now.getFullYear(), mo: now.getMonth() };
+  return { y: Number(m[1]), mo: Number(m[2]) - 1 };
+}
 async function loadDashboard() {
   const now = new Date();
-  const y = now.getFullYear(), mo = now.getMonth();
   const p2 = (x) => String(x).padStart(2, "0");
+  if ($("dashMonth") && !$("dashMonth").value) $("dashMonth").value = now.getFullYear() + "-" + p2(now.getMonth() + 1);
+  const { y, mo } = dashSelMonth();
+  const lastDay = new Date(y, mo + 1, 0).getDate();
   const isoD = (d) => d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
-  const mFrom = isoD(new Date(y, mo, 1)), mTo = isoD(new Date(y, mo + 1, 0));
-  const yFrom = y + "-01-01", yTo = isoD(now);
-  $("dashMonthLabel").textContent = "Tháng " + (mo + 1) + "/" + y + " (tháng hiện tại)";
-  $("dashYearLabel").textContent = "Lũy kế từ đầu năm " + y;
+  const mFrom = isoD(new Date(y, mo, 1)), mTo = y + "-" + p2(mo + 1) + "-" + p2(lastDay);
+  const yFrom = y + "-01-01", yTo = mTo;
+  const isCur = y === now.getFullYear() && mo === now.getMonth();
+  $("dashMonthLabel").textContent = "Tháng " + (mo + 1) + "/" + y + (isCur ? " (tháng hiện tại)" : "");
+  $("dashYearLabel").textContent = isCur ? "Lũy kế từ đầu năm " + y : "Lũy kế từ đầu năm " + y + " đến hết tháng " + (mo + 1) + "/" + y;
+  if ($("dashTypeTitle")) $("dashTypeTitle").textContent = "Chi tiết tháng " + (mo + 1) + "/" + y + " theo loại dữ liệu";
+  if ($("dashYearTitle")) $("dashYearTitle").textContent = "Số liệu theo từng tháng trong năm " + y;
   // Nhan KPI tien doi theo bo loc trang thai de khong gay hieu nham
   const stt = dashStatusVal();
   $("dashMonthMoneyCap").textContent = stt === "fail" ? "Số tiền giao dịch không thành công trong tháng" : stt === "all" ? "Số tiền hoa hồng trong tháng (tất cả trạng thái)" : "Số tiền hoa hồng đã chi trả trong tháng";
@@ -5175,7 +5298,7 @@ async function loadDashboard() {
     ? "Số liệu gắn với tài khoản của bạn (theo số Eload / số Ví / mã HRM-SĐT đã khai báo), tổng hợp từ các loại dữ liệu đã import lên D1."
     : me && ll
     ? "Số liệu trong đơn vị của bạn và các đơn vị trực thuộc, tổng hợp từ các loại dữ liệu đã import lên D1."
-    : "Tổng hợp toàn tỉnh: số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng hiện tại và lũy kế từ đầu năm, từ toàn bộ các loại dữ liệu đã import lên D1.";
+    : "Tổng hợp toàn tỉnh: số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng " + (mo + 1) + "/" + y + " và lũy kế từ đầu năm, từ toàn bộ các loại dữ liệu đã import lên D1.";
   // Nap lua chon loc loai chi tra cho bang theo thang (mac dinh: tat ca).
   const dys = $("dashYearType"), curY = dys.value || "ALL";
   dys.innerHTML = '<option value="ALL">Tất cả các loại chi trả</option>' +
@@ -5242,9 +5365,9 @@ async function loadDashUnitOptions() {
   } catch (e) { row.classList.add("hidden"); }
 }
 async function loadDashTypeTable() {
-  const now = new Date(); const p2 = (x) => String(x).padStart(2, "0");
-  const mFrom = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-01";
-  const mTo = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate());
+  const { y, mo } = dashSelMonth(); const p2 = (x) => String(x).padStart(2, "0");
+  const mFrom = y + "-" + p2(mo + 1) + "-01";
+  const mTo = y + "-" + p2(mo + 1) + "-" + p2(new Date(y, mo + 1, 0).getDate());
   const dv = $("dashUnitFilter").value || "";
   try {
     const per = await Promise.all(dataTypes.map(async (t) => {
@@ -5259,9 +5382,9 @@ async function loadDashTypeTable() {
   } catch (e) { /* bo qua */ }
 }
 async function loadDashYearTable(loai) {
-  const now = new Date(); const y = now.getFullYear();
+  const { y, mo } = dashSelMonth();
   const p2 = (x) => String(x).padStart(2, "0");
-  const yFrom = y + "-01-01", yTo = y + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate());
+  const yFrom = y + "-01-01", yTo = y + "-" + p2(mo + 1) + "-" + p2(new Date(y, mo + 1, 0).getDate());
   try {
     const q = new URLSearchParams({ loai, from: yFrom, to: yTo, group: "month", trang_thai: dashStatusVal() });
     const dv = $("dashUnitFilter").value || "";
@@ -5271,6 +5394,7 @@ async function loadDashYearTable(loai) {
   } catch (e) { $("dashYearBody").innerHTML = "<tr><td colspan='3'>" + esc(e.message) + "</td></tr>"; }
 }
 $("dashStatusFilter").addEventListener("change", () => { loadDashboard(); });
+$("dashMonth").addEventListener("change", () => { loadDashboard(); });
 $("dashUnitFilter").addEventListener("change", () => { loadDashTypeTable(); loadDashYearTable($("dashYearType").value || "ALL"); });
 $("dashYearType").addEventListener("change", () => { loadDashYearTable($("dashYearType").value || "ALL"); });
 
@@ -5980,7 +6104,9 @@ function refreshUserSelUI() {
 function renderUsers() {
   const fEl = $("userUnitFilter");
   const f = fEl ? fEl.value : "";
-  const list = usersCache.filter((u) => (f === "" ? true : f === "none" ? !u.don_vi_id : String(u.don_vi_id) === String(f)));
+  const q = ovNormSearch(($("userSearch") && $("userSearch").value) || "");
+  const list = usersCache.filter((u) => (f === "" ? true : f === "none" ? !u.don_vi_id : String(u.don_vi_id) === String(f)) &&
+    (!q || ["ma_kenh", "ho_ten", "username", "so_eload", "so_vi", "don_vi_ten", "ten_nhan_vien", "sdt_nhan_vien", "ma_hrm", "leader_ten", "loai_kenh"].some((k) => ovNormSearch(u[k]).includes(q))));
   if (userSort.key) {
     const k = userSort.key, d = userSort.dir;
     list.sort((a, b) => {
@@ -6020,6 +6146,63 @@ function renderUsers() {
   refreshUserSortUI();
 }
 $("userUnitFilter").addEventListener("change", renderUsers);
+$("userSearch").addEventListener("input", renderUsers);
+/* ---- Dong bo kenh ban tu bang kenh ban da import (chi admin) ---- */
+async function loadSyncKbTables() {
+  const card = $("syncKbCard");
+  if (!card) return;
+  const isAdm = me && me.role === "admin";
+  card.classList.toggle("hidden", !isAdm);
+  if (!isAdm) return;
+  try {
+    const d = await api("/api/import/tables");
+    const kb = (d.tables || []).filter((t) => t.code === "KENH_BAN").map((t) => {
+      const m = t.table.match(/^kenh_ban_(\d{2})(\d{4})$/);
+      return m ? { table: t.table, mm: Number(m[1]), yy: Number(m[2]), rows: t.rows || 0 } : null;
+    }).filter(Boolean).sort((a, b) => (b.yy * 100 + b.mm) - (a.yy * 100 + a.mm));
+    const sel = $("syncKbTable"), cur = sel.value;
+    sel.innerHTML = kb.length
+      ? kb.map((t) => '<option value="' + t.table + '">Tháng ' + t.mm + '/' + t.yy + ' — ' + t.rows + ' điểm bán</option>').join("")
+      : '<option value="">— Chưa có bảng kênh bán nào —</option>';
+    if (cur && [...sel.options].some((o) => o.value === cur)) sel.value = cur;
+  } catch (e) { $("syncKbTable").innerHTML = '<option value="">— Không tải được danh sách bảng —</option>'; }
+}
+function syncKbMonthOf(table) {
+  const m = String(table || "").match(/^kenh_ban_(\d{2})(\d{4})$/);
+  return m ? { thang: Number(m[1]), nam: Number(m[2]) } : null;
+}
+$("syncKbPreviewBtn").addEventListener("click", async () => {
+  const mn = syncKbMonthOf($("syncKbTable").value);
+  if (!mn) { setMsg($("syncKbMsg"), "Chưa có bảng kênh bán nào để đồng bộ — hãy import danh sách kênh bán trước (mục 5.3).", false); return; }
+  try {
+    $("syncKbPreviewBtn").disabled = true;
+    setMsg($("syncKbMsg"), "Đang tính toán kế hoạch đồng bộ…");
+    const d = await api("/api/kenh-ban/sync", { method: "POST", body: JSON.stringify({ thang: mn.thang, nam: mn.nam, dry_run: true }) });
+    const pv = $("syncKbPreview");
+    pv.innerHTML =
+      "<div class='card' style='border:1.5px solid var(--line);border-radius:12px;padding:12px'>" +
+      "<b>Kế hoạch đồng bộ theo bảng " + esc(d.table) + " (" + d.total_rows + " dòng, hiện có " + d.total_users + " tài khoản điểm bán):</b><br>" +
+      "• Tạo mới: <b>" + d.created + "</b> điểm bán" + (d.created_sample && d.created_sample.length ? " (" + d.created_sample.map(esc).join(", ") + (d.created > d.created_sample.length ? ", …" : "") + ")" : "") + "<br>" +
+      "• Cập nhật: <b>" + d.updated + "</b> điểm bán<br>" +
+      "• <span style='color:#c00'><b>Xóa: " + d.deleted + "</b> tài khoản</span>" + (d.deleted_sample && d.deleted_sample.length ? " (" + d.deleted_sample.map(esc).join(", ") + (d.deleted > d.deleted_sample.length ? ", …" : "") + ")" : "") + "<br>" +
+      (d.skipped ? "• Bỏ qua: " + d.skipped + " dòng (không có mã kênh để khớp tài khoản).<br>" : "") +
+      "<div style='margin-top:10px'><button class='btn danger' id='syncKbApplyBtn'>Xác nhận đồng bộ — thay thế toàn bộ danh sách</button></div></div>";
+    setMsg($("syncKbMsg"), "Xem trước xong — kiểm tra kỹ số liệu rồi bấm Xác nhận đồng bộ.", true);
+    $("syncKbApplyBtn").addEventListener("click", async () => {
+      if (!confirm("Đồng bộ sẽ THAY THẾ toàn bộ danh sách kênh bán theo bảng " + d.table + ": tạo " + d.created + ", cập nhật " + d.updated + ", XÓA " + d.deleted + " tài khoản không có trong bảng mới.\nAnh có chắc chắn muốn tiếp tục?")) return;
+      try {
+        $("syncKbApplyBtn").disabled = true;
+        setMsg($("syncKbMsg"), "Đang đồng bộ…");
+        const r = await api("/api/kenh-ban/sync", { method: "POST", body: JSON.stringify({ thang: mn.thang, nam: mn.nam }) });
+        setMsg($("syncKbMsg"), "Đồng bộ xong: tạo mới " + r.created + ", cập nhật " + r.updated + ", xóa " + r.deleted + " tài khoản" + (r.skipped ? ", bỏ qua " + r.skipped + " dòng." : "."), true);
+        $("syncKbPreview").innerHTML = "";
+        loadUsers();
+      } catch (e) { setMsg($("syncKbMsg"), e.message, false); }
+      finally { const b2 = $("syncKbApplyBtn"); if (b2) b2.disabled = false; }
+    });
+  } catch (e) { setMsg($("syncKbMsg"), e.message, false); }
+  finally { $("syncKbPreviewBtn").disabled = false; }
+});
 async function editUser(id) {
   const u = usersCache.find((x) => x.id === id);
   if (!u) return;

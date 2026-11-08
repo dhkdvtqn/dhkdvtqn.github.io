@@ -1716,6 +1716,105 @@ function normKbKey(s) {
         return json({ ok: true, table, total: rows.length, mapped, unmapped });
       }
 
+      // ---- Dong bo kenh ban tu bang danh sach kenh ban da import ----
+      // Admin chon 1 bang kenh_ban_MMYYYY; dong bo THAY THE toan bo danh sach
+      // diem ban (nguoi_dung role='user'): co trong bang moi -> tao moi/cap nhat;
+      // ma kenh khong co trong bang moi -> xoa tai khoan.
+      // dry_run=true: chi tra ke hoach (tao/cap nhat/xoa/bo qua), khong ghi.
+      if (path === "/api/kenh-ban/sync" && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi duoc dong bo kenh ban", 403);
+        const b = await readBody(request);
+        const thang = Number(b.thang), nam = Number(b.nam);
+        const dryRun = b.dry_run === true || b.dry_run === "true";
+        if (!thang || thang < 1 || thang > 12 || !nam) return err("Thang/nam khong hop le", 422);
+        const table = KENH_BAN_PREFIX + "_" + String(thang).padStart(2, "0") + nam;
+        const ex = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").bind(table).first();
+        if (!ex) return err("Chua co bang danh sach kenh ban thang " + thang + "/" + nam, 404);
+        const kbRows = (await env.DB.prepare('SELECT * FROM "' + table + '"').all()).results || [];
+        const users = (await env.DB.prepare("SELECT * FROM nguoi_dung WHERE role = 'user'").all()).results || [];
+        const usedUsernames = new Set((await env.DB.prepare("SELECT username FROM nguoi_dung").all()).results.map((x) => String(x.username || "").trim()).filter(Boolean));
+        const trim = (v) => String(v == null ? "" : v).trim();
+        const usersByCode = new Map();
+        for (const u of users) {
+          const c = trim(u.ma_kenh);
+          if (c && !usersByCode.has(c)) usersByCode.set(c, u);
+        }
+        const matchedIds = new Set();
+        const plannedNames = new Set();
+        const plan = [];
+        let skipped = 0;
+        for (const r of kbRows) {
+          // Khop tai khoan CHI theo ma kenh: Ma diem ban / ID diem ban HRM /
+          // IDDAILY (so voi ma_kenh cua tai khoan). So Eload chi la truong
+          // du lieu duoc dong bo theo, khong dung de nhan dien diem ban.
+          const codes = [r.ma_kenh, r.id_hrm, r.iddaily].map(trim).filter(Boolean);
+          let u = null;
+          for (const c of codes) { if (usersByCode.has(c)) { u = usersByCode.get(c); break; } }
+          if (u) { matchedIds.add(u.id); plan.push({ action: "update", user: u, row: r }); }
+          else if (!codes.length) skipped++;
+          else if (usedUsernames.has(codes[0]) || plannedNames.has(codes[0])) skipped++;
+          else { plannedNames.add(codes[0]); plan.push({ action: "create", row: r }); }
+        }
+        const toDelete = users.filter((u) => !matchedIds.has(u.id));
+        const createdSample = plan.filter((p) => p.action === "create").slice(0, 5).map((p) => trim(p.row.ten_diem_ban) || trim(p.row.ma_kenh) || trim(p.row.id_hrm) || trim(p.row.iddaily));
+        const deletedSample = toDelete.slice(0, 5).map((u) => (trim(u.ho_ten) || trim(u.username)) + (trim(u.ma_kenh) ? " (" + trim(u.ma_kenh) + ")" : ""));
+        const createdN = plan.filter((p) => p.action === "create").length;
+        const updatedN = plan.filter((p) => p.action === "update").length;
+        if (dryRun) {
+          return json({ ok: true, table, dry_run: true, total_rows: kbRows.length, total_users: users.length,
+            created: createdN, updated: updatedN, deleted: toDelete.length, skipped,
+            created_sample: createdSample, deleted_sample: deletedSample });
+        }
+        // --- Ap dung ---
+        let created = 0, updated = 0, deleted = 0;
+        for (const p of plan) {
+          if (p.action === "update") {
+            const u = p.user, r = p.row;
+            const rawLoai = trim(r.hang_kenh) || trim(r.loai_kenh);
+            const latP = parseCoordField(r.lat, -90, 90);
+            const lngP = parseCoordField(r.lng, -180, 180);
+            await env.DB.prepare(
+              "UPDATE nguoi_dung SET ho_ten = ?, don_vi_id = ?, loai_kenh = ?, so_eload = ?, lat = ?, lng = ? WHERE id = ?"
+            ).bind(
+              trim(r.ten_diem_ban) || u.ho_ten,
+              (r.don_vi_id !== null && r.don_vi_id !== undefined && r.don_vi_id !== "") ? Number(r.don_vi_id) : u.don_vi_id,
+              rawLoai ? (normLoaiKenh(rawLoai) || rawLoai) : u.loai_kenh,
+              trim(r.so_eload) || u.so_eload,
+              (!latP.error && latP.val !== null) ? latP.val : u.lat,
+              (!lngP.error && lngP.val !== null) ? lngP.val : u.lng,
+              u.id
+            ).run();
+            updated++;
+          } else {
+            const r = p.row;
+            const code = [r.ma_kenh, r.id_hrm, r.iddaily].map(trim).filter(Boolean)[0];
+            const salt = randomSalt();
+            const hash = await hashPassword("Vnpt@2026", salt);
+            const rawLoai = trim(r.hang_kenh) || trim(r.loai_kenh);
+            const latP = parseCoordField(r.lat, -90, 90);
+            const lngP = parseCoordField(r.lng, -180, 180);
+            await env.DB.prepare(
+              "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, ma_nhan_vien, chuc_danh, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, 'user', ?, '', '', '', '', '', '', ?, NULL, ?, 0, ?, ?, ?)"
+            ).bind(
+              code, trim(r.ten_diem_ban) || code, code, hash, salt, trim(r.so_eload),
+              (r.don_vi_id !== null && r.don_vi_id !== undefined && r.don_vi_id !== "") ? Number(r.don_vi_id) : null,
+              rawLoai ? (normLoaiKenh(rawLoai) || rawLoai) : "",
+              JSON.stringify(DEFAULT_MODULES),
+              latP.error ? null : latP.val, lngP.error ? null : lngP.val
+            ).run();
+            created++;
+          }
+        }
+        for (const u of toDelete) {
+          if (u.id === me.id) { skipped++; continue; }
+          const leadRef = await env.DB.prepare("SELECT COUNT(*) AS c FROM nguoi_dung WHERE leader_id = ?").bind(u.id).first();
+          if (leadRef && leadRef.c > 0) { skipped++; continue; }
+          await env.DB.prepare("DELETE FROM nguoi_dung WHERE id = ?").bind(u.id).run();
+          deleted++;
+        }
+        return json({ ok: true, table, created, updated, deleted, skipped, total_rows: kbRows.length, total_users: users.length });
+      }
+
       // ---- Bao cao thong ke ----
       // Danh sach diem ban cho bo loc "Theo diem ban" trong Bao cao thong ke.
       // Admin/subadmin: toan bo diem ban; lanh dao (va chuyen vien tuong
