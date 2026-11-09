@@ -1744,10 +1744,12 @@ function normKbKey(s) {
         const plan = [];
         let skipped = 0;
         for (const r of kbRows) {
-          // Khop tai khoan CHI theo ma kenh: Ma diem ban / ID diem ban HRM /
-          // IDDAILY (so voi ma_kenh cua tai khoan). So Eload chi la truong
-          // du lieu duoc dong bo theo, khong dung de nhan dien diem ban.
-          const codes = [r.ma_kenh, r.id_hrm, r.iddaily].map(trim).filter(Boolean);
+          // Khop tai khoan CHI theo ma kenh. Ma kenh lay tu cot ID diem ban
+          // HRM (id_hrm) truoc, roi moi den Ma diem ban (ma_kenh) va IDDAILY;
+          // khi khop van thu ca 3 cot (de tai khoan da co khong bi xoa oan).
+          // So Eload chi la truong du lieu duoc dong bo theo, khong dung de
+          // nhan dien diem ban.
+          const codes = [r.id_hrm, r.ma_kenh, r.iddaily].map(trim).filter(Boolean);
           let u = null;
           for (const c of codes) { if (usersByCode.has(c)) { u = usersByCode.get(c); break; } }
           if (u) { matchedIds.add(u.id); plan.push({ action: "update", user: u, row: r }); }
@@ -1787,7 +1789,7 @@ function normKbKey(s) {
             updated++;
           } else {
             const r = p.row;
-            const code = [r.ma_kenh, r.id_hrm, r.iddaily].map(trim).filter(Boolean)[0];
+            const code = [r.id_hrm, r.ma_kenh, r.iddaily].map(trim).filter(Boolean)[0];
             const salt = randomSalt();
             const hash = await hashPassword("Vnpt@2026", salt);
             const rawLoai = trim(r.hang_kenh) || trim(r.loai_kenh);

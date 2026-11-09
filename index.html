@@ -1220,7 +1220,7 @@ html.is-mobile #appRoot .btn{min-height:44px}
           <div class="tbl-wrap"><table class="data"><thead><tr><th><input type="checkbox" id="uSelAll" title="Đánh dấu tất cả" /></th><th data-sort="ma_kenh">Mã kênh</th><th data-sort="ho_ten">Họ tên / điểm bán</th><th data-sort="username">User</th><th data-sort="so_eload">Số Eload</th><th data-sort="so_vi">Số Ví</th><th data-sort="don_vi">Đơn vị</th><th data-sort="toado">Tọa độ điểm bán</th><th data-sort="ten_nv">Nhân viên quản lý</th><th data-sort="sdt_nv">SĐT NV quản lý</th><th data-sort="ma_hrm">Mã HRM</th><th data-sort="leader">Lãnh đạo phụ trách</th><th data-sort="loai_kenh">Loại kênh bán</th><th data-sort="can_import">Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="15">Đang tải…</td></tr></tbody></table></div>
           <div class="card hidden" id="syncKbCard" style="margin-top:18px">
             <h3 style="margin:0 0 8px;color:var(--blue-dark)">🔄 Đồng bộ kênh bán hàng từ bảng kênh bán đã import</h3>
-            <p class="desc">Đồng bộ sẽ <b>thay thế toàn bộ</b> danh sách điểm bán ở trên theo bảng kênh bán của tháng đã chọn: điểm có trong bảng mới thì tạo mới (mật khẩu <code class="inl">Vnpt@2026</code>) hoặc cập nhật tên, đơn vị, loại kênh, số Eload, tọa độ; mã kênh không có trong bảng mới thì <b>xóa tài khoản</b>. Chỉ admin thực hiện được.</p>
+            <p class="desc">Đồng bộ sẽ <b>thay thế toàn bộ</b> danh sách điểm bán ở trên theo bảng kênh bán của tháng đã chọn: điểm có trong bảng mới thì tạo mới (mật khẩu <code class="inl">Vnpt@2026</code>) hoặc cập nhật tên, đơn vị, loại kênh, số Eload, tọa độ; mã kênh không có trong bảng mới thì <b>xóa tài khoản</b>. Mã kênh của tài khoản lấy từ cột <b>ID điểm bán HRM</b> (trống thì lấy Mã điểm bán, rồi IDDAILY). Chỉ admin thực hiện được.</p>
             <div class="row">
               <label>Bảng kênh bán tháng <select id="syncKbTable"><option value="">— Chưa có bảng kênh bán nào —</option></select></label>
               <button id="syncKbPreviewBtn" class="btn">Xem trước đồng bộ</button>
@@ -3358,10 +3358,12 @@ function normKbKey(s) {
         const plan = [];
         let skipped = 0;
         for (const r of kbRows) {
-          // Khop tai khoan CHI theo ma kenh: Ma diem ban / ID diem ban HRM /
-          // IDDAILY (so voi ma_kenh cua tai khoan). So Eload chi la truong
-          // du lieu duoc dong bo theo, khong dung de nhan dien diem ban.
-          const codes = [r.ma_kenh, r.id_hrm, r.iddaily].map(trim).filter(Boolean);
+          // Khop tai khoan CHI theo ma kenh. Ma kenh lay tu cot ID diem ban
+          // HRM (id_hrm) truoc, roi moi den Ma diem ban (ma_kenh) va IDDAILY;
+          // khi khop van thu ca 3 cot (de tai khoan da co khong bi xoa oan).
+          // So Eload chi la truong du lieu duoc dong bo theo, khong dung de
+          // nhan dien diem ban.
+          const codes = [r.id_hrm, r.ma_kenh, r.iddaily].map(trim).filter(Boolean);
           let u = null;
           for (const c of codes) { if (usersByCode.has(c)) { u = usersByCode.get(c); break; } }
           if (u) { matchedIds.add(u.id); plan.push({ action: &quot;update&quot;, user: u, row: r }); }
@@ -3401,7 +3403,7 @@ function normKbKey(s) {
             updated++;
           } else {
             const r = p.row;
-            const code = [r.ma_kenh, r.id_hrm, r.iddaily].map(trim).filter(Boolean)[0];
+            const code = [r.id_hrm, r.ma_kenh, r.iddaily].map(trim).filter(Boolean)[0];
             const salt = randomSalt();
             const hash = await hashPassword(&quot;Vnpt@2026&quot;, salt);
             const rawLoai = trim(r.hang_kenh) || trim(r.loai_kenh);
@@ -3612,8 +3614,10 @@ function normKbKey(s) {
       // - Tu dong tong hop TAT CA loai du lieu ban hang (doanh thu / san luong), khong can chon.
       // - Loai bo cung cac giao dich co ket qua &quot;Dang ky khong thanh cong&quot;.
       // - Ky danh gia: theo thang (ky=thang) hoac theo nam (ky=nam).
-      // - PSSL = diem ban co phat sinh san luong trong ky: co dong du lieu ban hang
-      //   (bat ky loai nao) duoc map ve Eload cua diem ban.
+      // - PSSL = diem ban co phat sinh san luong trong ky: co phat trien moi
+      //   thue bao (dong san luong TNTTTB tinh duoc) HOAC co doanh thu ban
+      //   goi &gt; 0d (dong SMCS). Dong chi xuat hien trong bang ma khong sinh
+      //   ra thue bao nao va doanh thu 0d thi KHONG tinh PSSL.
       if (path === &quot;/api/sales-overview&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!hasModule(me, &quot;salesdash&quot;)) return err(&quot;Tai khoan khong co quyen xem Dashboard ban hang&quot;, 403);
         const types = await getDataTypes(env);
@@ -3739,8 +3743,8 @@ function normKbKey(s) {
                 const ld = r[loaiDonCol];
                 if (ld == null || String(ld).trim() === &quot;&quot;) continue;
               }
-              // Quy tac TNTTTB: chi dem san luong khi Vai tro = DUQ.
-              // Diem kenh khac van tinh PSSL, chi khong cong vao tong san luong.
+              // Quy tac TNTTTB: chi dem san luong khi Vai tro = DUQ; dong vai
+              // tro khac khong sinh san luong thi cung khong tinh PSSL.
               let isDuqRow = true;
               if (isSubsSrc &amp;&amp; vaiTroCol) isDuqRow = normLoaiKenh(r[vaiTroCol]) === &quot;DUQ&quot;;
               const price = toNumber(r[t.sales_price_col]);
@@ -3748,10 +3752,13 @@ function normKbKey(s) {
               if (!qty || qty &lt;= 0) qty = 1;
               const subAdd = isSubsSrc &amp;&amp; isDuqRow ? qty : 0;
               const revAdd = isRevSrc &amp;&amp; needPrice ? Math.round(price / 1.1 * qty) : 0;
+              // PSSL chi khi dong nay thuc su sinh ra san luong: co thue bao
+              // moi (subAdd &gt; 0) hoac co doanh thu &gt; 0d (revAdd &gt; 0).
+              const hasPssl = subAdd &gt; 0 || revAdd &gt; 0;
               const pm = perMonth[mk] || (perMonth[mk] = newMonthAgg());
-              pm.subs += subAdd; pm.revenue += revAdd; pm.pssl.add(e);
+              pm.subs += subAdd; pm.revenue += revAdd; if (hasPssl) pm.pssl.add(e);
               const u = pm.units[nu] || (pm.units[nu] = { name: rawU || &quot;(Chưa xác định)&quot;, subs: 0, revenue: 0, pssl: new Set() });
-              u.subs += subAdd; u.revenue += revAdd; u.pssl.add(e);
+              u.subs += subAdd; u.revenue += revAdd; if (hasPssl) u.pssl.add(e);
               const pp = pm.pos[e] || (pm.pos[e] = { subs: 0, revenue: 0 });
               pp.subs += subAdd; pp.revenue += revAdd;
             }
