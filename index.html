@@ -669,19 +669,18 @@
 #posSidebar {position:fixed;left:0;top:0;bottom:0;width:232px;z-index:200;background:linear-gradient(180deg,#003d73,#0057a8);color:#fff;padding:18px 12px;display:flex;flex-direction:column;gap:6px;box-shadow:2px 0 18px rgba(0,30,60,.25)}
 #appRoot .pos-brand {display:flex;align-items:center;gap:10px;padding:4px 8px 14px;border-bottom:1px solid rgba(255,255,255,.28);margin-bottom:10px;font-weight:800;line-height:1.3}
 #appRoot .pos-logo {background:#fff;color:#0057a8;font-weight:800;padding:6px 9px;border-radius:8px;font-size:15px}
-#appRoot .pos-brand small {font-weight:600;opacity:.85;font-size:12px}
+#appRoot .pos-brand small {display:block;font-weight:600;opacity:.85;font-size:12px}
 #appRoot .pos-btn {display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:none;color:#fff;padding:12px 10px;border-radius:10px;cursor:pointer;font-size:15px;line-height:1.35}
 #appRoot .pos-btn:hover {background:rgba(255,255,255,.14)}
 #appRoot .pos-btn.active {background:#fff;color:#003d73;font-weight:700}
-#appRoot .pos-btn.logout {margin-top:auto}
+#appRoot #appView.pos-mode {margin-left:232px}
 #appRoot #appView.pos-mode .sidebar {display:none}
 #appRoot #appView.pos-mode .app {grid-template-columns:1fr}
 @media(max-width:640px){
 #appRoot #posSidebar {top:0;bottom:auto;left:0;right:0;width:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:8px;gap:6px}
 #appRoot .pos-brand {display:none}
 #appRoot .pos-btn {width:auto;white-space:nowrap;padding:10px 12px;font-size:14px}
-#appRoot .pos-btn.logout {margin-top:0}
-#appRoot #appView.pos-mode {padding-top:56px}
+#appRoot #appView.pos-mode {margin-left:0;padding-top:56px}
 }
 /* Thanh dang nhap noi o goc tren phai */
 #appRoot #authBar{position:fixed;top:14px;right:14px;z-index:300;display:flex;gap:8px;align-items:center;background:linear-gradient(90deg,var(--blue-deep),var(--blue));padding:7px;border-radius:999px;box-shadow:0 10px 26px rgba(0,30,60,.35)}
@@ -1072,7 +1071,6 @@ html.is-mobile #appRoot .btn{min-height:44px}
   <button type="button" class="pos-btn" data-pos="packages">📦 Danh mục gói cước</button>
   <button type="button" class="pos-btn" data-pos="reports">📊 Báo cáo thống kê</button>
   <button type="button" class="pos-btn" data-pos="settings">⚙️ Cài đặt</button>
-  <button type="button" class="pos-btn logout" data-pos="logout">🚪 Đăng xuất</button>
 </aside>
 <div id="appView" class="hidden">
   <div class="wrap">
@@ -5349,9 +5347,7 @@ function showPos(view) {
   }
 }
 document.querySelectorAll("#posSidebar .pos-btn").forEach((b) => b.addEventListener("click", () => {
-  const v = b.dataset.pos;
-  if (v === "logout") { token = ""; me = null; posView = "home"; sessionStorage.removeItem("vnpt_token"); refreshAuthUI(); return; }
-  showPos(v);
+  showPos(b.dataset.pos);
 }));
 function openPanel(panelId, btn) {
   // Mo panel Ban do kenh ban -> mo rong khung app de ban do rong them ~30%; roi panel thi tra ve 1180px
