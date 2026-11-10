@@ -638,6 +638,33 @@
 #appRoot .copy-row {flex-wrap:wrap}
 #appRoot .pkg-media {position:static}
 }
+#appRoot /* Trang chon vai tro (chi hien tren clo-kbh.vercel.app) */
+.role-wrap {max-width:1060px;margin:0 auto;padding:28px 18px 40px}
+#appRoot .role-top {display:flex;align-items:center;gap:12px;margin-bottom:22px}
+#appRoot .role-logo {background:linear-gradient(120deg,#003d73,#0072c6);color:#fff;font-weight:800;font-size:22px;letter-spacing:1px;padding:10px 14px;border-radius:12px}
+#appRoot .role-top .role-brand {font-weight:800;color:var(--blue-dark);font-size:18px;line-height:1.25}
+#appRoot .role-top .role-brand small {display:block;font-weight:600;color:#5b7a99;font-size:13px}
+#appRoot .role-hero {background:linear-gradient(120deg,#003d73,#0057a8 60%,#0072c6);color:#fff;border-radius:18px;padding:30px 28px;box-shadow:0 14px 34px rgba(0,40,80,.28)}
+#appRoot .role-hero h1 {margin:0 0 8px;font-size:28px;line-height:1.25}
+#appRoot .role-hero p {margin:0;opacity:.92;font-size:15px;line-height:1.6;max-width:640px}
+#appRoot .role-feats {display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0 22px}
+#appRoot .role-feat {background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+#appRoot .role-feat b {display:block;font-size:14px;color:var(--blue-dark);margin-bottom:4px}
+#appRoot .role-feat span {font-size:13px;color:#43586e;line-height:1.5}
+#appRoot .role-ask {background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px 24px;text-align:center;box-shadow:0 10px 30px rgba(0,40,80,.12)}
+#appRoot .role-ask h2 {margin:0 0 6px;font-size:24px;color:var(--blue-dark)}
+#appRoot .role-ask p {margin:0 0 20px;color:#43586e}
+#appRoot .role-btns {display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:720px;margin:0 auto}
+#appRoot .role-btn {display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;background:linear-gradient(120deg,#0057a8,#0072c6);color:#fff;border:none;border-radius:14px;padding:20px;cursor:pointer;font-size:17px;font-weight:700;line-height:1.35;box-shadow:0 8px 20px rgba(0,80,160,.25)}
+#appRoot .role-btn:hover {filter:brightness(1.08)}
+#appRoot .role-btn small {font-weight:500;font-size:13.5px;opacity:.92;line-height:1.5}
+#appRoot .role-btn.pos {background:linear-gradient(120deg,#0b7a4b,#12a150)}
+#appRoot .role-foot {text-align:center;color:#6b8299;font-size:13px;margin-top:18px;line-height:1.6}
+@media(max-width:640px){
+#appRoot .role-hero h1 {font-size:22px}
+#appRoot .role-feats {grid-template-columns:1fr 1fr}
+#appRoot .role-btns {grid-template-columns:1fr}
+}
 /* Thanh dang nhap noi o goc tren phai */
 #appRoot #authBar{position:fixed;top:14px;right:14px;z-index:300;display:flex;gap:8px;align-items:center;background:linear-gradient(90deg,var(--blue-deep),var(--blue));padding:7px;border-radius:999px;box-shadow:0 10px 26px rgba(0,30,60,.35)}
 #appRoot #authBar .btn{border-radius:999px}
@@ -986,6 +1013,34 @@ html.is-mobile #appRoot .btn{min-height:44px}
   <button class="btn ghost hidden" id="logoutBtn">Đăng xuất</button>
 </div>
 <!-- ================= PHAN DANG NHAP: HE THONG QUAN LY ================= -->
+<!-- ================= TRANG CHON VAI TRO (chi hien tren clo-kbh.vercel.app) ================= -->
+<div id="roleView" class="hidden">
+  <div class="role-wrap">
+    <div class="role-top">
+      <span class="role-logo">VNPT</span>
+      <span class="role-brand">VIỄN THÔNG QUẢNG NINH<small>HỆ THỐNG QUẢN LÝ KÊNH BÁN HÀNG</small></span>
+    </div>
+    <div class="role-hero">
+      <h1>Hệ thống quản lý kênh bán hàng VNPT Quảng Ninh</h1>
+      <p>Quản lý điểm bán ủy quyền, chi trả hoa hồng, danh mục gói cước và báo cáo thống kê — dành cho cán bộ công nhân viên và các điểm bán trên toàn tỉnh.</p>
+    </div>
+    <div class="role-feats">
+      <div class="role-feat"><b>💰 Chi trả hoa hồng</b><span>Theo dõi hoa hồng bán gói, BCKH và hoa hồng khuyến khích theo từng tháng.</span></div>
+      <div class="role-feat"><b>📦 Danh mục gói cước</b><span>Tra cứu gói cước, ưu đãi và ước tính thu nhập của điểm bán.</span></div>
+      <div class="role-feat"><b>📊 Báo cáo thống kê</b><span>Kết quả bán hàng, PSSL và doanh thu theo đơn vị, điểm bán.</span></div>
+      <div class="role-feat"><b>🗺️ Kênh bán &amp; chăm sóc</b><span>Bản đồ điểm bán, chăm sóc điểm bán và quản lý kênh phân phối.</span></div>
+    </div>
+    <div class="role-ask">
+      <h2>Bạn là ai?</h2>
+      <p>Chọn nhóm của bạn để đăng nhập vào hệ thống</p>
+      <div class="role-btns">
+        <button type="button" class="role-btn" id="roleCbcnvBtn">👔 Là CBCNV của VNPT Quảng Ninh<small>Đăng nhập bằng tài khoản EOFFICE</small></button>
+        <button type="button" class="role-btn pos" id="rolePosBtn">🏪 Là điểm bán của VNPT Quảng Ninh<small>Đăng nhập bằng số Eload</small></button>
+      </div>
+    </div>
+    <p class="role-foot">Mật khẩu mặc định: Vnpt@2026 — hệ thống sẽ yêu cầu đổi mật khẩu ở lần đăng nhập đầu tiên.<br />© VNPT Quảng Ninh — Hệ thống nội bộ.</p>
+  </div>
+</div>
 <div id="appView" class="hidden">
   <div class="wrap">
     <div class="app-banner" style="background:linear-gradient(120deg,#003d73,#0057a8);color:#fff">
@@ -1619,6 +1674,8 @@ CREATE TABLE IF NOT EXISTS cham_soc (
 // ============================================================================
 
 const TOKEN_TTL_SECONDS = 12 * 60 * 60; // Token dang nhap co hieu luc 12 gio
+const PWCHANGE_TTL_SECONDS = 15 * 60; // Token doi mat khau lan dau: 15 phut, chi dung cho /api/change-password
+const DEFAULT_PASSWORD = &quot;Vnpt@2026&quot;; // Mat khau mac dinh khi tao tai khoan (sync/import/reset)
 
 // ---------------------------------------------------------------------------
 // Cong cu ma hoa
@@ -1719,6 +1776,7 @@ async function requireAuth(request, env) {
   if (!m) return null;
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
+  if (payload.pwchange === 1) return null; // token doi mat khau chi dung cho /api/change-password, khong vao he thong
   const user = await env.DB.prepare(
     &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, chuc_danh, don_vi_id, loai_kenh, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?&quot;
   )
@@ -2450,9 +2508,16 @@ export default {
         const username = toText(b.username);
         const password = String(b.password || &quot;&quot;);
         if (!username || !password) return err(&quot;Vui long nhap ten dang nhap va mat khau&quot;, 422);
-        const user = await env.DB.prepare(&quot;SELECT * FROM nguoi_dung WHERE username = ?&quot;)
+        // Tim tai khoan theo username truoc; khong co thi thu theo so Eload
+        // (diem ban dang nhap bang so Eload, nhu huong dan tren o dang nhap).
+        let user = await env.DB.prepare(&quot;SELECT * FROM nguoi_dung WHERE username = ?&quot;)
           .bind(username)
           .first();
+        if (!user) {
+          user = await env.DB.prepare(&quot;SELECT * FROM nguoi_dung WHERE so_eload = ? AND so_eload IS NOT NULL AND TRIM(so_eload) != &#x27;&#x27;&quot;)
+            .bind(username)
+            .first();
+        }
         if (!user || !user.active) return err(&quot;Tai khoan khong ton tai hoac da bi khoa&quot;, 401);
         const hash = await hashPassword(password, user.salt);
         if (hash !== user.password_hash) return err(&quot;Mat khau khong dung&quot;, 401);
@@ -2463,6 +2528,51 @@ export default {
             .bind(user.id, user.username, user.ho_ten, saigonNow())
             .run();
         } catch (e) { /* loi ghi log khong duoc chan dang nhap */ }
+        // Tai khoan van dung mat khau mac dinh -&gt; bat doi mat khau truoc khi
+        // vao he thong (chi cap token doi mat khau 15 phut, khong vao duoc
+        // cac chuc nang khac).
+        if (password === DEFAULT_PASSWORD) {
+          const token = await signToken(env, {
+            sub: user.id,
+            username: user.username,
+            role: user.role,
+            pwchange: 1,
+            exp: Math.floor(Date.now() / 1000) + PWCHANGE_TTL_SECONDS,
+          });
+          return json({ ok: true, must_change_password: true, token, user: publicUser(user) });
+        }
+        const token = await signToken(env, {
+          sub: user.id,
+          username: user.username,
+          role: user.role,
+          exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
+        });
+        return json({ ok: true, token, user: publicUser(user) });
+      }
+
+      // ---- Doi mat khau (tu doi sau khi dang nhap, hoac bat buoc doi o lan
+      // dau khi tai khoan van dung mat khau mac dinh). Chap nhan ca token
+      // doi mat khau (pwchange) va token dang nhap thuong. Mat khau moi phai
+      // &gt;= 8 ky tu va khac mat khau mac dinh. ----
+      if (path === &quot;/api/change-password&quot; &amp;&amp; method === &quot;POST&quot;) {
+        const h = request.headers.get(&quot;Authorization&quot;) || &quot;&quot;;
+        const m = h.match(/^Bearer\s+(.+)$/i);
+        if (!m) return err(&quot;Phien dang nhap khong hop le hoac da het han. Vui long dang nhap lai.&quot;, 401);
+        const payload = await verifyToken(env, m[1]);
+        if (!payload) return err(&quot;Phien dang nhap khong hop le hoac da het han. Vui long dang nhap lai.&quot;, 401);
+        const user = await env.DB.prepare(&quot;SELECT * FROM nguoi_dung WHERE id = ?&quot;)
+          .bind(payload.sub)
+          .first();
+        if (!user || !user.active) return err(&quot;Tai khoan khong ton tai hoac da bi khoa&quot;, 401);
+        const b = await readBody(request);
+        const np = String(b.new_password || &quot;&quot;);
+        if (np.length &lt; 8) return err(&quot;Mat khau moi phai co it nhat 8 ky tu&quot;, 422);
+        if (np === DEFAULT_PASSWORD) return err(&quot;Mat khau moi khong duoc trung voi mat khau mac dinh&quot;, 422);
+        const salt = randomSalt();
+        const hash = await hashPassword(np, salt);
+        await env.DB.prepare(&quot;UPDATE nguoi_dung SET password_hash = ?, salt = ? WHERE id = ?&quot;)
+          .bind(hash, salt, user.id)
+          .run();
         const token = await signToken(env, {
           sub: user.id,
           username: user.username,
@@ -4718,11 +4828,11 @@ function normKbKey(s) {
 <!-- ================= MODAL DANG NHAP ================= -->
 <div id="loginModal" class="modal-back hidden">
   <div class="modal">
-    <h2>Đăng nhập hệ thống</h2>
-    <p class="sub">+ Đăng nhập bằng số Eload của điểm bán (VD: 84912345678) hoặc bằng mã kênh bán (VD: KBH123456)<br />+ Mật khẩu mặc định: Vnpt@2026 (khuyến nghị Quý điểm bán đổi mật khẩu sau khi đăng nhập)</p>
+    <h2 id="loginTitle">Đăng nhập hệ thống</h2>
+    <p class="sub" id="loginHint">+ Đăng nhập bằng số Eload của điểm bán (VD: 84912345678) hoặc bằng mã kênh bán (VD: KBH123456)<br />+ Mật khẩu mặc định: Vnpt@2026 (khuyến nghị Quý điểm bán đổi mật khẩu sau khi đăng nhập)</p>
     <div id="loginErr"></div>
     <form id="loginForm">
-      <div class="field"><label>Tên đăng nhập</label><input id="loginUser" required autocomplete="username" /></div>
+      <div class="field"><label id="loginUserLabel">Tên đăng nhập</label><input id="loginUser" required autocomplete="username" /></div>
       <div class="field"><label>Mật khẩu</label><input id="loginPass" type="password" required autocomplete="current-password" /></div>
       <div style="display:flex;gap:10px;margin-top:6px"><button class="btn blue" type="submit" style="flex:1">Đăng nhập</button><button class="btn gray" type="button" id="loginCancel">Đóng</button></div>
     </form>
@@ -4732,6 +4842,20 @@ function normKbKey(s) {
       <button class="btn gray sm" type="button" id="bootTest">Kiểm tra kết nối</button>
       <span id="bootMsg" style="font-size:13px;margin-left:8px"></span>
     </div>
+  </div>
+</div>
+
+<!-- ================= MODAL DOI MAT KHAU LAN DAU ================= -->
+<div id="pwChangeModal" class="modal-back hidden">
+  <div class="modal">
+    <h2>Đổi mật khẩu lần đầu</h2>
+    <p class="sub">Tài khoản <b id="pwChangeUser"></b> đang dùng mật khẩu mặc định. Vui lòng đặt mật khẩu mới (ít nhất 8 ký tự, khác mật khẩu mặc định) để tiếp tục đăng nhập.</p>
+    <div id="pwChangeErr"></div>
+    <form id="pwChangeForm">
+      <div class="field"><label>Mật khẩu mới</label><input id="pwNew" type="password" required autocomplete="new-password" /></div>
+      <div class="field"><label>Nhập lại mật khẩu mới</label><input id="pwNew2" type="password" required autocomplete="new-password" /></div>
+      <div style="display:flex;gap:10px;margin-top:6px"><button class="btn blue" type="submit" style="flex:1">Đổi mật khẩu và đăng nhập</button><button class="btn gray" type="button" id="pwChangeCancel">Đóng</button></div>
+    </form>
   </div>
 </div>
 
@@ -5004,6 +5128,8 @@ let apiBase = (() => {
 })();
 let token = sessionStorage.getItem("vnpt_token") || "";
 let me = null;
+let pwChangeToken = ""; // token doi mat khau lan dau (15 phut, chi dung cho /api/change-password)
+let loginRole = null; // vai tro chon tren trang clo-kbh: "cbcnv" | "pos" | null
 // Chuyen vien (staff + chuc danh "Chuyên viên"): xem so lieu tuong duong Lanh dao don vi
 function isLeaderLikeMe() {
   return !!(me && (me.role === "leader" || (me.role === "staff" && me.chuc_danh === "Chuyên viên")));
@@ -5151,8 +5277,14 @@ function refreshAuthUI() {
     $("setEload").value = me.so_eload || "";
     $("setWallet").value = me.so_vi || "";
   }
-  $("publicView").classList.toggle("hidden", logged);
+  // Trang chon vai tro chi hien tren clo-kbh.vercel.app khi chua dang nhap
+  // (them ?role=1 tren URL de xem truoc o bat cu dia chi nao).
+  const showRole = !logged && (location.hostname.indexOf("clo-kbh") !== -1 || new URLSearchParams(location.search).get("role") === "1");
+  $("roleView").classList.toggle("hidden", !showRole);
+  $("publicView").classList.toggle("hidden", logged || showRole);
   $("appView").classList.toggle("hidden", !logged);
+  const ab = $("authBar");
+  if (ab) ab.classList.toggle("hidden", showRole);
 }
 function openPanel(panelId, btn) {
   // Mo panel Ban do kenh ban -> mo rong khung app de ban do rong them ~30%; roi panel thi tra ve 1180px
@@ -5203,13 +5335,35 @@ document.querySelectorAll(".nav-group-head").forEach((h) => h.addEventListener("
   if (willOpen) g.classList.remove("closed");
 }));
 
-function showLogin() {
+// Dang nhap theo vai tro chon tren trang clo-kbh: cbcnv (tai khoan EOFFICE),
+// pos (so Eload), null (mac dinh nhu cu).
+function showLogin(role) {
+  loginRole = role || null;
+  const t = $("loginTitle"), h = $("loginHint"), l = $("loginUserLabel"), u = $("loginUser");
+  if (role === "cbcnv") {
+    t.textContent = "Đăng nhập — CBCNV VNPT Quảng Ninh";
+    l.textContent = "Tài khoản EOFFICE";
+    u.placeholder = "VD: tuanvtqn";
+    h.innerHTML = "+ Đăng nhập bằng tài khoản EOFFICE của CBCNV<br />+ Mật khẩu mặc định: Vnpt@2026 — lần đăng nhập đầu tiên hệ thống sẽ yêu cầu đổi mật khẩu";
+  } else if (role === "pos") {
+    t.textContent = "Đăng nhập — Điểm bán";
+    l.textContent = "Số Eload";
+    u.placeholder = "VD: 0987654321";
+    h.innerHTML = "+ Đăng nhập bằng số Eload của điểm bán (hoặc mã kênh bán)<br />+ Mật khẩu mặc định: Vnpt@2026 — lần đăng nhập đầu tiên hệ thống sẽ yêu cầu đổi mật khẩu";
+  } else {
+    t.textContent = "Đăng nhập hệ thống";
+    l.textContent = "Tên đăng nhập";
+    u.placeholder = "";
+    h.innerHTML = "+ Đăng nhập bằng số Eload của điểm bán (VD: 84912345678) hoặc bằng mã kênh bán (VD: KBH123456)<br />+ Mật khẩu mặc định: Vnpt@2026 (khuyến nghị Quý điểm bán đổi mật khẩu sau khi đăng nhập)";
+  }
   $("loginModal").classList.remove("hidden");
   $("bootCfg").classList.toggle("hidden", !!apiBase);
   $("apiWarn").textContent = apiBase ? "" : "Hệ thống chưa được kết nối tới Worker API. Hãy nhập địa chỉ Worker ở mục cấu hình phía dưới (xem hướng dẫn trong module Cấu hình kết nối D1 sau khi có tài khoản admin, hoặc liên hệ quản trị viên).";
   setMsg($("loginErr"), "");
 }
-$("loginBtn").addEventListener("click", showLogin);
+$("loginBtn").addEventListener("click", () => showLogin(null));
+const rbCbcnv = $("roleCbcnvBtn"); if (rbCbcnv) rbCbcnv.addEventListener("click", () => showLogin("cbcnv"));
+const rbPos = $("rolePosBtn"); if (rbPos) rbPos.addEventListener("click", () => showLogin("pos"));
 $("loginCancel").addEventListener("click", () => $("loginModal").classList.add("hidden"));
 $("loginModal").addEventListener("click", (e) => { if (e.target === $("loginModal")) $("loginModal").classList.add("hidden"); });
 
@@ -5245,6 +5399,15 @@ $("loginForm").addEventListener("submit", async (e) => {
     });
     const d = await res.json();
     if (!res.ok || !d.ok) throw new Error(d.error || "Đăng nhập thất bại");
+    if (d.must_change_password) {
+      pwChangeToken = d.token; me = d.user;
+      $("loginModal").classList.add("hidden");
+      $("pwChangeUser").textContent = d.user.username + (d.user.ho_ten ? " (" + d.user.ho_ten + ")" : "");
+      $("pwNew").value = ""; $("pwNew2").value = "";
+      setMsg($("pwChangeErr"), "");
+      $("pwChangeModal").classList.remove("hidden");
+      return;
+    }
     token = d.token; me = d.user;
     sessionStorage.setItem("vnpt_token", token);
     $("loginModal").classList.add("hidden");
@@ -5259,6 +5422,31 @@ $("logoutBtn").addEventListener("click", () => {
   sessionStorage.removeItem("vnpt_token");
   refreshAuthUI();
 });
+
+$("pwChangeForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const np = $("pwNew").value, np2 = $("pwNew2").value;
+  if (np.length < 8) return setMsg($("pwChangeErr"), "Mật khẩu mới phải có ít nhất 8 ký tự.", false);
+  if (np === "Vnpt@2026") return setMsg($("pwChangeErr"), "Mật khẩu mới không được trùng với mật khẩu mặc định.", false);
+  if (np !== np2) return setMsg($("pwChangeErr"), "Hai lần nhập mật khẩu mới chưa khớp.", false);
+  try {
+    const res = await fetch(apiBase + "/api/change-password", {
+      method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + pwChangeToken },
+      body: JSON.stringify({ new_password: np }),
+    });
+    const d = await res.json();
+    if (!res.ok || !d.ok) throw new Error(d.error || "Đổi mật khẩu thất bại");
+    token = d.token; me = d.user; pwChangeToken = "";
+    sessionStorage.setItem("vnpt_token", token);
+    $("pwChangeModal").classList.add("hidden");
+    $("pwNew").value = ""; $("pwNew2").value = "";
+    refreshAuthUI();
+    openPanel("panel-dashboard");
+  } catch (err) {
+    setMsg($("pwChangeErr"), err.message, false);
+  }
+});
+$("pwChangeCancel").addEventListener("click", () => { pwChangeToken = ""; me = null; $("pwChangeModal").classList.add("hidden"); });
 
 /* ---------------- Dashboard tong hop ---------------- */
 function renderDashYearBody(rows) {

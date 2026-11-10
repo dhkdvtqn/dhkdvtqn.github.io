@@ -5,6 +5,8 @@
 // ============================================================================
 
 const TOKEN_TTL_SECONDS = 12 * 60 * 60; // Token dang nhap co hieu luc 12 gio
+const PWCHANGE_TTL_SECONDS = 15 * 60; // Token doi mat khau lan dau: 15 phut, chi dung cho /api/change-password
+const DEFAULT_PASSWORD = "Vnpt@2026"; // Mat khau mac dinh khi tao tai khoan (sync/import/reset)
 
 // ---------------------------------------------------------------------------
 // Cong cu ma hoa
@@ -105,6 +107,7 @@ async function requireAuth(request, env) {
   if (!m) return null;
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
+  if (payload.pwchange === 1) return null; // token doi mat khau chi dung cho /api/change-password, khong vao he thong
   const user = await env.DB.prepare(
     "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, chuc_danh, don_vi_id, loai_kenh, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?"
   )
@@ -836,9 +839,16 @@ export default {
         const username = toText(b.username);
         const password = String(b.password || "");
         if (!username || !password) return err("Vui long nhap ten dang nhap va mat khau", 422);
-        const user = await env.DB.prepare("SELECT * FROM nguoi_dung WHERE username = ?")
+        // Tim tai khoan theo username truoc; khong co thi thu theo so Eload
+        // (diem ban dang nhap bang so Eload, nhu huong dan tren o dang nhap).
+        let user = await env.DB.prepare("SELECT * FROM nguoi_dung WHERE username = ?")
           .bind(username)
           .first();
+        if (!user) {
+          user = await env.DB.prepare("SELECT * FROM nguoi_dung WHERE so_eload = ? AND so_eload IS NOT NULL AND TRIM(so_eload) != ''")
+            .bind(username)
+            .first();
+        }
         if (!user || !user.active) return err("Tai khoan khong ton tai hoac da bi khoa", 401);
         const hash = await hashPassword(password, user.salt);
         if (hash !== user.password_hash) return err("Mat khau khong dung", 401);
@@ -849,6 +859,51 @@ export default {
             .bind(user.id, user.username, user.ho_ten, saigonNow())
             .run();
         } catch (e) { /* loi ghi log khong duoc chan dang nhap */ }
+        // Tai khoan van dung mat khau mac dinh -> bat doi mat khau truoc khi
+        // vao he thong (chi cap token doi mat khau 15 phut, khong vao duoc
+        // cac chuc nang khac).
+        if (password === DEFAULT_PASSWORD) {
+          const token = await signToken(env, {
+            sub: user.id,
+            username: user.username,
+            role: user.role,
+            pwchange: 1,
+            exp: Math.floor(Date.now() / 1000) + PWCHANGE_TTL_SECONDS,
+          });
+          return json({ ok: true, must_change_password: true, token, user: publicUser(user) });
+        }
+        const token = await signToken(env, {
+          sub: user.id,
+          username: user.username,
+          role: user.role,
+          exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
+        });
+        return json({ ok: true, token, user: publicUser(user) });
+      }
+
+      // ---- Doi mat khau (tu doi sau khi dang nhap, hoac bat buoc doi o lan
+      // dau khi tai khoan van dung mat khau mac dinh). Chap nhan ca token
+      // doi mat khau (pwchange) va token dang nhap thuong. Mat khau moi phai
+      // >= 8 ky tu va khac mat khau mac dinh. ----
+      if (path === "/api/change-password" && method === "POST") {
+        const h = request.headers.get("Authorization") || "";
+        const m = h.match(/^Bearer\s+(.+)$/i);
+        if (!m) return err("Phien dang nhap khong hop le hoac da het han. Vui long dang nhap lai.", 401);
+        const payload = await verifyToken(env, m[1]);
+        if (!payload) return err("Phien dang nhap khong hop le hoac da het han. Vui long dang nhap lai.", 401);
+        const user = await env.DB.prepare("SELECT * FROM nguoi_dung WHERE id = ?")
+          .bind(payload.sub)
+          .first();
+        if (!user || !user.active) return err("Tai khoan khong ton tai hoac da bi khoa", 401);
+        const b = await readBody(request);
+        const np = String(b.new_password || "");
+        if (np.length < 8) return err("Mat khau moi phai co it nhat 8 ky tu", 422);
+        if (np === DEFAULT_PASSWORD) return err("Mat khau moi khong duoc trung voi mat khau mac dinh", 422);
+        const salt = randomSalt();
+        const hash = await hashPassword(np, salt);
+        await env.DB.prepare("UPDATE nguoi_dung SET password_hash = ?, salt = ? WHERE id = ?")
+          .bind(hash, salt, user.id)
+          .run();
         const token = await signToken(env, {
           sub: user.id,
           username: user.username,
