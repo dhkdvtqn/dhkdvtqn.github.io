@@ -711,7 +711,12 @@ html.is-mobile #publicView .hero{padding-top:58px}
 html.is-mobile #appRoot .sidebar{display:none}
 html.is-mobile #appRoot #posSidebar{display:none}
 html.is-mobile #appRoot #appView.pos-mode{margin-left:0}
-html.is-mobile #appRoot .app{grid-template-columns:1fr}
+html.is-mobile #appRoot .app{grid-template-columns:minmax(0,1fr)}
+/* Chong phinh trang tren dien thoai: muc luoi mac dinh khong co duoi be rong
+   noi dung (vd bang 620px) nen phai cho phep co ve 0, bang se cuon trong the */
+html.is-mobile #appRoot .app > *{min-width:0}
+html.is-mobile #appRoot .kpi-row > *,html.is-mobile #appRoot .ov-kpis > *,html.is-mobile #appRoot .chart-row > *{min-width:0}
+html.is-mobile #appRoot .tbl-wrap{max-width:100%}
 #mobileNav{display:none}
 #mobileSheet{display:none}
 html.is-mobile #mobileNav{display:block;position:fixed;left:0;right:0;bottom:0;z-index:90;background:#fff;border-top:1.5px solid var(--line);box-shadow:0 -6px 20px rgba(0,30,60,.12);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
