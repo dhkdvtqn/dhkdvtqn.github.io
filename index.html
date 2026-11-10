@@ -4852,8 +4852,8 @@ function normKbKey(s) {
     <p class="sub">Tài khoản <b id="pwChangeUser"></b> đang dùng mật khẩu mặc định. Vui lòng đặt mật khẩu mới (ít nhất 8 ký tự, khác mật khẩu mặc định) để tiếp tục đăng nhập.</p>
     <div id="pwChangeErr"></div>
     <form id="pwChangeForm">
-      <div class="field"><label>Mật khẩu mới</label><input id="pwNew" type="password" required autocomplete="new-password" /></div>
-      <div class="field"><label>Nhập lại mật khẩu mới</label><input id="pwNew2" type="password" required autocomplete="new-password" /></div>
+      <div class="field"><label>Mật khẩu mới</label><input id="pwFirstNew" type="password" required autocomplete="new-password" /></div>
+      <div class="field"><label>Nhập lại mật khẩu mới</label><input id="pwFirstNew2" type="password" required autocomplete="new-password" /></div>
       <div style="display:flex;gap:10px;margin-top:6px"><button class="btn blue" type="submit" style="flex:1">Đổi mật khẩu và đăng nhập</button><button class="btn gray" type="button" id="pwChangeCancel">Đóng</button></div>
     </form>
   </div>
@@ -5403,7 +5403,7 @@ $("loginForm").addEventListener("submit", async (e) => {
       pwChangeToken = d.token; me = d.user;
       $("loginModal").classList.add("hidden");
       $("pwChangeUser").textContent = d.user.username + (d.user.ho_ten ? " (" + d.user.ho_ten + ")" : "");
-      $("pwNew").value = ""; $("pwNew2").value = "";
+      $("pwFirstNew").value = ""; $("pwFirstNew2").value = "";
       setMsg($("pwChangeErr"), "");
       $("pwChangeModal").classList.remove("hidden");
       return;
@@ -5425,7 +5425,7 @@ $("logoutBtn").addEventListener("click", () => {
 
 $("pwChangeForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const np = $("pwNew").value, np2 = $("pwNew2").value;
+  const np = $("pwFirstNew").value, np2 = $("pwFirstNew2").value;
   if (np.length < 8) return setMsg($("pwChangeErr"), "Mật khẩu mới phải có ít nhất 8 ký tự.", false);
   if (np === "Vnpt@2026") return setMsg($("pwChangeErr"), "Mật khẩu mới không được trùng với mật khẩu mặc định.", false);
   if (np !== np2) return setMsg($("pwChangeErr"), "Hai lần nhập mật khẩu mới chưa khớp.", false);
@@ -5439,7 +5439,7 @@ $("pwChangeForm").addEventListener("submit", async (e) => {
     token = d.token; me = d.user; pwChangeToken = "";
     sessionStorage.setItem("vnpt_token", token);
     $("pwChangeModal").classList.add("hidden");
-    $("pwNew").value = ""; $("pwNew2").value = "";
+    $("pwFirstNew").value = ""; $("pwFirstNew2").value = "";
     refreshAuthUI();
     openPanel("panel-dashboard");
   } catch (err) {
