@@ -665,6 +665,24 @@
 #appRoot .role-feats {grid-template-columns:1fr 1fr}
 #appRoot .role-btns {grid-template-columns:1fr}
 }
+#appRoot /* Menu trai danh cho diem ban (chi hien khi dang nhap bang tai khoan diem ban) */
+#posSidebar {position:fixed;left:0;top:0;bottom:0;width:232px;z-index:200;background:linear-gradient(180deg,#003d73,#0057a8);color:#fff;padding:18px 12px;display:flex;flex-direction:column;gap:6px;box-shadow:2px 0 18px rgba(0,30,60,.25)}
+#appRoot .pos-brand {display:flex;align-items:center;gap:10px;padding:4px 8px 14px;border-bottom:1px solid rgba(255,255,255,.28);margin-bottom:10px;font-weight:800;line-height:1.3}
+#appRoot .pos-logo {background:#fff;color:#0057a8;font-weight:800;padding:6px 9px;border-radius:8px;font-size:15px}
+#appRoot .pos-brand small {font-weight:600;opacity:.85;font-size:12px}
+#appRoot .pos-btn {display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:none;color:#fff;padding:12px 10px;border-radius:10px;cursor:pointer;font-size:15px;line-height:1.35}
+#appRoot .pos-btn:hover {background:rgba(255,255,255,.14)}
+#appRoot .pos-btn.active {background:#fff;color:#003d73;font-weight:700}
+#appRoot .pos-btn.logout {margin-top:auto}
+#appRoot #appView.pos-mode .sidebar {display:none}
+#appRoot #appView.pos-mode .app {grid-template-columns:1fr}
+@media(max-width:640px){
+#appRoot #posSidebar {top:0;bottom:auto;left:0;right:0;width:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:8px;gap:6px}
+#appRoot .pos-brand {display:none}
+#appRoot .pos-btn {width:auto;white-space:nowrap;padding:10px 12px;font-size:14px}
+#appRoot .pos-btn.logout {margin-top:0}
+#appRoot #appView.pos-mode {padding-top:56px}
+}
 /* Thanh dang nhap noi o goc tren phai */
 #appRoot #authBar{position:fixed;top:14px;right:14px;z-index:300;display:flex;gap:8px;align-items:center;background:linear-gradient(90deg,var(--blue-deep),var(--blue));padding:7px;border-radius:999px;box-shadow:0 10px 26px rgba(0,30,60,.35)}
 #appRoot #authBar .btn{border-radius:999px}
@@ -696,6 +714,11 @@ html.is-mobile #appRoot input,html.is-mobile #appRoot select,html.is-mobile #app
 html.is-mobile #appRoot .btn{min-height:44px}
 /* Tien ich an/hien dung cho ca #publicView (nam ngoai #appRoot) */
 .hidden{display:none !important}
+/* Giao dien diem ban: Trang chu (infographic) dich sang phai chu menu trai co dinh */
+#publicView.pos-home{margin-left:232px}
+@media(max-width:640px){
+#publicView.pos-home{margin-left:0;padding-top:56px}
+}
 
 </style>
 </head>
@@ -1041,6 +1064,16 @@ html.is-mobile #appRoot .btn{min-height:44px}
     <p class="role-foot">Mật khẩu mặc định: Vnpt@2026 — hệ thống sẽ yêu cầu đổi mật khẩu ở lần đăng nhập đầu tiên.<br />© VNPT Quảng Ninh — Hệ thống nội bộ.</p>
   </div>
 </div>
+<!-- ================= MENU TRAI DANG CHO DIEM BAN ================= -->
+<aside id="posSidebar" class="hidden">
+  <div class="pos-brand"><span class="pos-logo">VNPT</span><span>Điểm bán<small>Kênh ủy quyền</small></span></div>
+  <button type="button" class="pos-btn" data-pos="home">🏠 Trang chủ</button>
+  <button type="button" class="pos-btn" data-pos="dashboard">📈 Dashboard chi trả hoa hồng</button>
+  <button type="button" class="pos-btn" data-pos="packages">📦 Danh mục gói cước</button>
+  <button type="button" class="pos-btn" data-pos="reports">📊 Báo cáo thống kê</button>
+  <button type="button" class="pos-btn" data-pos="settings">⚙️ Cài đặt</button>
+  <button type="button" class="pos-btn logout" data-pos="logout">🚪 Đăng xuất</button>
+</aside>
 <div id="appView" class="hidden">
   <div class="wrap">
     <div class="app-banner" style="background:linear-gradient(120deg,#003d73,#0057a8);color:#fff">
@@ -5285,7 +5318,41 @@ function refreshAuthUI() {
   $("appView").classList.toggle("hidden", !logged);
   const ab = $("authBar");
   if (ab) ab.classList.toggle("hidden", showRole);
+  // Tai khoan diem ban: menu trai rieng, giu nguyen muc dang xem
+  const pos = logged && isPosUser();
+  const sb = $("posSidebar");
+  if (sb) sb.classList.toggle("hidden", !pos);
+  $("appView").classList.toggle("pos-mode", pos);
+  if (!pos) $("publicView").classList.remove("pos-home");
+  if (pos) showPos(posView);
 }
+// Giao dien danh cho diem ban (role user): menu trai rieng; Trang chu la
+// infographic chinh sach (publicView), cac muc khac mo panel tuong ung.
+function isPosUser() { return !!(me && me.role === "user"); }
+let posView = "home";
+function showPos(view) {
+  posView = view;
+  document.querySelectorAll("#posSidebar .pos-btn").forEach((b) => b.classList.toggle("active", b.dataset.pos === view));
+  const sb = $("posSidebar");
+  if (sb) sb.classList.remove("hidden");
+  $("appView").classList.add("pos-mode");
+  if (view === "home") {
+    $("appView").classList.add("hidden");
+    $("publicView").classList.remove("hidden");
+    $("publicView").classList.add("pos-home");
+  } else {
+    $("publicView").classList.add("hidden");
+    $("publicView").classList.remove("pos-home");
+    $("appView").classList.remove("hidden");
+    const map = { dashboard: "panel-dashboard", packages: "panel-packages", reports: "panel-reports", settings: "panel-settings" };
+    openPanel(map[view] || "panel-dashboard");
+  }
+}
+document.querySelectorAll("#posSidebar .pos-btn").forEach((b) => b.addEventListener("click", () => {
+  const v = b.dataset.pos;
+  if (v === "logout") { token = ""; me = null; posView = "home"; sessionStorage.removeItem("vnpt_token"); refreshAuthUI(); return; }
+  showPos(v);
+}));
 function openPanel(panelId, btn) {
   // Mo panel Ban do kenh ban -> mo rong khung app de ban do rong them ~30%; roi panel thi tra ve 1180px
   const aw = document.querySelector("#appView .wrap");
@@ -5411,14 +5478,15 @@ $("loginForm").addEventListener("submit", async (e) => {
     token = d.token; me = d.user;
     sessionStorage.setItem("vnpt_token", token);
     $("loginModal").classList.add("hidden");
+    posView = "home";
     refreshAuthUI();
-    openPanel("panel-dashboard");
+    if (!isPosUser()) openPanel("panel-dashboard");
   } catch (err) {
     setMsg($("loginErr"), err.message, false);
   }
 });
 $("logoutBtn").addEventListener("click", () => {
-  token = ""; me = null;
+  token = ""; me = null; posView = "home";
   sessionStorage.removeItem("vnpt_token");
   refreshAuthUI();
 });
@@ -5440,8 +5508,9 @@ $("pwChangeForm").addEventListener("submit", async (e) => {
     sessionStorage.setItem("vnpt_token", token);
     $("pwChangeModal").classList.add("hidden");
     $("pwFirstNew").value = ""; $("pwFirstNew2").value = "";
+    posView = "home";
     refreshAuthUI();
-    openPanel("panel-dashboard");
+    if (!isPosUser()) openPanel("panel-dashboard");
   } catch (err) {
     setMsg($("pwChangeErr"), err.message, false);
   }
@@ -8351,7 +8420,7 @@ document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("clic
   $("impMonth").value = now.getMonth() + 1; $("impYear").value = now.getFullYear();
   refreshAuthUI();
   if (token && apiBase) {
-    api("/api/me").then((d) => { me = d.user; refreshAuthUI(); const first = [...document.querySelectorAll(".nav-btn")].find((b) => !b.classList.contains("hidden")); openPanel(first ? first.dataset.panel : "panel-dashboard"); })
+    api("/api/me").then((d) => { me = d.user; refreshAuthUI(); if (!isPosUser()) { const first = [...document.querySelectorAll(".nav-btn")].find((b) => !b.classList.contains("hidden")); openPanel(first ? first.dataset.panel : "panel-dashboard"); } })
       .catch(() => { token = ""; sessionStorage.removeItem("vnpt_token"); refreshAuthUI(); });
   }
 })();
