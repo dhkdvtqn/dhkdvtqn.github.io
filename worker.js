@@ -634,8 +634,13 @@ async function aggregateSummary(env, me, isPrivileged, isUnitScoped, { from, to,
   const types = await getDataTypes(env);
   // Build source THEO TUNG BANG THANG: thang nao lay bang kenh_ban/cbcnv cua
   // thang do de map don vi (uu tien), nguoi_dung chi fallback.
+  // Bao cao chi tra hoa hong chi tong hop loai CHI TRA (khong co sales_kind):
+  // loai ban hang (SMCS/TNTTTB) la so lieu doanh thu/san luong phuc vu bao
+  // cao ban hang, khong phai hoa hong chi tra, dua vao day gay hieu nham.
+  // Hoa hong khuyen khich (HHKK) gop chung vao Chi tra hoa hong ban goi
+  // (HHBG): khi loc HHBG thi cong ca so lieu HHKK (11/11/2026).
   const srcTypes = types
-    .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col);
+    .filter((t) => (loai === "ALL" || t.code === loai || (loai === "HHBG" && t.code === "HHKK")) && t.money_col && t.time_col && !t.sales_kind);
   // Truy van tung bang thang roi cong don ket qua trong JS.
   // (Cach cu ghep tat ca bang bang UNION ALL thanh 1 cau SQL khong lo
   //  se vuot gioi han "too many terms in compound SELECT" cua D1.)
@@ -2581,8 +2586,11 @@ function normKbKey(s) {
         const skippedTables = [];
         const legacyTables = [];
         const types = await getDataTypes(env);
+        // Bao cao chi tiet (loai = Tat ca) cung chi liet ke giao dich chi tra
+        // hoa hong — loai ban hang (SMCS/TNTTTB) khong phai hoa hong chi tra
+        // nen khong dua vao, de khop voi bang tong hop (xem aggregateSummary).
         const srcTypes = types
-          .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col);
+          .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col && !t.sales_kind);
         for (const tp of srcTypes) {
           const tables = await listMonthlyTables(env, tp.prefix);
           for (const t of tables) {
