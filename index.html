@@ -1742,7 +1742,8 @@ CREATE TABLE IF NOT EXISTS cham_soc (
   khoang_cach_m REAL,                       -- khoang cach luc ghi nhan toi diem ban (&lt;= 5m)
   anh_key TEXT,                             -- anh da dong dau toa do + thoi gian chup, luu tren R2
   anh_thoi_gian TEXT,                       -- thoi gian chup anh (gio thiet bi)
-  ghi_chu TEXT                              -- ghi chu ket qua cham soc
+  ghi_chu TEXT,                             -- ghi chu ket qua cham soc
+  y_kien TEXT                               -- y kien cua diem ban (khong bat buoc)
 );
 </pre></div>
 
@@ -2526,8 +2527,12 @@ async function ensureCareTables(env) {
     &quot;CREATE TABLE IF NOT EXISTS dot_cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_dot TEXT NOT NULL, ghi_chu TEXT, nguoi_tao_id INTEGER, nguoi_tao_ten TEXT, created_at TEXT)&quot;
   ).run();
   await env.DB.prepare(
-    &quot;CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT)&quot;
+    &quot;CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT, y_kien TEXT)&quot;
   ).run();
+  // Migration: bang cham_soc cu (truoc 11/11/2026) chua co cot y_kien
+  const cols = await env.DB.prepare(&quot;PRAGMA table_info(cham_soc)&quot;).all();
+  const names = new Set((cols.results || []).map((c) =&gt; c.name));
+  if (!names.has(&quot;y_kien&quot;)) await env.DB.prepare(&quot;ALTER TABLE cham_soc ADD COLUMN y_kien TEXT&quot;).run();
 }
 async function uploadPackageImage(env, pkgId, file) {
   if (!env.ANH) throw new Error(&quot;Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker). Xem huong dan cau hinh R2 trong module Danh muc goi cuoc.&quot;);
@@ -4016,7 +4021,7 @@ function normKbKey(s) {
         let careByUnit = [];
         try {
           await env.DB.prepare(&quot;CREATE TABLE IF NOT EXISTS dot_cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_dot TEXT NOT NULL, ghi_chu TEXT, nguoi_tao_id INTEGER, nguoi_tao_ten TEXT, created_at TEXT)&quot;).run();
-          await env.DB.prepare(&quot;CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT)&quot;).run();
+          await env.DB.prepare(&quot;CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT, y_kien TEXT)&quot;).run();
           if (duqPosIds.length) {
             const likeLen = ky === &quot;nam&quot; ? 4 : 7;
             const likeVal = ky === &quot;nam&quot; ? String(nam) : curMonths[0];
@@ -4546,6 +4551,7 @@ function normKbKey(s) {
         const lng = Number(fd.get(&quot;lng&quot;));
         const photoTime = toText(fd.get(&quot;photo_time&quot;));
         const ghiChu = toText(fd.get(&quot;ghi_chu&quot;));
+        const yKien = toText(fd.get(&quot;y_kien&quot;));
         const file = fd.get(&quot;anh&quot;);
         if (!dotId || !posId) return err(&quot;Thieu dot cham soc hoac diem ban&quot;, 422);
         if (!isFinite(lat) || !isFinite(lng)) return err(&quot;Thieu vi tri chup anh&quot;, 422);
@@ -4568,8 +4574,8 @@ function normKbKey(s) {
         const key = &quot;cham-soc/&quot; + posId + &quot;-&quot; + Date.now() + &quot;.&quot; + ext;
         await env.ANH.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: mime } });
         const r = await env.DB.prepare(
-          &quot;INSERT INTO cham_soc (dot_id, pos_user_id, caregiver_id, caregiver_ten, thoi_gian, lat, lng, khoang_cach_m, anh_key, anh_thoi_gian, ghi_chu) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
-        ).bind(dotId, posId, me.id, me.ho_ten, saigonNow(), lat, lng, Math.round(dist * 10) / 10, key, photoTime || null, ghiChu).run();
+          &quot;INSERT INTO cham_soc (dot_id, pos_user_id, caregiver_id, caregiver_ten, thoi_gian, lat, lng, khoang_cach_m, anh_key, anh_thoi_gian, ghi_chu, y_kien) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+        ).bind(dotId, posId, me.id, me.ho_ten, saigonNow(), lat, lng, Math.round(dist * 10) / 10, key, photoTime || null, ghiChu, yKien).run();
         return json({ ok: true, id: r.meta.last_row_id, khoang_cach_m: Math.round(dist * 10) / 10 });
       }
       if (path === &quot;/api/care/records&quot; &amp;&amp; method === &quot;GET&quot;) {
@@ -4656,7 +4662,7 @@ function normKbKey(s) {
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
         const limit = Math.min(1000, Number(url.searchParams.get(&quot;limit&quot;)) || 1000);
         if (isLeaderLike &amp;&amp; !me.don_vi_id) return json({ ok: true, records: [] });
-        const base = &quot;SELECT c.id, c.thoi_gian, dt.ten_dot, p.ho_ten AS pos_ten, d.ten_don_vi AS don_vi_ten, c.caregiver_ten, c.khoang_cach_m, c.ghi_chu FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN don_vi d ON d.id = p.don_vi_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?&quot;;
+        const base = &quot;SELECT c.id, c.thoi_gian, dt.ten_dot, p.ho_ten AS pos_ten, d.ten_don_vi AS don_vi_ten, c.caregiver_ten, c.khoang_cach_m, c.ghi_chu, c.y_kien FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN don_vi d ON d.id = p.don_vi_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?&quot;;
         let sql = base;
         let binds = [from, to];
         if (isLeaderLike) {
@@ -4851,7 +4857,7 @@ function normKbKey(s) {
             <div class="tbl-wrap"><table class="data"><thead><tr><th>Điểm bán</th><th>Đơn vị</th><th>Khoảng cách tới bạn</th><th></th></tr></thead><tbody id="careNearbyBody"><tr><td colspan="4">Hãy bấm “Lấy vị trí hiện tại” để hiển thị các điểm bán trong bán kính 20m.</td></tr></tbody></table></div>
             <div id="careMapWrap" class="hidden" style="margin-top:12px"><div id="careMap" style="height:360px;border-radius:12px;border:1px solid var(--line);z-index:0"></div><p class="desc" style="margin-top:6px">📍 Vị trí hiện tại của bạn. <span class="pos-pin" style="background:#1a8a2e;width:20px;height:20px;font-size:12px;border-radius:6px;vertical-align:-4px">🏪</span> <b>Điểm bán trong bán kính 20m</b> (bấm vào để chăm sóc) — <span class="pos-pin" style="background:#c0392b;width:20px;height:20px;font-size:12px;border-radius:6px;vertical-align:-4px">🏪</span> <b>Điểm bán ngoài 20m</b> (đứng trong 20m mới chăm sóc được).</p></div>
             <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Lịch sử chăm sóc trong đợt</h3>
-            <div class="tbl-wrap"><table class="data"><thead><tr><th>Thời gian chăm sóc</th><th>Điểm bán</th><th>Người chăm sóc</th><th>Khoảng cách</th><th>Ghi chú</th><th>Ảnh</th></tr></thead><tbody id="careHistBody"><tr><td colspan="6">Chưa có lượt chăm sóc nào trong đợt này.</td></tr></tbody></table></div>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Thời gian chăm sóc</th><th>Điểm bán</th><th>Người chăm sóc</th><th>Khoảng cách</th><th>Ý kiến điểm bán</th><th>Ghi chú</th><th>Ảnh</th></tr></thead><tbody id="careHistBody"><tr><td colspan="7">Chưa có lượt chăm sóc nào trong đợt này.</td></tr></tbody></table></div>
           </div>
         </section>
 
@@ -4960,7 +4966,8 @@ function normKbKey(s) {
     <div class="field"><label>Ảnh điểm bán *</label><input type="file" id="carePhotoInput" accept="image/*" capture="environment" /></div>
     <div id="carePhotoPreview" style="margin-top:8px"></div>
     <div id="carePhotoInfo" class="desc" style="margin-top:6px">Chưa có ảnh. Hãy chụp ảnh điểm bán — hệ thống sẽ tự đóng dấu tọa độ và thời gian chụp vào ảnh.</div>
-    <div class="field" style="margin-top:10px"><label>Ghi chú kết quả chăm sóc</label><input id="careNote" placeholder="VD: Đã kiểm tra biển hiệu, bổ sung tờ rơi gói mới" /></div>
+    <div class="field" style="margin-top:10px"><label>Ý kiến của điểm bán</label><input id="careOpinion" placeholder="VD: Đề nghị hỗ trợ thêm biển hiệu, muốn bán thêm gói cước mới" /></div>
+    <div class="field" style="margin-top:10px"><label>Ghi chú</label><input id="careNote" placeholder="VD: Đã kiểm tra biển hiệu, bổ sung tờ rơi gói mới" /></div>
     <div style="display:flex;gap:10px;margin-top:14px"><button class="btn blue" type="button" id="careSaveBtn" disabled>Lưu kết quả</button><button class="btn gray" type="button" id="careCancelBtn">Đóng</button></div>
     <div id="careModalMsg"></div>
   </div>
@@ -7794,9 +7801,9 @@ async function loadCareHistory() {
     const d = await api("/api/care/records?dot_id=" + careBatchId + "&limit=200");
     $("careHistBody").innerHTML = (d.records || []).map((r) =>
       "<tr><td>" + esc(r.thoi_gian) + "</td><td><b>" + esc(r.pos_ten) + "</b></td><td>" + esc(r.caregiver_ten) + "</td>" +
-      "<td>" + (r.khoang_cach_m == null ? "—" : r.khoang_cach_m + "m") + "</td><td>" + esc(r.ghi_chu) + "</td>" +
+      "<td>" + (r.khoang_cach_m == null ? "—" : r.khoang_cach_m + "m") + "</td><td>" + esc(r.y_kien) + "</td><td>" + esc(r.ghi_chu) + "</td>" +
       "<td><button class='btn sm gray' data-care-img='" + r.id + "'>Xem ảnh</button></td></tr>").join("") ||
-      "<tr><td colspan='6'>Chưa có lượt chăm sóc nào trong đợt này.</td></tr>";
+      "<tr><td colspan='7'>Chưa có lượt chăm sóc nào trong đợt này.</td></tr>";
     $("careHistBody").querySelectorAll("[data-care-img]").forEach((b) => b.addEventListener("click", () => viewCarePhoto(Number(b.dataset.careImg))));
   } catch (e) { setMsg($("careNearbyMsg"), e.message, false); }
 }
@@ -7881,6 +7888,7 @@ function openCareModal(pos) {
   $("carePhotoPreview").innerHTML = "";
   $("carePhotoInfo").textContent = "Chưa có ảnh. Hãy chụp ảnh điểm bán — hệ thống sẽ tự đóng dấu tọa độ và thời gian chụp vào ảnh.";
   $("careNote").value = "";
+  $("careOpinion").value = "";
   $("careSaveBtn").disabled = true;
   setMsg($("careModalMsg"), "");
   $("careModalBack").classList.remove("hidden");
@@ -7957,6 +7965,7 @@ $("careSaveBtn").addEventListener("click", async () => {
     fd.append("lng", careStamped.lng);
     fd.append("photo_time", careStamped.photoTime);
     fd.append("ghi_chu", $("careNote").value.trim());
+    fd.append("y_kien", $("careOpinion").value.trim());
     fd.append("anh", careStamped.blob, "cham-soc.jpg");
     const res = await fetch(apiBase + "/api/care/records", { method: "POST", headers: token ? { Authorization: "Bearer " + token } : {}, body: fd });
     let data = {};
@@ -8259,12 +8268,12 @@ $("careRepDetailBtn").addEventListener("click", async () => {
   try {
     setMsg($("careRepMsg"), "Đang tải chi tiết…");
     const d = await api("/api/care/reports/detail?from=" + p.from + "&to=" + p.to + "&limit=1000");
-    $("careRepHead").innerHTML = "<tr><th>Thời gian</th><th>Đợt</th><th>Điểm bán</th><th>Đơn vị</th><th>Người chăm sóc</th><th>Khoảng cách</th><th>Ghi chú</th><th>Ảnh</th></tr>";
+    $("careRepHead").innerHTML = "<tr><th>Thời gian</th><th>Đợt</th><th>Điểm bán</th><th>Đơn vị</th><th>Người chăm sóc</th><th>Khoảng cách</th><th>Ý kiến điểm bán</th><th>Ghi chú</th><th>Ảnh</th></tr>";
     $("careRepBody").innerHTML = (d.records || []).map((r) =>
       "<tr><td>" + esc(r.thoi_gian) + "</td><td>" + esc(r.ten_dot) + "</td><td><b>" + esc(r.pos_ten) + "</b></td><td>" + esc(r.don_vi_ten) + "</td><td>" + esc(r.caregiver_ten) + "</td>" +
-      "<td>" + (r.khoang_cach_m == null ? "—" : r.khoang_cach_m + "m") + "</td><td>" + esc(r.ghi_chu) + "</td>" +
+      "<td>" + (r.khoang_cach_m == null ? "—" : r.khoang_cach_m + "m") + "</td><td>" + esc(r.y_kien) + "</td><td>" + esc(r.ghi_chu) + "</td>" +
       "<td><button class='btn sm gray' data-care-rep-img='" + r.id + "'>Xem ảnh</button></td></tr>").join("") ||
-      "<tr><td colspan='8'>Không có dữ liệu trong khoảng đã chọn.</td></tr>";
+      "<tr><td colspan='9'>Không có dữ liệu trong khoảng đã chọn.</td></tr>";
     $("careRepTotal").textContent = (d.records || []).length.toLocaleString("vi-VN");
     $("careRepPos").textContent = new Set((d.records || []).map((r) => r.pos_ten)).size.toLocaleString("vi-VN");
     $("careRepBody").querySelectorAll("[data-care-rep-img]").forEach((b) => b.addEventListener("click", () => viewCarePhoto(Number(b.dataset.careRepImg))));
@@ -8305,11 +8314,11 @@ $("careRepExportBtn").addEventListener("click", async () => {
     ws1["!cols"] = [{ wch: 32 }, { wch: 14 }, { wch: 14 }];
     XLSX.utils.book_append_sheet(wb, ws1, "TongHop");
     const detRows = [
-      ["Thời gian", "Đợt chăm sóc", "Điểm bán", "Đơn vị", "Lãnh đạo đơn vị", "Khoảng cách (m)", "Ghi chú"],
-      ...(d.records || []).map((r) => [r.thoi_gian, r.ten_dot, r.pos_ten, r.don_vi_ten, r.caregiver_ten, r.khoang_cach_m, r.ghi_chu]),
+      ["Thời gian", "Đợt chăm sóc", "Điểm bán", "Đơn vị", "Lãnh đạo đơn vị", "Khoảng cách (m)", "Ý kiến điểm bán", "Ghi chú"],
+      ...(d.records || []).map((r) => [r.thoi_gian, r.ten_dot, r.pos_ten, r.don_vi_ten, r.caregiver_ten, r.khoang_cach_m, r.y_kien, r.ghi_chu]),
     ];
     const ws2 = XLSX.utils.aoa_to_sheet(detRows);
-    ws2["!cols"] = [{ wch: 20 }, { wch: 26 }, { wch: 26 }, { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 40 }];
+    ws2["!cols"] = [{ wch: 20 }, { wch: 26 }, { wch: 26 }, { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 40 }, { wch: 40 }];
     XLSX.utils.book_append_sheet(wb, ws2, "ChiTiet");
     XLSX.writeFile(wb, "Bao_cao_cham_soc_" + p.from + "_den_" + p.to + ".xlsx");
     setMsg($("careRepMsg"), "Đã xuất file Excel báo cáo chăm sóc (" + (d.records || []).length + " dòng chi tiết).");

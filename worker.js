@@ -775,8 +775,12 @@ async function ensureCareTables(env) {
     "CREATE TABLE IF NOT EXISTS dot_cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_dot TEXT NOT NULL, ghi_chu TEXT, nguoi_tao_id INTEGER, nguoi_tao_ten TEXT, created_at TEXT)"
   ).run();
   await env.DB.prepare(
-    "CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT)"
+    "CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT, y_kien TEXT)"
   ).run();
+  // Migration: bang cham_soc cu (truoc 11/11/2026) chua co cot y_kien
+  const cols = await env.DB.prepare("PRAGMA table_info(cham_soc)").all();
+  const names = new Set((cols.results || []).map((c) => c.name));
+  if (!names.has("y_kien")) await env.DB.prepare("ALTER TABLE cham_soc ADD COLUMN y_kien TEXT").run();
 }
 async function uploadPackageImage(env, pkgId, file) {
   if (!env.ANH) throw new Error("Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker). Xem huong dan cau hinh R2 trong module Danh muc goi cuoc.");
@@ -2265,7 +2269,7 @@ function normKbKey(s) {
         let careByUnit = [];
         try {
           await env.DB.prepare("CREATE TABLE IF NOT EXISTS dot_cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, ten_dot TEXT NOT NULL, ghi_chu TEXT, nguoi_tao_id INTEGER, nguoi_tao_ten TEXT, created_at TEXT)").run();
-          await env.DB.prepare("CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT)").run();
+          await env.DB.prepare("CREATE TABLE IF NOT EXISTS cham_soc (id INTEGER PRIMARY KEY AUTOINCREMENT, dot_id INTEGER NOT NULL, pos_user_id INTEGER NOT NULL, caregiver_id INTEGER, caregiver_ten TEXT, thoi_gian TEXT, lat REAL, lng REAL, khoang_cach_m REAL, anh_key TEXT, anh_thoi_gian TEXT, ghi_chu TEXT, y_kien TEXT)").run();
           if (duqPosIds.length) {
             const likeLen = ky === "nam" ? 4 : 7;
             const likeVal = ky === "nam" ? String(nam) : curMonths[0];
@@ -2795,6 +2799,7 @@ function normKbKey(s) {
         const lng = Number(fd.get("lng"));
         const photoTime = toText(fd.get("photo_time"));
         const ghiChu = toText(fd.get("ghi_chu"));
+        const yKien = toText(fd.get("y_kien"));
         const file = fd.get("anh");
         if (!dotId || !posId) return err("Thieu dot cham soc hoac diem ban", 422);
         if (!isFinite(lat) || !isFinite(lng)) return err("Thieu vi tri chup anh", 422);
@@ -2817,8 +2822,8 @@ function normKbKey(s) {
         const key = "cham-soc/" + posId + "-" + Date.now() + "." + ext;
         await env.ANH.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: mime } });
         const r = await env.DB.prepare(
-          "INSERT INTO cham_soc (dot_id, pos_user_id, caregiver_id, caregiver_ten, thoi_gian, lat, lng, khoang_cach_m, anh_key, anh_thoi_gian, ghi_chu) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        ).bind(dotId, posId, me.id, me.ho_ten, saigonNow(), lat, lng, Math.round(dist * 10) / 10, key, photoTime || null, ghiChu).run();
+          "INSERT INTO cham_soc (dot_id, pos_user_id, caregiver_id, caregiver_ten, thoi_gian, lat, lng, khoang_cach_m, anh_key, anh_thoi_gian, ghi_chu, y_kien) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ).bind(dotId, posId, me.id, me.ho_ten, saigonNow(), lat, lng, Math.round(dist * 10) / 10, key, photoTime || null, ghiChu, yKien).run();
         return json({ ok: true, id: r.meta.last_row_id, khoang_cach_m: Math.round(dist * 10) / 10 });
       }
       if (path === "/api/care/records" && method === "GET") {
@@ -2905,7 +2910,7 @@ function normKbKey(s) {
         const to = url.searchParams.get("to") || "9999-12-31";
         const limit = Math.min(1000, Number(url.searchParams.get("limit")) || 1000);
         if (isLeaderLike && !me.don_vi_id) return json({ ok: true, records: [] });
-        const base = "SELECT c.id, c.thoi_gian, dt.ten_dot, p.ho_ten AS pos_ten, d.ten_don_vi AS don_vi_ten, c.caregiver_ten, c.khoang_cach_m, c.ghi_chu FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN don_vi d ON d.id = p.don_vi_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?";
+        const base = "SELECT c.id, c.thoi_gian, dt.ten_dot, p.ho_ten AS pos_ten, d.ten_don_vi AS don_vi_ten, c.caregiver_ten, c.khoang_cach_m, c.ghi_chu, c.y_kien FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id LEFT JOIN don_vi d ON d.id = p.don_vi_id LEFT JOIN dot_cham_soc dt ON dt.id = c.dot_id WHERE substr(c.thoi_gian, 1, 10) BETWEEN ? AND ?";
         let sql = base;
         let binds = [from, to];
         if (isLeaderLike) {
