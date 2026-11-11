@@ -2173,13 +2173,20 @@ function normKbKey(s) {
         let hasSubsSrc = false, hasRevSrc = false;
         for (const t of stypes) {
           const needPrice = t.sales_kind !== "san_luong";
-          // Quy tac tong hop theo dung yeu cau: thue bao PTM chi tu loai "san_luong";
-          // doanh thu chi tu loai "doanh_thu" (va loai chua phan kind co cot gia).
+          // Quy tac tong hop: thue bao PTM chi tu loai "san_luong"; doanh thu
+          // tu loai "doanh_thu" (va loai chua phan kind co cot gia) — va tu
+          // 11/11/2026 them doanh thu tu loai "san_luong": bang TNTTTB cung
+          // co cot gia (gia_tien_vnd), cong vao doanh thu chung cua diem ban.
           const isSubsSrc = t.sales_kind === "san_luong";
           const isRevSrc = !isSubsSrc;
+          // Loai san_luong co cot gia thi cung la nguon doanh thu.
+          const isSubsRevSrc = isSubsSrc && !!t.sales_price_col;
           if (isSubsSrc) hasSubsSrc = true; else hasRevSrc = true;
+          if (isSubsRevSrc) hasRevSrc = true;
           const needCols = [t.sales_unit_col, t.sales_eload_col];
-          if (t.sales_price_col) needCols.push(t.sales_price_col);
+          // Cot gia chi bat buoc voi loai doanh thu; voi loai san_luong no la
+          // tuy chon — bang nao thieu cot gia van dem thue bao binh thuong.
+          if (t.sales_price_col && needPrice) needCols.push(t.sales_price_col);
           // sales_kenh_col KHONG dua vao needCols: no chi phuc vu fallback
           // khop theo ma kenh; bang nao thieu cot do van tong hop binh thuong
           // theo Eload (fallback chi ap dung khi bang co cot).
@@ -2242,7 +2249,12 @@ function normKbKey(s) {
               let qty = t.sales_qty_col ? toNumber(r[t.sales_qty_col]) : 0;
               if (!qty || qty <= 0) qty = 1;
               const subAdd = isSubsSrc && isDuqRow ? qty : 0;
-              const revAdd = isRevSrc && needPrice ? Math.round(price / 1.1 * qty) : 0;
+              // Doanh thu tu loai san_luong (TNTTTB, cot gia_tien_vnd) chi tinh
+              // khi dong hop le nhu thue bao (loai_don day du, Vai tro DUQ) va
+              // bang co cot gia; map theo Eload truoc roi fallback ma kenh nhu
+              // tren (da doi e/pos o dau vong lap).
+              const hasPriceCol = t.sales_price_col && cn.has(t.sales_price_col);
+              const revAdd = ((isRevSrc && needPrice) || (isSubsRevSrc && isDuqRow && hasPriceCol)) ? Math.round(price / 1.1 * qty) : 0;
               // PSSL chi khi dong nay thuc su sinh ra san luong: co thue bao
               // moi (subAdd > 0) hoac co doanh thu > 0d (revAdd > 0).
               const hasPssl = subAdd > 0 || revAdd > 0;
@@ -2481,7 +2493,11 @@ function normKbKey(s) {
         const byMonth = {}, byUnit = {}, byPos = {};
         const skippedTables = [];
         const needCols = [t.sales_unit_col, t.sales_eload_col];
-        if (t.sales_price_col) needCols.push(t.sales_price_col);
+        // Cot gia chi bat buoc voi loai doanh thu; voi loai san_luong (TNTTTB)
+        // no la tuy chon — bang nao thieu cot gia van dem thue bao binh thuong
+        // (doanh thu chi tinh khi bang co cot gia; ham nay von da tinh doanh
+        // thu tu cot gia cho moi loai).
+        if (t.sales_price_col && needPrice) needCols.push(t.sales_price_col);
         // sales_kenh_col KHONG dua vao needCols: no chi phuc vu fallback
         // khop theo ma kenh; bang nao thieu cot do van tong hop binh thuong
         // theo Eload.
