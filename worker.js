@@ -440,6 +440,36 @@ async function monthTableExists(env, prefix, mk) {
   const r = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").bind(name).first();
   return r ? name : null;
 }
+// Map ma kenh -> diem ban, dung lam fallback khi so Eload trong bang du lieu
+// khong khop voi so_eload cua tai khoan diem ban (VD: TNTTTB ghi
+// sdt_kenh_ban la so khac). Thu tu uu tien: ma_kenh cua tai khoan truoc,
+// roi id_hrm / ma_kenh / iddaily trong bang kenh_ban cua thang chi dinh
+// (doi chieu qua so_eload cua dong kenh do). Key da chuan hoa (nhu normE).
+async function buildPosCodeMap(env, posByEload, normE, monthKey) {
+  const byCode = {};
+  for (const e in posByEload) {
+    const p = posByEload[e];
+    const c = normE(p.ma_kenh || "");
+    if (c && !byCode[c]) byCode[c] = p;
+  }
+  if (monthKey) {
+    try {
+      const kbT = await monthTableExists(env, KENH_BAN_PREFIX, monthKey);
+      if (kbT) {
+        const krs = (await env.DB.prepare('SELECT * FROM "' + kbT + '"').all()).results || [];
+        for (const r of krs) {
+          const p = posByEload[normE(r.so_eload)];
+          if (!p) continue;
+          for (const col of ["id_hrm", "ma_kenh", "iddaily"]) {
+            const c = normE(r[col]);
+            if (c && !byCode[c]) byCode[c] = p;
+          }
+        }
+      }
+    } catch (e2) { /* bo qua khi chua co bang thang */ }
+  }
+  return byCode;
+}
 // Bang kenh_ban/cbcnv cua thang chua bang du lieu (table: HHBG_102026...).
 // Tra ve { kbTable, cbTable } (ten bang hoac null neu thang do chua import).
 async function mapTablesFor(env, table) {
@@ -2102,6 +2132,9 @@ function normKbKey(s) {
         ).all()).results || [];
         const posByEload = {};
         for (const pr2 of posRows) { const e = normE(pr2.so_eload); if (e && !posByEload[e]) posByEload[e] = pr2; }
+        // Fallback khop theo ma kenh (khi so Eload khong khop): lay bang
+        // kenh_ban cua thang hien tai trong ky.
+        const posByCode = await buildPosCodeMap(env, posByEload, normE, curMonths[0] || null);
         const normU = (s) => String(s == null ? "" : s).trim().toLowerCase()
           .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d")
           .replace(/[–—−‐‒]/g, "-").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-");
@@ -2147,7 +2180,9 @@ function normKbKey(s) {
           if (isSubsSrc) hasSubsSrc = true; else hasRevSrc = true;
           const needCols = [t.sales_unit_col, t.sales_eload_col];
           if (t.sales_price_col) needCols.push(t.sales_price_col);
-          if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
+          // sales_kenh_col KHONG dua vao needCols: no chi phuc vu fallback
+          // khop theo ma kenh; bang nao thieu cot do van tong hop binh thuong
+          // theo Eload (fallback chi ap dung khi bang co cot).
           if (t.sales_qty_col) needCols.push(t.sales_qty_col);
           if (t.sales_result_col) needCols.push(t.sales_result_col);
           if (t.sales_subtype_col) { needCols.push(t.sales_subtype_col); hasSubtypeCol = true; }
@@ -2169,8 +2204,19 @@ function normKbKey(s) {
             }
             const rows = (await env.DB.prepare("SELECT * FROM " + tbl).all()).results || [];
             for (const r of rows) {
-              const e = normE(r[t.sales_eload_col]);
-              const pos = posByEload[e];
+              let e = normE(r[t.sales_eload_col]);
+              let pos = posByEload[e];
+              // Fallback khop theo ma kenh khi so Eload khong khop (VD file
+              // TNTTTB ghi sdt_kenh_ban khac so_eload cua tai khoan). Cot ma
+              // kenh lay tu cau hinh sales_kenh_col; chi dung khi bang co cot
+              // do. Eload van uu tien truoc.
+              if (!pos && t.sales_kenh_col && cn.has(t.sales_kenh_col)) {
+                const code = normE(r[t.sales_kenh_col]);
+                if (code) {
+                  pos = posByCode[code];
+                  if (pos) e = normE(pos.so_eload);
+                }
+              }
               if (!pos) continue;
               const rawU = String(r[t.sales_unit_col] == null ? "" : r[t.sales_unit_col]).trim();
               const nu = normU(rawU);
@@ -2417,6 +2463,9 @@ function normKbKey(s) {
         ).all()).results || [];
         const posByEload = {};
         for (const pr2 of posRows) { const e = normE(pr2.so_eload); if (e && !posByEload[e]) posByEload[e] = pr2; }
+        // Fallback khop theo ma kenh (khi so Eload khong khop): lay bang
+        // kenh_ban cua thang cuoi trong khoang ngay dang xem.
+        const posByCode = await buildPosCodeMap(env, posByEload, normE, (to || "").slice(0, 7) || null);
         // Chuan hoa ten don vi de map vao cay don vi (lanh dao / chuyen vien)
         const normU = (s) => String(s == null ? "" : s).trim().toLowerCase()
           .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d")
@@ -2433,7 +2482,9 @@ function normKbKey(s) {
         const skippedTables = [];
         const needCols = [t.sales_unit_col, t.sales_eload_col];
         if (t.sales_price_col) needCols.push(t.sales_price_col);
-        if (t.sales_kenh_col) needCols.push(t.sales_kenh_col);
+        // sales_kenh_col KHONG dua vao needCols: no chi phuc vu fallback
+        // khop theo ma kenh; bang nao thieu cot do van tong hop binh thuong
+        // theo Eload.
         if (t.sales_qty_col) needCols.push(t.sales_qty_col);
         if (t.sales_result_col) needCols.push(t.sales_result_col);
         if (t.sales_subtype_col) needCols.push(t.sales_subtype_col);
@@ -2449,8 +2500,17 @@ function normKbKey(s) {
           const rows = (await env.DB.prepare("SELECT * FROM " + tbl).all()).results || [];
           const mk = tableMonthKey(tbl);
           for (const r of rows) {
-            const e = normE(r[t.sales_eload_col]);
-            const pos = posByEload[e];
+            let e = normE(r[t.sales_eload_col]);
+            let pos = posByEload[e];
+            // Fallback khop theo ma kenh khi so Eload khong khop (xem
+            // /api/sales-overview). Eload van uu tien truoc.
+            if (!pos && t.sales_kenh_col && cn.has(t.sales_kenh_col)) {
+              const code = normE(r[t.sales_kenh_col]);
+              if (code) {
+                pos = posByCode[code];
+                if (pos) e = normE(pos.so_eload);
+              }
+            }
             if (!pos) continue;
             const kq = t.sales_result_col ? String(r[t.sales_result_col] == null ? "" : r[t.sales_result_col]).trim() : "";
             const st = t.sales_subtype_col ? String(r[t.sales_subtype_col] == null ? "" : r[t.sales_subtype_col]).trim() : "";
