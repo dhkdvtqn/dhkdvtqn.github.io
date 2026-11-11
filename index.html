@@ -4341,8 +4341,9 @@ function normKbKey(s) {
         // Bao cao chi tiet (loai = Tat ca) cung chi liet ke giao dich chi tra
         // hoa hong — loai ban hang (SMCS/TNTTTB) khong phai hoa hong chi tra
         // nen khong dua vao, de khop voi bang tong hop (xem aggregateSummary).
+        // Loc HHBG thi cong ca HHKK (giong aggregateSummary).
         const srcTypes = types
-          .filter((t) =&gt; (loai === &quot;ALL&quot; || t.code === loai) &amp;&amp; t.money_col &amp;&amp; t.time_col &amp;&amp; !t.sales_kind);
+          .filter((t) =&gt; (loai === &quot;ALL&quot; || t.code === loai || (loai === &quot;HHBG&quot; &amp;&amp; t.code === &quot;HHKK&quot;)) &amp;&amp; t.money_col &amp;&amp; t.time_col &amp;&amp; !t.sales_kind);
         for (const tp of srcTypes) {
           const tables = await listMonthlyTables(env, tp.prefix);
           for (const t of tables) {
@@ -4397,7 +4398,11 @@ function normKbKey(s) {
           }
         }
         out.sort((a, b) =&gt; String(b.thoi_gian || &quot;&quot;).localeCompare(String(a.thoi_gian || &quot;&quot;)));
-        return json({ ok: true, rows: out.slice(0, limit), skipped_tables: skippedTables, legacy_tables: legacyTables, pos: posUser ? { id: posUser.id, ho_ten: posUser.ho_ten, username: posUser.username } : null });
+        // Hoa hong khuyen khich (HHKK) gop het vao HHBG: khong con nhan HHKK
+        // o bao cao — cac dong HHKK doi nhan thanh HHBG (11/11/2026). Bang
+        // HHKK va muc import/cau hinh van giu nguyen de anh import du lieu.
+        const rows = out.slice(0, limit).map((r) =&gt; (r.loai === &quot;HHKK&quot; ? { ...r, loai: &quot;HHBG&quot; } : r));
+        return json({ ok: true, rows, skipped_tables: skippedTables, legacy_tables: legacyTables, pos: posUser ? { id: posUser.id, ho_ten: posUser.ho_ten, username: posUser.username } : null });
       }
 
       // ---- Thong ke dang nhap theo thang (admin &amp; subadmin) ----
@@ -7209,8 +7214,11 @@ function renderTypeOptions() {
   impS.innerHTML = sales.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + " (" + esc(t.code) + ")</option>").join("");
   if (curImpS && sales.some((t) => t.code === curImpS)) impS.value = curImpS;
   const rep = $("repType"), curRep = rep.value;
-  rep.innerHTML = '<option value="ALL">Tất cả các loại dữ liệu</option>' + comm.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + "</option>").join("");
-  if (curRep && (curRep === "ALL" || comm.some((t) => t.code === curRep))) rep.value = curRep;
+  // Bao cao (4.1) khong con lua chon HHKK rieng — HHKK gop het vao HHBG.
+  // (Muc import 5.1 o tren van giu HHKK de anh import du lieu dau vao.)
+  const repTypes = comm.filter((t) => t.code !== "HHKK");
+  rep.innerHTML = '<option value="ALL">Tất cả các loại dữ liệu</option>' + repTypes.map((t) => '<option value="' + esc(t.code) + '">' + esc(t.name) + "</option>").join("");
+  if (curRep && (curRep === "ALL" || repTypes.some((t) => t.code === curRep))) rep.value = curRep;
 }
 function normHeader(h) { return String(h || "").trim().toLowerCase().replace(/\s+/g, " "); }
 function toIsoDate(v) {

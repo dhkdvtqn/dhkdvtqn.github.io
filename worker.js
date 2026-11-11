@@ -2589,8 +2589,9 @@ function normKbKey(s) {
         // Bao cao chi tiet (loai = Tat ca) cung chi liet ke giao dich chi tra
         // hoa hong — loai ban hang (SMCS/TNTTTB) khong phai hoa hong chi tra
         // nen khong dua vao, de khop voi bang tong hop (xem aggregateSummary).
+        // Loc HHBG thi cong ca HHKK (giong aggregateSummary).
         const srcTypes = types
-          .filter((t) => (loai === "ALL" || t.code === loai) && t.money_col && t.time_col && !t.sales_kind);
+          .filter((t) => (loai === "ALL" || t.code === loai || (loai === "HHBG" && t.code === "HHKK")) && t.money_col && t.time_col && !t.sales_kind);
         for (const tp of srcTypes) {
           const tables = await listMonthlyTables(env, tp.prefix);
           for (const t of tables) {
@@ -2645,7 +2646,11 @@ function normKbKey(s) {
           }
         }
         out.sort((a, b) => String(b.thoi_gian || "").localeCompare(String(a.thoi_gian || "")));
-        return json({ ok: true, rows: out.slice(0, limit), skipped_tables: skippedTables, legacy_tables: legacyTables, pos: posUser ? { id: posUser.id, ho_ten: posUser.ho_ten, username: posUser.username } : null });
+        // Hoa hong khuyen khich (HHKK) gop het vao HHBG: khong con nhan HHKK
+        // o bao cao — cac dong HHKK doi nhan thanh HHBG (11/11/2026). Bang
+        // HHKK va muc import/cau hinh van giu nguyen de anh import du lieu.
+        const rows = out.slice(0, limit).map((r) => (r.loai === "HHKK" ? { ...r, loai: "HHBG" } : r));
+        return json({ ok: true, rows, skipped_tables: skippedTables, legacy_tables: legacyTables, pos: posUser ? { id: posUser.id, ho_ten: posUser.ho_ten, username: posUser.username } : null });
       }
 
       // ---- Thong ke dang nhap theo thang (admin & subadmin) ----
