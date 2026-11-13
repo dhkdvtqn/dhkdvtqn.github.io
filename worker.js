@@ -2336,14 +2336,26 @@ function normKbKey(s) {
           if (duqPosIds.length) {
             const likeLen = ky === "nam" ? 4 : 7;
             const likeVal = ky === "nam" ? String(nam) : curMonths[0];
-            const placeholders = duqPosIds.map(() => "?").join(",");
+            // D1 chi cho toi da 100 tham so bind/cau — cau IN (...) theo danh
+            // sach diem DUQ (toan tinh da hon 100 diem) nem loi "too many SQL
+            // variables", try/catch nuot mat nen bang cham soc luon trong
+            // (loi 13/11/2026: Dong Trieu da co luot cham soc nhung Dashboard
+            // ban hang van bao "Chua co du lieu"). Lay tat ca luot cham soc
+            // trong ky roi loc DUQ + gom theo don vi o JS — bang cham_soc chi
+            // vai chuc dong/thang nen re.
+            const duqSet = new Set(duqPosIds);
             const cr = await env.DB.prepare(
-              "SELECT p.don_vi_id AS duid, COUNT(DISTINCT c.pos_user_id) AS duq_cs, COUNT(*) AS luot " +
+              "SELECT c.pos_user_id AS pid, p.don_vi_id AS duid " +
               "FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id " +
-              "WHERE substr(c.thoi_gian, 1, " + likeLen + ") = ? AND c.pos_user_id IN (" + placeholders + ") GROUP BY p.don_vi_id"
-            ).bind(likeVal, ...duqPosIds).all();
+              "WHERE substr(c.thoi_gian, 1, " + likeLen + ") = ?"
+            ).bind(likeVal).all();
             const careMap = {};
-            for (const r of (cr.results || [])) careMap[r.duid] = r;
+            for (const r of (cr.results || [])) {
+              if (!duqSet.has(r.pid)) continue;
+              const m = careMap[r.duid] || (careMap[r.duid] = { pos: new Set(), luot: 0 });
+              m.pos.add(r.pid);
+              m.luot++;
+            }
             const unitDuqScale = {};
             for (const e in posByEload) {
               const p = posByEload[e];
@@ -2356,12 +2368,12 @@ function normKbKey(s) {
             for (const u of allUnits) duidToName[u.id] = u.ten_don_vi;
             careByUnit = scopeDuids.map((duid) => {
               const qm = unitDuqScale[duid] || 0;
-              const cm = careMap[duid] || { duq_cs: 0, luot: 0 };
-              const cs = Number(cm.duq_cs) || 0;
-              return { don_vi_id: duid, ten: duidToName[duid] || ("Đơn vị " + duid), quy_mo_duq: qm, duq_duoc_cs: cs, ty_le: qm > 0 ? Math.round(cs / qm * 1000) / 10 : null, luot: Number(cm.luot) || 0 };
+              const cm = careMap[duid];
+              const cs = cm ? cm.pos.size : 0;
+              return { don_vi_id: duid, ten: duidToName[duid] || ("Đơn vị " + duid), quy_mo_duq: qm, duq_duoc_cs: cs, ty_le: qm > 0 ? Math.round(cs / qm * 1000) / 10 : null, luot: cm ? cm.luot : 0 };
             }).sort((a, b) => (b.ty_le || 0) - (a.ty_le || 0));
           }
-        } catch (e) { /* bo qua khi chua co du lieu cham soc */ }
+        } catch (e) { console.error("sales-overview care:", e); }
         const trend = trendMonths.map((mk) => { const a = aggMonths([mk]); return { month: mk, subs: a.subs, revenue: Math.round(a.revenue) }; });
         const psslTrendMonths = ky === "nam" ? curMonths : months.slice(2);
         const psslTrend = psslTrendMonths.map((mk) => ({ month: mk, pssl: aggMonths([mk]).pssl.size, ke_hoach: planSum([mk], "pssl") }));
