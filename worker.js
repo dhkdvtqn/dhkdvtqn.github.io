@@ -183,7 +183,7 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -> giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = ["dashboard", "salesdash", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care", "channelmap", "staff"];
+const MODULE_KEYS = ["dashboard", "salesdash", "mobiledash", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care", "channelmap", "staff"];
 
 // Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
 // (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
@@ -2089,6 +2089,208 @@ function normKbKey(s) {
           if (chunk.length) await env.DB.batch(chunk);
         }
         return json({ ok: true, nam, loai, mode, created, updated, skipped, errors: errors.slice(0, 50) });
+      }
+      // ---- Ke hoach TTCSKH (Dashboard di dong) ----
+      // Bang ke_hoach_ttcskh: ke hoach doanh thu / thue bao theo thang, cho tap the
+      // (loai='tap_the', doi_tuong='TOAN TTCSKH' hoac ten to/nhom) va ca nhan
+      // (loai='ca_nhan', doi_tuong=ten dien thoai vien), theo 4 chuong trinh OB:
+      // CKN (gia han chu ky ngan), CKD (gia han chu ky dai), BG (ban goi),
+      // HVC (gia han/ban goi tap thue bao HVC).
+      const KHTTCSKH_DDL = "CREATE TABLE IF NOT EXISTS ke_hoach_ttcskh (thang TEXT NOT NULL, loai TEXT NOT NULL, doi_tuong TEXT NOT NULL, chuong_trinh TEXT NOT NULL, chi_tieu TEXT NOT NULL, so_luong REAL NOT NULL DEFAULT 0, updated_by TEXT, updated_at TEXT, PRIMARY KEY (thang, loai, doi_tuong, chuong_trinh, chi_tieu))";
+      async function ensureKhTtcskh(env) { await env.DB.prepare(KHTTCSKH_DDL).run(); }
+      const KHTTCSKH_CT = ["CKN", "CKD", "BG", "HVC"];
+      const KHTTCSKH_CHITIEU = ["doanh_thu", "thue_bao"];
+      const KHTTCSKH_LOAI = ["tap_the", "ca_nhan"];
+      if (path === "/api/ke-hoach-ttcskh" && method === "GET") {
+        if (!isAdmin) return err("Chi admin moi duoc xem ke hoach TTCSKH", 403);
+        const nam = String(url.searchParams.get("nam") || "").trim();
+        const loai = String(url.searchParams.get("loai") || "").trim();
+        const chuong_trinh = String(url.searchParams.get("chuong_trinh") || "").trim();
+        const chi_tieu = String(url.searchParams.get("chi_tieu") || "").trim();
+        if (nam && !/^\d{4}$/.test(nam)) return err("Nam khong hop le", 422);
+        if (loai && !KHTTCSKH_LOAI.includes(loai)) return err("Loai ke hoach khong hop le", 422);
+        if (chuong_trinh && !KHTTCSKH_CT.includes(chuong_trinh)) return err("Chuong trinh khong hop le", 422);
+        if (chi_tieu && !KHTTCSKH_CHITIEU.includes(chi_tieu)) return err("Chi tieu khong hop le", 422);
+        await ensureKhTtcskh(env);
+        const conds = [], binds = [];
+        if (nam) { conds.push("substr(thang, 1, 4) = ?"); binds.push(nam); }
+        if (loai) { conds.push("loai = ?"); binds.push(loai); }
+        if (chuong_trinh) { conds.push("chuong_trinh = ?"); binds.push(chuong_trinh); }
+        if (chi_tieu) { conds.push("chi_tieu = ?"); binds.push(chi_tieu); }
+        const r = await env.DB.prepare("SELECT thang, loai, doi_tuong, chuong_trinh, chi_tieu, so_luong FROM ke_hoach_ttcskh" + (conds.length ? " WHERE " + conds.join(" AND ") : "") + " ORDER BY thang, loai, doi_tuong, chuong_trinh, chi_tieu").bind(...binds).all();
+        return json({ ok: true, plans: r.results || [] });
+      }
+      if (path === "/api/ke-hoach-ttcskh" && method === "PUT") {
+        if (!isAdmin) return err("Chi admin moi duoc giao ke hoach TTCSKH", 403);
+        const b = await readBody(request);
+        const thang = String(b.thang || "").trim();
+        const loai = String(b.loai || "").trim();
+        const items = Array.isArray(b.items) ? b.items : [];
+        if (!/^\d{4}-\d{2}$/.test(thang)) return err("Thang khong hop le (YYYY-MM)", 422);
+        if (!KHTTCSKH_LOAI.includes(loai)) return err("Loai ke hoach khong hop le", 422);
+        await ensureKhTtcskh(env);
+        const stmt = env.DB.prepare("INSERT INTO ke_hoach_ttcskh (thang, loai, doi_tuong, chuong_trinh, chi_tieu, so_luong, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(thang, loai, doi_tuong, chuong_trinh, chi_tieu) DO UPDATE SET so_luong = excluded.so_luong, updated_by = excluded.updated_by, updated_at = excluded.updated_at");
+        const batch = [];
+        for (const it of items) {
+          const dt = String(it.doi_tuong || "").trim();
+          const ct = String(it.chuong_trinh || "").trim();
+          const ctieu = String(it.chi_tieu || "").trim();
+          if (!dt || !KHTTCSKH_CT.includes(ct) || !KHTTCSKH_CHITIEU.includes(ctieu)) continue;
+          batch.push(stmt.bind(thang, loai, dt, ct, ctieu, Math.max(0, Number(it.so_luong) || 0), me.username || "", saigonNow()));
+        }
+        if (batch.length) await env.DB.batch(batch);
+        return json({ ok: true, thang, loai, saved: batch.length });
+      }
+      if (path === "/api/ke-hoach-ttcskh" && method === "DELETE") {
+        if (!isAdmin) return err("Chi admin moi duoc xoa ke hoach TTCSKH", 403);
+        const b = await readBody(request);
+        const thang = String(b.thang || "").trim();
+        const loai = String(b.loai || "").trim();
+        const dt = String(b.doi_tuong || "").trim();
+        const ct = String(b.chuong_trinh || "").trim();
+        const ctieu = String(b.chi_tieu || "").trim();
+        if (!/^\d{4}-\d{2}$/.test(thang) || !KHTTCSKH_LOAI.includes(loai) || !dt || !KHTTCSKH_CT.includes(ct) || !KHTTCSKH_CHITIEU.includes(ctieu)) return err("Thong tin xoa ke hoach khong hop le", 422);
+        await ensureKhTtcskh(env);
+        await env.DB.prepare("DELETE FROM ke_hoach_ttcskh WHERE thang = ? AND loai = ? AND doi_tuong = ? AND chuong_trinh = ? AND chi_tieu = ?").bind(thang, loai, dt, ct, ctieu).run();
+        return json({ ok: true });
+      }
+      if (path === "/api/ke-hoach-ttcskh/import" && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi duoc import ke hoach TTCSKH", 403);
+        const b = await readBody(request);
+        const nam = parseInt(b.nam, 10);
+        const loai = String(b.loai || "").trim();
+        const chuong_trinh = String(b.chuong_trinh || "").trim();
+        const chi_tieu = String(b.chi_tieu || "").trim();
+        const mode = ["create", "update", "replace"].includes(b.mode) ? b.mode : "create";
+        const rows = Array.isArray(b.rows) ? b.rows : [];
+        if (!nam || nam < 2000 || nam > 2100) return err("Nam ke hoach khong hop le", 422);
+        if (!KHTTCSKH_LOAI.includes(loai)) return err("Loai ke hoach khong hop le", 422);
+        if (!KHTTCSKH_CT.includes(chuong_trinh)) return err("Chuong trinh khong hop le", 422);
+        if (!KHTTCSKH_CHITIEU.includes(chi_tieu)) return err("Chi tieu khong hop le", 422);
+        await ensureKhTtcskh(env);
+        if (mode === "replace") {
+          await env.DB.prepare("DELETE FROM ke_hoach_ttcskh WHERE substr(thang, 1, 4) = ? AND loai = ? AND chuong_trinh = ? AND chi_tieu = ?").bind(String(nam), loai, chuong_trinh, chi_tieu).run();
+        }
+        const exRows = (await env.DB.prepare("SELECT thang, doi_tuong FROM ke_hoach_ttcskh WHERE substr(thang, 1, 4) = ? AND loai = ? AND chuong_trinh = ? AND chi_tieu = ?").bind(String(nam), loai, chuong_trinh, chi_tieu).all()).results || [];
+        const existed = new Set(exRows.map((r) => r.thang + "|" + r.doi_tuong));
+        let created = 0, updated = 0, skipped = 0;
+        const errors = [];
+        const up = env.DB.prepare("INSERT INTO ke_hoach_ttcskh (thang, loai, doi_tuong, chuong_trinh, chi_tieu, so_luong, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(thang, loai, doi_tuong, chuong_trinh, chi_tieu) DO UPDATE SET so_luong = excluded.so_luong, updated_by = excluded.updated_by, updated_at = excluded.updated_at");
+        const batch = [];
+        const nowS3 = saigonNow(), by3 = me.username || "";
+        for (const r of rows) {
+          const dt = String(r.doi_tuong == null ? "" : r.doi_tuong).trim();
+          if (!dt) continue;
+          const months = Array.isArray(r.months) ? r.months : [];
+          for (let m = 1; m <= 12; m++) {
+            const v = months[m - 1];
+            if (v === "" || v == null) continue;
+            const num = parsePlanNum(v);
+            if (!isFinite(num) || num < 0) { errors.push({ doi_tuong: dt, reason: "Tháng " + m + ": giá trị không hợp lệ" }); continue; }
+            const thang = nam + "-" + String(m).padStart(2, "0");
+            const key = thang + "|" + dt;
+            if (mode === "create" && existed.has(key)) { skipped++; continue; }
+            if (existed.has(key)) updated++; else { created++; existed.add(key); }
+            batch.push(up.bind(thang, loai, dt, chuong_trinh, chi_tieu, num, by3, nowS3));
+          }
+        }
+        for (let i = 0; i < batch.length; i += 40) {
+          const chunk = batch.slice(i, i + 40);
+          if (chunk.length) await env.DB.batch(chunk);
+        }
+        return json({ ok: true, nam, loai, chuong_trinh, chi_tieu, mode, created, updated, skipped, errors: errors.slice(0, 50) });
+      }
+      // ---- Dashboard di dong (TTCSKH) ----
+      // KHUNG TONG HOP (11/2026): cau truc phan hoi day du theo yeu cau — tap the
+      // (4 chuong trinh CKN/CKD/BG/HVC + bo chi so tien trinh) va ca nhan (theo
+      // chuong trinh / theo hinh thuc OB / chat luong cuoc goi). So lieu THUC HIEN
+      // tam = 0 vi nguon du lieu OB (cuoc goi, gia han/ban goi) chua duoc dinh nghia
+      // — anh se mo ta cau truc du lieu sau; luc do noi phan tong hop vao day.
+      // Ke hoach TTCSKH (bang ke_hoach_ttcskh) thi doc that ngay tu bay gio.
+      if (path === "/api/mobile-overview" && method === "GET") {
+        if (!hasModule(me, "mobiledash")) return err("Tai khoan khong co quyen xem Dashboard di dong", 403);
+        const ky = url.searchParams.get("ky") === "nam" ? "nam" : "thang";
+        const nowM = saigonNow();
+        let thang = String(url.searchParams.get("thang") || "").trim();
+        if (!/^\d{4}-\d{2}$/.test(thang)) thang = nowM.slice(0, 7);
+        let nam = parseInt(url.searchParams.get("nam"), 10);
+        if (!nam || nam < 2000 || nam > 2100) nam = Number(nowM.slice(0, 4));
+        const months = [];
+        let curMonths, prevMonths, trendMonths, periodLabel;
+        if (ky === "nam") {
+          for (let m = 1; m <= 12; m++) months.push(nam + "-" + String(m).padStart(2, "0"));
+          curMonths = months.slice(); prevMonths = months.map((mk) => (nam - 1) + mk.slice(4));
+          trendMonths = curMonths; periodLabel = "năm " + nam;
+        } else {
+          let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
+          for (let i = 11; i >= 0; i--) { let mm = m - i, yy = y; while (mm <= 0) { mm += 12; yy--; } months.push(yy + "-" + String(mm).padStart(2, "0")); }
+          curMonths = [months[11]]; prevMonths = [months[10]];
+          trendMonths = months.slice(); periodLabel = "tháng " + Number(thang.slice(5, 7)) + "/" + thang.slice(0, 4);
+        }
+        await ensureKhTtcskh(env);
+        const planRows = (await env.DB.prepare("SELECT thang, doi_tuong, chuong_trinh, chi_tieu, so_luong FROM ke_hoach_ttcskh WHERE loai = 'tap_the'").all()).results || [];
+        const planTeam = {};
+        for (const r of planRows) {
+          const k = r.thang + "|" + r.chuong_trinh + "|" + r.chi_tieu;
+          planTeam[k] = (planTeam[k] || 0) + (Number(r.so_luong) || 0);
+        }
+        const planGet = (mk, ct, chi) => planTeam[mk + "|" + ct + "|" + chi] || 0;
+        const planSum = (mks, ct, chi) => mks.reduce((a, mk) => a + planGet(mk, ct, chi), 0);
+        const personRows = (await env.DB.prepare("SELECT thang, doi_tuong, chuong_trinh, chi_tieu, so_luong FROM ke_hoach_ttcskh WHERE loai = 'ca_nhan'").all()).results || [];
+        const personPlan = {};
+        const personSet = new Set();
+        for (const r of personRows) {
+          if (!curMonths.includes(r.thang)) continue;
+          personSet.add(r.doi_tuong);
+          const k = r.doi_tuong + "|" + r.chuong_trinh + "|" + r.chi_tieu;
+          personPlan[k] = (personPlan[k] || 0) + (Number(r.so_luong) || 0);
+        }
+        const PROGS = [
+          { code: "CKN", name: "Gia hạn gói chu kỳ ngắn" },
+          { code: "CKD", name: "Gia hạn gói chu kỳ dài" },
+          { code: "BG", name: "Bán gói" },
+          { code: "HVC", name: "Gia hạn/bán gói tập thuê bao HVC" },
+        ];
+        const pct = (a, b) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
+        const programs = PROGS.map((p) => {
+          const planRev = planSum(curMonths, p.code, "doanh_thu");
+          const planSubs = planSum(curMonths, p.code, "thue_bao");
+          return { code: p.code, name: p.name, subs: 0, revenue: 0, plan_rev: planRev, plan_subs: planSubs, pct_plan_rev: pct(0, planRev), pct_plan_subs: pct(0, planSubs), rev_prev: 0, rev_yoy_pct: null, subs_prev: 0 };
+        });
+        const totalPlanRev = programs.reduce((a, p) => a + p.plan_rev, 0);
+        const totalPlanSubs = programs.reduce((a, p) => a + p.plan_subs, 0);
+        const trend = trendMonths.map((mk) => ({
+          month: mk, subs: 0, revenue: 0,
+          plan_rev: PROGS.reduce((a, p) => a + planGet(mk, p.code, "doanh_thu"), 0),
+          plan_subs: PROGS.reduce((a, p) => a + planGet(mk, p.code, "thue_bao"), 0),
+        }));
+        const byProgram = [];
+        for (const dt of [...personSet].sort((a, b) => a.localeCompare(b, "vi"))) {
+          for (const p of PROGS) {
+            const pr = personPlan[dt + "|" + p.code + "|doanh_thu"] || 0;
+            const ps = personPlan[dt + "|" + p.code + "|thue_bao"] || 0;
+            if (!pr && !ps) continue;
+            byProgram.push({ dien_thoai_vien: dt, chuong_trinh: p.code, subs: 0, revenue: 0, plan_rev: pr, plan_subs: ps, pct_plan_rev: pct(0, pr), pct_plan_subs: pct(0, ps) });
+          }
+        }
+        return json({
+          ok: true, ky, period_label: periodLabel, has_data: false,
+          data_note: "Chưa có nguồn dữ liệu OB — khung Dashboard đã sẵn sàng, anh mô tả cấu trúc dữ liệu để nối nguồn tổng hợp.",
+          team: {
+            programs,
+            total: { subs: 0, revenue: 0, plan_rev: totalPlanRev, plan_subs: totalPlanSubs, pct_plan_rev: pct(0, totalPlanRev), rev_prev: 0, rev_yoy_pct: null },
+            trend,
+            year: { revenue: 0, prev_revenue: 0, yoy_pct: null },
+            progress: {
+              ob_coverage: null, ob_total: 0, ob_called: 0,
+              conv_rate: { CKN: null, CKD: null, BG: null, HVC: null },
+              ob_success: { CKN: null, CKD: null, BG: null, HVC: null },
+              ob_success_total: null, avg_calls: null, total_calls: 0,
+            },
+          },
+          individual: { by_program: byProgram, by_form: [], quality: [] },
+          plans: { has_plan: planRows.length + personRows.length > 0, team_plans: planRows.length, person_plans: personRows.length },
+        });
       }
       // Dashboard ban hang kieu dieu hanh (moi):
       // - Tu dong tong hop TAT CA loai du lieu ban hang (doanh thu / san luong), khong can chon.

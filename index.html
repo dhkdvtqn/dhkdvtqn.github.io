@@ -531,6 +531,10 @@
 #appRoot .plan-card {background:linear-gradient(135deg,#f2f7ff,#ffffff);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:12px 0}
 #appRoot .progress {height:12px;background:#e3e9f4;border-radius:8px;overflow:hidden}
 #appRoot .progress>div {height:100%;background:linear-gradient(90deg,#2f7cf6,#14b8a6);border-radius:8px;transition:width .4s;min-width:0}
+#appRoot .mob-note {background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;padding:10px 14px;font-size:13px;color:#92400e;margin:10px 0}
+#appRoot svg.chart .cb-rev {fill:#f59e0b}
+#appRoot svg.chart .cb-rev:hover {fill:#d97706}
+#appRoot svg.chart .line-plan {fill:none;stroke:#ef4444;stroke-width:2;stroke-dasharray:6 4}
 #appRoot .pos-label {background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.2);white-space:nowrap}
 #appRoot .pos-label::before {display:none}
 #appRoot .map-legend {background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.9;box-shadow:0 1px 6px rgba(0,0,0,.15)}
@@ -1141,6 +1145,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         <div class="who"><b id="whoName">—</b><span id="whoRole">—</span></div>
         <button class="nav-btn" data-panel="panel-dashboard">📈 Dashboard chi trả hoa hồng</button>
         <button class="nav-btn" data-panel="panel-salesdash">🛒 Dashboard bán hàng</button>
+        <button class="nav-btn" data-panel="panel-mobile">📱 Dashboard di động</button>
         <div class="nav-group closed" data-group="admin">
           <button class="nav-group-head" type="button">🛠️ Công cụ dành cho Admin <span class="nav-caret">▾</span></button>
           <div class="nav-group-body">
@@ -1170,6 +1175,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <button class="nav-btn nav-sub" data-panel="panel-import-plan">🎯 Giao/import kế hoạch kinh doanh</button>
             <button class="nav-btn nav-sub" data-panel="panel-import-types">🗂️ Quản lý loại dữ liệu</button>
             <button class="nav-btn nav-sub" data-panel="panel-import-loaikenh">🏷️ Cấu hình loại kênh bán</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import-ttcskh">📋 Import kế hoạch TTCSKH</button>
           </div>
         </div>
         <button class="nav-btn" data-panel="panel-channelmap">🗺️ Bản đồ kênh bán</button>
@@ -1296,6 +1302,73 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         </section>
 
         <!-- QUAN LY DON VI -->
+                <section class="panel hidden" id="panel-mobile">
+          <h2>📱 Dashboard di động</h2>
+          <p class="desc">Đánh giá kết quả thực hiện của TTCSKH: gia hạn gói chu kỳ ngắn (CKN), gia hạn chu kỳ dài (CKD), bán gói (BG) và gia hạn/bán gói tập thuê bao HVC — theo tỷ lệ hoàn thành kế hoạch, tăng giảm so với cùng kỳ, doanh thu theo tháng/năm, bộ chỉ số tiến trình OB và kết quả từng điện thoại viên.</p>
+          <div class="form-grid">
+            <div><label>Kỳ đánh giá</label><select id="mobKy"><option value="thang">Theo tháng</option><option value="nam">Theo năm</option></select></div>
+            <div id="mobMonthWrap"><label>Tháng đánh giá</label><input type="month" id="mobMonth" /></div>
+            <div id="mobYearWrap" class="hidden"><label>Năm đánh giá</label><input type="number" id="mobYear" min="2020" max="2100" /></div>
+            <div style="align-self:end"><button class="btn blue" id="mobBtn">Xem tổng hợp</button></div>
+          </div>
+          <div id="mobMsg" style="margin-top:8px"></div>
+          <div id="mobNoData" class="mob-note hidden"></div>
+
+          <!-- 1. DIEM TIN TAP THE -->
+          <h3 class="sec-title">📌 Điểm tin tập thể <span class="sec-sub" id="mobPeriodSub"></span></h3>
+          <div class="ov-kpis" id="mobProgKpis"></div>
+          <div class="chart-row">
+            <div class="chart-card">
+              <h4>Doanh thu theo tháng <span class="sec-sub" id="mobTrendSub"></span></h4>
+              <div class="chart-legend"><span><i class="lg" style="background:#f59e0b"></i>Doanh thu thực hiện</span><span><i class="lg line" style="background:#ef4444"></i>Kế hoạch tháng</span></div>
+              <div id="mobTrendChart"></div>
+            </div>
+            <div class="chart-card">
+              <h4>Cơ cấu doanh thu theo chương trình</h4>
+              <div class="chart-legend"><span><i class="lg" style="background:#2f7cf6"></i>CKN</span><span><i class="lg" style="background:#14b8a6"></i>CKD</span><span><i class="lg" style="background:#f59e0b"></i>BG</span><span><i class="lg" style="background:#8b5cf6"></i>HVC</span></div>
+              <div id="mobShareChart"></div>
+            </div>
+          </div>
+
+          <h3 class="sec-title">📈 Bộ chỉ số tiến trình OB</h3>
+          <div class="ov-kpis">
+            <div class="ov-kpi" style="--kc:#0ea5e9">
+              <div class="kpi-label">📞 Tỷ lệ thuê bao được gọi OB</div>
+              <b id="mobObCov">—</b>
+              <div class="kpi-deltas"><span class="delta flat" id="mobObCovSub">—</span></div>
+            </div>
+            <div class="ov-kpi" style="--kc:#14b8a6">
+              <div class="kpi-label">✅ Tỷ lệ thuê bao OB thành công</div>
+              <b id="mobObOk">—</b>
+              <div class="kpi-deltas"><span class="delta flat" id="mobObOkSub">—</span></div>
+            </div>
+            <div class="ov-kpi" style="--kc:#f59e0b">
+              <div class="kpi-label">🔁 Bình quân số lần gọi / thuê bao</div>
+              <b id="mobAvgCalls">—</b>
+              <div class="kpi-deltas"><span class="delta flat" id="mobAvgCallsSub">—</span></div>
+            </div>
+          </div>
+          <div class="chart-row">
+            <div class="chart-card">
+              <h4>Tỷ lệ OB thành công theo chương trình</h4>
+              <div id="mobObChart"></div>
+            </div>
+            <div class="chart-card">
+              <h4>Tỷ lệ gia hạn/bán gói trên TB OB thành công</h4>
+              <div id="mobConvChart"></div>
+            </div>
+          </div>
+
+          <!-- 2. DIEM TIN CA NHAN -->
+          <h3 class="sec-title">👤 Điểm tin cá nhân — Kết quả điện thoại viên theo chương trình OB <span class="sec-sub" id="mobIndSub"></span></h3>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Điện thoại viên</th><th>Chương trình</th><th>Số thuê bao</th><th>Doanh thu thực hiện</th><th>Kế hoạch doanh thu</th><th>% KH doanh thu</th></tr></thead><tbody id="mobProgBody"><tr><td colspan="6">Chưa có dữ liệu.</td></tr></tbody></table></div>
+
+          <h3 class="sec-title">👤 Kết quả điện thoại viên theo hình thức OB</h3>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Điện thoại viên</th><th>Hình thức OB</th><th>Số thuê bao</th><th>Doanh thu thực hiện</th></tr></thead><tbody id="mobFormBody"><tr><td colspan="4">Chưa có dữ liệu.</td></tr></tbody></table></div>
+
+          <h3 class="sec-title">👤 Chất lượng cuộc gọi OB theo điện thoại viên</h3>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Điện thoại viên</th><th>Tỷ lệ TB được OB</th><th>OB thành công CKN</th><th>OB thành công CKD</th><th>OB thành công BG</th><th>OB thành công HVC</th><th>BQ số lần gọi/TB</th></tr></thead><tbody id="mobQualBody"><tr><td colspan="7">Chưa có dữ liệu.</td></tr></tbody></table></div>
+        </section>
         <section class="panel hidden" id="panel-units">
           <h2>Quản lý đơn vị</h2>
           <p class="desc">Tạo mới và quản lý các đơn vị theo cấu trúc cây (đơn vị cha — đơn vị con). Mọi thay đổi được lưu trực tiếp lên CSDL Cloudflare D1.</p>
@@ -1576,6 +1649,40 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         </section>
 
         <!-- CAU HINH KET NOI D1 -->
+                <section class="panel hidden" id="panel-import-ttcskh">
+          <h2>Import kế hoạch TTCSKH</h2>
+            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Giao kế hoạch TTCSKH (chỉ admin)</h3>
+            <p class="desc">Giao kế hoạch <b>doanh thu</b> và <b>thuê bao</b> cho <b>tập thể</b> (TOÀN TTCSKH hoặc từng tổ/nhóm) và <b>cá nhân</b> (từng điện thoại viên), theo 4 chương trình OB: <b>CKN</b> (gia hạn chu kỳ ngắn), <b>CKD</b> (gia hạn chu kỳ dài), <b>BG</b> (bán gói), <b>HVC</b> (tập thuê bao HVC). Kế hoạch dùng để đánh giá tỷ lệ hoàn thành trên Dashboard di động.</p>
+            <div class="form-grid">
+              <div><label>Tháng giao kế hoạch</label><input type="month" id="ttkhMonth" /></div>
+              <div><label>Phạm vi</label><select id="ttkhLoai"><option value="tap_the">Tập thể</option><option value="ca_nhan">Cá nhân (điện thoại viên)</option></select></div>
+              <div><label>Đối tượng</label><input type="text" id="ttkhDoiTuong" placeholder="VD: TOÀN TTCSKH hoặc tên điện thoại viên" /></div>
+              <div><label>Chương trình</label><select id="ttkhCt"><option value="CKN">CKN — Gia hạn chu kỳ ngắn</option><option value="CKD">CKD — Gia hạn chu kỳ dài</option><option value="BG">BG — Bán gói</option><option value="HVC">HVC — Tập thuê bao HVC</option></select></div>
+              <div><label>Chỉ tiêu</label><select id="ttkhChiTieu"><option value="doanh_thu">Doanh thu</option><option value="thue_bao">Thuê bao</option></select></div>
+              <div><label>Kế hoạch</label><input type="number" id="ttkhSoLuong" min="0" step="any" /></div>
+              <div style="align-self:end"><button class="btn blue" type="button" id="ttkhSaveBtn">Lưu kế hoạch</button></div>
+            </div>
+            <div id="ttkhMsg" style="margin-top:6px"></div>
+            <div class="form-grid" style="margin-top:14px">
+              <div><label>Xem kế hoạch năm</label><input type="number" id="ttkhViewYear" min="2000" max="2100" /></div>
+              <div><label>Phạm vi</label><select id="ttkhViewLoai"><option value="">Tất cả</option><option value="tap_the">Tập thể</option><option value="ca_nhan">Cá nhân</option></select></div>
+              <div style="align-self:end"><button class="btn gray" type="button" id="ttkhLoadBtn">Tải kế hoạch đã giao</button></div>
+            </div>
+            <div class="tbl-wrap" style="max-height:300px;overflow-y:auto;margin-top:8px"><table class="data"><thead><tr><th>Tháng</th><th>Phạm vi</th><th>Đối tượng</th><th>Chương trình</th><th>Chỉ tiêu</th><th>Kế hoạch</th><th></th></tr></thead><tbody id="ttkhBody"><tr><td colspan="7">Chọn năm rồi bấm "Tải kế hoạch đã giao".</td></tr></tbody></table></div>
+
+            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Import kế hoạch từ Excel (chỉ admin)</h3>
+            <p class="desc">Giao kế hoạch <b>cả năm</b> cho một chương trình + một chỉ tiêu bằng file Excel: 1 cột <b>Đối tượng</b> + 12 cột <b>Tháng 1 … Tháng 12</b>. Đối tượng tập thể ghi <b>TOÀN TTCSKH</b> (hoặc tên tổ/nhóm); đối tượng cá nhân ghi <b>tên điện thoại viên</b>. Bấm <b>"Tải file mẫu"</b> để lấy file mẫu. 3 chế độ import: <b>Tạo mới</b> (chỉ thêm ô chưa có), <b>Cập nhật</b> (ghi đè ô đã có), <b>Thay thế</b> (xóa toàn bộ kế hoạch của chương trình + chỉ tiêu trong năm rồi import lại).</p>
+            <div class="form-grid">
+              <div><label>Năm kế hoạch</label><input type="number" id="ttkhImpYear" min="2000" max="2100" /></div>
+              <div><label>Phạm vi</label><select id="ttkhImpLoai"><option value="tap_the">Tập thể</option><option value="ca_nhan">Cá nhân (điện thoại viên)</option></select></div>
+              <div><label>Chương trình</label><select id="ttkhImpCt"><option value="CKN">CKN</option><option value="CKD">CKD</option><option value="BG">BG</option><option value="HVC">HVC</option></select></div>
+              <div><label>Chỉ tiêu</label><select id="ttkhImpChiTieu"><option value="doanh_thu">Doanh thu</option><option value="thue_bao">Thuê bao</option></select></div>
+              <div><label>Chế độ import</label><select id="ttkhImpMode"><option value="create">Tạo mới</option><option value="update">Cập nhật</option><option value="replace">Thay thế</option></select></div>
+              <div><label>File Excel kế hoạch</label><input type="file" id="ttkhImpFile" accept=".xlsx,.xls,.csv" /></div>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn gray" type="button" id="ttkhTplBtn">Tải file mẫu</button><button class="btn blue" type="button" id="ttkhImpBtn">Import kế hoạch</button></div>
+            <div id="ttkhImpMsg" style="margin-top:6px"></div>
+        </section>
         <section class="panel hidden" id="panel-config">
           <h2>Cấu hình kết nối CSDL Cloudflare D1</h2>
           <p class="desc">Website kết nối tới CSDL Cloudflare D1 thông qua một Cloudflare Worker (API trung gian). Nhập địa chỉ Worker của anh vào ô dưới, bấm "Kiểm tra kết nối" để test, rồi bấm "Lưu &amp; áp dụng". Nếu chưa tạo Worker, hãy làm theo hướng dẫn chi tiết từng bước ở phía dưới.</p>
@@ -1935,7 +2042,7 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -&gt; giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = [&quot;dashboard&quot;, &quot;salesdash&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;, &quot;channelmap&quot;, &quot;staff&quot;];
+const MODULE_KEYS = [&quot;dashboard&quot;, &quot;salesdash&quot;, &quot;mobiledash&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;, &quot;channelmap&quot;, &quot;staff&quot;];
 
 // Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
 // (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
@@ -3842,6 +3949,208 @@ function normKbKey(s) {
         }
         return json({ ok: true, nam, loai, mode, created, updated, skipped, errors: errors.slice(0, 50) });
       }
+      // ---- Ke hoach TTCSKH (Dashboard di dong) ----
+      // Bang ke_hoach_ttcskh: ke hoach doanh thu / thue bao theo thang, cho tap the
+      // (loai=&#x27;tap_the&#x27;, doi_tuong=&#x27;TOAN TTCSKH&#x27; hoac ten to/nhom) va ca nhan
+      // (loai=&#x27;ca_nhan&#x27;, doi_tuong=ten dien thoai vien), theo 4 chuong trinh OB:
+      // CKN (gia han chu ky ngan), CKD (gia han chu ky dai), BG (ban goi),
+      // HVC (gia han/ban goi tap thue bao HVC).
+      const KHTTCSKH_DDL = &quot;CREATE TABLE IF NOT EXISTS ke_hoach_ttcskh (thang TEXT NOT NULL, loai TEXT NOT NULL, doi_tuong TEXT NOT NULL, chuong_trinh TEXT NOT NULL, chi_tieu TEXT NOT NULL, so_luong REAL NOT NULL DEFAULT 0, updated_by TEXT, updated_at TEXT, PRIMARY KEY (thang, loai, doi_tuong, chuong_trinh, chi_tieu))&quot;;
+      async function ensureKhTtcskh(env) { await env.DB.prepare(KHTTCSKH_DDL).run(); }
+      const KHTTCSKH_CT = [&quot;CKN&quot;, &quot;CKD&quot;, &quot;BG&quot;, &quot;HVC&quot;];
+      const KHTTCSKH_CHITIEU = [&quot;doanh_thu&quot;, &quot;thue_bao&quot;];
+      const KHTTCSKH_LOAI = [&quot;tap_the&quot;, &quot;ca_nhan&quot;];
+      if (path === &quot;/api/ke-hoach-ttcskh&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc xem ke hoach TTCSKH&quot;, 403);
+        const nam = String(url.searchParams.get(&quot;nam&quot;) || &quot;&quot;).trim();
+        const loai = String(url.searchParams.get(&quot;loai&quot;) || &quot;&quot;).trim();
+        const chuong_trinh = String(url.searchParams.get(&quot;chuong_trinh&quot;) || &quot;&quot;).trim();
+        const chi_tieu = String(url.searchParams.get(&quot;chi_tieu&quot;) || &quot;&quot;).trim();
+        if (nam &amp;&amp; !/^\d{4}$/.test(nam)) return err(&quot;Nam khong hop le&quot;, 422);
+        if (loai &amp;&amp; !KHTTCSKH_LOAI.includes(loai)) return err(&quot;Loai ke hoach khong hop le&quot;, 422);
+        if (chuong_trinh &amp;&amp; !KHTTCSKH_CT.includes(chuong_trinh)) return err(&quot;Chuong trinh khong hop le&quot;, 422);
+        if (chi_tieu &amp;&amp; !KHTTCSKH_CHITIEU.includes(chi_tieu)) return err(&quot;Chi tieu khong hop le&quot;, 422);
+        await ensureKhTtcskh(env);
+        const conds = [], binds = [];
+        if (nam) { conds.push(&quot;substr(thang, 1, 4) = ?&quot;); binds.push(nam); }
+        if (loai) { conds.push(&quot;loai = ?&quot;); binds.push(loai); }
+        if (chuong_trinh) { conds.push(&quot;chuong_trinh = ?&quot;); binds.push(chuong_trinh); }
+        if (chi_tieu) { conds.push(&quot;chi_tieu = ?&quot;); binds.push(chi_tieu); }
+        const r = await env.DB.prepare(&quot;SELECT thang, loai, doi_tuong, chuong_trinh, chi_tieu, so_luong FROM ke_hoach_ttcskh&quot; + (conds.length ? &quot; WHERE &quot; + conds.join(&quot; AND &quot;) : &quot;&quot;) + &quot; ORDER BY thang, loai, doi_tuong, chuong_trinh, chi_tieu&quot;).bind(...binds).all();
+        return json({ ok: true, plans: r.results || [] });
+      }
+      if (path === &quot;/api/ke-hoach-ttcskh&quot; &amp;&amp; method === &quot;PUT&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc giao ke hoach TTCSKH&quot;, 403);
+        const b = await readBody(request);
+        const thang = String(b.thang || &quot;&quot;).trim();
+        const loai = String(b.loai || &quot;&quot;).trim();
+        const items = Array.isArray(b.items) ? b.items : [];
+        if (!/^\d{4}-\d{2}$/.test(thang)) return err(&quot;Thang khong hop le (YYYY-MM)&quot;, 422);
+        if (!KHTTCSKH_LOAI.includes(loai)) return err(&quot;Loai ke hoach khong hop le&quot;, 422);
+        await ensureKhTtcskh(env);
+        const stmt = env.DB.prepare(&quot;INSERT INTO ke_hoach_ttcskh (thang, loai, doi_tuong, chuong_trinh, chi_tieu, so_luong, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(thang, loai, doi_tuong, chuong_trinh, chi_tieu) DO UPDATE SET so_luong = excluded.so_luong, updated_by = excluded.updated_by, updated_at = excluded.updated_at&quot;);
+        const batch = [];
+        for (const it of items) {
+          const dt = String(it.doi_tuong || &quot;&quot;).trim();
+          const ct = String(it.chuong_trinh || &quot;&quot;).trim();
+          const ctieu = String(it.chi_tieu || &quot;&quot;).trim();
+          if (!dt || !KHTTCSKH_CT.includes(ct) || !KHTTCSKH_CHITIEU.includes(ctieu)) continue;
+          batch.push(stmt.bind(thang, loai, dt, ct, ctieu, Math.max(0, Number(it.so_luong) || 0), me.username || &quot;&quot;, saigonNow()));
+        }
+        if (batch.length) await env.DB.batch(batch);
+        return json({ ok: true, thang, loai, saved: batch.length });
+      }
+      if (path === &quot;/api/ke-hoach-ttcskh&quot; &amp;&amp; method === &quot;DELETE&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc xoa ke hoach TTCSKH&quot;, 403);
+        const b = await readBody(request);
+        const thang = String(b.thang || &quot;&quot;).trim();
+        const loai = String(b.loai || &quot;&quot;).trim();
+        const dt = String(b.doi_tuong || &quot;&quot;).trim();
+        const ct = String(b.chuong_trinh || &quot;&quot;).trim();
+        const ctieu = String(b.chi_tieu || &quot;&quot;).trim();
+        if (!/^\d{4}-\d{2}$/.test(thang) || !KHTTCSKH_LOAI.includes(loai) || !dt || !KHTTCSKH_CT.includes(ct) || !KHTTCSKH_CHITIEU.includes(ctieu)) return err(&quot;Thong tin xoa ke hoach khong hop le&quot;, 422);
+        await ensureKhTtcskh(env);
+        await env.DB.prepare(&quot;DELETE FROM ke_hoach_ttcskh WHERE thang = ? AND loai = ? AND doi_tuong = ? AND chuong_trinh = ? AND chi_tieu = ?&quot;).bind(thang, loai, dt, ct, ctieu).run();
+        return json({ ok: true });
+      }
+      if (path === &quot;/api/ke-hoach-ttcskh/import&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc import ke hoach TTCSKH&quot;, 403);
+        const b = await readBody(request);
+        const nam = parseInt(b.nam, 10);
+        const loai = String(b.loai || &quot;&quot;).trim();
+        const chuong_trinh = String(b.chuong_trinh || &quot;&quot;).trim();
+        const chi_tieu = String(b.chi_tieu || &quot;&quot;).trim();
+        const mode = [&quot;create&quot;, &quot;update&quot;, &quot;replace&quot;].includes(b.mode) ? b.mode : &quot;create&quot;;
+        const rows = Array.isArray(b.rows) ? b.rows : [];
+        if (!nam || nam &lt; 2000 || nam &gt; 2100) return err(&quot;Nam ke hoach khong hop le&quot;, 422);
+        if (!KHTTCSKH_LOAI.includes(loai)) return err(&quot;Loai ke hoach khong hop le&quot;, 422);
+        if (!KHTTCSKH_CT.includes(chuong_trinh)) return err(&quot;Chuong trinh khong hop le&quot;, 422);
+        if (!KHTTCSKH_CHITIEU.includes(chi_tieu)) return err(&quot;Chi tieu khong hop le&quot;, 422);
+        await ensureKhTtcskh(env);
+        if (mode === &quot;replace&quot;) {
+          await env.DB.prepare(&quot;DELETE FROM ke_hoach_ttcskh WHERE substr(thang, 1, 4) = ? AND loai = ? AND chuong_trinh = ? AND chi_tieu = ?&quot;).bind(String(nam), loai, chuong_trinh, chi_tieu).run();
+        }
+        const exRows = (await env.DB.prepare(&quot;SELECT thang, doi_tuong FROM ke_hoach_ttcskh WHERE substr(thang, 1, 4) = ? AND loai = ? AND chuong_trinh = ? AND chi_tieu = ?&quot;).bind(String(nam), loai, chuong_trinh, chi_tieu).all()).results || [];
+        const existed = new Set(exRows.map((r) =&gt; r.thang + &quot;|&quot; + r.doi_tuong));
+        let created = 0, updated = 0, skipped = 0;
+        const errors = [];
+        const up = env.DB.prepare(&quot;INSERT INTO ke_hoach_ttcskh (thang, loai, doi_tuong, chuong_trinh, chi_tieu, so_luong, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(thang, loai, doi_tuong, chuong_trinh, chi_tieu) DO UPDATE SET so_luong = excluded.so_luong, updated_by = excluded.updated_by, updated_at = excluded.updated_at&quot;);
+        const batch = [];
+        const nowS3 = saigonNow(), by3 = me.username || &quot;&quot;;
+        for (const r of rows) {
+          const dt = String(r.doi_tuong == null ? &quot;&quot; : r.doi_tuong).trim();
+          if (!dt) continue;
+          const months = Array.isArray(r.months) ? r.months : [];
+          for (let m = 1; m &lt;= 12; m++) {
+            const v = months[m - 1];
+            if (v === &quot;&quot; || v == null) continue;
+            const num = parsePlanNum(v);
+            if (!isFinite(num) || num &lt; 0) { errors.push({ doi_tuong: dt, reason: &quot;Tháng &quot; + m + &quot;: giá trị không hợp lệ&quot; }); continue; }
+            const thang = nam + &quot;-&quot; + String(m).padStart(2, &quot;0&quot;);
+            const key = thang + &quot;|&quot; + dt;
+            if (mode === &quot;create&quot; &amp;&amp; existed.has(key)) { skipped++; continue; }
+            if (existed.has(key)) updated++; else { created++; existed.add(key); }
+            batch.push(up.bind(thang, loai, dt, chuong_trinh, chi_tieu, num, by3, nowS3));
+          }
+        }
+        for (let i = 0; i &lt; batch.length; i += 40) {
+          const chunk = batch.slice(i, i + 40);
+          if (chunk.length) await env.DB.batch(chunk);
+        }
+        return json({ ok: true, nam, loai, chuong_trinh, chi_tieu, mode, created, updated, skipped, errors: errors.slice(0, 50) });
+      }
+      // ---- Dashboard di dong (TTCSKH) ----
+      // KHUNG TONG HOP (11/2026): cau truc phan hoi day du theo yeu cau — tap the
+      // (4 chuong trinh CKN/CKD/BG/HVC + bo chi so tien trinh) va ca nhan (theo
+      // chuong trinh / theo hinh thuc OB / chat luong cuoc goi). So lieu THUC HIEN
+      // tam = 0 vi nguon du lieu OB (cuoc goi, gia han/ban goi) chua duoc dinh nghia
+      // — anh se mo ta cau truc du lieu sau; luc do noi phan tong hop vao day.
+      // Ke hoach TTCSKH (bang ke_hoach_ttcskh) thi doc that ngay tu bay gio.
+      if (path === &quot;/api/mobile-overview&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;mobiledash&quot;)) return err(&quot;Tai khoan khong co quyen xem Dashboard di dong&quot;, 403);
+        const ky = url.searchParams.get(&quot;ky&quot;) === &quot;nam&quot; ? &quot;nam&quot; : &quot;thang&quot;;
+        const nowM = saigonNow();
+        let thang = String(url.searchParams.get(&quot;thang&quot;) || &quot;&quot;).trim();
+        if (!/^\d{4}-\d{2}$/.test(thang)) thang = nowM.slice(0, 7);
+        let nam = parseInt(url.searchParams.get(&quot;nam&quot;), 10);
+        if (!nam || nam &lt; 2000 || nam &gt; 2100) nam = Number(nowM.slice(0, 4));
+        const months = [];
+        let curMonths, prevMonths, trendMonths, periodLabel;
+        if (ky === &quot;nam&quot;) {
+          for (let m = 1; m &lt;= 12; m++) months.push(nam + &quot;-&quot; + String(m).padStart(2, &quot;0&quot;));
+          curMonths = months.slice(); prevMonths = months.map((mk) =&gt; (nam - 1) + mk.slice(4));
+          trendMonths = curMonths; periodLabel = &quot;năm &quot; + nam;
+        } else {
+          let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
+          for (let i = 11; i &gt;= 0; i--) { let mm = m - i, yy = y; while (mm &lt;= 0) { mm += 12; yy--; } months.push(yy + &quot;-&quot; + String(mm).padStart(2, &quot;0&quot;)); }
+          curMonths = [months[11]]; prevMonths = [months[10]];
+          trendMonths = months.slice(); periodLabel = &quot;tháng &quot; + Number(thang.slice(5, 7)) + &quot;/&quot; + thang.slice(0, 4);
+        }
+        await ensureKhTtcskh(env);
+        const planRows = (await env.DB.prepare(&quot;SELECT thang, doi_tuong, chuong_trinh, chi_tieu, so_luong FROM ke_hoach_ttcskh WHERE loai = &#x27;tap_the&#x27;&quot;).all()).results || [];
+        const planTeam = {};
+        for (const r of planRows) {
+          const k = r.thang + &quot;|&quot; + r.chuong_trinh + &quot;|&quot; + r.chi_tieu;
+          planTeam[k] = (planTeam[k] || 0) + (Number(r.so_luong) || 0);
+        }
+        const planGet = (mk, ct, chi) =&gt; planTeam[mk + &quot;|&quot; + ct + &quot;|&quot; + chi] || 0;
+        const planSum = (mks, ct, chi) =&gt; mks.reduce((a, mk) =&gt; a + planGet(mk, ct, chi), 0);
+        const personRows = (await env.DB.prepare(&quot;SELECT thang, doi_tuong, chuong_trinh, chi_tieu, so_luong FROM ke_hoach_ttcskh WHERE loai = &#x27;ca_nhan&#x27;&quot;).all()).results || [];
+        const personPlan = {};
+        const personSet = new Set();
+        for (const r of personRows) {
+          if (!curMonths.includes(r.thang)) continue;
+          personSet.add(r.doi_tuong);
+          const k = r.doi_tuong + &quot;|&quot; + r.chuong_trinh + &quot;|&quot; + r.chi_tieu;
+          personPlan[k] = (personPlan[k] || 0) + (Number(r.so_luong) || 0);
+        }
+        const PROGS = [
+          { code: &quot;CKN&quot;, name: &quot;Gia hạn gói chu kỳ ngắn&quot; },
+          { code: &quot;CKD&quot;, name: &quot;Gia hạn gói chu kỳ dài&quot; },
+          { code: &quot;BG&quot;, name: &quot;Bán gói&quot; },
+          { code: &quot;HVC&quot;, name: &quot;Gia hạn/bán gói tập thuê bao HVC&quot; },
+        ];
+        const pct = (a, b) =&gt; (b &gt; 0 ? Math.round((a / b) * 1000) / 10 : null);
+        const programs = PROGS.map((p) =&gt; {
+          const planRev = planSum(curMonths, p.code, &quot;doanh_thu&quot;);
+          const planSubs = planSum(curMonths, p.code, &quot;thue_bao&quot;);
+          return { code: p.code, name: p.name, subs: 0, revenue: 0, plan_rev: planRev, plan_subs: planSubs, pct_plan_rev: pct(0, planRev), pct_plan_subs: pct(0, planSubs), rev_prev: 0, rev_yoy_pct: null, subs_prev: 0 };
+        });
+        const totalPlanRev = programs.reduce((a, p) =&gt; a + p.plan_rev, 0);
+        const totalPlanSubs = programs.reduce((a, p) =&gt; a + p.plan_subs, 0);
+        const trend = trendMonths.map((mk) =&gt; ({
+          month: mk, subs: 0, revenue: 0,
+          plan_rev: PROGS.reduce((a, p) =&gt; a + planGet(mk, p.code, &quot;doanh_thu&quot;), 0),
+          plan_subs: PROGS.reduce((a, p) =&gt; a + planGet(mk, p.code, &quot;thue_bao&quot;), 0),
+        }));
+        const byProgram = [];
+        for (const dt of [...personSet].sort((a, b) =&gt; a.localeCompare(b, &quot;vi&quot;))) {
+          for (const p of PROGS) {
+            const pr = personPlan[dt + &quot;|&quot; + p.code + &quot;|doanh_thu&quot;] || 0;
+            const ps = personPlan[dt + &quot;|&quot; + p.code + &quot;|thue_bao&quot;] || 0;
+            if (!pr &amp;&amp; !ps) continue;
+            byProgram.push({ dien_thoai_vien: dt, chuong_trinh: p.code, subs: 0, revenue: 0, plan_rev: pr, plan_subs: ps, pct_plan_rev: pct(0, pr), pct_plan_subs: pct(0, ps) });
+          }
+        }
+        return json({
+          ok: true, ky, period_label: periodLabel, has_data: false,
+          data_note: &quot;Chưa có nguồn dữ liệu OB — khung Dashboard đã sẵn sàng, anh mô tả cấu trúc dữ liệu để nối nguồn tổng hợp.&quot;,
+          team: {
+            programs,
+            total: { subs: 0, revenue: 0, plan_rev: totalPlanRev, plan_subs: totalPlanSubs, pct_plan_rev: pct(0, totalPlanRev), rev_prev: 0, rev_yoy_pct: null },
+            trend,
+            year: { revenue: 0, prev_revenue: 0, yoy_pct: null },
+            progress: {
+              ob_coverage: null, ob_total: 0, ob_called: 0,
+              conv_rate: { CKN: null, CKD: null, BG: null, HVC: null },
+              ob_success: { CKN: null, CKD: null, BG: null, HVC: null },
+              ob_success_total: null, avg_calls: null, total_calls: 0,
+            },
+          },
+          individual: { by_program: byProgram, by_form: [], quality: [] },
+          plans: { has_plan: planRows.length + personRows.length &gt; 0, team_plans: planRows.length, person_plans: personRows.length },
+        });
+      }
       // Dashboard ban hang kieu dieu hanh (moi):
       // - Tu dong tong hop TAT CA loai du lieu ban hang (doanh thu / san luong), khong can chon.
       // - Loai bo cung cac giao dich co ket qua &quot;Dang ky khong thanh cong&quot;.
@@ -5364,14 +5673,14 @@ function applyUserFormPerms() {
 }
 // Danh sach module + mac dinh khi tao moi (Dashboard, Bao cao, Goi cuoc, Cai dat)
 const MODULE_DEFS = [
-  ["dashboard", "Dashboard chi trả hoa hồng"], ["salesdash", "Dashboard bán hàng"], ["units", "Quản lý đơn vị"], ["users", "Quản lý kênh bán"], ["staff", "Quản lý người dùng"],
+  ["dashboard", "Dashboard chi trả hoa hồng"], ["salesdash", "Dashboard bán hàng"], ["mobiledash", "Dashboard di động"], ["units", "Quản lý đơn vị"], ["users", "Quản lý kênh bán"], ["staff", "Quản lý người dùng"],
   ["import", "Quản lý dữ liệu đầu vào"], ["config", "Cấu hình kết nối D1"], ["reports", "Báo cáo thống kê"],
   ["packages", "Danh mục gói cước"], ["loginstats", "Thống kê đăng nhập"], ["care", "Chăm sóc điểm bán"], ["channelmap", "Bản đồ kênh bán"], ["settings", "Cài đặt"],
 ];
 const PANEL_MODULES = {
-  "panel-dashboard": "dashboard", "panel-salesdash": "salesdash", "panel-units": "units", "panel-users": "users", "panel-staff": "staff", "panel-import": "import",
+  "panel-dashboard": "dashboard", "panel-salesdash": "salesdash", "panel-mobile": "mobiledash", "panel-units": "units", "panel-users": "users", "panel-staff": "staff", "panel-import": "import",
   "panel-config": "config", "panel-reports": "reports", "panel-salesreport": "salesdash", "panel-carereport": "reports", "panel-packages": "packages",
-  "panel-import-sales": "import", "panel-import-kb": "import", "panel-import-cb": "import", "panel-import-plan": "import", "panel-import-types": "import", "panel-import-loaikenh": "import",
+  "panel-import-sales": "import", "panel-import-kb": "import", "panel-import-cb": "import", "panel-import-plan": "import", "panel-import-types": "import", "panel-import-loaikenh": "import", "panel-import-ttcskh": "import",
   "panel-loginstats": "loginstats", "panel-care": "care", "panel-channelmap": "channelmap", "panel-settings": "settings",
 };
 const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
@@ -5452,7 +5761,7 @@ function refreshAuthUI() {
       if (p === "panel-units" || p === "panel-config") show = me.role === "admin";
       if (p === "panel-users" || p === "panel-loginstats" || p === "panel-staff") show = me.role === "admin" || me.role === "subadmin";
       if (p === "panel-import" || p === "panel-import-sales" || p === "panel-import-kb" || p === "panel-import-cb") show = me.role === "admin" || me.can_import;
-      if (p === "panel-import-plan" || p === "panel-import-types" || p === "panel-import-loaikenh") show = me.role === "admin";
+      if (p === "panel-import-plan" || p === "panel-import-types" || p === "panel-import-loaikenh" || p === "panel-import-ttcskh") show = me.role === "admin";
       if (p === "panel-carereport") show = me.role === "admin" || me.role === "subadmin" || isLeaderLikeMe();
       if (p === "panel-care") show = me.role === "admin" || me.role === "leader";
       const key = PANEL_MODULES[p];
@@ -5600,6 +5909,7 @@ function openPanel(panelId, btn) {
   syncMobileNav(panelId);
   if (panelId === "panel-dashboard") { loadDataTypes(); loadDashboard(); }
   if (panelId === "panel-salesdash") { initSalesDash(); }
+  if (panelId === "panel-mobile") { initMobileDash(); }
   if (panelId === "panel-loginstats") loadLoginStats();
   if (panelId === "panel-packages") { $("pkgAdminBox").classList.toggle("hidden", !(me && me.role === "admin")); loadPackages(); }
   if (panelId === "panel-units") loadUnits();
@@ -5611,6 +5921,7 @@ function openPanel(panelId, btn) {
   if (panelId === "panel-import-cb") { const pn = new Date(); if (!$("cbMonth").value) $("cbMonth").value = pn.getMonth() + 1; if (!$("cbYear").value) $("cbYear").value = pn.getFullYear(); }
   if (panelId === "panel-import-plan") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("planMonth").value) $("planMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("planImpYear").value) $("planImpYear").value = pn.getFullYear(); }
   if (panelId === "panel-import-types") loadDataTypes();
+  if (panelId === "panel-import-ttcskh") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("ttkhMonth").value) $("ttkhMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("ttkhImpYear").value) $("ttkhImpYear").value = pn.getFullYear(); if (!$("ttkhViewYear").value) $("ttkhViewYear").value = pn.getFullYear(); }
   if (panelId === "panel-import-loaikenh") { loadLoaikenh(); const pn = new Date(); if (!$("lkMonth").value) $("lkMonth").value = pn.getMonth() + 1; if (!$("lkYear").value) $("lkYear").value = pn.getFullYear(); }
   if (panelId === "panel-reports") { loadDataTypes(); loadPosList(); }
   if (panelId === "panel-salesreport") initSalesReport();
@@ -7404,6 +7715,285 @@ $("planImpBtn").addEventListener("click", async () => {
     setMsg($("planImpMsg"), msg, !(d.errors && d.errors.length));
     loadPlan();
   } catch (e) { setMsg($("planImpMsg"), e.message, false); }
+});
+/* ---------------- Dashboard di dong (TTCSKH) ---------------- */
+const MOB_PROGS = [
+  { code: "CKN", name: "Gia hạn gói chu kỳ ngắn", color: "#2f7cf6" },
+  { code: "CKD", name: "Gia hạn gói chu kỳ dài", color: "#14b8a6" },
+  { code: "BG", name: "Bán gói", color: "#f59e0b" },
+  { code: "HVC", name: "Gia hạn/bán gói tập thuê bao HVC", color: "#8b5cf6" },
+];
+const MOB_PROG_NAME = {}; MOB_PROGS.forEach((p) => (MOB_PROG_NAME[p.code] = p.name));
+function mobPct(v) { return v == null ? "—" : fmtPct2(v); }
+function mobDeltaHtml(pct, label) {
+  const ok = pct != null && !isNaN(pct);
+  const cls = !ok ? "flat" : pct > 0 ? "up" : pct < 0 ? "down" : "flat";
+  const arrow = !ok ? "" : pct > 0 ? "▲ " : pct < 0 ? "▼ " : "● ";
+  return '<span class="delta ' + cls + '">' + (!ok ? "—" : arrow + Math.abs(pct).toLocaleString("vi-VN") + "%") + " " + label + "</span>";
+}
+function initMobileDash() {
+  const now = new Date(); const p2 = (x) => String(x).padStart(2, "0");
+  if (!$("mobMonth").value) $("mobMonth").value = now.getFullYear() + "-" + p2(now.getMonth() + 1);
+  if (!$("mobYear").value) $("mobYear").value = now.getFullYear();
+  loadMobileDash();
+}
+$("mobKy").addEventListener("change", () => {
+  const ky = $("mobKy").value;
+  $("mobMonthWrap").classList.toggle("hidden", ky !== "thang");
+  $("mobYearWrap").classList.toggle("hidden", ky !== "nam");
+});
+$("mobBtn").addEventListener("click", loadMobileDash);
+async function loadMobileDash() {
+  const ky = $("mobKy").value;
+  const q = new URLSearchParams({ ky });
+  if (ky === "nam") {
+    if (!$("mobYear").value) { setMsg($("mobMsg"), "Hãy chọn năm đánh giá.", false); return; }
+    q.set("nam", $("mobYear").value);
+  } else {
+    if (!$("mobMonth").value) { setMsg($("mobMsg"), "Hãy chọn tháng đánh giá.", false); return; }
+    q.set("thang", $("mobMonth").value);
+  }
+  setMsg($("mobMsg"), "Đang tổng hợp…");
+  try {
+    const d = await api("/api/mobile-overview?" + q);
+    setMsg($("mobMsg"), "");
+    renderMobileDash(d);
+  } catch (e) { setMsg($("mobMsg"), e.message, false); }
+}
+function renderMobileDash(d) {
+  $("mobPeriodSub").textContent = "— " + d.period_label;
+  $("mobTrendSub").textContent = d.ky === "nam" ? "— theo tháng trong năm" : "— 12 tháng gần nhất";
+  $("mobIndSub").textContent = "— " + d.period_label;
+  const nd = $("mobNoData");
+  if (!d.has_data) {
+    nd.classList.remove("hidden");
+    nd.textContent = "⚠️ " + (d.data_note || "Chưa có nguồn dữ liệu OB.") + (d.plans && d.plans.has_plan ? " Đã có kế hoạch TTCSKH (" + d.plans.team_plans + " dòng tập thể, " + d.plans.person_plans + " dòng cá nhân) — số liệu thực hiện sẽ hiện khi nối nguồn dữ liệu OB." : " Anh giao kế hoạch ở mục Quản lý dữ liệu đầu vào → Import kế hoạch TTCSKH.");
+  } else nd.classList.add("hidden");
+  const t = d.team || {}, progs = t.programs || [], tot = t.total || {};
+  let h = "";
+  progs.forEach((p) => {
+    const c = (MOB_PROGS.find((x) => x.code === p.code) || {}).color || "#2f7cf6";
+    h += '<div class="ov-kpi" style="--kc:' + c + '"><div class="kpi-label">' + esc(p.code + " — " + p.name) + '</div><b>' + fmt(p.revenue) + '</b>' +
+      '<div class="kpi-deltas">' + mobDeltaHtml(p.pct_plan_rev, "% KH doanh thu") + mobDeltaHtml(p.rev_yoy_pct, "vs cùng kỳ") + "</div>" +
+      '<div class="kpi-note">Thuê bao: <b>' + fmtInt(p.subs) + "</b> · KH doanh thu: " + fmt(p.plan_rev) + "</div></div>";
+  });
+  h += '<div class="ov-kpi" style="--kc:#ef4444"><div class="kpi-label">💰 Tổng doanh thu TTCSKH</div><b>' + fmt(tot.revenue) + '</b>' +
+    '<div class="kpi-deltas">' + mobDeltaHtml(tot.pct_plan_rev, "% KH doanh thu") + mobDeltaHtml(tot.rev_yoy_pct, "vs cùng kỳ") + "</div>" +
+    '<div class="kpi-note">Thuê bao: <b>' + fmtInt(tot.subs) + "</b> · KH doanh thu: " + fmt(tot.plan_rev) + "</div></div>";
+  $("mobProgKpis").innerHTML = h;
+  mobRevChart($("mobTrendChart"), t.trend || []);
+  mobShareChart($("mobShareChart"), progs);
+  const pr = t.progress || {};
+  $("mobObCov").textContent = mobPct(pr.ob_coverage);
+  $("mobObCovSub").textContent = pr.ob_total > 0 ? fmtInt(pr.ob_called) + "/" + fmtInt(pr.ob_total) + " thuê bao" : "chưa có dữ liệu";
+  $("mobObOk").textContent = mobPct(pr.ob_success_total);
+  $("mobObOkSub").textContent = "4 chương trình CKN / CKD / BG / HVC";
+  $("mobAvgCalls").textContent = pr.avg_calls == null ? "—" : Number(pr.avg_calls).toLocaleString("vi-VN", { maximumFractionDigits: 2 }) + " lần";
+  $("mobAvgCallsSub").textContent = pr.total_calls > 0 ? fmtInt(pr.total_calls) + " cuộc gọi" : "chưa có dữ liệu";
+  mobRateChart($("mobObChart"), pr.ob_success || {}, "OB thành công");
+  mobRateChart($("mobConvChart"), pr.conv_rate || {}, "Gia hạn/bán gói");
+  renderMobProgTable((d.individual || {}).by_program || []);
+  renderMobFormTable((d.individual || {}).by_form || []);
+  renderMobQualTable((d.individual || {}).quality || []);
+}
+// Bieu do cot doanh thu theo thang + duong ke hoach (SVG vector, hover callout doanh thu + % KH)
+function mobRevChart(el, trend) {
+  const W = 660, H = 300, P = { l: 56, r: 16, t: 14, b: 32 };
+  const maxV = Math.max(1, ...trend.map((d) => Math.max(d.revenue, d.plan_rev)));
+  const n = trend.length, cw = (W - P.l - P.r) / Math.max(1, n);
+  const X = (i) => P.l + i * cw + cw / 2;
+  const Y = (v) => H - P.b - ((H - P.t - P.b) * v) / maxV;
+  let s = '<svg viewBox="0 0 ' + W + " " + H + '" class="chart" role="img">';
+  for (let i = 0; i <= 4; i++) {
+    const y = (P.t + ((H - P.t - P.b) * i) / 4).toFixed(1);
+    s += '<line x1="' + P.l + '" y1="' + y + '" x2="' + (W - P.r) + '" y2="' + y + '" class="grid"/>';
+    s += '<text x="' + (P.l - 6) + '" y="' + (Number(y) + 4).toFixed(1) + '" class="ylab" text-anchor="end">' + fmtCompact((maxV * (4 - i)) / 4) + "</text>";
+  }
+  trend.forEach((d, i) => {
+    const bw = Math.min(34, cw * 0.6), x = X(i) - bw / 2;
+    const h = Math.max(0, H - P.b - Y(d.revenue));
+    s += '<rect x="' + x.toFixed(1) + '" y="' + Y(d.revenue).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(h, 2).toFixed(1) + '" rx="3" class="cbar cb-rev" data-i="' + i + '"/>';
+    if (i % 2 === 0 || n <= 8) s += '<text x="' + X(i).toFixed(1) + '" y="' + (H - 10) + '" class="xlab" text-anchor="middle">' + d.month.slice(5) + "/" + d.month.slice(2, 4) + "</text>";
+  });
+  if (trend.some((d) => d.plan_rev > 0)) {
+    s += '<polyline points="' + trend.map((d, i) => X(i).toFixed(1) + "," + Y(d.plan_rev).toFixed(1)).join(" ") + '" class="line-plan" style="pointer-events:none"/>';
+    trend.forEach((d, i) => { s += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.plan_rev).toFixed(1) + '" r="4" class="cdot" data-i="' + i + '" fill="#ef4444" stroke="#fff" stroke-width="1.5"/>'; });
+  }
+  s += "</svg>";
+  el.innerHTML = s + '<div class="chart-tip" style="display:none"></div>';
+  const tip = el.querySelector(".chart-tip");
+  const items = [];
+  el.querySelectorAll(".cbar,.cdot").forEach((elm) => {
+    const i = Number(elm.getAttribute("data-i")); const d = trend[i];
+    const pct = d.plan_rev > 0 ? Math.round((d.revenue / d.plan_rev) * 1000) / 10 : null;
+    items.push({ elm, html: "<div class='tt'>" + monthLabel(d.month) + "</div><div class='tr'><i class='dot' style='background:#f59e0b'></i>Doanh thu: <b>" + fmt(d.revenue) + "</b></div><div class='tr'><i class='dot' style='background:#ef4444'></i>Kế hoạch: <b>" + fmt(d.plan_rev) + "</b></div><div class='tr'>Tỷ lệ KH: <b>" + (pct == null ? "—" : fmtPct2(pct)) + "</b></div>" });
+  });
+  bindChartTips(el, tip, items);
+}
+// Bieu do thanh ngang co cau doanh thu theo chuong trinh (SVG vector, hover callout doanh thu + ty trong %)
+function mobShareChart(el, progs) {
+  const total = progs.reduce((a, p) => a + (p.revenue || 0), 0);
+  const W = 660, H = 300, P = { l: 64, r: 110, t: 18, b: 20 };
+  const rows = MOB_PROGS.map((mp) => { const p = progs.find((x) => x.code === mp.code) || { revenue: 0, subs: 0 }; return { ...mp, revenue: p.revenue || 0, subs: p.subs || 0 }; });
+  const maxV = Math.max(1, ...rows.map((r) => r.revenue));
+  const rh = (H - P.t - P.b) / rows.length, bh = Math.min(34, rh * 0.55);
+  let s = '<svg viewBox="0 0 ' + W + " " + H + '" class="chart" role="img">';
+  rows.forEach((r, i) => {
+    const y = P.t + i * rh + (rh - bh) / 2;
+    const w = Math.max(2, ((W - P.l - P.r) * r.revenue) / maxV);
+    const pct = total > 0 ? (r.revenue / total) * 100 : 0;
+    s += '<text x="' + (P.l - 8) + '" y="' + (y + bh / 2 + 4).toFixed(1) + '" class="ylab" text-anchor="end" style="font-weight:700;fill:#334155">' + r.code + "</text>";
+    s += '<rect x="' + P.l + '" y="' + y.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="4" class="cbar" data-i="' + i + '" fill="' + r.color + '"/>';
+    s += '<text x="' + (P.l + w + 8).toFixed(1) + '" y="' + (y + bh / 2 + 4).toFixed(1) + '" class="ylab" style="fill:#334155">' + fmtCompact(r.revenue) + " (" + pct.toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%)</text>";
+  });
+  s += "</svg>";
+  el.innerHTML = s + '<div class="chart-tip" style="display:none"></div>';
+  const tip = el.querySelector(".chart-tip");
+  const items = [];
+  el.querySelectorAll(".cbar").forEach((elm) => {
+    const r = rows[Number(elm.getAttribute("data-i"))];
+    const pct = total > 0 ? (r.revenue / total) * 100 : 0;
+    items.push({ elm, html: "<div class='tt'>" + esc(r.name) + "</div><div class='tr'><i class='dot' style='background:" + r.color + "'></i>Doanh thu: <b>" + fmt(r.revenue) + "</b></div><div class='tr'>Thuê bao: <b>" + fmtInt(r.subs) + "</b></div><div class='tr'>Tỷ trọng: <b>" + pct.toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%</b></div>" });
+  });
+  bindChartTips(el, tip, items);
+}
+// Bieu do cot ty le (%) theo chuong trinh — dung chung cho OB thanh cong va ty le gia han/ban goi
+function mobRateChart(el, rates, label) {
+  const W = 660, H = 300, P = { l: 44, r: 16, t: 14, b: 32 };
+  const rows = MOB_PROGS.map((mp) => ({ ...mp, v: rates[mp.code] }));
+  const n = rows.length, cw = (W - P.l - P.r) / n;
+  const Y = (v) => H - P.b - ((H - P.t - P.b) * Math.max(0, Math.min(100, v || 0))) / 100;
+  let s = '<svg viewBox="0 0 ' + W + " " + H + '" class="chart" role="img">';
+  for (let i = 0; i <= 4; i++) {
+    const y = (P.t + ((H - P.t - P.b) * i) / 4).toFixed(1);
+    s += '<line x1="' + P.l + '" y1="' + y + '" x2="' + (W - P.r) + '" y2="' + y + '" class="grid"/>';
+    s += '<text x="' + (P.l - 6) + '" y="' + (Number(y) + 4).toFixed(1) + '" class="ylab" text-anchor="end">' + (100 - i * 25) + "%</text>";
+  }
+  rows.forEach((r, i) => {
+    const x = P.l + i * cw + cw / 2, bw = Math.min(64, cw * 0.5);
+    const h = Math.max(0, H - P.b - Y(r.v));
+    s += '<rect x="' + (x - bw / 2).toFixed(1) + '" y="' + Y(r.v).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(h, 2).toFixed(1) + '" rx="4" class="cbar" data-i="' + i + '" fill="' + r.color + '"/>';
+    s += '<text x="' + x.toFixed(1) + '" y="' + (H - 10) + '" class="xlab" text-anchor="middle">' + r.code + "</text>";
+    s += '<text x="' + x.toFixed(1) + '" y="' + (Y(r.v) - 6).toFixed(1) + '" class="ylab" text-anchor="middle" style="font-weight:700;fill:#334155">' + (r.v == null ? "—" : fmtPct2(r.v)) + "</text>";
+  });
+  s += "</svg>";
+  el.innerHTML = s + '<div class="chart-tip" style="display:none"></div>';
+  const tip = el.querySelector(".chart-tip");
+  const items = [];
+  el.querySelectorAll(".cbar").forEach((elm) => {
+    const r = rows[Number(elm.getAttribute("data-i"))];
+    items.push({ elm, html: "<div class='tt'>" + esc(r.name) + "</div><div class='tr'><i class='dot' style='background:" + r.color + "'></i>" + label + ": <b>" + (r.v == null ? "—" : fmtPct2(r.v)) + "</b></div>" });
+  });
+  bindChartTips(el, tip, items);
+}
+function renderMobProgTable(rows) {
+  const tb = $("mobProgBody");
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="6">Chưa có dữ liệu. Giao kế hoạch cá nhân ở mục Quản lý dữ liệu đầu vào → Import kế hoạch TTCSKH để thấy kế hoạch từng điện thoại viên.</td></tr>'; return; }
+  tb.innerHTML = rows.map((r) => "<tr><td>" + esc(r.dien_thoai_vien) + "</td><td><b>" + esc(r.chuong_trinh) + "</b> — " + esc(MOB_PROG_NAME[r.chuong_trinh] || "") + "</td><td>" + fmtInt(r.subs) + "</td><td>" + fmt(r.revenue) + "</td><td>" + fmt(r.plan_rev) + "</td><td>" + mobPct(r.pct_plan_rev) + "</td></tr>").join("");
+}
+function renderMobFormTable(rows) {
+  const tb = $("mobFormBody");
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="4">Chưa có dữ liệu OB theo hình thức (Gia hạn / Bán gói / Nâng gói-nâng chu kỳ) — sẽ có khi anh mô tả cấu trúc dữ liệu.</td></tr>'; return; }
+  tb.innerHTML = rows.map((r) => "<tr><td>" + esc(r.dien_thoai_vien) + "</td><td>" + esc(r.hinh_thuc) + "</td><td>" + fmtInt(r.subs) + "</td><td>" + fmt(r.revenue) + "</td></tr>").join("");
+}
+function renderMobQualTable(rows) {
+  const tb = $("mobQualBody");
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7">Chưa có dữ liệu chất lượng cuộc gọi OB — sẽ có khi anh mô tả cấu trúc dữ liệu.</td></tr>'; return; }
+  tb.innerHTML = rows.map((r) => "<tr><td>" + esc(r.dien_thoai_vien) + "</td><td>" + mobPct(r.ob_coverage) + "</td><td>" + mobPct((r.ob_success || {}).CKN) + "</td><td>" + mobPct((r.ob_success || {}).CKD) + "</td><td>" + mobPct((r.ob_success || {}).BG) + "</td><td>" + mobPct((r.ob_success || {}).HVC) + "</td><td>" + (r.avg_calls == null ? "—" : Number(r.avg_calls).toLocaleString("vi-VN", { maximumFractionDigits: 2 })) + "</td></tr>").join("");
+}
+/* ---------------- Import ke hoach TTCSKH (5.8) ---------------- */
+const TTKH_LOAI_TEN = { tap_the: "Tập thể", ca_nhan: "Cá nhân" };
+const TTKH_CHITIEU_TEN = { doanh_thu: "Doanh thu", thue_bao: "Thuê bao" };
+async function saveTtkhPlan() {
+  const thang = $("ttkhMonth").value, loai = $("ttkhLoai").value;
+  const doi_tuong = $("ttkhDoiTuong").value.trim();
+  const chuong_trinh = $("ttkhCt").value, chi_tieu = $("ttkhChiTieu").value;
+  const so_luong = $("ttkhSoLuong").value;
+  if (!thang) { setMsg($("ttkhMsg"), "Hãy chọn tháng giao kế hoạch.", false); return; }
+  if (!doi_tuong) { setMsg($("ttkhMsg"), "Hãy nhập đối tượng (TOÀN TTCSKH hoặc tên điện thoại viên).", false); return; }
+  if (so_luong === "" || Number(so_luong) < 0) { setMsg($("ttkhMsg"), "Hãy nhập kế hoạch là số không âm.", false); return; }
+  try {
+    await api("/api/ke-hoach-ttcskh", { method: "PUT", body: JSON.stringify({ thang, loai, items: [{ doi_tuong, chuong_trinh, chi_tieu, so_luong: Number(so_luong) }] }) });
+    setMsg($("ttkhMsg"), "Đã lưu kế hoạch " + TTKH_CHITIEU_TEN[chi_tieu] + " " + chuong_trinh + " tháng " + thang.slice(5) + "/" + thang.slice(0, 4) + " cho " + doi_tuong + ".", true);
+    loadTtkhPlans();
+  } catch (e) { setMsg($("ttkhMsg"), e.message, false); }
+}
+async function loadTtkhPlans() {
+  const nam = $("ttkhViewYear").value, loai = $("ttkhViewLoai").value;
+  if (!nam) { setMsg($("ttkhMsg"), "Hãy nhập năm cần xem.", false); return; }
+  try {
+    const q = new URLSearchParams({ nam }); if (loai) q.set("loai", loai);
+    const d = await api("/api/ke-hoach-ttcskh?" + q);
+    const rows = d.plans || [];
+    $("ttkhBody").innerHTML = rows.length ? rows.map((r) => "<tr><td>" + esc(r.thang) + "</td><td>" + esc(TTKH_LOAI_TEN[r.loai] || r.loai) + "</td><td>" + esc(r.doi_tuong) + "</td><td>" + esc(r.chuong_trinh) + "</td><td>" + esc(TTKH_CHITIEU_TEN[r.chi_tieu] || r.chi_tieu) + "</td><td>" + fmt(r.so_luong) + "</td><td><button class=\"btn gray\" type=\"button\" data-ttkh-del data-thang=\"" + esc(r.thang) + "\" data-loai=\"" + esc(r.loai) + "\" data-dt=\"" + esc(r.doi_tuong) + "\" data-ct=\"" + esc(r.chuong_trinh) + "\" data-chitieu=\"" + esc(r.chi_tieu) + "\">Xóa</button></td></tr>").join("") : '<tr><td colspan="7">Chưa có kế hoạch nào trong năm ' + nam + ".</td></tr>";
+  } catch (e) { setMsg($("ttkhMsg"), e.message, false); }
+}
+$("ttkhBody").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-ttkh-del]");
+  if (!btn) return;
+  if (!confirm("Xóa kế hoạch này?")) return;
+  try {
+    await api("/api/ke-hoach-ttcskh", { method: "DELETE", body: JSON.stringify({ thang: btn.dataset.thang, loai: btn.dataset.loai, doi_tuong: btn.dataset.dt, chuong_trinh: btn.dataset.ct, chi_tieu: btn.dataset.chitieu }) });
+    setMsg($("ttkhMsg"), "Đã xóa kế hoạch.", true);
+    loadTtkhPlans();
+  } catch (e) { setMsg($("ttkhMsg"), e.message, false); }
+});
+$("ttkhSaveBtn").addEventListener("click", saveTtkhPlan);
+$("ttkhLoadBtn").addEventListener("click", loadTtkhPlans);
+$("ttkhTplBtn").addEventListener("click", () => {
+  try {
+    const nam = Number($("ttkhImpYear").value) || new Date().getFullYear();
+    const loai = $("ttkhImpLoai").value, ct = $("ttkhImpCt").value, chi = $("ttkhImpChiTieu").value;
+    const headers = ["Đối tượng", "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+    const seed = loai === "tap_the" ? ["TOÀN TTCSKH"] : ["", "", ""];
+    const rows = seed.map((n) => [n, "", "", "", "", "", "", "", "", "", "", "", ""]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws["!cols"] = [{ wch: 26 }, ...headers.slice(1).map(() => ({ wch: 12 }))];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "KeHoach");
+    const guide = [
+      ["HƯỚNG DẪN — FILE MẪU IMPORT KẾ HOẠCH TTCSKH"],
+      ["1. Nhập số liệu kế hoạch từ hàng 2 trở đi, KHÔNG đổi tên cột ở hàng 1 (cột A là Đối tượng, cột B..M là Tháng 1..12). Ô để trống = không giao kế hoạch tháng đó."],
+      ["2. Cột Đối tượng: tập thể ghi TOÀN TTCSKH (hoặc tên tổ/nhóm); cá nhân ghi tên điện thoại viên."],
+      ["3. Khi import, chọn đúng Năm kế hoạch + Phạm vi + Chương trình + Chỉ tiêu + Chế độ import trên màn hình rồi mới bấm Import kế hoạch."],
+      ["4. Chế độ Tạo mới: chỉ thêm ô chưa có kế hoạch; Cập nhật: ghi đè ô đã có; Thay thế: xóa toàn bộ kế hoạch của chương trình + chỉ tiêu trong năm rồi import lại."],
+    ];
+    const wg = XLSX.utils.aoa_to_sheet(guide);
+    wg["!cols"] = [{ wch: 120 }];
+    XLSX.utils.book_append_sheet(wb, wg, "HuongDan");
+    XLSX.writeFile(wb, "Mau_ke_hoach_TTCSKH_" + (loai === "tap_the" ? "TapThe" : "CaNhan") + "_" + ct + "_" + (chi === "doanh_thu" ? "DoanhThu" : "ThueBao") + "_" + nam + ".xlsx");
+  } catch (e) { setMsg($("ttkhImpMsg"), "Không tạo được file mẫu: " + e.message, false); }
+});
+$("ttkhImpBtn").addEventListener("click", async () => {
+  const nam = Number($("ttkhImpYear").value), loai = $("ttkhImpLoai").value, chuong_trinh = $("ttkhImpCt").value, chi_tieu = $("ttkhImpChiTieu").value, mode = $("ttkhImpMode").value;
+  const file = $("ttkhImpFile").files[0];
+  if (!nam || nam < 2000 || nam > 2100) { setMsg($("ttkhImpMsg"), "Hãy nhập năm kế hoạch hợp lệ.", false); return; }
+  if (!file) { setMsg($("ttkhImpMsg"), "Hãy chọn file Excel kế hoạch trước khi import.", false); return; }
+  if (mode === "replace" && !confirm("Chế độ Thay thế sẽ XÓA toàn bộ kế hoạch của chương trình " + chuong_trinh + " + chỉ tiêu " + TTKH_CHITIEU_TEN[chi_tieu] + " trong năm " + nam + " rồi import lại. Tiếp tục?")) return;
+  try {
+    setMsg($("ttkhImpMsg"), "Đang đọc file…");
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array", cellDates: true });
+    const ws = wb.Sheets["KeHoach"] || wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
+    if (!raw.length) { setMsg($("ttkhImpMsg"), "File không có dữ liệu.", false); return; }
+    const keys = Object.keys(raw[0]);
+    const dtKey = keys.find((k) => /đối tượng|doi tuong/i.test(k)) || keys[0];
+    const monthKeys = [];
+    for (let m = 1; m <= 12; m++) {
+      const k = keys.find((kk) => new RegExp("tháng\\s*" + m + "([^0-9]|$)", "i").test(kk));
+      monthKeys.push(k || null);
+    }
+    const rows = raw.map((r) => ({ doi_tuong: String(r[dtKey] ?? "").trim(), months: monthKeys.map((k) => (k ? r[k] : "")) }))
+      .filter((r) => r.doi_tuong && r.months.some((v) => String(v ?? "").trim() !== ""));
+    if (!rows.length) { setMsg($("ttkhImpMsg"), "Không tìm thấy dòng dữ liệu hợp lệ (cần cột Đối tượng + ít nhất 1 cột tháng có số liệu).", false); return; }
+    setMsg($("ttkhImpMsg"), "Đang import " + rows.length + " đối tượng…");
+    const d = await api("/api/ke-hoach-ttcskh/import", { method: "POST", body: JSON.stringify({ nam, loai, chuong_trinh, chi_tieu, mode, rows }) });
+    let msg = "Import xong năm " + d.nam + ": thêm mới " + d.created + ", cập nhật " + d.updated + ", bỏ qua " + d.skipped + " ô.";
+    if (d.errors && d.errors.length) msg += " Lỗi " + d.errors.length + ": " + d.errors.slice(0, 5).map((x) => (x.doi_tuong ? x.doi_tuong + " — " : "") + x.reason).join("; ") + (d.errors.length > 5 ? "…" : "");
+    setMsg($("ttkhImpMsg"), msg, !(d.errors && d.errors.length));
+    loadTtkhPlans();
+  } catch (e) { setMsg($("ttkhImpMsg"), e.message, false); }
 });
 /* ---- Import danh sach kenh ban / CBCNV theo thang ---- */
 // Truong chuan + tu khoa nhan dien cot Excel (chuan hoa: thuong, khong dau, chi giu a-z0-9)
