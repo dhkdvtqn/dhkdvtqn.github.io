@@ -2406,18 +2406,163 @@ function normKbKey(s) {
           { code: "HVC", name: "Gia hạn/bán gói tập thuê bao HVC" },
         ];
         const pct = (a, b) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
-        const programs = PROGS.map((p) => {
+        // ---- Tong hop so lieu that cho Dashboard TTCSKH (tap the) ----
+        // Nguon (theo dac ta anh gui 14/11):
+        // - OBCKN/OBCKD/OBBG/OBHVC_MMYYYY: doanh thu = SUM(cot doanh thu) / 1,1
+        //   (truoc thue; lam tron sau khi chia), thue bao = COUNT(so_thue_bao).
+        // - THCKN/THCKD/THBG/THHVC_MMYYYY: chi so tien trinh + ty le chuyen doi
+        //   (ty le chuyen doi lay so luu san trong cot ty le cua file TH).
+        // - IPCC_MMYYYY: binh quan so lan goi = tong_cuoc_goi_ra /
+        //   tong_tb_can_thuc_hien theo tung chuong trinh (loc theo cot
+        //   chuong_trinh_ob).
+        // HVC dung ten cot rieng trong bang TH (THHVC khong co cac cot sl_tb_*
+        // tuong ung): tong_tb_da_goi / tong_tb_dua_vao_ob_hvc /
+        // tong_sl_tb_ket_noi_tc.
+        const MOB_SRC = {
+          CKN: { ob: "OBCKN", rev: "doanh_thu_dk_gh", th: "THCKN", called: "sl_tb_da_thuc_hien_ob", total: "sl_tb_dua_vao_ob", conn: "sl_tb_ket_noi_tc", conv: "ty_le_tb_gia_han_goi" },
+          CKD: { ob: "OBCKD", rev: "doanh_thu_dk_gh", th: "THCKD", called: "sl_tb_da_thuc_hien_ob", total: "sl_tb_dua_vao_ob", conn: "sl_tb_ket_noi_tc", conv: "ty_le_tb_gia_han_goi" },
+          BG: { ob: "OBBG", rev: "doanh_thu_dang_ky", th: "THBG", called: "sl_tb_da_thuc_hien_ob", total: "sl_tb_dua_vao_ob", conn: "sl_tb_ket_noi_tc", conv: "ty_le_tb_dang_ky_goi" },
+          HVC: { ob: "OBHVC", rev: "doanh_thu_dk_gh", th: "THHVC", called: "tong_tb_da_goi", total: "tong_tb_dua_vao_ob_hvc", conn: "tong_sl_tb_ket_noi_tc", conv: "ty_le_tb_dk_gh_tong_tap" },
+        };
+        const tableExists = async (name) => !!(await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").bind(name).first());
+        const normProg = (v) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+        const obCache = new Map();
+        const obMonth = async (code, mk) => {
+          const key = code + "|" + mk;
+          if (obCache.has(key)) return obCache.get(key);
+          const cfg = MOB_SRC[code];
+          const out = { subs: 0, rev: 0, exists: false };
+          const table = monthTableName(cfg.ob, mk);
+          if (table && (await tableExists(table))) {
+            const r = await env.DB.prepare('SELECT COUNT(so_thue_bao) AS subs, COALESCE(SUM("' + cfg.rev + '"), 0) AS rev FROM "' + table + '"').first();
+            out.subs = Number(r?.subs) || 0;
+            out.rev = Math.round((Number(r?.rev) || 0) / 1.1); // doanh thu truoc thue
+            out.exists = true;
+          }
+          obCache.set(key, out);
+          return out;
+        };
+        const obSum = async (code, mks) => {
+          let subs = 0, rev = 0, exists = false;
+          for (const mk of mks) { const o = await obMonth(code, mk); subs += o.subs; rev += o.rev; exists = exists || o.exists; }
+          return { subs, rev, exists };
+        };
+        const thMonth = async (code, mk) => {
+          const cfg = MOB_SRC[code];
+          const out = { called: 0, total: 0, conn: 0, conv: null, exists: false };
+          const table = monthTableName(cfg.th, mk);
+          if (!table || !(await tableExists(table))) return out;
+          out.exists = true;
+          const r = await env.DB.prepare('SELECT COALESCE(SUM("' + cfg.called + '"), 0) AS called, COALESCE(SUM("' + cfg.total + '"), 0) AS total, COALESCE(SUM("' + cfg.conn + '"), 0) AS conn FROM "' + table + '"').first();
+          out.called = Number(r?.called) || 0;
+          out.total = Number(r?.total) || 0;
+          out.conn = Number(r?.conn) || 0;
+          // Ty le chuyen doi: lay so luu san trong file TH (thuong 1 dong QNH).
+          // Neu nhieu dong: uu tien dong tinh QNH, neu khong thi dong dau tien.
+          const rows = (await env.DB.prepare('SELECT tinh, "' + cfg.conv + '" AS conv FROM "' + table + '"').all()).results || [];
+          const pick = rows.find((x) => normProg(x.tinh).includes("qnh")) || rows[0];
+          if (pick && pick.conv !== null && pick.conv !== undefined && pick.conv !== "") {
+            const cv = Number(pick.conv);
+            if (!Number.isNaN(cv)) out.conv = cv;
+          }
+          return out;
+        };
+        const ipccMonth = async (mk) => {
+          const out = { CKN: { calls: 0, total: 0 }, CKD: { calls: 0, total: 0 }, BG: { calls: 0, total: 0 }, HVC: { calls: 0, total: 0 }, exists: false };
+          const table = monthTableName("IPCC", mk);
+          if (!table || !(await tableExists(table))) return out;
+          out.exists = true;
+          const rows = (await env.DB.prepare('SELECT chuong_trinh_ob AS ct, COALESCE(SUM(tong_cuoc_goi_ra), 0) AS calls, COALESCE(SUM(tong_tb_can_thuc_hien), 0) AS total FROM "' + table + '" GROUP BY chuong_trinh_ob').all()).results || [];
+          for (const r of rows) {
+            const n = normProg(r.ct);
+            let code = null;
+            if (n.includes("hvc")) code = "HVC";
+            else if (n.includes("ckn")) code = "CKN";
+            else if (n.includes("ckd")) code = "CKD";
+            else if (n.includes("bg") || n.includes("ban goi")) code = "BG";
+            if (!code) continue;
+            out[code].calls += Number(r.calls) || 0;
+            out[code].total += Number(r.total) || 0;
+          }
+          return out;
+        };
+        // Thang cung ky nam truoc (ky=thang: T-12; ky=nam: nam truoc = prevMonths)
+        let yoyMonths = prevMonths;
+        if (ky === "thang") yoyMonths = [(Number(thang.slice(0, 4)) - 1) + "-" + thang.slice(5, 7)];
+        const programs = [];
+        let totSubs = 0, totRev = 0, totPrevRev = 0, totYoyRev = 0, hasOb = false;
+        for (const p of PROGS) {
+          const cur = await obSum(p.code, curMonths);
+          const prev = await obSum(p.code, prevMonths);
+          const yoy = await obSum(p.code, yoyMonths);
           const planRev = planSum(curMonths, p.code, "doanh_thu");
           const planSubs = planSum(curMonths, p.code, "thue_bao");
-          return { code: p.code, name: p.name, subs: 0, revenue: 0, plan_rev: planRev, plan_subs: planSubs, pct_plan_rev: pct(0, planRev), pct_plan_subs: pct(0, planSubs), rev_prev: 0, rev_yoy_pct: null, subs_prev: 0 };
-        });
+          totSubs += cur.subs; totRev += cur.rev; totPrevRev += prev.rev; totYoyRev += yoy.rev;
+          hasOb = hasOb || cur.exists;
+          programs.push({ code: p.code, name: p.name, subs: cur.subs, revenue: cur.rev, plan_rev: planRev, plan_subs: planSubs, pct_plan_rev: pct(cur.rev, planRev), pct_plan_subs: pct(cur.subs, planSubs), rev_prev: prev.rev, rev_yoy_pct: pct(cur.rev - yoy.rev, yoy.rev), subs_prev: prev.subs });
+        }
         const totalPlanRev = programs.reduce((a, p) => a + p.plan_rev, 0);
         const totalPlanSubs = programs.reduce((a, p) => a + p.plan_subs, 0);
-        const trend = trendMonths.map((mk) => ({
-          month: mk, subs: 0, revenue: 0,
-          plan_rev: PROGS.reduce((a, p) => a + planGet(mk, p.code, "doanh_thu"), 0),
-          plan_subs: PROGS.reduce((a, p) => a + planGet(mk, p.code, "thue_bao"), 0),
-        }));
+        const trend = [];
+        for (const mk of trendMonths) {
+          let subs = 0, revenue = 0;
+          for (const p of PROGS) { const o = await obMonth(p.code, mk); subs += o.subs; revenue += o.rev; }
+          trend.push({
+            month: mk, subs, revenue,
+            plan_rev: PROGS.reduce((a, p) => a + planGet(mk, p.code, "doanh_thu"), 0),
+            plan_subs: PROGS.reduce((a, p) => a + planGet(mk, p.code, "thue_bao"), 0),
+          });
+        }
+        // Bo chi so tien trinh OB (ky hien tai)
+        let obCalled = 0, obTotal = 0, connTotal = 0, hasTh = false;
+        const obSuccess = {}, convRate = {};
+        for (const p of PROGS) {
+          let called = 0, total = 0, conn = 0;
+          const convs = [];
+          for (const mk of curMonths) {
+            const t = await thMonth(p.code, mk);
+            if (t.exists) hasTh = true;
+            called += t.called; total += t.total; conn += t.conn;
+            if (t.conv !== null) convs.push(t.conv);
+          }
+          obCalled += called; obTotal += total; connTotal += conn;
+          obSuccess[p.code] = called > 0 ? Math.round((conn / called) * 1000) / 10 : null;
+          // Ky nam: binh quan cac ty le thang (ty le luu san theo thang).
+          convRate[p.code] = convs.length ? Math.round((convs.reduce((a, b) => a + b, 0) / convs.length) * 10) / 10 : null;
+        }
+        const obCoverage = obTotal > 0 ? Math.round((obCalled / obTotal) * 1000) / 10 : null;
+        const obSuccessTotal = obCalled > 0 ? Math.round((connTotal / obCalled) * 1000) / 10 : null;
+        // Binh quan so lan goi / thue bao (IPCC), tach 4 chuong trinh
+        let hasIpcc = false, totalCalls = 0, totalIpccTb = 0;
+        const ipccAgg = { CKN: { calls: 0, total: 0 }, CKD: { calls: 0, total: 0 }, BG: { calls: 0, total: 0 }, HVC: { calls: 0, total: 0 } };
+        for (const mk of curMonths) {
+          const ip = await ipccMonth(mk);
+          if (ip.exists) hasIpcc = true;
+          for (const code of ["CKN", "CKD", "BG", "HVC"]) { ipccAgg[code].calls += ip[code].calls; ipccAgg[code].total += ip[code].total; }
+        }
+        let avgCalls = null, avgCallsTotal = null;
+        if (hasIpcc) {
+          avgCalls = {};
+          for (const code of ["CKN", "CKD", "BG", "HVC"]) {
+            const a = ipccAgg[code];
+            avgCalls[code] = a.total > 0 ? Math.round((a.calls / a.total) * 100) / 100 : null;
+            totalCalls += a.calls; totalIpccTb += a.total;
+          }
+          avgCallsTotal = totalIpccTb > 0 ? Math.round((totalCalls / totalIpccTb) * 100) / 100 : null;
+        }
+        const hasData = hasOb || hasTh || hasIpcc;
+        let dataNote = "";
+        if (!hasData) {
+          dataNote = "Chưa có nguồn dữ liệu OB — khung Dashboard đã sẵn sàng, anh import dữ liệu ở mục Quản lý dữ liệu đầu vào → Import dữ liệu TTCSKH.";
+        } else {
+          const missing = [];
+          if (!hasOb) missing.push("dữ liệu KQTH OB chi tiết (doanh thu/thuê bao các chương trình đang bằng 0)");
+          if (!hasTh) missing.push("Tổng hợp Autocall (các chỉ số tiến trình OB chưa tính được)");
+          if (!hasIpcc) missing.push("IPCC (Bình quân số lần gọi chưa tính được)");
+          if (missing.length) dataNote = "Đã có một phần dữ liệu; chưa có " + missing.join("; ") + ".";
+        }
+        const yearRev = ky === "nam" ? totRev : trend.reduce((a, t) => a + t.revenue, 0);
+        const yearPrevRev = ky === "nam" ? totPrevRev : 0;
         const byProgram = [];
         for (const dt of [...personSet].sort((a, b) => a.localeCompare(b, "vi"))) {
           for (const p of PROGS) {
@@ -2428,18 +2573,19 @@ function normKbKey(s) {
           }
         }
         return json({
-          ok: true, ky, period_label: periodLabel, has_data: false,
-          data_note: "Chưa có nguồn dữ liệu OB — khung Dashboard đã sẵn sàng, anh mô tả cấu trúc dữ liệu để nối nguồn tổng hợp.",
+          ok: true, ky, period_label: periodLabel, has_data: hasData,
+          data_note: dataNote,
+          sources: { ob: hasOb, th: hasTh, ipcc: hasIpcc },
           team: {
             programs,
-            total: { subs: 0, revenue: 0, plan_rev: totalPlanRev, plan_subs: totalPlanSubs, pct_plan_rev: pct(0, totalPlanRev), rev_prev: 0, rev_yoy_pct: null },
+            total: { subs: totSubs, revenue: totRev, plan_rev: totalPlanRev, plan_subs: totalPlanSubs, pct_plan_rev: pct(totRev, totalPlanRev), rev_prev: totPrevRev, rev_yoy_pct: pct(totRev - totYoyRev, totYoyRev) },
             trend,
-            year: { revenue: 0, prev_revenue: 0, yoy_pct: null },
+            year: { revenue: yearRev, prev_revenue: yearPrevRev, yoy_pct: ky === "nam" ? pct(yearRev - yearPrevRev, yearPrevRev) : null },
             progress: {
-              ob_coverage: null, ob_total: 0, ob_called: 0,
-              conv_rate: { CKN: null, CKD: null, BG: null, HVC: null },
-              ob_success: { CKN: null, CKD: null, BG: null, HVC: null },
-              ob_success_total: null, avg_calls: null, total_calls: 0,
+              ob_coverage: obCoverage, ob_total: obTotal, ob_called: obCalled,
+              conv_rate: convRate,
+              ob_success: obSuccess,
+              ob_success_total: obSuccessTotal, avg_calls: avgCalls, avg_calls_total: avgCallsTotal, total_calls: totalCalls,
             },
           },
           individual: { by_program: byProgram, by_form: [], quality: [] },
