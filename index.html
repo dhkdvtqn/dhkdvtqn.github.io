@@ -1144,8 +1144,8 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
       <aside class="sidebar">
         <div class="who"><b id="whoName">—</b><span id="whoRole">—</span></div>
         <button class="nav-btn" data-panel="panel-dashboard">📈 Dashboard chi trả hoa hồng</button>
-        <button class="nav-btn" data-panel="panel-salesdash">🛒 Dashboard bán hàng</button>
-        <button class="nav-btn" data-panel="panel-mobile">📱 Dashboard di động</button>
+        <button class="nav-btn" data-panel="panel-salesdash">🛒 Dashboard KBH</button>
+        <button class="nav-btn" data-panel="panel-mobile">📱 Dashboard TTCSKH</button>
         <div class="nav-group closed" data-group="admin">
           <button class="nav-group-head" type="button">🛠️ Công cụ dành cho Admin <span class="nav-caret">▾</span></button>
           <div class="nav-group-body">
@@ -1176,6 +1176,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <button class="nav-btn nav-sub" data-panel="panel-import-types">🗂️ Quản lý loại dữ liệu</button>
             <button class="nav-btn nav-sub" data-panel="panel-import-loaikenh">🏷️ Cấu hình loại kênh bán</button>
             <button class="nav-btn nav-sub" data-panel="panel-import-ttcskh">📋 Import kế hoạch TTCSKH</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import-ttcskh-data">📥 Import dữ liệu TTCSKH</button>
           </div>
         </div>
         <button class="nav-btn" data-panel="panel-channelmap">🗺️ Bản đồ kênh bán</button>
@@ -1209,7 +1210,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
 
         <!-- DASHBOARD BAN HANG -->
         <section class="panel hidden" id="panel-salesdash">
-          <h2>🛒 Dashboard bán hàng</h2>
+          <h2>🛒 Dashboard KBH</h2>
           <p class="desc" id="salesScope">Tổng hợp số liệu phát triển thuê bao di động và doanh thu bán gói di động phát triển mới (trước thuế = giá gói ÷ 1,1) theo đơn vị và theo điểm bán, từ loại dữ liệu do anh thiết kế trong Cấu hình. Chỉ tính các thuê bao do tài khoản Eload của điểm bán phát triển.</p>
           <div class="form-grid">
             <div><label>Kỳ đánh giá</label><select id="salesKy"><option value="thang">Theo tháng</option><option value="nam">Theo năm</option></select></div>
@@ -1303,7 +1304,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
 
         <!-- QUAN LY DON VI -->
                 <section class="panel hidden" id="panel-mobile">
-          <h2>📱 Dashboard di động</h2>
+          <h2>📱 Dashboard TTCSKH</h2>
           <p class="desc">Đánh giá kết quả thực hiện của TTCSKH: gia hạn gói chu kỳ ngắn (CKN), gia hạn chu kỳ dài (CKD), bán gói (BG) và gia hạn/bán gói tập thuê bao HVC — theo tỷ lệ hoàn thành kế hoạch, tăng giảm so với cùng kỳ, doanh thu theo tháng/năm, bộ chỉ số tiến trình OB và kết quả từng điện thoại viên.</p>
           <div class="form-grid">
             <div><label>Kỳ đánh giá</label><select id="mobKy"><option value="thang">Theo tháng</option><option value="nam">Theo năm</option></select></div>
@@ -1511,7 +1512,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
 
         <section class="panel hidden" id="panel-import-sales">
           <h2>Import dữ liệu kết quả bán hàng</h2>
-          <p class="desc">Import dữ liệu kết quả bán hàng (doanh thu / sản lượng phát triển thuê bao) từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng theo cấu hình loại dữ liệu. Mục này <b>chỉ liệt kê các loại dữ liệu đã cấu hình cho Dashboard bán hàng</b> (loại Doanh thu / Sản lượng PTTB); dữ liệu chi trả hoa hồng import ở mục <b>Import dữ liệu chi trả hoa hồng</b>. Các cột trong file không khớp với mẫu dữ liệu sẽ tự động bị loại bỏ, không import vào CSDL.</p>
+          <p class="desc">Import dữ liệu kết quả bán hàng (doanh thu / sản lượng phát triển thuê bao) từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng theo cấu hình loại dữ liệu. Mục này <b>chỉ liệt kê các loại dữ liệu đã cấu hình cho Dashboard KBH</b> (loại Doanh thu / Sản lượng PTTB); dữ liệu chi trả hoa hồng import ở mục <b>Import dữ liệu chi trả hoa hồng</b>. Các cột trong file không khớp với mẫu dữ liệu sẽ tự động bị loại bỏ, không import vào CSDL.</p>
           <form id="importFormS" class="form-grid">
             <div><label>Loại dữ liệu</label><select id="impTypeS"></select></div>
             <div><label>Tháng / Năm import</label><div style="display:flex;gap:8px"><input type="number" id="impMonthS" min="1" max="12" /><input type="number" id="impYearS" min="2020" max="2100" /></div></div>
@@ -1525,7 +1526,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div style="min-width:220px"><label>Bộ lọc theo loại dữ liệu</label><select id="tblTypeFilterS"><option value="">— Tất cả loại —</option></select></div>
           </div>
           <div class="tbl-wrap" style="max-height:215px;overflow-y:auto"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th>Khóa thay thế</th><th></th></tr></thead><tbody id="tablesBodyS"><tr><td colspan="6">Đang tải…</td></tr></tbody></table></div>
-          <div class="note"><b>Quy tắc tổng hợp Dashboard bán hàng:</b> doanh thu trước thuế = giá gói ÷ 1,1; chỉ tính thuê bao do Eload của điểm bán phát triển; thuê bao PTM chỉ tổng hợp từ loại Sản lượng PTTB; giao dịch có kết quả "Đăng ký không thành công" bị loại khỏi mọi số liệu. Các cột dữ liệu của từng loại lấy theo cấu hình trong mục <b>Quản lý loại dữ liệu</b>.</div>
+          <div class="note"><b>Quy tắc tổng hợp Dashboard KBH:</b> doanh thu trước thuế = giá gói ÷ 1,1; chỉ tính thuê bao do Eload của điểm bán phát triển; thuê bao PTM chỉ tổng hợp từ loại Sản lượng PTTB; giao dịch có kết quả "Đăng ký không thành công" bị loại khỏi mọi số liệu. Các cột dữ liệu của từng loại lấy theo cấu hình trong mục <b>Quản lý loại dữ liệu</b>.</div>
         </section>
 
         <section class="panel hidden" id="panel-import-kb">
@@ -1557,7 +1558,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         <section class="panel hidden" id="panel-import-plan">
           <h2>Giao/import kế hoạch kinh doanh</h2>
             <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Giao kế hoạch kinh doanh (chỉ admin)</h3>
-            <p class="desc">Giao kế hoạch theo tháng và theo từng đơn vị cho 3 chỉ tiêu: <b>kênh PSSL</b>, <b>sản lượng phát triển thuê bao</b> và <b>doanh thu thuê bao di động phát triển mới</b>. Số liệu kế hoạch dùng để đánh giá tỷ lệ hoàn thành trên Dashboard bán hàng.</p>
+            <p class="desc">Giao kế hoạch theo tháng và theo từng đơn vị cho 3 chỉ tiêu: <b>kênh PSSL</b>, <b>sản lượng phát triển thuê bao</b> và <b>doanh thu thuê bao di động phát triển mới</b>. Số liệu kế hoạch dùng để đánh giá tỷ lệ hoàn thành trên Dashboard KBH.</p>
             <div class="form-grid">
               <div><label>Tháng giao kế hoạch</label><input type="month" id="planMonth" /></div>
               <div><label>Loại kế hoạch</label><select id="planType"><option value="pssl">Kênh PSSL</option><option value="subs">Sản lượng phát triển thuê bao</option><option value="revenue">Doanh thu TB phát triển mới</option></select></div>
@@ -1605,16 +1606,16 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
               <div><label>Cột Thời gian dự phòng (nếu cột thời gian chính trống)</label><select id="dtTimeFb"></select></div>
               <div><label>Cột khóa map báo cáo (VD: Mã HRM/SĐT SMCS — để map dữ liệu với người dùng)</label><select id="dtKey"></select></div>
               <div><label>Cột Mã kênh (map báo cáo theo mã kênh của người dùng)</label><select id="dtKenh"></select></div>
-              <div class="full" style="margin-top:8px"><b style="color:var(--blue-dark)">Dùng cho Dashboard bán hàng</b> <span class="desc">(không bắt buộc — chỉ cần khi loại dữ liệu này dùng để tổng hợp phát triển thuê bao và doanh thu bán gói)</span></div>
-              <div><label>Loại dữ liệu bán hàng</label><select id="dtSalesKind"><option value="">— Không dùng cho Dashboard bán hàng —</option><option value="doanh_thu">Doanh thu (chỉ tổng hợp doanh thu)</option><option value="san_luong">Sản lượng PTTB (chỉ tổng hợp sản lượng phát triển thuê bao)</option></select></div>
+              <div class="full" style="margin-top:8px"><b style="color:var(--blue-dark)">Dùng cho Dashboard KBH</b> <span class="desc">(không bắt buộc — chỉ cần khi loại dữ liệu này dùng để tổng hợp phát triển thuê bao và doanh thu bán gói)</span></div>
+              <div><label>Loại dữ liệu bán hàng</label><select id="dtSalesKind"><option value="">— Không dùng cho Dashboard KBH —</option><option value="doanh_thu">Doanh thu (chỉ tổng hợp doanh thu)</option><option value="san_luong">Sản lượng PTTB (chỉ tổng hợp sản lượng phát triển thuê bao)</option></select></div>
               <div></div>
               <div><label>Cột Tên đơn vị (tổng hợp theo đơn vị)</label><select id="dtSalesUnit"></select></div>
               <div><label>Cột Số Eload (chỉ tính thuê bao do Eload của điểm bán phát triển)</label><select id="dtSalesEload"></select></div>
               <div><label>Cột Mã kênh (hiển thị theo điểm bán)</label><select id="dtSalesKenh"></select></div>
               <div><label>Cột Giá gói (doanh thu trước thuế = giá gói ÷ 1,1)</label><select id="dtSalesPrice"></select></div>
               <div><label>Cột Số lượng (số thuê bao; để trống = mỗi dòng tính 1 thuê bao)</label><select id="dtSalesQty"></select></div>
-              <div><label>Cột Kết quả bán gói (lọc Dashboard bán hàng)</label><select id="dtSalesResult"></select></div>
-              <div><label>Cột Loại thuê bao (lọc Dashboard bán hàng)</label><select id="dtSalesSubtype"></select></div>
+              <div><label>Cột Kết quả bán gói (lọc Dashboard KBH)</label><select id="dtSalesResult"></select></div>
+              <div><label>Cột Loại thuê bao (lọc Dashboard KBH)</label><select id="dtSalesSubtype"></select></div>
               <div class="full"><button class="btn blue" type="submit" id="dtSubmitBtn">Tạo loại dữ liệu</button> <button class="btn gray hidden" type="button" id="dtCancelBtn">Hủy sửa</button></div>
             </form>
             <div id="dtMsg"></div>
@@ -1652,7 +1653,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
                 <section class="panel hidden" id="panel-import-ttcskh">
           <h2>Import kế hoạch TTCSKH</h2>
             <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Giao kế hoạch TTCSKH (chỉ admin)</h3>
-            <p class="desc">Giao kế hoạch <b>doanh thu</b> và <b>thuê bao</b> cho <b>tập thể</b> (TOÀN TTCSKH hoặc từng tổ/nhóm) và <b>cá nhân</b> (từng điện thoại viên), theo 4 chương trình OB: <b>CKN</b> (gia hạn chu kỳ ngắn), <b>CKD</b> (gia hạn chu kỳ dài), <b>BG</b> (bán gói), <b>HVC</b> (tập thuê bao HVC). Kế hoạch dùng để đánh giá tỷ lệ hoàn thành trên Dashboard di động.</p>
+            <p class="desc">Giao kế hoạch <b>doanh thu</b> và <b>thuê bao</b> cho <b>tập thể</b> (TOÀN TTCSKH hoặc từng tổ/nhóm) và <b>cá nhân</b> (từng điện thoại viên), theo 4 chương trình OB: <b>CKN</b> (gia hạn chu kỳ ngắn), <b>CKD</b> (gia hạn chu kỳ dài), <b>BG</b> (bán gói), <b>HVC</b> (tập thuê bao HVC). Kế hoạch dùng để đánh giá tỷ lệ hoàn thành trên Dashboard TTCSKH.</p>
             <div class="form-grid">
               <div><label>Tháng giao kế hoạch</label><input type="month" id="ttkhMonth" /></div>
               <div><label>Phạm vi</label><select id="ttkhLoai"><option value="tap_the">Tập thể</option><option value="ca_nhan">Cá nhân (điện thoại viên)</option></select></div>
@@ -1682,6 +1683,23 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             </div>
             <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn gray" type="button" id="ttkhTplBtn">Tải file mẫu</button><button class="btn blue" type="button" id="ttkhImpBtn">Import kế hoạch</button></div>
             <div id="ttkhImpMsg" style="margin-top:6px"></div>
+        </section>
+                <section class="panel hidden" id="panel-import-ttcskh-data">
+          <h2>Import dữ liệu TTCSKH</h2>
+            <p class="desc">Import dữ liệu đầu vào cho Dashboard TTCSKH từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng (OBCKN_MMYYYY, OBCKD_MMYYYY, OBBG_MMYYYY, OBHVC_MMYYYY, IPCC_MMYYYY). <b>Cột trong file được map theo đúng vị trí</b> (không theo tên cột) vì một số file có cột trùng tên. 3 chế độ import: <b>Tạo mới</b> (bảng tháng chưa có mới import được), <b>Cập nhật</b> (nạp thêm dòng vào bảng tháng đã có — không xóa dòng cũ), <b>Thay thế</b> (xóa toàn bộ bảng tháng rồi nạp lại).</p>
+            <div class="form-grid">
+              <div><label>Loại dữ liệu</label><select id="ttdType"></select></div>
+              <div><label>Tháng</label><input type="number" id="ttdMonth" min="1" max="12" /></div>
+              <div><label>Năm</label><input type="number" id="ttdYear" min="2000" max="2100" /></div>
+              <div><label>Chế độ import</label><select id="ttdMode"><option value="create">Tạo mới</option><option value="update">Cập nhật</option><option value="replace">Thay thế</option></select></div>
+              <div><label>File Excel dữ liệu</label><input type="file" id="ttdFile" accept=".xlsx,.xls,.csv" /></div>
+            </div>
+            <div id="ttdTypeInfo" class="desc" style="margin-top:6px"></div>
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn gray" type="button" id="ttdPreviewBtn">Xem trước</button><button class="btn blue" type="button" id="ttdImpBtn">Import dữ liệu</button></div>
+            <div id="ttdMsg" style="margin-top:6px"></div>
+            <div id="ttdPreview" style="margin-top:10px"></div>
+            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Bảng dữ liệu TTCSKH đã import</h3>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Bảng tháng</th><th>Loại dữ liệu</th><th>Số dòng</th><th>Trạng thái</th><th></th></tr></thead><tbody id="ttdTablesBody"><tr><td colspan="5">Chưa tải danh sách bảng.</td></tr></tbody></table></div>
         </section>
         <section class="panel hidden" id="panel-config">
           <h2>Cấu hình kết nối CSDL Cloudflare D1</h2>
@@ -3476,7 +3494,109 @@ export default {
         return json({ ok: true, table, inserted, mode });
       }
 
-      // ---- Dinh nghia loai kenh ban (module 5.7 &quot;Cau hinh loai kenh ban&quot;) ----
+            // ---- Import du lieu TTCSKH (module 5.9 &quot;Import du lieu TTCSKH&quot;) ----
+      // 5 loai du lieu dau vao cho Dashboard TTCSKH, lay truong dung theo 5 file
+      // Excel anh gui 13/11 (file chi co hang tieu de, chua co dong du lieu).
+      // Moi thang 1 bang PREFIX_MMYYYY; 3 che do nhu import chung: Tao moi (409
+      // neu bang da co), Cap nhat (nap them dong vao bang da co), Thay the (xoa
+      // bang roi nap lai). Map cot THEO VI TRI (khong theo ten) vi file co cot
+      // trung ten: CKN co 2 cot &quot;Chu ky goi&quot; (cot 10: truoc OB; cot 20: goi moi),
+      // IPCC co 4 cap cot &quot;So TB duoc goi N lan&quot; (cot 8-11: duoc goi; cot 13-16:
+      // tam hieu la duoc goi thanh cong — cho anh xac nhan lai y nghia).
+      const TTCSKH_TYPES = [
+        { code: &quot;OBCKN&quot;, name: &quot;KQTH OB gia hạn CKN&quot;, prefix: &quot;OBCKN&quot;, columns: [
+          [&quot;so_thue_bao&quot;, &quot;TEXT&quot;, &quot;Số thuê bao&quot;], [&quot;ngay_kich_hoat&quot;, &quot;TEXT&quot;, &quot;Ngày kích hoạt&quot;], [&quot;ten_chuong_trinh&quot;, &quot;TEXT&quot;, &quot;Tên chương trình&quot;], [&quot;tinh&quot;, &quot;TEXT&quot;, &quot;Tỉnh&quot;], [&quot;ma_tinh_cu&quot;, &quot;TEXT&quot;, &quot;Mã tỉnh cũ&quot;], [&quot;user_dtv&quot;, &quot;TEXT&quot;, &quot;User ĐTV&quot;], [&quot;ma_hrm&quot;, &quot;TEXT&quot;, &quot;Mã HRM&quot;], [&quot;phong_ban&quot;, &quot;TEXT&quot;, &quot;Phòng ban&quot;], [&quot;ma_goi_truoc_ob&quot;, &quot;TEXT&quot;, &quot;Mã gói trước khi OB&quot;], [&quot;chu_ky_goi&quot;, &quot;TEXT&quot;, &quot;Chu kỳ gói (trước OB)&quot;], [&quot;doanh_thu_goi_truoc_gh&quot;, &quot;REAL&quot;, &quot;Doanh thu gói trước khi gia hạn&quot;], [&quot;trang_thai_ob&quot;, &quot;TEXT&quot;, &quot;Trạng thái OB&quot;], [&quot;ll_duoc_dong_y_dk&quot;, &quot;TEXT&quot;, &quot;Liên lạc được-KH đồng ý Đk&quot;], [&quot;ll_duoc_chua_co_nhu_cau&quot;, &quot;TEXT&quot;, &quot;Liên lạc được-KH chưa có nhu cầu sd gói&quot;], [&quot;ll_duoc_goi_cuoc_chua_phu_hop&quot;, &quot;TEXT&quot;, &quot;Liên lạc được-gói cước chưa phù hợp&quot;], [&quot;ll_duoc_dang_dung_sim_mang_khac&quot;, &quot;TEXT&quot;, &quot;Liên lạc được-KH đang dùng SIM có gói của mạng khác&quot;], [&quot;ll_duoc_hen_goi_lai&quot;, &quot;TEXT&quot;, &quot;Liên lạc được-KH hẹn gọi lại&quot;], [&quot;thoi_gian_thuc_hien_ob&quot;, &quot;TEXT&quot;, &quot;Thời gian thực hiện OB&quot;], [&quot;ma_goi_dv_moi&quot;, &quot;TEXT&quot;, &quot;Mã gói dịch vụ mới&quot;], [&quot;chu_ky_goi_moi&quot;, &quot;TEXT&quot;, &quot;Chu kỳ gói (gói mới)&quot;], [&quot;doanh_thu_dk_gh&quot;, &quot;REAL&quot;, &quot;Doanh thu ĐK/GH&quot;], [&quot;chu_ky_gia_han&quot;, &quot;TEXT&quot;, &quot;Chu kỳ gia hạn&quot;], [&quot;nghiep_vu_goi&quot;, &quot;TEXT&quot;, &quot;Nghiệp vụ gói&quot;], [&quot;ngay_mo_dv&quot;, &quot;TEXT&quot;, &quot;Ngày mở dịch vụ&quot;], [&quot;nguon_dk_gh&quot;, &quot;TEXT&quot;, &quot;Nguồn ĐK/GH&quot;], [&quot;gh_dk_tc_ccos_ob&quot;, &quot;TEXT&quot;, &quot;Gia hạn/đăng ký thành công qua CCOS - OB&quot;], [&quot;gia_han_tu_dong&quot;, &quot;TEXT&quot;, &quot;Gia hạn tự động&quot;], [&quot;tb_chuyen_doi_goi&quot;, &quot;TEXT&quot;, &quot;TB chuyển đổi gói&quot;], [&quot;tb_chuyen_doi_goi_tc&quot;, &quot;TEXT&quot;, &quot;TB chuyển đổi gói thành công&quot;], [&quot;loai_thue_bao&quot;, &quot;TEXT&quot;, &quot;Loại thuê bao&quot;], [&quot;tb_truyen_thong_5g&quot;, &quot;TEXT&quot;, &quot;TB được truyền thông 5G&quot;],
+        ] },
+        { code: &quot;OBCKD&quot;, name: &quot;KQTH OB gia hạn CKD&quot;, prefix: &quot;OBCKD&quot;, columns: [
+          [&quot;so_thue_bao&quot;, &quot;TEXT&quot;, &quot;Số thuê bao&quot;], [&quot;ten_chuong_trinh&quot;, &quot;TEXT&quot;, &quot;Tên chương trình&quot;], [&quot;tinh&quot;, &quot;TEXT&quot;, &quot;Tỉnh&quot;], [&quot;user_dtv&quot;, &quot;TEXT&quot;, &quot;User ĐTV&quot;], [&quot;ma_hrm&quot;, &quot;TEXT&quot;, &quot;Mã HRM&quot;], [&quot;phong_ban&quot;, &quot;TEXT&quot;, &quot;Phòng ban&quot;], [&quot;ma_goi_truoc_ob&quot;, &quot;TEXT&quot;, &quot;Mã gói trước khi OB&quot;], [&quot;chu_ky_goi_truoc_ob&quot;, &quot;TEXT&quot;, &quot;Chu kỳ gói trước OB&quot;], [&quot;doanh_thu_goi_truoc_gh&quot;, &quot;REAL&quot;, &quot;Doanh thu gói trước khi gia hạn&quot;], [&quot;trang_thai_ob&quot;, &quot;TEXT&quot;, &quot;Trạng thái OB&quot;], [&quot;ll_duoc_dong_y_dk&quot;, &quot;TEXT&quot;, &quot;Liên lạc được-KH đồng ý Đk&quot;], [&quot;ll_duoc_chua_co_nhu_cau&quot;, &quot;TEXT&quot;, &quot;Liên lạc được-KH chưa có nhu cầu sd gói&quot;], [&quot;ll_duoc_goi_cuoc_chua_phu_hop&quot;, &quot;TEXT&quot;, &quot;Liên lạc được-gói cước chưa phù hợp&quot;], [&quot;ll_duoc_dang_dung_sim_mang_khac&quot;, &quot;TEXT&quot;, &quot;Liên lạc được-KH đang dùng SIM có gói của mạng khác&quot;], [&quot;ll_duoc_hen_goi_lai&quot;, &quot;TEXT&quot;, &quot;Liên lạc được-KH hẹn gọi lại&quot;], [&quot;thoi_gian_thuc_hien_ob&quot;, &quot;TEXT&quot;, &quot;Thời gian thực hiện OB&quot;], [&quot;ma_goi_dv_moi&quot;, &quot;TEXT&quot;, &quot;Mã gói dịch vụ mới&quot;], [&quot;chu_ky_goi_sau_ob&quot;, &quot;TEXT&quot;, &quot;Chu kỳ gói sau OB&quot;], [&quot;doanh_thu_dk_gh&quot;, &quot;REAL&quot;, &quot;Doanh thu ĐK/GH&quot;], [&quot;chu_ky_gia_han&quot;, &quot;TEXT&quot;, &quot;Chu kỳ gia hạn&quot;], [&quot;nghiep_vu_goi&quot;, &quot;TEXT&quot;, &quot;Nghiệp vụ gói&quot;], [&quot;ngay_mo_dv&quot;, &quot;TEXT&quot;, &quot;Ngày mở dịch vụ&quot;], [&quot;nguon_dk_gh&quot;, &quot;TEXT&quot;, &quot;Nguồn ĐK/GH&quot;], [&quot;gh_dk_tc_ccos_ob&quot;, &quot;TEXT&quot;, &quot;Gia hạn/đăng ký thành công qua CCOS - OB&quot;], [&quot;gia_han_tu_dong&quot;, &quot;TEXT&quot;, &quot;Gia hạn tự động&quot;], [&quot;tb_chuyen_doi_goi&quot;, &quot;TEXT&quot;, &quot;TB chuyển đổi gói&quot;], [&quot;tb_chuyen_doi_goi_tc&quot;, &quot;TEXT&quot;, &quot;TB chuyển đổi gói thành công&quot;], [&quot;loai_thue_bao&quot;, &quot;TEXT&quot;, &quot;Loại thuê bao&quot;], [&quot;tb_truyen_thong_5g&quot;, &quot;TEXT&quot;, &quot;TB được truyền thông 5G&quot;], [&quot;tinh_cu&quot;, &quot;TEXT&quot;, &quot;Tỉnh cũ&quot;],
+        ] },
+        { code: &quot;OBBG&quot;, name: &quot;KQTH OB bán gói&quot;, prefix: &quot;OBBG&quot;, columns: [
+          [&quot;so_thue_bao&quot;, &quot;TEXT&quot;, &quot;Số thuê bao&quot;], [&quot;tinh&quot;, &quot;TEXT&quot;, &quot;Tỉnh&quot;], [&quot;ma_tinh_cu&quot;, &quot;TEXT&quot;, &quot;Mã tỉnh cũ&quot;], [&quot;user_dtv&quot;, &quot;TEXT&quot;, &quot;User ĐTV&quot;], [&quot;ma_hrm&quot;, &quot;TEXT&quot;, &quot;Mã HRM&quot;], [&quot;phong_ban&quot;, &quot;TEXT&quot;, &quot;Phòng ban&quot;], [&quot;ten_tap&quot;, &quot;TEXT&quot;, &quot;Tên tập&quot;], [&quot;muc_tieu_thoai_t1&quot;, &quot;REAL&quot;, &quot;Mục tiêu dùng thoại tháng T-1&quot;], [&quot;muc_tieu_data_t1&quot;, &quot;REAL&quot;, &quot;Mục tiêu dùng Data tháng T-1&quot;], [&quot;loai_thue_bao&quot;, &quot;TEXT&quot;, &quot;Loại thuê bao&quot;], [&quot;ut1&quot;, &quot;TEXT&quot;, &quot;UT1&quot;], [&quot;ut2&quot;, &quot;TEXT&quot;, &quot;UT2&quot;], [&quot;ut3&quot;, &quot;TEXT&quot;, &quot;UT3&quot;], [&quot;thoi_gian_thuc_hien_ob&quot;, &quot;TEXT&quot;, &quot;Thời gian thực hiện OB&quot;], [&quot;goi_cuoc_dang_ky&quot;, &quot;TEXT&quot;, &quot;Gói cước đăng ký&quot;], [&quot;chu_ky_goi&quot;, &quot;TEXT&quot;, &quot;Chu kỳ gói&quot;], [&quot;doanh_thu_dang_ky&quot;, &quot;REAL&quot;, &quot;Doanh thu đăng ký&quot;], [&quot;ngay_mo_dv&quot;, &quot;TEXT&quot;, &quot;Ngày mở dịch vụ&quot;], [&quot;nguon_dk_gh&quot;, &quot;TEXT&quot;, &quot;Nguồn ĐK/GH&quot;], [&quot;tb_truyen_thong_5g&quot;, &quot;TEXT&quot;, &quot;TB được truyền thông 5G&quot;],
+        ] },
+        { code: &quot;OBHVC&quot;, name: &quot;KQTH OB Tập HVC&quot;, prefix: &quot;OBHVC&quot;, columns: [
+          [&quot;so_thue_bao&quot;, &quot;TEXT&quot;, &quot;Số thuê bao&quot;], [&quot;ten_chuong_trinh&quot;, &quot;TEXT&quot;, &quot;Tên chương trình&quot;], [&quot;tinh&quot;, &quot;TEXT&quot;, &quot;Tỉnh&quot;], [&quot;user_dtv&quot;, &quot;TEXT&quot;, &quot;User ĐTV&quot;], [&quot;ma_hrm&quot;, &quot;TEXT&quot;, &quot;Mã HRM&quot;], [&quot;phong_ban&quot;, &quot;TEXT&quot;, &quot;Phòng ban&quot;], [&quot;ma_goi_truoc_ob&quot;, &quot;TEXT&quot;, &quot;Mã gói trước khi OB&quot;], [&quot;chu_ky_goi&quot;, &quot;TEXT&quot;, &quot;Chu kỳ gói&quot;], [&quot;doanh_thu_goi_truoc_gh&quot;, &quot;REAL&quot;, &quot;Doanh thu gói trước khi gia hạn&quot;], [&quot;thoi_gian_thuc_hien_ob&quot;, &quot;TEXT&quot;, &quot;Thời gian thực hiện OB&quot;], [&quot;ma_goi_gh_dk_moi&quot;, &quot;TEXT&quot;, &quot;Mã gói gia hạn/ đăng ký mới&quot;], [&quot;chu_ky_goi_moi&quot;, &quot;TEXT&quot;, &quot;Chu kỳ gói mới&quot;], [&quot;doanh_thu_dk_gh&quot;, &quot;REAL&quot;, &quot;Doanh thu ĐK/GH&quot;], [&quot;chu_ky_gia_han&quot;, &quot;TEXT&quot;, &quot;Chu kỳ gia hạn&quot;], [&quot;nguon_dk_gh&quot;, &quot;TEXT&quot;, &quot;Nguồn ĐK/GH&quot;], [&quot;ngay_mo_dv&quot;, &quot;TEXT&quot;, &quot;Ngày mở dịch vụ&quot;], [&quot;nghiep_vu_goi&quot;, &quot;TEXT&quot;, &quot;Nghiệp vụ gói&quot;], [&quot;gh_dk_tc_ccos_ob&quot;, &quot;TEXT&quot;, &quot;Gia hạn/đăng ký thành công qua CCOS - OB&quot;], [&quot;gia_han_tu_dong&quot;, &quot;TEXT&quot;, &quot;Gia hạn tự động&quot;], [&quot;nhom_nguoi_dung&quot;, &quot;TEXT&quot;, &quot;Nhóm người dùng&quot;], [&quot;kha_nang_chuyen_goi&quot;, &quot;TEXT&quot;, &quot;Khả năng chuyển gói&quot;], [&quot;thiet_bi&quot;, &quot;TEXT&quot;, &quot;Thiết bị&quot;], [&quot;tb_chuyen_doi_goi&quot;, &quot;TEXT&quot;, &quot;TB chuyển đổi gói&quot;], [&quot;tb_chuyen_doi_goi_tc&quot;, &quot;TEXT&quot;, &quot;TB chuyển đổi gói thành công&quot;], [&quot;loai_thue_bao&quot;, &quot;TEXT&quot;, &quot;Loại thuê bao&quot;], [&quot;tb_truyen_thong_5g&quot;, &quot;TEXT&quot;, &quot;TB được truyền thông 5G&quot;], [&quot;tinh_cu&quot;, &quot;TEXT&quot;, &quot;Tỉnh cũ&quot;],
+        ] },
+        { code: &quot;IPCC&quot;, name: &quot;TH IPCC (BC177)&quot;, prefix: &quot;IPCC&quot;, columns: [
+          [&quot;thoi_gian&quot;, &quot;TEXT&quot;, &quot;Thời gian&quot;], [&quot;ma_tinh&quot;, &quot;TEXT&quot;, &quot;Mã tỉnh&quot;], [&quot;chuong_trinh_ob&quot;, &quot;TEXT&quot;, &quot;Chương trình OB&quot;], [&quot;tong_tb_can_thuc_hien&quot;, &quot;REAL&quot;, &quot;Tổng số thuê bao cần thực hiện trong chương trình&quot;], [&quot;so_dtv&quot;, &quot;REAL&quot;, &quot;Số ĐTV&quot;], [&quot;tong_login_phut&quot;, &quot;REAL&quot;, &quot;Tổng login (Phút)&quot;], [&quot;tong_ready_phut&quot;, &quot;REAL&quot;, &quot;Tổng Ready (Phút)&quot;], [&quot;tb_goi_1_lan&quot;, &quot;REAL&quot;, &quot;Số thuê bao được gọi 1 lần&quot;], [&quot;tb_goi_2_lan&quot;, &quot;REAL&quot;, &quot;Số thuê bao được gọi 2 lần&quot;], [&quot;tb_goi_3_lan&quot;, &quot;REAL&quot;, &quot;Số thuê bao được gọi 3 lần&quot;], [&quot;tb_goi_3_lan_tro_len&quot;, &quot;REAL&quot;, &quot;Số thuê bao được gọi 3 lần trở lên&quot;], [&quot;tong_tb_thuc_hien_ob&quot;, &quot;REAL&quot;, &quot;Tổng số thuê bao thực hiện OB&quot;], [&quot;tb_goi_tc_1_lan&quot;, &quot;REAL&quot;, &quot;Số thuê bao được gọi 1 lần (thành công)&quot;], [&quot;tb_goi_tc_2_lan&quot;, &quot;REAL&quot;, &quot;Số thuê bao được gọi 2 lần (thành công)&quot;], [&quot;tb_goi_tc_3_lan&quot;, &quot;REAL&quot;, &quot;Số thuê bao được gọi 3 lần (thành công)&quot;], [&quot;tb_goi_tc_3_lan_tro_len&quot;, &quot;REAL&quot;, &quot;Số thuê bao được gọi 3 lần trở lên (thành công)&quot;], [&quot;tong_tb_goi_tc&quot;, &quot;REAL&quot;, &quot;Tổng thuê bao được gọi thành công&quot;], [&quot;ty_le_tb_ket_noi_tc&quot;, &quot;REAL&quot;, &quot;Tỷ lệ thuê bao kết nối thành công&quot;], [&quot;ty_le_tb_da_thuc_hien&quot;, &quot;REAL&quot;, &quot;Tỷ lệ thuê bao đã thực hiện trong chương trình&quot;], [&quot;tong_cuoc_goi_ra&quot;, &quot;REAL&quot;, &quot;Tổng cuộc gọi ra&quot;], [&quot;tong_cuoc_ket_noi_tc&quot;, &quot;REAL&quot;, &quot;Tổng cuộc kết nối thành công&quot;], [&quot;ty_le_cuoc_goi_ket_noi_tc&quot;, &quot;REAL&quot;, &quot;Tỷ lệ cuộc gọi kết nối thành công&quot;], [&quot;thoi_gian_giu_may_giay&quot;, &quot;REAL&quot;, &quot;Thời gian giữ máy (giây)&quot;], [&quot;thoi_gian_dam_thoai_giay&quot;, &quot;REAL&quot;, &quot;Thời gian đàm thoại (giây)&quot;], [&quot;thoi_luong_tb_giay_cuoc&quot;, &quot;REAL&quot;, &quot;Thời lượng trung bình (giây/cuộc)&quot;], [&quot;tb_cuoc_goi_tc_gio_login&quot;, &quot;REAL&quot;, &quot;TB cuộc gọi thành công/giờ login&quot;], [&quot;so_luong_cuoc_goi_tat_may&quot;, &quot;REAL&quot;, &quot;Số lượng cuộc gọi tắt máy&quot;], [&quot;ty_le_cuoc_goi_tat_may&quot;, &quot;REAL&quot;, &quot;Tỷ lệ cuộc gọi tắt máy/Số cuộc thực hiện OB&quot;],
+        ] },
+      ];
+      if (path === &quot;/api/ttcskh/types&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
+        return json({ ok: true, types: TTCSKH_TYPES.map((t) =&gt; ({ code: t.code, name: t.name, prefix: t.prefix, columns: t.columns.map(([key, type, label]) =&gt; ({ key, type, label })) })) });
+      }
+      if (path === &quot;/api/ttcskh/tables&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
+        const out = [];
+        for (const t of TTCSKH_TYPES) {
+          for (const name of await listMonthlyTables(env, t.prefix)) {
+            const c = await env.DB.prepare(&#x27;SELECT COUNT(*) n FROM &quot;&#x27; + name + &#x27;&quot;&#x27;).first();
+            out.push({ table: name, code: t.code, name: t.name, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
+          }
+        }
+        out.sort((a, b) =&gt; a.table.localeCompare(b.table));
+        return json({ ok: true, tables: out });
+      }
+      if (path === &quot;/api/ttcskh/tables&quot; &amp;&amp; method === &quot;DELETE&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc xoa bang du lieu TTCSKH&quot;, 403);
+        const name = String(url.searchParams.get(&quot;name&quot;) || &quot;&quot;).trim();
+        const t = TTCSKH_TYPES.find((x) =&gt; name.startsWith(x.prefix + &quot;_&quot;));
+        if (!t || !/^[A-Z0-9]+_\d{6}$/.test(name)) return err(&quot;Ten bang khong hop le&quot;, 422);
+        await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + name + &#x27;&quot;&#x27;).run();
+        return json({ ok: true, table: name });
+      }
+      if (path === &quot;/api/ttcskh/import&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
+        const b = await readBody(request);
+        const dtype = TTCSKH_TYPES.find((t) =&gt; t.code === String(b.loai || &quot;&quot;).toUpperCase());
+        if (!dtype) return err(&quot;Loai du lieu TTCSKH khong ton tai: &quot; + (b.loai || &quot;&quot;), 422);
+        const mode = b.mode === &quot;replace&quot; ? &quot;replace&quot; : b.mode === &quot;create&quot; ? &quot;create&quot; : &quot;update&quot;;
+        const thang = Number(b.thang);
+        const nam = Number(b.nam);
+        if (!thang || thang &lt; 1 || thang &gt; 12 || !nam || nam &lt; 2000 || nam &gt; 2100) return err(&quot;Thang/nam import khong hop le&quot;, 422);
+        const columns = dtype.columns.map(([n, t]) =&gt; [n, t]);
+        const colNames = columns.map(([n]) =&gt; n);
+        // Dong gui dang MANG theo dung thu tu cot trong file (map theo vi tri).
+        const rawRows = Array.isArray(b.rows) ? b.rows : [];
+        const rows = rawRows.filter((row) =&gt; Array.isArray(row) &amp;&amp; row.some((v) =&gt; v !== null &amp;&amp; v !== undefined &amp;&amp; String(v).trim() !== &quot;&quot;));
+        if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
+        const table = monthTableName(dtype.prefix, nam + &quot;-&quot; + String(thang).padStart(2, &quot;0&quot;));
+        if (mode === &quot;replace&quot; &amp;&amp; !isAdmin) {
+          const locked = await isTableLocked(env, table);
+          if (locked) return err(&quot;Bang du lieu &quot; + table + &quot; dang bi khoa thay the. Chi admin moi duoc thay the du lieu cua bang nay. Lien he admin de mo khoa neu can.&quot;, 403);
+        }
+        if (mode === &quot;create&quot;) {
+          const ex = await env.DB.prepare(&quot;SELECT name FROM sqlite_master WHERE type=&#x27;table&#x27; AND name = ?&quot;).bind(table).first();
+          if (ex) return err(&quot;Bang du lieu &quot; + table + &quot; da ton tai. Hay dung che do &#x27;Cap nhat&#x27; de nap them du lieu, hoac &#x27;Thay the&#x27; de xoa du lieu cu va nap lai tu dau.&quot;, 409);
+        }
+        if (mode === &quot;replace&quot;) {
+          await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + table + &#x27;&quot;&#x27;).run();
+        }
+        await env.DB.prepare(createTableSQL(table, columns)).run();
+        await ensureListColumns(env, table, columns);
+        const numericCols = new Set(columns.filter(([, t]) =&gt; t === &quot;REAL&quot;).map(([n]) =&gt; n));
+        const sql =
+          &#x27;INSERT INTO &quot;&#x27; + table + &#x27;&quot; (&#x27; + colNames.map((n) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot;&#x27;).join(&quot;, &quot;) +
+          &quot;, imported_by) VALUES (&quot; + colNames.map(() =&gt; &quot;?&quot;).join(&quot;, &quot;) + &quot;, ?)&quot;;
+        let inserted = 0;
+        const CHUNK = 100;
+        for (let i = 0; i &lt; rows.length; i += CHUNK) {
+          const batch = rows.slice(i, i + CHUNK).map((row) =&gt; {
+            const vals = colNames.map((n, idx) =&gt; {
+              const v = row[idx];
+              return numericCols.has(n) ? toNumber(v) : toText(v);
+            });
+            vals.push(me.username);
+            return env.DB.prepare(sql).bind(...vals);
+          });
+          await env.DB.batch(batch);
+          inserted += batch.length;
+        }
+        return json({ ok: true, table, type: dtype.code, inserted, mode });
+      }
+// ---- Dinh nghia loai kenh ban (module 5.7 &quot;Cau hinh loai kenh ban&quot;) ----
 // Admin dinh nghia: Loai diem ban (nhu trong file danh sach kenh) -&gt; Hang kenh
 // (VD: ĐUQ, ĐBL, Chuoi, ĐGD, GARA, ĐDV). He thong tra bang nay khi import
 // danh sach kenh ban de xac dinh hang kenh cua tung diem ban.
@@ -3949,7 +4069,7 @@ function normKbKey(s) {
         }
         return json({ ok: true, nam, loai, mode, created, updated, skipped, errors: errors.slice(0, 50) });
       }
-      // ---- Ke hoach TTCSKH (Dashboard di dong) ----
+      // ---- Ke hoach TTCSKH (Dashboard TTCSKH) ----
       // Bang ke_hoach_ttcskh: ke hoach doanh thu / thue bao theo thang, cho tap the
       // (loai=&#x27;tap_the&#x27;, doi_tuong=&#x27;TOAN TTCSKH&#x27; hoac ten to/nhom) va ca nhan
       // (loai=&#x27;ca_nhan&#x27;, doi_tuong=ten dien thoai vien), theo 4 chuong trinh OB:
@@ -4059,7 +4179,7 @@ function normKbKey(s) {
         }
         return json({ ok: true, nam, loai, chuong_trinh, chi_tieu, mode, created, updated, skipped, errors: errors.slice(0, 50) });
       }
-      // ---- Dashboard di dong (TTCSKH) ----
+      // ---- Dashboard TTCSKH ----
       // KHUNG TONG HOP (11/2026): cau truc phan hoi day du theo yeu cau — tap the
       // (4 chuong trinh CKN/CKD/BG/HVC + bo chi so tien trinh) va ca nhan (theo
       // chuong trinh / theo hinh thuc OB / chat luong cuoc goi). So lieu THUC HIEN
@@ -4067,7 +4187,7 @@ function normKbKey(s) {
       // — anh se mo ta cau truc du lieu sau; luc do noi phan tong hop vao day.
       // Ke hoach TTCSKH (bang ke_hoach_ttcskh) thi doc that ngay tu bay gio.
       if (path === &quot;/api/mobile-overview&quot; &amp;&amp; method === &quot;GET&quot;) {
-        if (!hasModule(me, &quot;mobiledash&quot;)) return err(&quot;Tai khoan khong co quyen xem Dashboard di dong&quot;, 403);
+        if (!hasModule(me, &quot;mobiledash&quot;)) return err(&quot;Tai khoan khong co quyen xem Dashboard TTCSKH&quot;, 403);
         const ky = url.searchParams.get(&quot;ky&quot;) === &quot;nam&quot; ? &quot;nam&quot; : &quot;thang&quot;;
         const nowM = saigonNow();
         let thang = String(url.searchParams.get(&quot;thang&quot;) || &quot;&quot;).trim();
@@ -5673,14 +5793,14 @@ function applyUserFormPerms() {
 }
 // Danh sach module + mac dinh khi tao moi (Dashboard, Bao cao, Goi cuoc, Cai dat)
 const MODULE_DEFS = [
-  ["dashboard", "Dashboard chi trả hoa hồng"], ["salesdash", "Dashboard bán hàng"], ["mobiledash", "Dashboard di động"], ["units", "Quản lý đơn vị"], ["users", "Quản lý kênh bán"], ["staff", "Quản lý người dùng"],
+  ["dashboard", "Dashboard chi trả hoa hồng"], ["salesdash", "Dashboard KBH"], ["mobiledash", "Dashboard TTCSKH"], ["units", "Quản lý đơn vị"], ["users", "Quản lý kênh bán"], ["staff", "Quản lý người dùng"],
   ["import", "Quản lý dữ liệu đầu vào"], ["config", "Cấu hình kết nối D1"], ["reports", "Báo cáo thống kê"],
   ["packages", "Danh mục gói cước"], ["loginstats", "Thống kê đăng nhập"], ["care", "Chăm sóc điểm bán"], ["channelmap", "Bản đồ kênh bán"], ["settings", "Cài đặt"],
 ];
 const PANEL_MODULES = {
   "panel-dashboard": "dashboard", "panel-salesdash": "salesdash", "panel-mobile": "mobiledash", "panel-units": "units", "panel-users": "users", "panel-staff": "staff", "panel-import": "import",
   "panel-config": "config", "panel-reports": "reports", "panel-salesreport": "salesdash", "panel-carereport": "reports", "panel-packages": "packages",
-  "panel-import-sales": "import", "panel-import-kb": "import", "panel-import-cb": "import", "panel-import-plan": "import", "panel-import-types": "import", "panel-import-loaikenh": "import", "panel-import-ttcskh": "import",
+  "panel-import-sales": "import", "panel-import-kb": "import", "panel-import-cb": "import", "panel-import-plan": "import", "panel-import-types": "import", "panel-import-loaikenh": "import", "panel-import-ttcskh": "import", "panel-import-ttcskh-data": "import",
   "panel-loginstats": "loginstats", "panel-care": "care", "panel-channelmap": "channelmap", "panel-settings": "settings",
 };
 const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
@@ -5760,7 +5880,7 @@ function refreshAuthUI() {
       let show = true;
       if (p === "panel-units" || p === "panel-config") show = me.role === "admin";
       if (p === "panel-users" || p === "panel-loginstats" || p === "panel-staff") show = me.role === "admin" || me.role === "subadmin";
-      if (p === "panel-import" || p === "panel-import-sales" || p === "panel-import-kb" || p === "panel-import-cb") show = me.role === "admin" || me.can_import;
+      if (p === "panel-import" || p === "panel-import-sales" || p === "panel-import-kb" || p === "panel-import-cb" || p === "panel-import-ttcskh-data") show = me.role === "admin" || me.can_import;
       if (p === "panel-import-plan" || p === "panel-import-types" || p === "panel-import-loaikenh" || p === "panel-import-ttcskh") show = me.role === "admin";
       if (p === "panel-carereport") show = me.role === "admin" || me.role === "subadmin" || isLeaderLikeMe();
       if (p === "panel-care") show = me.role === "admin" || me.role === "leader";
@@ -5922,6 +6042,7 @@ function openPanel(panelId, btn) {
   if (panelId === "panel-import-plan") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("planMonth").value) $("planMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("planImpYear").value) $("planImpYear").value = pn.getFullYear(); }
   if (panelId === "panel-import-types") loadDataTypes();
   if (panelId === "panel-import-ttcskh") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("ttkhMonth").value) $("ttkhMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("ttkhImpYear").value) $("ttkhImpYear").value = pn.getFullYear(); if (!$("ttkhViewYear").value) $("ttkhViewYear").value = pn.getFullYear(); }
+  if (panelId === "panel-import-ttcskh-data") { const pn = new Date(); if (!$("ttdMonth").value) $("ttdMonth").value = pn.getMonth() + 1; if (!$("ttdYear").value) $("ttdYear").value = pn.getFullYear(); loadTtdTypes(); loadTtdTables(); }
   if (panelId === "panel-import-loaikenh") { loadLoaikenh(); const pn = new Date(); if (!$("lkMonth").value) $("lkMonth").value = pn.getMonth() + 1; if (!$("lkYear").value) $("lkYear").value = pn.getFullYear(); }
   if (panelId === "panel-reports") { loadDataTypes(); loadPosList(); }
   if (panelId === "panel-salesreport") initSalesReport();
@@ -7716,7 +7837,7 @@ $("planImpBtn").addEventListener("click", async () => {
     loadPlan();
   } catch (e) { setMsg($("planImpMsg"), e.message, false); }
 });
-/* ---------------- Dashboard di dong (TTCSKH) ---------------- */
+/* ---------------- Dashboard TTCSKH (TTCSKH) ---------------- */
 const MOB_PROGS = [
   { code: "CKN", name: "Gia hạn gói chu kỳ ngắn", color: "#2f7cf6" },
   { code: "CKD", name: "Gia hạn gói chu kỳ dài", color: "#14b8a6" },
@@ -7995,6 +8116,104 @@ $("ttkhImpBtn").addEventListener("click", async () => {
     loadTtkhPlans();
   } catch (e) { setMsg($("ttkhImpMsg"), e.message, false); }
 });
+/* ---------------- Import du lieu TTCSKH (5.9) ---------------- */
+let ttdTypesCache = [];
+let ttdParsed = null; // { headers: [], rows: [[]] }
+const ttdNorm = (s) => String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/\([^)]*\)/g, "").replace(/[^a-z0-9]/g, "");
+async function loadTtdTypes() {
+  try {
+    const d = await api("/api/ttcskh/types");
+    ttdTypesCache = d.types || [];
+    const sel = $("ttdType");
+    const cur = sel.value;
+    sel.innerHTML = ttdTypesCache.map((t) => '<option value="' + t.code + '">' + esc(t.name) + " (" + t.columns.length + " cột)</option>").join("");
+    if (cur) sel.value = cur;
+    updateTtdTypeInfo();
+  } catch (e) { setMsg($("ttdMsg"), e.message, false); }
+}
+function updateTtdTypeInfo() {
+  const t = ttdTypesCache.find((x) => x.code === $("ttdType").value);
+  if (!t) { $("ttdTypeInfo").textContent = ""; return; }
+  $("ttdTypeInfo").innerHTML = "Bảng tháng: <b>" + t.prefix + "_MMYYYY</b> · " + t.columns.length + " cột theo đúng thứ tự file mẫu: " + t.columns.map((c) => esc(c.label)).join(" | ");
+}
+$("ttdType").addEventListener("change", () => { updateTtdTypeInfo(); ttdParsed = null; $("ttdPreview").innerHTML = ""; });
+async function readTtdFile() {
+  const file = $("ttdFile").files[0];
+  if (!file) { setMsg($("ttdMsg"), "Hãy chọn file Excel dữ liệu trước.", false); return null; }
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array", cellDates: true });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+  const nonEmpty = aoa.filter((r) => Array.isArray(r) && r.some((v) => v !== null && v !== undefined && String(v).trim() !== ""));
+  if (!nonEmpty.length) { setMsg($("ttdMsg"), "File không có dữ liệu.", false); return null; }
+  return { headers: nonEmpty[0].map((v) => String(v ?? "")), rows: nonEmpty.slice(1) };
+}
+$("ttdPreviewBtn").addEventListener("click", async () => {
+  const t = ttdTypesCache.find((x) => x.code === $("ttdType").value);
+  if (!t) { setMsg($("ttdMsg"), "Hãy chọn loại dữ liệu.", false); return; }
+  try {
+    setMsg($("ttdMsg"), "Đang đọc file…");
+    const parsed = await readTtdFile();
+    if (!parsed) return;
+    ttdParsed = parsed;
+    const n = Math.max(parsed.headers.length, t.columns.length);
+    let h = "<div class='tbl-wrap' style='max-height:320px;overflow:auto'><table class='data'><thead><tr><th>#</th><th>Cột trong file</th><th>Cột đích (theo vị trí)</th><th>Khớp?</th></tr></thead><tbody>";
+    for (let i = 0; i < n; i++) {
+      const fh = parsed.headers[i] ?? "";
+      const tc = t.columns[i];
+      const ok = tc && ttdNorm(fh) === ttdNorm(tc.label);
+      h += "<tr><td>" + (i + 1) + "</td><td>" + esc(fh || "(trống)") + "</td><td>" + esc(tc ? tc.label : "(thừa — sẽ bỏ qua)") + "</td><td>" + (tc ? (ok ? "✅" : "⚠️ khác tên — vẫn map theo vị trí") : "—") + "</td></tr>";
+    }
+    h += "</tbody></table></div>";
+    h += "<p class='desc' style='margin-top:6px'>File có <b>" + parsed.rows.length + "</b> dòng dữ liệu" + (parsed.headers.length !== t.columns.length ? " — ⚠️ số cột trong file (" + parsed.headers.length + ") khác số cột chuẩn (" + t.columns.length + "), hãy kiểm tra lại thứ tự cột trước khi import." : ".") + "</p>";
+    if (parsed.rows.length) {
+      h += "<div class='tbl-wrap' style='max-height:220px;overflow:auto;margin-top:6px'><table class='data'><thead><tr><th>#</th>" + t.columns.slice(0, 6).map((c) => "<th>" + esc(c.label) + "</th>").join("") + "<th>…</th></tr></thead><tbody>";
+      parsed.rows.slice(0, 3).forEach((r, i) => { h += "<tr><td>" + (i + 1) + "</td>" + t.columns.slice(0, 6).map((c, j) => "<td>" + esc(r[j] ?? "") + "</td>").join("") + "<td>…</td></tr>"; });
+      h += "</tbody></table></div><p class='desc'>Xem trước 3 dòng đầu, 6 cột đầu.</p>";
+    }
+    $("ttdPreview").innerHTML = h;
+    setMsg($("ttdMsg"), "Đã đọc file: " + parsed.rows.length + " dòng dữ liệu. Kiểm tra bảng map cột rồi bấm Import dữ liệu.", true);
+  } catch (e) { setMsg($("ttdMsg"), e.message, false); }
+});
+$("ttdImpBtn").addEventListener("click", async () => {
+  const t = ttdTypesCache.find((x) => x.code === $("ttdType").value);
+  const thang = Number($("ttdMonth").value), nam = Number($("ttdYear").value), mode = $("ttdMode").value;
+  if (!t) { setMsg($("ttdMsg"), "Hãy chọn loại dữ liệu.", false); return; }
+  if (!thang || thang < 1 || thang > 12 || !nam || nam < 2000 || nam > 2100) { setMsg($("ttdMsg"), "Hãy nhập tháng/năm import hợp lệ.", false); return; }
+  if (mode === "replace" && !confirm("Chế độ Thay thế sẽ XÓA toàn bộ bảng " + t.prefix + "_" + String(thang).padStart(2, "0") + nam + " rồi nạp lại từ đầu. Tiếp tục?")) return;
+  try {
+    let parsed = ttdParsed;
+    if (!parsed || !$("ttdFile").files[0]) {
+      setMsg($("ttdMsg"), "Đang đọc file…");
+      parsed = await readTtdFile();
+      if (!parsed) return;
+      ttdParsed = parsed;
+    }
+    setMsg($("ttdMsg"), "Đang import " + parsed.rows.length + " dòng vào bảng " + t.prefix + "_" + String(thang).padStart(2, "0") + nam + "…");
+    const d = await api("/api/ttcskh/import", { method: "POST", body: JSON.stringify({ loai: t.code, thang, nam, mode, rows: parsed.rows }) });
+    setMsg($("ttdMsg"), "Import xong: " + d.inserted + " dòng vào bảng " + d.table + " (chế độ " + ({ create: "Tạo mới", update: "Cập nhật", replace: "Thay thế" }[d.mode] || d.mode) + ").", true);
+    ttdParsed = null;
+    loadTtdTables();
+  } catch (e) { setMsg($("ttdMsg"), e.message, false); }
+});
+async function loadTtdTables() {
+  try {
+    const d = await api("/api/ttcskh/tables");
+    const rows = d.tables || [];
+    $("ttdTablesBody").innerHTML = rows.length ? rows.map((r) => "<tr><td><b>" + esc(r.table) + "</b></td><td>" + esc(r.name) + "</td><td>" + fmtInt(r.rows) + "</td><td>" + (r.locked ? "🔒 Khóa thay thế" : "🔓 Mở") + "</td><td>" + (me && me.role === "admin" ? "<button class=\"btn gray\" type=\"button\" data-ttd-del=\"" + esc(r.table) + "\">Xóa bảng</button>" : "") + "</td></tr>").join("") : '<tr><td colspan="5">Chưa có bảng dữ liệu TTCSKH nào.</td></tr>';
+  } catch (e) { $("ttdTablesBody").innerHTML = '<tr><td colspan="5">' + esc(e.message) + "</td></tr>"; }
+}
+$("ttdTablesBody").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-ttd-del]");
+  if (!btn) return;
+  if (!confirm("Xóa toàn bộ bảng " + btn.dataset.ttdDel + "? Hành động này không hoàn tác được.")) return;
+  try {
+    await api("/api/ttcskh/tables?name=" + encodeURIComponent(btn.dataset.ttdDel), { method: "DELETE" });
+    setMsg($("ttdMsg"), "Đã xóa bảng " + btn.dataset.ttdDel + ".", true);
+    loadTtdTables();
+  } catch (e) { setMsg($("ttdMsg"), e.message, false); }
+});
+
 /* ---- Import danh sach kenh ban / CBCNV theo thang ---- */
 // Truong chuan + tu khoa nhan dien cot Excel (chuan hoa: thuong, khong dau, chi giu a-z0-9)
 const KB_FIELDS = [

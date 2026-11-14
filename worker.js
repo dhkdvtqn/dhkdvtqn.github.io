@@ -1617,7 +1617,109 @@ export default {
         return json({ ok: true, table, inserted, mode });
       }
 
-      // ---- Dinh nghia loai kenh ban (module 5.7 "Cau hinh loai kenh ban") ----
+            // ---- Import du lieu TTCSKH (module 5.9 "Import du lieu TTCSKH") ----
+      // 5 loai du lieu dau vao cho Dashboard TTCSKH, lay truong dung theo 5 file
+      // Excel anh gui 13/11 (file chi co hang tieu de, chua co dong du lieu).
+      // Moi thang 1 bang PREFIX_MMYYYY; 3 che do nhu import chung: Tao moi (409
+      // neu bang da co), Cap nhat (nap them dong vao bang da co), Thay the (xoa
+      // bang roi nap lai). Map cot THEO VI TRI (khong theo ten) vi file co cot
+      // trung ten: CKN co 2 cot "Chu ky goi" (cot 10: truoc OB; cot 20: goi moi),
+      // IPCC co 4 cap cot "So TB duoc goi N lan" (cot 8-11: duoc goi; cot 13-16:
+      // tam hieu la duoc goi thanh cong — cho anh xac nhan lai y nghia).
+      const TTCSKH_TYPES = [
+        { code: "OBCKN", name: "KQTH OB gia hạn CKN", prefix: "OBCKN", columns: [
+          ["so_thue_bao", "TEXT", "Số thuê bao"], ["ngay_kich_hoat", "TEXT", "Ngày kích hoạt"], ["ten_chuong_trinh", "TEXT", "Tên chương trình"], ["tinh", "TEXT", "Tỉnh"], ["ma_tinh_cu", "TEXT", "Mã tỉnh cũ"], ["user_dtv", "TEXT", "User ĐTV"], ["ma_hrm", "TEXT", "Mã HRM"], ["phong_ban", "TEXT", "Phòng ban"], ["ma_goi_truoc_ob", "TEXT", "Mã gói trước khi OB"], ["chu_ky_goi", "TEXT", "Chu kỳ gói (trước OB)"], ["doanh_thu_goi_truoc_gh", "REAL", "Doanh thu gói trước khi gia hạn"], ["trang_thai_ob", "TEXT", "Trạng thái OB"], ["ll_duoc_dong_y_dk", "TEXT", "Liên lạc được-KH đồng ý Đk"], ["ll_duoc_chua_co_nhu_cau", "TEXT", "Liên lạc được-KH chưa có nhu cầu sd gói"], ["ll_duoc_goi_cuoc_chua_phu_hop", "TEXT", "Liên lạc được-gói cước chưa phù hợp"], ["ll_duoc_dang_dung_sim_mang_khac", "TEXT", "Liên lạc được-KH đang dùng SIM có gói của mạng khác"], ["ll_duoc_hen_goi_lai", "TEXT", "Liên lạc được-KH hẹn gọi lại"], ["thoi_gian_thuc_hien_ob", "TEXT", "Thời gian thực hiện OB"], ["ma_goi_dv_moi", "TEXT", "Mã gói dịch vụ mới"], ["chu_ky_goi_moi", "TEXT", "Chu kỳ gói (gói mới)"], ["doanh_thu_dk_gh", "REAL", "Doanh thu ĐK/GH"], ["chu_ky_gia_han", "TEXT", "Chu kỳ gia hạn"], ["nghiep_vu_goi", "TEXT", "Nghiệp vụ gói"], ["ngay_mo_dv", "TEXT", "Ngày mở dịch vụ"], ["nguon_dk_gh", "TEXT", "Nguồn ĐK/GH"], ["gh_dk_tc_ccos_ob", "TEXT", "Gia hạn/đăng ký thành công qua CCOS - OB"], ["gia_han_tu_dong", "TEXT", "Gia hạn tự động"], ["tb_chuyen_doi_goi", "TEXT", "TB chuyển đổi gói"], ["tb_chuyen_doi_goi_tc", "TEXT", "TB chuyển đổi gói thành công"], ["loai_thue_bao", "TEXT", "Loại thuê bao"], ["tb_truyen_thong_5g", "TEXT", "TB được truyền thông 5G"],
+        ] },
+        { code: "OBCKD", name: "KQTH OB gia hạn CKD", prefix: "OBCKD", columns: [
+          ["so_thue_bao", "TEXT", "Số thuê bao"], ["ten_chuong_trinh", "TEXT", "Tên chương trình"], ["tinh", "TEXT", "Tỉnh"], ["user_dtv", "TEXT", "User ĐTV"], ["ma_hrm", "TEXT", "Mã HRM"], ["phong_ban", "TEXT", "Phòng ban"], ["ma_goi_truoc_ob", "TEXT", "Mã gói trước khi OB"], ["chu_ky_goi_truoc_ob", "TEXT", "Chu kỳ gói trước OB"], ["doanh_thu_goi_truoc_gh", "REAL", "Doanh thu gói trước khi gia hạn"], ["trang_thai_ob", "TEXT", "Trạng thái OB"], ["ll_duoc_dong_y_dk", "TEXT", "Liên lạc được-KH đồng ý Đk"], ["ll_duoc_chua_co_nhu_cau", "TEXT", "Liên lạc được-KH chưa có nhu cầu sd gói"], ["ll_duoc_goi_cuoc_chua_phu_hop", "TEXT", "Liên lạc được-gói cước chưa phù hợp"], ["ll_duoc_dang_dung_sim_mang_khac", "TEXT", "Liên lạc được-KH đang dùng SIM có gói của mạng khác"], ["ll_duoc_hen_goi_lai", "TEXT", "Liên lạc được-KH hẹn gọi lại"], ["thoi_gian_thuc_hien_ob", "TEXT", "Thời gian thực hiện OB"], ["ma_goi_dv_moi", "TEXT", "Mã gói dịch vụ mới"], ["chu_ky_goi_sau_ob", "TEXT", "Chu kỳ gói sau OB"], ["doanh_thu_dk_gh", "REAL", "Doanh thu ĐK/GH"], ["chu_ky_gia_han", "TEXT", "Chu kỳ gia hạn"], ["nghiep_vu_goi", "TEXT", "Nghiệp vụ gói"], ["ngay_mo_dv", "TEXT", "Ngày mở dịch vụ"], ["nguon_dk_gh", "TEXT", "Nguồn ĐK/GH"], ["gh_dk_tc_ccos_ob", "TEXT", "Gia hạn/đăng ký thành công qua CCOS - OB"], ["gia_han_tu_dong", "TEXT", "Gia hạn tự động"], ["tb_chuyen_doi_goi", "TEXT", "TB chuyển đổi gói"], ["tb_chuyen_doi_goi_tc", "TEXT", "TB chuyển đổi gói thành công"], ["loai_thue_bao", "TEXT", "Loại thuê bao"], ["tb_truyen_thong_5g", "TEXT", "TB được truyền thông 5G"], ["tinh_cu", "TEXT", "Tỉnh cũ"],
+        ] },
+        { code: "OBBG", name: "KQTH OB bán gói", prefix: "OBBG", columns: [
+          ["so_thue_bao", "TEXT", "Số thuê bao"], ["tinh", "TEXT", "Tỉnh"], ["ma_tinh_cu", "TEXT", "Mã tỉnh cũ"], ["user_dtv", "TEXT", "User ĐTV"], ["ma_hrm", "TEXT", "Mã HRM"], ["phong_ban", "TEXT", "Phòng ban"], ["ten_tap", "TEXT", "Tên tập"], ["muc_tieu_thoai_t1", "REAL", "Mục tiêu dùng thoại tháng T-1"], ["muc_tieu_data_t1", "REAL", "Mục tiêu dùng Data tháng T-1"], ["loai_thue_bao", "TEXT", "Loại thuê bao"], ["ut1", "TEXT", "UT1"], ["ut2", "TEXT", "UT2"], ["ut3", "TEXT", "UT3"], ["thoi_gian_thuc_hien_ob", "TEXT", "Thời gian thực hiện OB"], ["goi_cuoc_dang_ky", "TEXT", "Gói cước đăng ký"], ["chu_ky_goi", "TEXT", "Chu kỳ gói"], ["doanh_thu_dang_ky", "REAL", "Doanh thu đăng ký"], ["ngay_mo_dv", "TEXT", "Ngày mở dịch vụ"], ["nguon_dk_gh", "TEXT", "Nguồn ĐK/GH"], ["tb_truyen_thong_5g", "TEXT", "TB được truyền thông 5G"],
+        ] },
+        { code: "OBHVC", name: "KQTH OB Tập HVC", prefix: "OBHVC", columns: [
+          ["so_thue_bao", "TEXT", "Số thuê bao"], ["ten_chuong_trinh", "TEXT", "Tên chương trình"], ["tinh", "TEXT", "Tỉnh"], ["user_dtv", "TEXT", "User ĐTV"], ["ma_hrm", "TEXT", "Mã HRM"], ["phong_ban", "TEXT", "Phòng ban"], ["ma_goi_truoc_ob", "TEXT", "Mã gói trước khi OB"], ["chu_ky_goi", "TEXT", "Chu kỳ gói"], ["doanh_thu_goi_truoc_gh", "REAL", "Doanh thu gói trước khi gia hạn"], ["thoi_gian_thuc_hien_ob", "TEXT", "Thời gian thực hiện OB"], ["ma_goi_gh_dk_moi", "TEXT", "Mã gói gia hạn/ đăng ký mới"], ["chu_ky_goi_moi", "TEXT", "Chu kỳ gói mới"], ["doanh_thu_dk_gh", "REAL", "Doanh thu ĐK/GH"], ["chu_ky_gia_han", "TEXT", "Chu kỳ gia hạn"], ["nguon_dk_gh", "TEXT", "Nguồn ĐK/GH"], ["ngay_mo_dv", "TEXT", "Ngày mở dịch vụ"], ["nghiep_vu_goi", "TEXT", "Nghiệp vụ gói"], ["gh_dk_tc_ccos_ob", "TEXT", "Gia hạn/đăng ký thành công qua CCOS - OB"], ["gia_han_tu_dong", "TEXT", "Gia hạn tự động"], ["nhom_nguoi_dung", "TEXT", "Nhóm người dùng"], ["kha_nang_chuyen_goi", "TEXT", "Khả năng chuyển gói"], ["thiet_bi", "TEXT", "Thiết bị"], ["tb_chuyen_doi_goi", "TEXT", "TB chuyển đổi gói"], ["tb_chuyen_doi_goi_tc", "TEXT", "TB chuyển đổi gói thành công"], ["loai_thue_bao", "TEXT", "Loại thuê bao"], ["tb_truyen_thong_5g", "TEXT", "TB được truyền thông 5G"], ["tinh_cu", "TEXT", "Tỉnh cũ"],
+        ] },
+        { code: "IPCC", name: "TH IPCC (BC177)", prefix: "IPCC", columns: [
+          ["thoi_gian", "TEXT", "Thời gian"], ["ma_tinh", "TEXT", "Mã tỉnh"], ["chuong_trinh_ob", "TEXT", "Chương trình OB"], ["tong_tb_can_thuc_hien", "REAL", "Tổng số thuê bao cần thực hiện trong chương trình"], ["so_dtv", "REAL", "Số ĐTV"], ["tong_login_phut", "REAL", "Tổng login (Phút)"], ["tong_ready_phut", "REAL", "Tổng Ready (Phút)"], ["tb_goi_1_lan", "REAL", "Số thuê bao được gọi 1 lần"], ["tb_goi_2_lan", "REAL", "Số thuê bao được gọi 2 lần"], ["tb_goi_3_lan", "REAL", "Số thuê bao được gọi 3 lần"], ["tb_goi_3_lan_tro_len", "REAL", "Số thuê bao được gọi 3 lần trở lên"], ["tong_tb_thuc_hien_ob", "REAL", "Tổng số thuê bao thực hiện OB"], ["tb_goi_tc_1_lan", "REAL", "Số thuê bao được gọi 1 lần (thành công)"], ["tb_goi_tc_2_lan", "REAL", "Số thuê bao được gọi 2 lần (thành công)"], ["tb_goi_tc_3_lan", "REAL", "Số thuê bao được gọi 3 lần (thành công)"], ["tb_goi_tc_3_lan_tro_len", "REAL", "Số thuê bao được gọi 3 lần trở lên (thành công)"], ["tong_tb_goi_tc", "REAL", "Tổng thuê bao được gọi thành công"], ["ty_le_tb_ket_noi_tc", "REAL", "Tỷ lệ thuê bao kết nối thành công"], ["ty_le_tb_da_thuc_hien", "REAL", "Tỷ lệ thuê bao đã thực hiện trong chương trình"], ["tong_cuoc_goi_ra", "REAL", "Tổng cuộc gọi ra"], ["tong_cuoc_ket_noi_tc", "REAL", "Tổng cuộc kết nối thành công"], ["ty_le_cuoc_goi_ket_noi_tc", "REAL", "Tỷ lệ cuộc gọi kết nối thành công"], ["thoi_gian_giu_may_giay", "REAL", "Thời gian giữ máy (giây)"], ["thoi_gian_dam_thoai_giay", "REAL", "Thời gian đàm thoại (giây)"], ["thoi_luong_tb_giay_cuoc", "REAL", "Thời lượng trung bình (giây/cuộc)"], ["tb_cuoc_goi_tc_gio_login", "REAL", "TB cuộc gọi thành công/giờ login"], ["so_luong_cuoc_goi_tat_may", "REAL", "Số lượng cuộc gọi tắt máy"], ["ty_le_cuoc_goi_tat_may", "REAL", "Tỷ lệ cuộc gọi tắt máy/Số cuộc thực hiện OB"],
+        ] },
+      ];
+      if (path === "/api/ttcskh/types" && method === "GET") {
+        if (!isAdmin && !me.can_import) return err("Tai khoan khong co quyen import du lieu", 403);
+        if (!hasModule(me, "import")) return err("Tai khoan khong co quyen su dung module Quan ly du lieu dau vao", 403);
+        return json({ ok: true, types: TTCSKH_TYPES.map((t) => ({ code: t.code, name: t.name, prefix: t.prefix, columns: t.columns.map(([key, type, label]) => ({ key, type, label })) })) });
+      }
+      if (path === "/api/ttcskh/tables" && method === "GET") {
+        if (!isAdmin && !me.can_import) return err("Tai khoan khong co quyen import du lieu", 403);
+        if (!hasModule(me, "import")) return err("Tai khoan khong co quyen su dung module Quan ly du lieu dau vao", 403);
+        const out = [];
+        for (const t of TTCSKH_TYPES) {
+          for (const name of await listMonthlyTables(env, t.prefix)) {
+            const c = await env.DB.prepare('SELECT COUNT(*) n FROM "' + name + '"').first();
+            out.push({ table: name, code: t.code, name: t.name, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
+          }
+        }
+        out.sort((a, b) => a.table.localeCompare(b.table));
+        return json({ ok: true, tables: out });
+      }
+      if (path === "/api/ttcskh/tables" && method === "DELETE") {
+        if (!isAdmin) return err("Chi admin moi duoc xoa bang du lieu TTCSKH", 403);
+        const name = String(url.searchParams.get("name") || "").trim();
+        const t = TTCSKH_TYPES.find((x) => name.startsWith(x.prefix + "_"));
+        if (!t || !/^[A-Z0-9]+_\d{6}$/.test(name)) return err("Ten bang khong hop le", 422);
+        await env.DB.prepare('DROP TABLE IF EXISTS "' + name + '"').run();
+        return json({ ok: true, table: name });
+      }
+      if (path === "/api/ttcskh/import" && method === "POST") {
+        if (!isAdmin && !me.can_import) return err("Tai khoan khong co quyen import du lieu", 403);
+        if (!hasModule(me, "import")) return err("Tai khoan khong co quyen su dung module Quan ly du lieu dau vao", 403);
+        const b = await readBody(request);
+        const dtype = TTCSKH_TYPES.find((t) => t.code === String(b.loai || "").toUpperCase());
+        if (!dtype) return err("Loai du lieu TTCSKH khong ton tai: " + (b.loai || ""), 422);
+        const mode = b.mode === "replace" ? "replace" : b.mode === "create" ? "create" : "update";
+        const thang = Number(b.thang);
+        const nam = Number(b.nam);
+        if (!thang || thang < 1 || thang > 12 || !nam || nam < 2000 || nam > 2100) return err("Thang/nam import khong hop le", 422);
+        const columns = dtype.columns.map(([n, t]) => [n, t]);
+        const colNames = columns.map(([n]) => n);
+        // Dong gui dang MANG theo dung thu tu cot trong file (map theo vi tri).
+        const rawRows = Array.isArray(b.rows) ? b.rows : [];
+        const rows = rawRows.filter((row) => Array.isArray(row) && row.some((v) => v !== null && v !== undefined && String(v).trim() !== ""));
+        if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
+        const table = monthTableName(dtype.prefix, nam + "-" + String(thang).padStart(2, "0"));
+        if (mode === "replace" && !isAdmin) {
+          const locked = await isTableLocked(env, table);
+          if (locked) return err("Bang du lieu " + table + " dang bi khoa thay the. Chi admin moi duoc thay the du lieu cua bang nay. Lien he admin de mo khoa neu can.", 403);
+        }
+        if (mode === "create") {
+          const ex = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").bind(table).first();
+          if (ex) return err("Bang du lieu " + table + " da ton tai. Hay dung che do 'Cap nhat' de nap them du lieu, hoac 'Thay the' de xoa du lieu cu va nap lai tu dau.", 409);
+        }
+        if (mode === "replace") {
+          await env.DB.prepare('DROP TABLE IF EXISTS "' + table + '"').run();
+        }
+        await env.DB.prepare(createTableSQL(table, columns)).run();
+        await ensureListColumns(env, table, columns);
+        const numericCols = new Set(columns.filter(([, t]) => t === "REAL").map(([n]) => n));
+        const sql =
+          'INSERT INTO "' + table + '" (' + colNames.map((n) => '"' + n + '"').join(", ") +
+          ", imported_by) VALUES (" + colNames.map(() => "?").join(", ") + ", ?)";
+        let inserted = 0;
+        const CHUNK = 100;
+        for (let i = 0; i < rows.length; i += CHUNK) {
+          const batch = rows.slice(i, i + CHUNK).map((row) => {
+            const vals = colNames.map((n, idx) => {
+              const v = row[idx];
+              return numericCols.has(n) ? toNumber(v) : toText(v);
+            });
+            vals.push(me.username);
+            return env.DB.prepare(sql).bind(...vals);
+          });
+          await env.DB.batch(batch);
+          inserted += batch.length;
+        }
+        return json({ ok: true, table, type: dtype.code, inserted, mode });
+      }
+// ---- Dinh nghia loai kenh ban (module 5.7 "Cau hinh loai kenh ban") ----
 // Admin dinh nghia: Loai diem ban (nhu trong file danh sach kenh) -> Hang kenh
 // (VD: ĐUQ, ĐBL, Chuoi, ĐGD, GARA, ĐDV). He thong tra bang nay khi import
 // danh sach kenh ban de xac dinh hang kenh cua tung diem ban.
@@ -2090,7 +2192,7 @@ function normKbKey(s) {
         }
         return json({ ok: true, nam, loai, mode, created, updated, skipped, errors: errors.slice(0, 50) });
       }
-      // ---- Ke hoach TTCSKH (Dashboard di dong) ----
+      // ---- Ke hoach TTCSKH (Dashboard TTCSKH) ----
       // Bang ke_hoach_ttcskh: ke hoach doanh thu / thue bao theo thang, cho tap the
       // (loai='tap_the', doi_tuong='TOAN TTCSKH' hoac ten to/nhom) va ca nhan
       // (loai='ca_nhan', doi_tuong=ten dien thoai vien), theo 4 chuong trinh OB:
@@ -2200,7 +2302,7 @@ function normKbKey(s) {
         }
         return json({ ok: true, nam, loai, chuong_trinh, chi_tieu, mode, created, updated, skipped, errors: errors.slice(0, 50) });
       }
-      // ---- Dashboard di dong (TTCSKH) ----
+      // ---- Dashboard TTCSKH ----
       // KHUNG TONG HOP (11/2026): cau truc phan hoi day du theo yeu cau — tap the
       // (4 chuong trinh CKN/CKD/BG/HVC + bo chi so tien trinh) va ca nhan (theo
       // chuong trinh / theo hinh thuc OB / chat luong cuoc goi). So lieu THUC HIEN
@@ -2208,7 +2310,7 @@ function normKbKey(s) {
       // — anh se mo ta cau truc du lieu sau; luc do noi phan tong hop vao day.
       // Ke hoach TTCSKH (bang ke_hoach_ttcskh) thi doc that ngay tu bay gio.
       if (path === "/api/mobile-overview" && method === "GET") {
-        if (!hasModule(me, "mobiledash")) return err("Tai khoan khong co quyen xem Dashboard di dong", 403);
+        if (!hasModule(me, "mobiledash")) return err("Tai khoan khong co quyen xem Dashboard TTCSKH", 403);
         const ky = url.searchParams.get("ky") === "nam" ? "nam" : "thang";
         const nowM = saigonNow();
         let thang = String(url.searchParams.get("thang") || "").trim();
