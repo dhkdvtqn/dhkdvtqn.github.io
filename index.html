@@ -4252,12 +4252,18 @@ function normKbKey(s) {
         if (ky === &quot;nam&quot;) {
           for (let m = 1; m &lt;= 12; m++) months.push(nam + &quot;-&quot; + String(m).padStart(2, &quot;0&quot;));
           curMonths = months.slice(); prevMonths = months.map((mk) =&gt; (nam - 1) + mk.slice(4));
-          trendMonths = curMonths; periodLabel = &quot;năm &quot; + nam;
+          // Bieu do doanh thu: tu dau nam den thang hien tai — nam hien tai thi
+          // cat cac thang tuong lai, nam da qua thi du 12 thang (14/11)
+          trendMonths = Number(nam) === Number(nowM.slice(0, 4)) ? curMonths.filter((mk) =&gt; Number(mk.slice(5, 7)) &lt;= Number(nowM.slice(5, 7))) : curMonths;
+          periodLabel = &quot;năm &quot; + nam;
         } else {
           let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
           for (let i = 11; i &gt;= 0; i--) { let mm = m - i, yy = y; while (mm &lt;= 0) { mm += 12; yy--; } months.push(yy + &quot;-&quot; + String(mm).padStart(2, &quot;0&quot;)); }
           curMonths = [months[11]]; prevMonths = [months[10]];
-          trendMonths = months.slice(); periodLabel = &quot;tháng &quot; + Number(thang.slice(5, 7)) + &quot;/&quot; + thang.slice(0, 4);
+          // Bieu do doanh thu: tu dau nam den thang T — khong lay thang 12 nam truoc (14/11)
+          trendMonths = [];
+          for (let mm = 1; mm &lt;= m; mm++) trendMonths.push(y + &quot;-&quot; + String(mm).padStart(2, &quot;0&quot;));
+          periodLabel = &quot;tháng &quot; + Number(thang.slice(5, 7)) + &quot;/&quot; + thang.slice(0, 4);
         }
         await ensureKhTtcskh(env);
         const planRows = (await env.DB.prepare(&quot;SELECT thang, doi_tuong, chuong_trinh, chi_tieu, so_luong FROM ke_hoach_ttcskh WHERE loai = &#x27;tap_the&#x27;&quot;).all()).results || [];
@@ -4410,19 +4416,24 @@ function normKbKey(s) {
           return out;
         };
         const ipccMonth = async (mk) =&gt; {
-          const out = { CKN: { calls: 0, total: 0 }, CKD: { calls: 0, total: 0 }, BG: { calls: 0, total: 0 }, HVC: { calls: 0, total: 0 }, exists: false };
+          const out = { CKN: { calls: 0, total: 0 }, CKD: { calls: 0, total: 0 }, BG: { calls: 0, total: 0 }, HVC: { calls: 0, total: 0 }, exists: false, unmatched: [] };
           const table = monthTableName(&quot;IPCC&quot;, mk);
           if (!table || !(await tableExists(table))) return out;
           out.exists = true;
           const rows = (await env.DB.prepare(&#x27;SELECT chuong_trinh_ob AS ct, COALESCE(SUM(tong_cuoc_goi_ra), 0) AS calls, COALESCE(SUM(tong_tb_can_thuc_hien), 0) AS total FROM &quot;&#x27; + table + &#x27;&quot; GROUP BY chuong_trinh_ob&#x27;).all()).results || [];
           for (const r of rows) {
-            const n = normProg(r.ct);
+            // Chuan hoa khoang trang (gom NBSP) truoc khi nhan dien ten chuong trinh
+            const n = normProg(r.ct).replace(/\s+/g, &quot; &quot;).trim();
             let code = null;
             if (n.includes(&quot;hvc&quot;)) code = &quot;HVC&quot;;
             else if (n.includes(&quot;ckn&quot;)) code = &quot;CKN&quot;;
             else if (n.includes(&quot;ckd&quot;)) code = &quot;CKD&quot;;
-            else if (n.includes(&quot;bg&quot;) || n.includes(&quot;ban goi&quot;)) code = &quot;BG&quot;;
-            if (!code) continue;
+            else if (n.includes(&quot;bg&quot;) || n.includes(&quot;ban goi&quot;) || n.includes(&quot;ban hang&quot;)) code = &quot;BG&quot;;
+            if (!code) {
+              const raw = r.ct == null ? &quot;&quot; : String(r.ct).trim();
+              if (raw !== &quot;&quot; &amp;&amp; !out.unmatched.includes(raw)) out.unmatched.push(raw);
+              continue;
+            }
             out[code].calls += Number(r.calls) || 0;
             out[code].total += Number(r.total) || 0;
           }
@@ -4477,9 +4488,11 @@ function normKbKey(s) {
         // Binh quan so lan goi / thue bao (IPCC), tach 4 chuong trinh
         let hasIpcc = false, totalCalls = 0, totalIpccTb = 0;
         const ipccAgg = { CKN: { calls: 0, total: 0 }, CKD: { calls: 0, total: 0 }, BG: { calls: 0, total: 0 }, HVC: { calls: 0, total: 0 } };
+        const ipccUnmatched = [];
         for (const mk of curMonths) {
           const ip = await ipccMonth(mk);
           if (ip.exists) hasIpcc = true;
+          for (const u of (ip.unmatched || [])) if (!ipccUnmatched.includes(u)) ipccUnmatched.push(u);
           for (const code of [&quot;CKN&quot;, &quot;CKD&quot;, &quot;BG&quot;, &quot;HVC&quot;]) { ipccAgg[code].calls += ip[code].calls; ipccAgg[code].total += ip[code].total; }
         }
         let avgCalls = null, avgCallsTotal = null;
@@ -4502,6 +4515,7 @@ function normKbKey(s) {
           if (!hasTh) missing.push(&quot;Tổng hợp Autocall (các chỉ số tiến trình OB chưa tính được)&quot;);
           if (!hasIpcc) missing.push(&quot;IPCC (Bình quân số lần gọi chưa tính được)&quot;);
           if (missing.length) dataNote = &quot;Đã có một phần dữ liệu; chưa có &quot; + missing.join(&quot;; &quot;) + &quot;.&quot;;
+          if (ipccUnmatched.length) dataNote += (dataNote ? &quot; &quot; : &quot;&quot;) + &quot;IPCC có chương trình chưa nhận diện được (&quot; + ipccUnmatched.map((x) =&gt; &quot;&#x27;&quot; + x + &quot;&#x27;&quot;).join(&quot;, &quot;) + &quot;) — Bình quân số lần gọi của chương trình này chưa tính được, anh kiểm tra lại tên chương trình trong file IPCC nhé!&quot;;
         }
         const yearRev = ky === &quot;nam&quot; ? totRev : trend.reduce((a, t) =&gt; a + t.revenue, 0);
         const yearPrevRev = ky === &quot;nam&quot; ? totPrevRev : 0;
@@ -4655,7 +4669,7 @@ function normKbKey(s) {
               ob_coverage: obCoverage, ob_total: obTotal, ob_called: obCalled,
               conv_rate: convRate,
               ob_success: obSuccess,
-              ob_success_total: obSuccessTotal, avg_calls: avgCalls, avg_calls_total: avgCallsTotal, total_calls: totalCalls,
+              ob_success_total: obSuccessTotal, avg_calls: avgCalls, avg_calls_total: avgCallsTotal, total_calls: totalCalls, ipcc_unmatched: ipccUnmatched,
             },
           },
           individual: { by_program: byProgram, by_form: byForm, quality: [], scope: indivScope },
@@ -8274,7 +8288,7 @@ async function loadMobileDash() {
 }
 function renderMobileDash(d) {
   $("mobPeriodSub").textContent = "— " + d.period_label;
-  $("mobTrendSub").textContent = d.ky === "nam" ? "— theo tháng trong năm" : "— 12 tháng gần nhất";
+  $("mobTrendSub").textContent = d.ky === "nam" ? "— theo tháng trong năm" : "— từ đầu năm đến " + d.period_label;
   $("mobIndSub").textContent = "— " + d.period_label + ((d.individual || {}).scope === "self" ? " — Bạn chỉ xem số liệu của mình" : "");
   const nd = $("mobNoData");
   if (d.data_note) {

@@ -2374,12 +2374,18 @@ function normKbKey(s) {
         if (ky === "nam") {
           for (let m = 1; m <= 12; m++) months.push(nam + "-" + String(m).padStart(2, "0"));
           curMonths = months.slice(); prevMonths = months.map((mk) => (nam - 1) + mk.slice(4));
-          trendMonths = curMonths; periodLabel = "năm " + nam;
+          // Bieu do doanh thu: tu dau nam den thang hien tai — nam hien tai thi
+          // cat cac thang tuong lai, nam da qua thi du 12 thang (14/11)
+          trendMonths = Number(nam) === Number(nowM.slice(0, 4)) ? curMonths.filter((mk) => Number(mk.slice(5, 7)) <= Number(nowM.slice(5, 7))) : curMonths;
+          periodLabel = "năm " + nam;
         } else {
           let y = Number(thang.slice(0, 4)), m = Number(thang.slice(5, 7));
           for (let i = 11; i >= 0; i--) { let mm = m - i, yy = y; while (mm <= 0) { mm += 12; yy--; } months.push(yy + "-" + String(mm).padStart(2, "0")); }
           curMonths = [months[11]]; prevMonths = [months[10]];
-          trendMonths = months.slice(); periodLabel = "tháng " + Number(thang.slice(5, 7)) + "/" + thang.slice(0, 4);
+          // Bieu do doanh thu: tu dau nam den thang T — khong lay thang 12 nam truoc (14/11)
+          trendMonths = [];
+          for (let mm = 1; mm <= m; mm++) trendMonths.push(y + "-" + String(mm).padStart(2, "0"));
+          periodLabel = "tháng " + Number(thang.slice(5, 7)) + "/" + thang.slice(0, 4);
         }
         await ensureKhTtcskh(env);
         const planRows = (await env.DB.prepare("SELECT thang, doi_tuong, chuong_trinh, chi_tieu, so_luong FROM ke_hoach_ttcskh WHERE loai = 'tap_the'").all()).results || [];
@@ -2532,19 +2538,24 @@ function normKbKey(s) {
           return out;
         };
         const ipccMonth = async (mk) => {
-          const out = { CKN: { calls: 0, total: 0 }, CKD: { calls: 0, total: 0 }, BG: { calls: 0, total: 0 }, HVC: { calls: 0, total: 0 }, exists: false };
+          const out = { CKN: { calls: 0, total: 0 }, CKD: { calls: 0, total: 0 }, BG: { calls: 0, total: 0 }, HVC: { calls: 0, total: 0 }, exists: false, unmatched: [] };
           const table = monthTableName("IPCC", mk);
           if (!table || !(await tableExists(table))) return out;
           out.exists = true;
           const rows = (await env.DB.prepare('SELECT chuong_trinh_ob AS ct, COALESCE(SUM(tong_cuoc_goi_ra), 0) AS calls, COALESCE(SUM(tong_tb_can_thuc_hien), 0) AS total FROM "' + table + '" GROUP BY chuong_trinh_ob').all()).results || [];
           for (const r of rows) {
-            const n = normProg(r.ct);
+            // Chuan hoa khoang trang (gom NBSP) truoc khi nhan dien ten chuong trinh
+            const n = normProg(r.ct).replace(/\s+/g, " ").trim();
             let code = null;
             if (n.includes("hvc")) code = "HVC";
             else if (n.includes("ckn")) code = "CKN";
             else if (n.includes("ckd")) code = "CKD";
-            else if (n.includes("bg") || n.includes("ban goi")) code = "BG";
-            if (!code) continue;
+            else if (n.includes("bg") || n.includes("ban goi") || n.includes("ban hang")) code = "BG";
+            if (!code) {
+              const raw = r.ct == null ? "" : String(r.ct).trim();
+              if (raw !== "" && !out.unmatched.includes(raw)) out.unmatched.push(raw);
+              continue;
+            }
             out[code].calls += Number(r.calls) || 0;
             out[code].total += Number(r.total) || 0;
           }
@@ -2599,9 +2610,11 @@ function normKbKey(s) {
         // Binh quan so lan goi / thue bao (IPCC), tach 4 chuong trinh
         let hasIpcc = false, totalCalls = 0, totalIpccTb = 0;
         const ipccAgg = { CKN: { calls: 0, total: 0 }, CKD: { calls: 0, total: 0 }, BG: { calls: 0, total: 0 }, HVC: { calls: 0, total: 0 } };
+        const ipccUnmatched = [];
         for (const mk of curMonths) {
           const ip = await ipccMonth(mk);
           if (ip.exists) hasIpcc = true;
+          for (const u of (ip.unmatched || [])) if (!ipccUnmatched.includes(u)) ipccUnmatched.push(u);
           for (const code of ["CKN", "CKD", "BG", "HVC"]) { ipccAgg[code].calls += ip[code].calls; ipccAgg[code].total += ip[code].total; }
         }
         let avgCalls = null, avgCallsTotal = null;
@@ -2624,6 +2637,7 @@ function normKbKey(s) {
           if (!hasTh) missing.push("Tổng hợp Autocall (các chỉ số tiến trình OB chưa tính được)");
           if (!hasIpcc) missing.push("IPCC (Bình quân số lần gọi chưa tính được)");
           if (missing.length) dataNote = "Đã có một phần dữ liệu; chưa có " + missing.join("; ") + ".";
+          if (ipccUnmatched.length) dataNote += (dataNote ? " " : "") + "IPCC có chương trình chưa nhận diện được (" + ipccUnmatched.map((x) => "'" + x + "'").join(", ") + ") — Bình quân số lần gọi của chương trình này chưa tính được, anh kiểm tra lại tên chương trình trong file IPCC nhé!";
         }
         const yearRev = ky === "nam" ? totRev : trend.reduce((a, t) => a + t.revenue, 0);
         const yearPrevRev = ky === "nam" ? totPrevRev : 0;
@@ -2777,7 +2791,7 @@ function normKbKey(s) {
               ob_coverage: obCoverage, ob_total: obTotal, ob_called: obCalled,
               conv_rate: convRate,
               ob_success: obSuccess,
-              ob_success_total: obSuccessTotal, avg_calls: avgCalls, avg_calls_total: avgCallsTotal, total_calls: totalCalls,
+              ob_success_total: obSuccessTotal, avg_calls: avgCalls, avg_calls_total: avgCallsTotal, total_calls: totalCalls, ipcc_unmatched: ipccUnmatched,
             },
           },
           individual: { by_program: byProgram, by_form: byForm, quality: [], scope: indivScope },
