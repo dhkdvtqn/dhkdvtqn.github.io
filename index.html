@@ -4440,15 +4440,127 @@ function normKbKey(s) {
         }
         const yearRev = ky === &quot;nam&quot; ? totRev : trend.reduce((a, t) =&gt; a + t.revenue, 0);
         const yearPrevRev = ky === &quot;nam&quot; ? totPrevRev : 0;
+        // ---- Diem tin ca nhan: tong hop theo ma_hrm (14/11) ----
+        // Ten dien thoai vien lay tu bang CBCNV cua dung thang do
+        // (cbcnv_MMYYYY: ma_hrm -&gt; ho_ten); ma HRM khong co trong CBCNV thi
+        // hien chinh ma HRM. Dong OB khong co ma_hrm thi khong gan cho ai.
+        const cbcnvByMonth = {};
+        for (const mk of curMonths) {
+          const table = monthTableName(&quot;cbcnv&quot;, mk);
+          const map = new Map();
+          if (table &amp;&amp; (await tableExists(table))) {
+            const rows = (await env.DB.prepare(&#x27;SELECT ma_hrm, ho_ten FROM &quot;&#x27; + table + &#x27;&quot; WHERE ma_hrm IS NOT NULL AND TRIM(ma_hrm) &lt;&gt; \&#x27;\&#x27;&#x27;).all()).results || [];
+            for (const r of rows) {
+              const k = String(r.ma_hrm).trim().toUpperCase();
+              if (!map.has(k)) map.set(k, String(r.ho_ten || &quot;&quot;).trim() || String(r.ma_hrm).trim());
+            }
+          }
+          cbcnvByMonth[mk] = map;
+        }
+        const opName = (code, mk) =&gt; {
+          const k = String(code || &quot;&quot;).trim().toUpperCase();
+          return (cbcnvByMonth[mk] &amp;&amp; cbcnvByMonth[mk].get(k)) || String(code || &quot;&quot;).trim();
+        };
+        const FORMS = [&quot;Gia hạn&quot;, &quot;Bán gói&quot;, &quot;Nâng gói/Nâng chu kỳ&quot;];
+        const progAgg = new Map(); // CODE|HRM -&gt; { name, subs, revenue }
+        const formAgg = new Map(); // HINH THUC|HRM -&gt; { name, subs, revenue }
+        const addAgg = (map, key, code, mk, subs, rev) =&gt; {
+          const name = opName(code, mk);
+          const cur = map.get(key);
+          if (cur) {
+            // Uu tien ten that hon ma HRM (khi thang khac co ten trong CBCNV)
+            if (cur.name.toUpperCase() === String(code).trim().toUpperCase() &amp;&amp; name.toUpperCase() !== String(code).trim().toUpperCase()) cur.name = name;
+            cur.subs += subs; cur.revenue += rev;
+          } else {
+            map.set(key, { name, subs, revenue: rev });
+          }
+        };
+        for (const mk of curMonths) {
+          for (const p of PROGS) {
+            const cfg = MOB_SRC[p.code];
+            const table = monthTableName(cfg.ob, mk);
+            if (!table || !(await tableExists(table))) continue;
+            // 1. Theo chuong trinh: SUM(DT)/1,1 + COUNT(TB) theo ma_hrm
+            const rows = (await env.DB.prepare(&#x27;SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM(&quot;&#x27; + cfg.rev + &#x27;&quot;), 0) AS rev FROM &quot;&#x27; + table + &#x27;&quot; GROUP BY ma_hrm&#x27;).all()).results || [];
+            for (const r of rows) {
+              const code = String(r.ma_hrm == null ? &quot;&quot; : r.ma_hrm).trim();
+              if (!code) continue;
+              const rev = Math.round((Number(r.rev) || 0) / 1.1);
+              addAgg(progAgg, p.code + &quot;|&quot; + code.toUpperCase(), code, mk, Number(r.subs) || 0, rev);
+              // 2. Ban goi: toan bo OBBG tinh vao hinh thuc Ban goi
+              if (p.code === &quot;BG&quot;) addAgg(formAgg, &quot;Bán gói|&quot; + code.toUpperCase(), code, mk, Number(r.subs) || 0, rev);
+            }
+            // 2. Theo hinh thuc — chi OBCKN/OBCKD/OBHVC co doanh_thu_goi_truoc_gh
+            if (p.code !== &quot;BG&quot;) {
+              // Gia han: DT truoc = DT sau HOAC DT truoc = 0
+              const gh = (await env.DB.prepare(&#x27;SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM(&quot;&#x27; + cfg.rev + &#x27;&quot;), 0) AS rev FROM &quot;&#x27; + table + &#x27;&quot; WHERE COALESCE(doanh_thu_goi_truoc_gh, 0) = 0 OR COALESCE(doanh_thu_goi_truoc_gh, 0) = COALESCE(&quot;&#x27; + cfg.rev + &#x27;&quot;, 0) GROUP BY ma_hrm&#x27;).all()).results || [];
+              for (const r of gh) {
+                const code = String(r.ma_hrm == null ? &quot;&quot; : r.ma_hrm).trim();
+                if (!code) continue;
+                addAgg(formAgg, &quot;Gia hạn|&quot; + code.toUpperCase(), code, mk, Number(r.subs) || 0, Math.round((Number(r.rev) || 0) / 1.1));
+              }
+              // Nang goi/nang chu ky: DT truoc &lt; DT sau VA DT truoc != 0
+              // (DT truoc = 0 da tinh vao Gia han theo dinh nghia cua anh, nen
+              // loai ra day de 3 hinh thuc khong cong trung nhau)
+              const ng = (await env.DB.prepare(&#x27;SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM(&quot;&#x27; + cfg.rev + &#x27;&quot;), 0) AS rev FROM &quot;&#x27; + table + &#x27;&quot; WHERE COALESCE(doanh_thu_goi_truoc_gh, 0) &lt;&gt; 0 AND COALESCE(doanh_thu_goi_truoc_gh, 0) &lt; COALESCE(&quot;&#x27; + cfg.rev + &#x27;&quot;, 0) GROUP BY ma_hrm&#x27;).all()).results || [];
+              for (const r of ng) {
+                const code = String(r.ma_hrm == null ? &quot;&quot; : r.ma_hrm).trim();
+                if (!code) continue;
+                addAgg(formAgg, &quot;Nâng gói/Nâng chu kỳ|&quot; + code.toUpperCase(), code, mk, Number(r.subs) || 0, Math.round((Number(r.rev) || 0) / 1.1));
+              }
+              // Ban goi (phan OBHVC): chi TB co ten_chuong_trinh &quot;Bán gói tập không gói&quot;
+              if (p.code === &quot;HVC&quot;) {
+                const bg = (await env.DB.prepare(&#x27;SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM(&quot;doanh_thu_dk_gh&quot;), 0) AS rev FROM &quot;&#x27; + table + &#x27;&quot; WHERE LOWER(TRIM(ten_chuong_trinh)) = \&#x27;bán gói tập không gói\&#x27; GROUP BY ma_hrm&#x27;).all()).results || [];
+                for (const r of bg) {
+                  const code = String(r.ma_hrm == null ? &quot;&quot; : r.ma_hrm).trim();
+                  if (!code) continue;
+                  addAgg(formAgg, &quot;Bán gói|&quot; + code.toUpperCase(), code, mk, Number(r.subs) || 0, Math.round((Number(r.rev) || 0) / 1.1));
+                }
+              }
+            }
+          }
+        }
+        // Gop ke hoach ca nhan: doi_tuong co the la ten hoac ma HRM
+        const planByKey = new Map(); // norm(doi_tuong) -&gt; { CODE -&gt; {pr, ps} }
+        for (const dt of [...personSet]) {
+          const k = normProg(dt);
+          if (!planByKey.has(k)) planByKey.set(k, {});
+          for (const p of PROGS) {
+            const pr = personPlan[dt + &quot;|&quot; + p.code + &quot;|doanh_thu&quot;] || 0;
+            const ps = personPlan[dt + &quot;|&quot; + p.code + &quot;|thue_bao&quot;] || 0;
+            if (pr || ps) planByKey.get(k)[p.code] = { pr, ps };
+          }
+        }
         const byProgram = [];
-        for (const dt of [...personSet].sort((a, b) =&gt; a.localeCompare(b, &quot;vi&quot;))) {
+        const matchedPlanKeys = new Set();
+        for (const [key, v] of progAgg) {
+          const [code, hrm] = key.split(&quot;|&quot;);
+          let plan = null;
+          for (const k of [normProg(hrm), normProg(v.name)]) {
+            const pk = planByKey.get(k);
+            if (pk &amp;&amp; pk[code]) { plan = pk[code]; matchedPlanKeys.add(k + &quot;|&quot; + code); break; }
+          }
+          const pr = plan?.pr || 0, ps = plan?.ps || 0;
+          byProgram.push({ dien_thoai_vien: v.name, ma_hrm: hrm, chuong_trinh: code, subs: v.subs, revenue: v.revenue, plan_rev: pr, plan_subs: ps, pct_plan_rev: pct(v.revenue, pr), pct_plan_subs: pct(v.subs, ps) });
+        }
+        // KH da giao nhung chua co so lieu thuc hien
+        for (const dt of [...personSet]) {
           for (const p of PROGS) {
             const pr = personPlan[dt + &quot;|&quot; + p.code + &quot;|doanh_thu&quot;] || 0;
             const ps = personPlan[dt + &quot;|&quot; + p.code + &quot;|thue_bao&quot;] || 0;
             if (!pr &amp;&amp; !ps) continue;
-            byProgram.push({ dien_thoai_vien: dt, chuong_trinh: p.code, subs: 0, revenue: 0, plan_rev: pr, plan_subs: ps, pct_plan_rev: pct(0, pr), pct_plan_subs: pct(0, ps) });
+            if (matchedPlanKeys.has(normProg(dt) + &quot;|&quot; + p.code)) continue;
+            byProgram.push({ dien_thoai_vien: dt, ma_hrm: &quot;&quot;, chuong_trinh: p.code, subs: 0, revenue: 0, plan_rev: pr, plan_subs: ps, pct_plan_rev: pct(0, pr), pct_plan_subs: pct(0, ps) });
           }
         }
+        byProgram.sort((a, b) =&gt; (a.dien_thoai_vien || &quot;&quot;).localeCompare(b.dien_thoai_vien || &quot;&quot;, &quot;vi&quot;) || a.chuong_trinh.localeCompare(b.chuong_trinh));
+        const byForm = [];
+        for (const [key, v] of formAgg) {
+          const [form, hrm] = key.split(&quot;|&quot;);
+          byForm.push({ dien_thoai_vien: v.name, ma_hrm: hrm, hinh_thuc: form, subs: v.subs, revenue: v.revenue });
+        }
+        byForm.sort((a, b) =&gt; (a.dien_thoai_vien || &quot;&quot;).localeCompare(b.dien_thoai_vien || &quot;&quot;, &quot;vi&quot;) || FORMS.indexOf(a.hinh_thuc) - FORMS.indexOf(b.hinh_thuc));
+
         return json({
           ok: true, ky, period_label: periodLabel, has_data: hasData,
           data_note: dataNote,
@@ -4465,7 +4577,7 @@ function normKbKey(s) {
               ob_success_total: obSuccessTotal, avg_calls: avgCalls, avg_calls_total: avgCallsTotal, total_calls: totalCalls,
             },
           },
-          individual: { by_program: byProgram, by_form: [], quality: [] },
+          individual: { by_program: byProgram, by_form: byForm, quality: [] },
           plans: { has_plan: planRows.length + personRows.length &gt; 0, team_plans: planRows.length, person_plans: personRows.length },
         });
       }
@@ -8213,12 +8325,12 @@ function mobRateChart(el, rates, label) {
 }
 function renderMobProgTable(rows) {
   const tb = $("mobProgBody");
-  if (!rows.length) { tb.innerHTML = '<tr><td colspan="6">Chưa có dữ liệu. Giao kế hoạch cá nhân ở mục Quản lý dữ liệu đầu vào → Import kế hoạch TTCSKH để thấy kế hoạch từng điện thoại viên.</td></tr>'; return; }
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="6">Chưa có dữ liệu. Import dữ liệu TTCSKH ở mục Quản lý dữ liệu đầu vào → Import dữ liệu TTCSKH để thấy kết quả từng điện thoại viên, hoặc giao kế hoạch cá nhân ở mục Import kế hoạch TTCSKH.</td></tr>'; return; }
   tb.innerHTML = rows.map((r) => "<tr><td>" + esc(r.dien_thoai_vien) + "</td><td><b>" + esc(r.chuong_trinh) + "</b> — " + esc(MOB_PROG_NAME[r.chuong_trinh] || "") + "</td><td>" + fmtInt(r.subs) + "</td><td>" + fmt(r.revenue) + "</td><td>" + fmt(r.plan_rev) + "</td><td>" + mobPct(r.pct_plan_rev) + "</td></tr>").join("");
 }
 function renderMobFormTable(rows) {
   const tb = $("mobFormBody");
-  if (!rows.length) { tb.innerHTML = '<tr><td colspan="4">Chưa có dữ liệu OB theo hình thức (Gia hạn / Bán gói / Nâng gói-nâng chu kỳ) — sẽ có khi anh mô tả cấu trúc dữ liệu.</td></tr>'; return; }
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="4">Chưa có dữ liệu OB theo hình thức (Gia hạn / Bán gói / Nâng gói-nâng chu kỳ). Import dữ liệu TTCSKH ở mục Quản lý dữ liệu đầu vào → Import dữ liệu TTCSKH.</td></tr>'; return; }
   tb.innerHTML = rows.map((r) => "<tr><td>" + esc(r.dien_thoai_vien) + "</td><td>" + esc(r.hinh_thuc) + "</td><td>" + fmtInt(r.subs) + "</td><td>" + fmt(r.revenue) + "</td></tr>").join("");
 }
 function renderMobQualTable(rows) {

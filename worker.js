@@ -2563,15 +2563,127 @@ function normKbKey(s) {
         }
         const yearRev = ky === "nam" ? totRev : trend.reduce((a, t) => a + t.revenue, 0);
         const yearPrevRev = ky === "nam" ? totPrevRev : 0;
+        // ---- Diem tin ca nhan: tong hop theo ma_hrm (14/11) ----
+        // Ten dien thoai vien lay tu bang CBCNV cua dung thang do
+        // (cbcnv_MMYYYY: ma_hrm -> ho_ten); ma HRM khong co trong CBCNV thi
+        // hien chinh ma HRM. Dong OB khong co ma_hrm thi khong gan cho ai.
+        const cbcnvByMonth = {};
+        for (const mk of curMonths) {
+          const table = monthTableName("cbcnv", mk);
+          const map = new Map();
+          if (table && (await tableExists(table))) {
+            const rows = (await env.DB.prepare('SELECT ma_hrm, ho_ten FROM "' + table + '" WHERE ma_hrm IS NOT NULL AND TRIM(ma_hrm) <> \'\'').all()).results || [];
+            for (const r of rows) {
+              const k = String(r.ma_hrm).trim().toUpperCase();
+              if (!map.has(k)) map.set(k, String(r.ho_ten || "").trim() || String(r.ma_hrm).trim());
+            }
+          }
+          cbcnvByMonth[mk] = map;
+        }
+        const opName = (code, mk) => {
+          const k = String(code || "").trim().toUpperCase();
+          return (cbcnvByMonth[mk] && cbcnvByMonth[mk].get(k)) || String(code || "").trim();
+        };
+        const FORMS = ["Gia hạn", "Bán gói", "Nâng gói/Nâng chu kỳ"];
+        const progAgg = new Map(); // CODE|HRM -> { name, subs, revenue }
+        const formAgg = new Map(); // HINH THUC|HRM -> { name, subs, revenue }
+        const addAgg = (map, key, code, mk, subs, rev) => {
+          const name = opName(code, mk);
+          const cur = map.get(key);
+          if (cur) {
+            // Uu tien ten that hon ma HRM (khi thang khac co ten trong CBCNV)
+            if (cur.name.toUpperCase() === String(code).trim().toUpperCase() && name.toUpperCase() !== String(code).trim().toUpperCase()) cur.name = name;
+            cur.subs += subs; cur.revenue += rev;
+          } else {
+            map.set(key, { name, subs, revenue: rev });
+          }
+        };
+        for (const mk of curMonths) {
+          for (const p of PROGS) {
+            const cfg = MOB_SRC[p.code];
+            const table = monthTableName(cfg.ob, mk);
+            if (!table || !(await tableExists(table))) continue;
+            // 1. Theo chuong trinh: SUM(DT)/1,1 + COUNT(TB) theo ma_hrm
+            const rows = (await env.DB.prepare('SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM("' + cfg.rev + '"), 0) AS rev FROM "' + table + '" GROUP BY ma_hrm').all()).results || [];
+            for (const r of rows) {
+              const code = String(r.ma_hrm == null ? "" : r.ma_hrm).trim();
+              if (!code) continue;
+              const rev = Math.round((Number(r.rev) || 0) / 1.1);
+              addAgg(progAgg, p.code + "|" + code.toUpperCase(), code, mk, Number(r.subs) || 0, rev);
+              // 2. Ban goi: toan bo OBBG tinh vao hinh thuc Ban goi
+              if (p.code === "BG") addAgg(formAgg, "Bán gói|" + code.toUpperCase(), code, mk, Number(r.subs) || 0, rev);
+            }
+            // 2. Theo hinh thuc — chi OBCKN/OBCKD/OBHVC co doanh_thu_goi_truoc_gh
+            if (p.code !== "BG") {
+              // Gia han: DT truoc = DT sau HOAC DT truoc = 0
+              const gh = (await env.DB.prepare('SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM("' + cfg.rev + '"), 0) AS rev FROM "' + table + '" WHERE COALESCE(doanh_thu_goi_truoc_gh, 0) = 0 OR COALESCE(doanh_thu_goi_truoc_gh, 0) = COALESCE("' + cfg.rev + '", 0) GROUP BY ma_hrm').all()).results || [];
+              for (const r of gh) {
+                const code = String(r.ma_hrm == null ? "" : r.ma_hrm).trim();
+                if (!code) continue;
+                addAgg(formAgg, "Gia hạn|" + code.toUpperCase(), code, mk, Number(r.subs) || 0, Math.round((Number(r.rev) || 0) / 1.1));
+              }
+              // Nang goi/nang chu ky: DT truoc < DT sau VA DT truoc != 0
+              // (DT truoc = 0 da tinh vao Gia han theo dinh nghia cua anh, nen
+              // loai ra day de 3 hinh thuc khong cong trung nhau)
+              const ng = (await env.DB.prepare('SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM("' + cfg.rev + '"), 0) AS rev FROM "' + table + '" WHERE COALESCE(doanh_thu_goi_truoc_gh, 0) <> 0 AND COALESCE(doanh_thu_goi_truoc_gh, 0) < COALESCE("' + cfg.rev + '", 0) GROUP BY ma_hrm').all()).results || [];
+              for (const r of ng) {
+                const code = String(r.ma_hrm == null ? "" : r.ma_hrm).trim();
+                if (!code) continue;
+                addAgg(formAgg, "Nâng gói/Nâng chu kỳ|" + code.toUpperCase(), code, mk, Number(r.subs) || 0, Math.round((Number(r.rev) || 0) / 1.1));
+              }
+              // Ban goi (phan OBHVC): chi TB co ten_chuong_trinh "Bán gói tập không gói"
+              if (p.code === "HVC") {
+                const bg = (await env.DB.prepare('SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM("doanh_thu_dk_gh"), 0) AS rev FROM "' + table + '" WHERE LOWER(TRIM(ten_chuong_trinh)) = \'bán gói tập không gói\' GROUP BY ma_hrm').all()).results || [];
+                for (const r of bg) {
+                  const code = String(r.ma_hrm == null ? "" : r.ma_hrm).trim();
+                  if (!code) continue;
+                  addAgg(formAgg, "Bán gói|" + code.toUpperCase(), code, mk, Number(r.subs) || 0, Math.round((Number(r.rev) || 0) / 1.1));
+                }
+              }
+            }
+          }
+        }
+        // Gop ke hoach ca nhan: doi_tuong co the la ten hoac ma HRM
+        const planByKey = new Map(); // norm(doi_tuong) -> { CODE -> {pr, ps} }
+        for (const dt of [...personSet]) {
+          const k = normProg(dt);
+          if (!planByKey.has(k)) planByKey.set(k, {});
+          for (const p of PROGS) {
+            const pr = personPlan[dt + "|" + p.code + "|doanh_thu"] || 0;
+            const ps = personPlan[dt + "|" + p.code + "|thue_bao"] || 0;
+            if (pr || ps) planByKey.get(k)[p.code] = { pr, ps };
+          }
+        }
         const byProgram = [];
-        for (const dt of [...personSet].sort((a, b) => a.localeCompare(b, "vi"))) {
+        const matchedPlanKeys = new Set();
+        for (const [key, v] of progAgg) {
+          const [code, hrm] = key.split("|");
+          let plan = null;
+          for (const k of [normProg(hrm), normProg(v.name)]) {
+            const pk = planByKey.get(k);
+            if (pk && pk[code]) { plan = pk[code]; matchedPlanKeys.add(k + "|" + code); break; }
+          }
+          const pr = plan?.pr || 0, ps = plan?.ps || 0;
+          byProgram.push({ dien_thoai_vien: v.name, ma_hrm: hrm, chuong_trinh: code, subs: v.subs, revenue: v.revenue, plan_rev: pr, plan_subs: ps, pct_plan_rev: pct(v.revenue, pr), pct_plan_subs: pct(v.subs, ps) });
+        }
+        // KH da giao nhung chua co so lieu thuc hien
+        for (const dt of [...personSet]) {
           for (const p of PROGS) {
             const pr = personPlan[dt + "|" + p.code + "|doanh_thu"] || 0;
             const ps = personPlan[dt + "|" + p.code + "|thue_bao"] || 0;
             if (!pr && !ps) continue;
-            byProgram.push({ dien_thoai_vien: dt, chuong_trinh: p.code, subs: 0, revenue: 0, plan_rev: pr, plan_subs: ps, pct_plan_rev: pct(0, pr), pct_plan_subs: pct(0, ps) });
+            if (matchedPlanKeys.has(normProg(dt) + "|" + p.code)) continue;
+            byProgram.push({ dien_thoai_vien: dt, ma_hrm: "", chuong_trinh: p.code, subs: 0, revenue: 0, plan_rev: pr, plan_subs: ps, pct_plan_rev: pct(0, pr), pct_plan_subs: pct(0, ps) });
           }
         }
+        byProgram.sort((a, b) => (a.dien_thoai_vien || "").localeCompare(b.dien_thoai_vien || "", "vi") || a.chuong_trinh.localeCompare(b.chuong_trinh));
+        const byForm = [];
+        for (const [key, v] of formAgg) {
+          const [form, hrm] = key.split("|");
+          byForm.push({ dien_thoai_vien: v.name, ma_hrm: hrm, hinh_thuc: form, subs: v.subs, revenue: v.revenue });
+        }
+        byForm.sort((a, b) => (a.dien_thoai_vien || "").localeCompare(b.dien_thoai_vien || "", "vi") || FORMS.indexOf(a.hinh_thuc) - FORMS.indexOf(b.hinh_thuc));
+
         return json({
           ok: true, ky, period_label: periodLabel, has_data: hasData,
           data_note: dataNote,
@@ -2588,7 +2700,7 @@ function normKbKey(s) {
               ob_success_total: obSuccessTotal, avg_calls: avgCalls, avg_calls_total: avgCallsTotal, total_calls: totalCalls,
             },
           },
-          individual: { by_program: byProgram, by_form: [], quality: [] },
+          individual: { by_program: byProgram, by_form: byForm, quality: [] },
           plans: { has_plan: planRows.length + personRows.length > 0, team_plans: planRows.length, person_plans: personRows.length },
         });
       }
