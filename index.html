@@ -512,6 +512,52 @@
 #appRoot svg.chart .line-plan {fill:none;stroke:#ef4444;stroke-width:2;stroke-dasharray:6 4}
 #appRoot #ovTrendChart, #appRoot #ovPsslChart {position:relative}
 #appRoot #mobTrendChart, #appRoot #mobShareChart, #appRoot #mobObChart, #appRoot #mobConvChart {position:relative}
+#appRoot /* Infographic co che chinh sach (15/11) */
+.pol-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+#appRoot .pol-card {background:var(--card);border:1.5px solid var(--line);border-top:4px solid #2f7cf6;border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 18px 14px}
+#appRoot .pol-card:nth-child(4n+2) {border-top-color:#14b8a6}
+#appRoot .pol-card:nth-child(4n+3) {border-top-color:#f59e0b}
+#appRoot .pol-card:nth-child(4n+4) {border-top-color:#8b5cf6}
+#appRoot .pol-head {display:flex;align-items:center;gap:10px;margin-bottom:12px}
+#appRoot .pol-num {background:#2f7cf6;color:#fff;font-weight:800;font-size:13px;padding:5px 10px;border-radius:999px;white-space:nowrap}
+#appRoot .pol-card:nth-child(4n+2) .pol-num {background:#14b8a6}
+#appRoot .pol-card:nth-child(4n+3) .pol-num {background:#f59e0b}
+#appRoot .pol-card:nth-child(4n+4) .pol-num {background:#8b5cf6}
+#appRoot .pol-head h4 {margin:0;font-size:16px;line-height:1.3}
+#appRoot .pol-rate {font-size:15px;margin-bottom:10px}
+#appRoot .pol-rate b {font-size:24px;color:var(--blue-dark)}
+#appRoot .pol-tiers {margin-bottom:10px}
+#appRoot .pol-tier {display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14.5px}
+#appRoot .pol-tier:last-child {border-bottom:none}
+#appRoot .pol-tier b {color:var(--blue-dark);white-space:nowrap;text-align:right}
+#appRoot .pol-notes {background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 12px 10px 26px;margin:0}
+#appRoot .pol-notes li {font-size:13.5px;line-height:1.6;margin-bottom:6px}
+#appRoot .pol-notes li:last-child {margin-bottom:0}
+#appRoot /* Bang tinh gia von NVKD — mo theo cong cu uoc tinh ben diem ban */
+.nv-grid {display:grid;grid-template-columns:1fr 1.2fr;gap:18px;align-items:start}
+#appRoot .nv-field {margin-bottom:14px}
+#appRoot .nv-hint {font-size:12.5px;color:var(--muted);margin-top:4px}
+#appRoot .nv-result {background:#f1f5f9;border-radius:var(--radius);padding:20px}
+#appRoot .nv-result h3 {margin:0 0 14px;font-size:14px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+#appRoot .nv-part {display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;color:var(--blue-dark);margin:18px 0 8px}
+#appRoot .nv-part:first-child {margin-top:0}
+#appRoot .nv-pnum {display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;font-size:13px;font-weight:800;flex:none}
+#appRoot .nv-part.cost .nv-pnum {background:var(--orange)}
+#appRoot .nv-row {display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+#appRoot .nv-row:last-child {border-bottom:none}
+#appRoot .nv-row.off {opacity:.6}
+#appRoot .nv-rn small {display:block;font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.5}
+#appRoot .nv-rv {font-weight:800;color:var(--blue-dark);white-space:nowrap}
+#appRoot .nv-rv.na {color:var(--muted);font-weight:600;font-size:13px}
+#appRoot .nv-sub {display:flex;justify-content:space-between;gap:12px;padding:10px 0;font-weight:800;border-top:2px solid var(--line);margin-top:4px}
+#appRoot .nv-total {display:flex;justify-content:space-between;gap:12px;align-items:center;background:var(--blue-dark);color:#fff;border-radius:12px;padding:14px 16px;margin-top:14px}
+#appRoot .nv-total .tl {font-weight:800}
+#appRoot .nv-total .tl small {display:block;font-weight:500;font-size:12px;opacity:.85}
+#appRoot .nv-total .tv {font-weight:900;font-size:22px;white-space:nowrap}
+#appRoot .nv-cost {display:flex;justify-content:space-between;gap:12px;align-items:center;background:linear-gradient(120deg,#f58220,#f59e0b);color:#fff;border-radius:12px;padding:14px 16px;margin-top:12px}
+#appRoot .nv-cost .gv-l {font-weight:800;font-size:15px}
+#appRoot .nv-cost .gv-l small {display:block;font-weight:500;font-size:12.5px;color:#ffe3c7;margin-top:2px}
+#appRoot .nv-cost .gv-v {font-weight:900;font-size:26px;white-space:nowrap}
 #appRoot .muted {color:#64748b}
 #appRoot .eval-list {margin:10px 0 0;padding-left:20px;line-height:1.75;font-size:14.5px}
 #appRoot .eval-list li {margin-bottom:8px}
@@ -1152,6 +1198,13 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         <button class="nav-btn" data-panel="panel-dashboard">📈 Dashboard chi trả hoa hồng</button>
         <button class="nav-btn" data-panel="panel-salesdash">🛒 Dashboard KBH</button>
         <button class="nav-btn" data-panel="panel-mobile">📱 Dashboard TTCSKH</button>
+        <div class="nav-group closed" data-group="policy">
+          <button class="nav-group-head" type="button">📋 Cơ chế chính sách <span class="nav-caret">▾</span></button>
+          <div class="nav-group-body">
+            <button class="nav-btn nav-sub" data-panel="panel-policy-new">🌱 Thuê bao phát triển mới</button>
+            <button class="nav-btn nav-sub" data-panel="panel-policy-existing">🔄 Thuê bao hiện hữu</button>
+          </div>
+        </div>
         <div class="nav-group closed" data-group="admin">
           <button class="nav-group-head" type="button">🛠️ Công cụ dành cho Admin <span class="nav-caret">▾</span></button>
           <div class="nav-group-body">
@@ -1378,6 +1431,206 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
 
           <h3 class="sec-title">👤 Chất lượng cuộc gọi OB theo điện thoại viên</h3>
           <div class="tbl-wrap"><table class="data"><thead><tr><th>Điện thoại viên</th><th>Tỷ lệ TB được OB</th><th>OB thành công CKN</th><th>OB thành công CKD</th><th>OB thành công BG</th><th>OB thành công HVC</th><th>BQ số lần gọi/TB</th></tr></thead><tbody id="mobQualBody"><tr><td colspan="7">Chưa có dữ liệu.</td></tr></tbody></table></div>
+        </section>
+        <section class="panel hidden" id="panel-policy-new">
+          <h2>🌱 Cơ chế chính sách — Thuê bao phát triển mới</h2>
+          <p class="desc">Cơ chế lương đơn giá và khuyến khích dành cho NVKD khi phát triển thuê bao di động mới. Doanh thu gói được tính trước thuế (giá gói ÷ 1,1).</p>
+          <div class="pol-grid">
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">1.1</span><h4>Tiền BCKH</h4></div>
+              <div class="pol-rate"><b>20.000đ</b> /thuê bao</div>
+              <ul class="pol-notes">
+                <li>Không áp dụng đối với các thuê bao khởi tạo lại, thuê bao chuyển hình thức P2C hoặc C2P, thuê bao đóng KIT kích hoạt trở lại.</li>
+                <li>Đối với bộ KIT bundle xuất bán trên SMCS: chỉ chi trả tiền BCKH khi ĐKTT và kích hoạt 900 thành công. User nào ĐKTT thì chi trả cho user đó, ĐKTT tháng nào thì chi trả tháng đó. Không chi trả tiền BCKH cho các bộ KIT đã xuất bán từ 31/08/2026 trở về trước.</li>
+              </ul>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">1.2</span><h4>Tiền lương đơn giá PTM</h4></div>
+              <div class="pol-tiers">
+                <div class="pol-tier"><span>Gói 1T</span><b>50% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Gói CKD có ARPU dưới 100K</span><b>25% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Gói CKD có ARPU từ 100K trở lên</span><b>30% doanh thu gói</b></div>
+              </div>
+              <ul class="pol-notes">
+                <li>ARPU = Tổng giá gói / Số tháng của chu kỳ gói (VD: Gói 12YOLO100M sẽ có ARPU là 100K).</li>
+                <li>Không chi trả lương đơn giá đối với các trường hợp thuê bao khởi tạo lại (KTL), thuê bao chuyển hình thức P2C hoặc C2P, thuê bao đóng KIT kích hoạt lại nhưng không nạp thẻ mua gói cước.</li>
+                <li>Đối với bộ KIT bundle xuất bán trên SMCS: chỉ chi trả tiền lương khi thuê bao đã được ĐKTT và kích hoạt 900. Căn cứ theo user Employee của NVKD để xác định nhân viên được chi trả. Trường hợp thuê bao được ĐKTT bằng MyVNPT hoặc bằng user của ĐUQ thì sẽ căn cứ theo mã HRM xuất bán để xác định nhân viên được chi trả.</li>
+                <li>Không chi trả lương đơn giá đối với các bộ KIT bundle xuất bán từ 31/10/2026 trở về trước.</li>
+              </ul>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">1.3</span><h4>Tiền lương từ kênh (ĐUQ/ĐBL) NVKD quản lý</h4></div>
+              <div class="pol-rate"><b>5%</b> tổng doanh thu gói</div>
+              <ul class="pol-notes">
+                <li>Chỉ áp dụng đối với doanh thu của các thuê bao PTM.</li>
+              </ul>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">1.4</span><h4>Tiền khuyến khích PTTB MNP</h4></div>
+              <div class="pol-tiers">
+                <div class="pol-tier"><span>Trả trước</span><b>100.000đ/thuê bao</b></div>
+                <div class="pol-tier"><span>Trả sau</span><b>200.000đ/thuê bao</b></div>
+              </div>
+              <ul class="pol-notes">
+                <li>Điều kiện: thuê bao Port-in thành công phải mua gói cước tối thiểu 50K.</li>
+              </ul>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">1.5</span><h4>Tiền khuyến khích theo mức sản lượng PTTB</h4></div>
+              <div class="pol-tiers">
+                <div class="pol-tier"><span>Đạt từ 5 đến dưới 10 thuê bao</span><b>20.000đ/thuê bao</b></div>
+                <div class="pol-tier"><span>Đạt từ 10 đến dưới 20 thuê bao</span><b>30.000đ/thuê bao</b></div>
+                <div class="pol-tier"><span>Đạt từ 20 đến dưới 30 thuê bao</span><b>40.000đ/thuê bao</b></div>
+                <div class="pol-tier"><span>Đạt từ 30 đến dưới 50 thuê bao</span><b>50.000đ/thuê bao</b></div>
+                <div class="pol-tier"><span>Đạt từ 50 thuê bao trở lên</span><b>65.000đ/thuê bao</b></div>
+              </div>
+              <ul class="pol-notes">
+                <li>Đạt ở mức nào thì chi trả luôn theo mức đó, không cộng theo từng mức.</li>
+                <li>Thuê bao PTM phải có mua gói ngay trong tháng tối thiểu từ 70K trở lên.</li>
+                <li>Không áp dụng đối với các thuê bao KTL, thuê bao C2P hoặc P2C, thuê bao đóng KIT.</li>
+                <li>Bộ KIT bundle xuất bán trên SMCS phải được ĐKTT và kích hoạt 900 mới được ghi nhận.</li>
+                <li>Chỉ ghi nhận thuê bao PTM bằng user của NVKD.</li>
+              </ul>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">1.6</span><h4>Tiền khuyến khích theo tổng doanh thu di động PTM</h4></div>
+              <div class="pol-tiers">
+                <div class="pol-tier"><span>10 triệu ≤ Doanh thu &lt; 20 triệu</span><b>2% tổng doanh thu</b></div>
+                <div class="pol-tier"><span>20 triệu ≤ Doanh thu &lt; 30 triệu</span><b>3% tổng doanh thu</b></div>
+                <div class="pol-tier"><span>30 triệu ≤ Doanh thu &lt; 50 triệu</span><b>4% tổng doanh thu</b></div>
+                <div class="pol-tier"><span>Từ 50 triệu trở lên</span><b>5% tổng doanh thu</b></div>
+              </div>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">1.7</span><h4>Tiền khuyến khích PTM SIM mua gói CKD 6T/12T</h4></div>
+              <div class="pol-tiers">
+                <div class="pol-tier"><span>Gói từ 6T đến dưới 12T</span><b>50.000đ/thuê bao</b></div>
+                <div class="pol-tier"><span>Gói từ 12T đến dưới 18T</span><b>100.000đ/thuê bao</b></div>
+                <div class="pol-tier"><span>Gói từ 18T đến dưới 24T</span><b>200.000đ/thuê bao</b></div>
+                <div class="pol-tier"><span>Gói từ 24T đến dưới 36T</span><b>400.000đ/thuê bao</b></div>
+                <div class="pol-tier"><span>Gói từ 36T trở lên</span><b>800.000đ/thuê bao</b></div>
+              </div>
+              <ul class="pol-notes">
+                <li>Chỉ áp dụng đối với các gói CKD có ARPU từ 100K trở lên.</li>
+                <li>Không áp dụng đối với các thuê bao KTL, P2C, C2P, Đóng KIT.</li>
+                <li>Không áp dụng đối với các bộ KIT bundle xuất bán từ 31/08/2026 trở về trước.</li>
+                <li>Căn cứ theo user bán gói để chi trả. Đối với bộ KIT bundle căn cứ theo user ĐKTT để chi trả. Nếu ĐKTT bằng App MyVNPT sẽ căn cứ mã HRM xuất bán để chi trả.</li>
+              </ul>
+            </div>
+          </div>
+          <h3 class="sec-title" style="margin-top:28px">🧮 Bảng xây dựng giá vốn</h3>
+          <p class="desc">Nhập số thuê bao phát triển mới và thông tin gói cước để xem chi phí đầu tư, các khoản thu nhập dự kiến theo chính sách và giá vốn của mỗi SIM.</p>
+          <div class="card">
+            <div class="nv-grid">
+              <form class="nv-form" id="nvCalcForm">
+                <div class="nv-field">
+                  <label for="nvSubs">Số thuê bao phát triển mới trong tháng</label>
+                  <input type="number" id="nvSubs" min="0" step="1" value="30" inputmode="numeric" />
+                </div>
+                <div class="nv-field">
+                  <label for="nvPrice">Giá gói cước mỗi thuê bao mua (VNĐ)</label>
+                  <input type="number" id="nvPrice" min="0" step="1000" value="600000" inputmode="numeric" />
+                  <div class="nv-hint">Ví dụ: gói 100K/tháng chu kỳ 6 tháng có tổng giá gói là 600.000đ.</div>
+                </div>
+                <div class="nv-field">
+                  <label for="nvCycle">Chu kỳ gói (tháng)</label>
+                  <select id="nvCycle">
+                    <option value="1">1 tháng</option>
+                    <option value="3">3 tháng</option>
+                    <option value="6" selected>6 tháng</option>
+                    <option value="12">12 tháng</option>
+                    <option value="18">18 tháng</option>
+                    <option value="24">24 tháng</option>
+                    <option value="36">36 tháng</option>
+                  </select>
+                  <div class="nv-hint" id="nvArpuHint"></div>
+                </div>
+                <div class="nv-field">
+                  <label for="nvMnp">Loại thuê bao (MNP)</label>
+                  <select id="nvMnp">
+                    <option value="">Thuê bao thường (không phải MNP)</option>
+                    <option value="pre">MNP trả trước</option>
+                    <option value="post">MNP trả sau</option>
+                  </select>
+                </div>
+                <div class="nv-field">
+                  <label for="nvChanRev">Doanh thu PTM qua kênh ĐUQ/ĐBL do bạn quản lý (VNĐ)</label>
+                  <input type="number" id="nvChanRev" min="0" step="100000" value="0" inputmode="numeric" />
+                  <div class="nv-hint">Nếu có doanh thu PTM từ kênh ĐUQ/ĐBL bạn quản lý thì nhập vào để tính thêm 5% (mục 1.3).</div>
+                </div>
+              </form>
+              <div class="nv-result">
+                <h3>Kết quả ước tính</h3>
+                <div id="nvResultRows"></div>
+                <div class="nv-total">
+                  <div class="tl">Tổng thu nhập dự kiến<small>Phần 2 — cho toàn bộ thuê bao nhập vào</small></div>
+                  <div class="tv" id="nvTotalOut">0đ</div>
+                </div>
+                <div class="nv-part cost"><span class="nv-pnum">3</span> Giá vốn của SIM</div>
+                <div class="nv-cost">
+                  <div class="gv-l">Giá vốn / SIM<small>(Tổng chi phí đầu vào &minus; Tổng thu nhập nhận được) &divide; số thuê bao</small></div>
+                  <div class="gv-v" id="nvCostOut">&mdash;</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="muted" style="margin-top:12px">Số liệu ước tính giả định mọi thuê bao đều đủ điều kiện của từng khoản (ĐKTT và kích hoạt 900 thành công, mua gói ngay trong tháng&hellip;). Lương đơn giá và khuyến khích theo doanh thu được tính trên doanh thu trước thuế (giá gói &divide; 1,1). Kết quả chỉ mang tính tham khảo để NVKD lên kế hoạch phát triển thuê bao.</p>
+        </section>
+        <section class="panel hidden" id="panel-policy-existing">
+          <h2>🔄 Cơ chế chính sách — Thuê bao hiện hữu</h2>
+          <p class="desc">Cơ chế lương đơn giá và khuyến khích khi chăm sóc, gia hạn và bán gói cho thuê bao hiện hữu. Doanh thu gói được tính trước thuế (giá gói ÷ 1,1).</p>
+          <div class="pol-grid">
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">2.1</span><h4>Thuê bao đăng ký gói cước mới qua kênh Autocall</h4></div>
+              <div class="pol-tiers">
+                <div class="pol-tier"><span>Gói có ARPU dưới 199K</span><b>20% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Gói có ARPU từ 199K</span><b>25% doanh thu gói</b></div>
+              </div>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">2.2</span><h4>Gia hạn gói CKN/CKD kênh Autocall</h4></div>
+              <div class="pol-tiers">
+                <div class="pol-tier"><span>Đơn giá gia hạn</span><b>2,5% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Đơn giá khuyến khích khi tổng DT gia hạn/bán gói đạt từ 300 triệu trở lên</span><b>2% của phần DT vượt</b></div>
+              </div>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">2.3</span><h4>Nâng gói/nâng chu kỳ</h4></div>
+              <div class="pol-tiers">
+                <div class="pol-tier"><span>Phần doanh thu gia hạn</span><b>2,5% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Phần doanh thu tăng thêm — gói có ARPU dưới 199K</span><b>20% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Phần doanh thu tăng thêm — gói có ARPU từ 199K</span><b>25% doanh thu gói</b></div>
+              </div>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">2.4</span><h4>Đơn giá bán gói/nâng gói/nâng chu kỳ tập thuê bao không qua Autocall</h4></div>
+              <div class="pol-tiers">
+                <div class="pol-tier"><span>Phần doanh thu gia hạn</span><b>2,5% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Phần doanh thu tăng thêm — gói có ARPU dưới 199K</span><b>20% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Phần doanh thu tăng thêm — gói có ARPU từ 199K</span><b>25% doanh thu gói</b></div>
+              </div>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">2.5</span><h4>Gia hạn gói CKN/CKD theo tập thuê bao Phòng ĐHKD cung cấp</h4></div>
+              <div class="pol-tiers">
+                <div class="pol-tier"><span>Phần doanh thu gia hạn</span><b>2,5% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Phần doanh thu tăng thêm — gói có ARPU dưới 199K</span><b>20% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Phần doanh thu tăng thêm — gói có ARPU từ 199K</span><b>25% doanh thu gói</b></div>
+              </div>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">2.6</span><h4>Đối với các gói CKD MAX68KCN/MAX68FCN trả sau gia hạn</h4></div>
+              <div class="pol-rate"><b>10%</b> doanh thu gói</div>
+            </div>
+            <div class="pol-card">
+              <div class="pol-head"><span class="pol-num">2.7</span><h4>Đối với các gói CKD trả sau khác</h4></div>
+              <div class="pol-tiers">
+                <div class="pol-tier"><span>Phần doanh thu gia hạn</span><b>2,5% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Phần doanh thu tăng thêm — gói có ARPU dưới 199K</span><b>20% doanh thu gói</b></div>
+                <div class="pol-tier"><span>Phần doanh thu tăng thêm — gói có ARPU từ 199K</span><b>25% doanh thu gói</b></div>
+              </div>
+            </div>
+          </div>
         </section>
         <section class="panel hidden" id="panel-units">
           <h2>Quản lý đơn vị</h2>
@@ -2027,6 +2280,16 @@ function publicUser(u) {
     lng: u.lng ?? null,
   };
 }
+// Bo sung ten don vi (don_vi_ten) vao doi tuong user — requireAuth/login/
+// change-password chi SELECT bang nguoi_dung nen khong co san ten don vi.
+async function withUnitName(env, u) {
+  if (!u || !u.don_vi_id) return u;
+  try {
+    const d = await env.DB.prepare(&quot;SELECT ten_don_vi FROM don_vi WHERE id = ?&quot;).bind(u.don_vi_id).first();
+    if (d) u.don_vi_ten = d.ten_don_vi;
+  } catch (e) { /* bo qua khi chua co bang don vi */ }
+  return u;
+}
 // Tu dong bo sung 2 cot nhan vien quan ly neu CSDL cu chua co (nang cap tai cho).
 async function ensureUserColumns(env) {
   try {
@@ -2069,7 +2332,7 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -&gt; giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = [&quot;dashboard&quot;, &quot;salesdash&quot;, &quot;mobiledash&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;, &quot;channelmap&quot;, &quot;staff&quot;];
+const MODULE_KEYS = [&quot;dashboard&quot;, &quot;salesdash&quot;, &quot;mobiledash&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;, &quot;channelmap&quot;, &quot;staff&quot;, &quot;policy&quot;];
 
 // Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
 // (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
@@ -2085,7 +2348,7 @@ function normLoaiKenh(v) {
   if (s.includes(&quot;DUQ&quot;) || s.includes(&quot;UY QUYEN&quot;)) return &quot;DUQ&quot;;
   return &quot;&quot;;
 }
-const DEFAULT_MODULES = [&quot;dashboard&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;settings&quot;];
+const DEFAULT_MODULES = [&quot;dashboard&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;settings&quot;, &quot;policy&quot;];
 // Lanh dao don vi mac dinh them module Cham soc diem ban
 const LEADER_MODULES = [...DEFAULT_MODULES, &quot;care&quot;];
 // Danh sach chuc danh trong module Quan ly nguoi dung (nhan su noi bo)
@@ -2777,6 +3040,7 @@ export default {
         if (!user || !user.active) return err(&quot;Tai khoan khong ton tai hoac da bi khoa&quot;, 401);
         const hash = await hashPassword(password, user.salt);
         if (hash !== user.password_hash) return err(&quot;Mat khau khong dung&quot;, 401);
+        await withUnitName(env, user);
         // Ghi log dang nhap (phuc vu module Thong ke dang nhap)
         try {
           await ensureLoginLog(env);
@@ -2835,7 +3099,7 @@ export default {
           role: user.role,
           exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
         });
-        return json({ ok: true, token, user: publicUser(user) });
+        return json({ ok: true, token, user: publicUser(await withUnitName(env, user)) });
       }
 
       // ---- Danh muc goi cuoc: cong khai, KHONG can dang nhap ----
@@ -2883,7 +3147,7 @@ export default {
       const canManageUsers = isAdmin || isSubAdmin; // Admin &amp; SubAdmin: quan ly nguoi dung
 
       if (path === &quot;/api/me&quot; &amp;&amp; method === &quot;GET&quot;) {
-        return json({ ok: true, user: publicUser(me) });
+        return json({ ok: true, user: publicUser(await withUnitName(env, me)) });
       }
 
       // ---- Quan ly don vi ----
@@ -6209,14 +6473,16 @@ const MODULE_DEFS = [
   ["dashboard", "Dashboard chi trả hoa hồng"], ["salesdash", "Dashboard KBH"], ["mobiledash", "Dashboard TTCSKH"], ["units", "Quản lý đơn vị"], ["users", "Quản lý kênh bán"], ["staff", "Quản lý người dùng"],
   ["import", "Quản lý dữ liệu đầu vào"], ["config", "Cấu hình kết nối D1"], ["reports", "Báo cáo thống kê"],
   ["packages", "Danh mục gói cước"], ["loginstats", "Thống kê đăng nhập"], ["care", "Chăm sóc điểm bán"], ["channelmap", "Bản đồ kênh bán"], ["settings", "Cài đặt"],
+  ["policy", "Cơ chế chính sách"],
 ];
 const PANEL_MODULES = {
   "panel-dashboard": "dashboard", "panel-salesdash": "salesdash", "panel-mobile": "mobiledash", "panel-units": "units", "panel-users": "users", "panel-staff": "staff", "panel-import": "import",
   "panel-config": "config", "panel-reports": "reports", "panel-salesreport": "salesdash", "panel-carereport": "reports", "panel-packages": "packages",
   "panel-import-sales": "import", "panel-import-kb": "import", "panel-import-cb": "import", "panel-import-plan": "import", "panel-import-types": "import", "panel-import-loaikenh": "import", "panel-import-ttcskh": "import", "panel-import-ttcskh-data": "import",
   "panel-loginstats": "loginstats", "panel-care": "care", "panel-channelmap": "channelmap", "panel-settings": "settings",
+  "panel-policy-new": "policy", "panel-policy-existing": "policy",
 };
-const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
+const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings", "policy"];
 const LEADER_MODULES = [...DEFAULT_MODULES, "care"];
 function setModulesBoxes(name, list) {
   document.querySelectorAll('input[name="' + name + '"]').forEach((c) => { c.checked = list.includes(c.value); });
@@ -6338,6 +6604,20 @@ function refreshAuthUI() {
 // Giao dien danh cho diem ban (role user): menu trai rieng; Trang chu la
 // infographic chinh sach (publicView), cac muc khac mo panel tuong ung.
 function isPosUser() { return !!(me && me.role === "user"); }
+// Nhan su don vi Trung tam CSKH: mac dinh mo Dashboard TTCSKH khi dang nhap (15/11)
+function isTtcskhStaff(u) {
+  const x = u || me;
+  if (!x || x.role === "user") return false;
+  const n = normSearch(x.don_vi_ten || "");
+  return n.includes("cskh") || n.includes("cham soc khach hang");
+}
+function defaultPanelForMe(fallback, u) {
+  if (isTtcskhStaff(u)) {
+    const b = document.querySelector('.nav-btn[data-panel="panel-mobile"]');
+    if (b && !b.classList.contains("hidden")) return "panel-mobile";
+  }
+  return fallback;
+}
 let posView = "home";
 function showPos(view) {
   posView = view;
@@ -6552,7 +6832,7 @@ $("loginForm").addEventListener("submit", async (e) => {
     $("loginModal").classList.add("hidden");
     posView = "home";
     refreshAuthUI();
-    if (!isPosUser()) openPanel("panel-dashboard");
+    if (!isPosUser()) openPanel(defaultPanelForMe("panel-dashboard"));
   } catch (err) {
     setMsg($("loginErr"), err.message, false);
   }
@@ -6582,7 +6862,7 @@ $("pwChangeForm").addEventListener("submit", async (e) => {
     $("pwFirstNew").value = ""; $("pwFirstNew2").value = "";
     posView = "home";
     refreshAuthUI();
-    if (!isPosUser()) openPanel("panel-dashboard");
+    if (!isPosUser()) openPanel(defaultPanelForMe("panel-dashboard"));
   } catch (err) {
     setMsg($("pwChangeErr"), err.message, false);
   }
@@ -8438,6 +8718,113 @@ function renderMobEval(d) {
   }
   el.innerHTML = '<ul class="eval-list">' + items.map((it) => "<li><b>" + it.icon + " " + it.title + ":</b> " + it.html + "</li>").join("") + "</ul>";
 }
+
+/* ---------------- Bang tinh gia von NVKD (Co che chinh sach, 15/11) ----------------
+   Mo theo cong cu "Uoc tinh thu nhap cua diem ban" ben kenh diem ban:
+   Phan 1 = chi phi dau tu, Phan 2 = du toan thu nhap theo chinh sach NVKD,
+   Phan 3 = gia von SIM = (tong chi phi - tong thu nhap) / so thue bao. */
+function nvRow(name, detail, value, opts) {
+  opts = opts || {};
+  const cls = "nv-row" + (opts.off ? " off" : "");
+  const val = opts.na ? '<span class="nv-rv na">' + opts.na + "</span>" : '<span class="nv-rv">' + fmt(value) + "</span>";
+  return '<div class="' + cls + '"><div class="nv-rn">' + name + (detail ? "<small>" + detail + "</small>" : "") + "</div>" + val + "</div>";
+}
+function nvTierRate(n) {
+  if (n >= 50) return 65;
+  if (n >= 30) return 50;
+  if (n >= 20) return 40;
+  if (n >= 10) return 30;
+  if (n >= 5) return 20;
+  return 0;
+}
+function calcNvCost() {
+  const n = Math.max(0, parseInt($("nvSubs").value, 10) || 0);
+  const price = Math.max(0, parseFloat($("nvPrice").value) || 0);
+  const cycle = parseInt($("nvCycle").value, 10) || 1;
+  const mnp = $("nvMnp").value;
+  const chanRev = Math.max(0, parseFloat($("nvChanRev").value) || 0);
+  const arpu = cycle > 0 ? price / cycle : 0;
+  $("nvArpuHint").textContent = "ARPU gói = " + fmt(arpu) + " / tháng" + (cycle > 1 ? (arpu >= 100000 ? " — đạt ngưỡng ARPU 100K" : " — chưa đạt ngưỡng ARPU 100K") : "");
+  let html = "", total = 0;
+  // Phan 1: chi phi dau tu (giong ben diem ban)
+  const simCost = 25000 * n, feeCost = 75000 * n, pkgCost = price * n;
+  const totalCost = simCost + feeCost + pkgCost;
+  html += '<div class="nv-part cost"><span class="nv-pnum">1</span> Chi phí đầu tư</div>';
+  html += nvRow("Tiền SIM trắng", "25.000đ × " + n + " thuê bao", simCost);
+  html += nvRow("Tiền phí hòa mạng", "75.000đ × " + n + " thuê bao", feeCost);
+  html += nvRow("Tiền gói cước", fmt(price) + " × " + n + " thuê bao", pkgCost);
+  html += '<div class="nv-sub"><span>Tổng chi phí đầu vào</span><span>' + fmt(totalCost) + "</span></div>";
+  // Phan 2: du toan thu nhap NVKD theo chinh sach 1.1–1.7
+  html += '<div class="nv-part"><span class="nv-pnum">2</span> Dự toán thu nhập của NVKD</div>';
+  const bckh = 20000 * n; total += bckh;
+  html += nvRow("1. Tiền BCKH", "20.000đ × " + n + " thuê bao", bckh);
+  const revBase = price / 1.1;
+  let lgRate, lgLabel;
+  if (cycle === 1) { lgRate = 0.5; lgLabel = "Gói 1T: (giá gói ÷ 1,1) × 50%"; }
+  else if (arpu >= 100000) { lgRate = 0.3; lgLabel = "Gói CKD, ARPU ≥ 100K: (giá gói ÷ 1,1) × 30%"; }
+  else { lgRate = 0.25; lgLabel = "Gói CKD, ARPU dưới 100K: (giá gói ÷ 1,1) × 25%"; }
+  const lg = lgRate * revBase * n; total += lg;
+  html += nvRow("2. Tiền lương đơn giá PTM", lgLabel + " × " + n + " thuê bao", lg);
+  if (chanRev > 0) {
+    const lk = 0.05 * chanRev; total += lk;
+    html += nvRow("3. Tiền lương từ kênh ĐUQ/ĐBL quản lý", "5% × " + fmt(chanRev), lk);
+  } else {
+    html += nvRow("3. Tiền lương từ kênh ĐUQ/ĐBL quản lý", "Nhập doanh thu PTM qua kênh bạn quản lý (nếu có)", 0, { na: "Chưa nhập", off: true });
+  }
+  if (mnp === "pre" || mnp === "post") {
+    if (price >= 50000) {
+      const mnpRate = mnp === "pre" ? 100000 : 200000;
+      const mnpAmt = mnpRate * n; total += mnpAmt;
+      html += nvRow("4. Khuyến khích PTTB MNP", fmt(mnpRate) + " × " + n + " thuê bao (" + (mnp === "pre" ? "trả trước" : "trả sau") + ", gói từ 50K)", mnpAmt);
+    } else {
+      html += nvRow("4. Khuyến khích PTTB MNP", "Thuê bao Port-in cần mua gói tối thiểu 50K", 0, { na: "Chưa đủ ĐK", off: true });
+    }
+  } else {
+    html += nvRow("4. Khuyến khích PTTB MNP", "Chỉ áp dụng với thuê bao chuyển mạng giữ số", 0, { na: "Không áp dụng", off: true });
+  }
+  const rate = nvTierRate(n);
+  if (rate > 0 && price >= 70000) {
+    const sl = rate * 1000 * n; total += sl;
+    html += nvRow("5. Khuyến khích theo mức sản lượng PTTB", "Mức " + rate + "K/thuê bao × " + n + " thuê bao (không cộng dồn)", sl);
+  } else if (rate === 0) {
+    html += nvRow("5. Khuyến khích theo mức sản lượng PTTB", "Cần đạt từ 5 thuê bao PTM trở lên", 0, { na: "Chưa đạt mức", off: true });
+  } else {
+    html += nvRow("5. Khuyến khích theo mức sản lượng PTTB", "Thuê bao PTM phải mua gói tối thiểu 70K", 0, { na: "Chưa đủ ĐK", off: true });
+  }
+  const totRev = revBase * n;
+  let dtRate = 0;
+  if (totRev >= 50000000) dtRate = 0.05;
+  else if (totRev >= 30000000) dtRate = 0.04;
+  else if (totRev >= 20000000) dtRate = 0.03;
+  else if (totRev >= 10000000) dtRate = 0.02;
+  if (dtRate > 0) {
+    const dt = dtRate * totRev; total += dt;
+    html += nvRow("6. Khuyến khích theo tổng doanh thu PTM", "Tổng DT " + fmt(totRev) + " — mức " + (dtRate * 100) + "%", dt);
+  } else {
+    html += nvRow("6. Khuyến khích theo tổng doanh thu PTM", "Tổng DT " + fmt(totRev) + " — cần đạt từ 10 triệu trở lên", 0, { na: "Chưa đạt mức", off: true });
+  }
+  if (cycle >= 6 && arpu >= 100000) {
+    const ckdRate = cycle >= 36 ? 800000 : cycle >= 24 ? 400000 : cycle >= 18 ? 200000 : cycle >= 12 ? 100000 : 50000;
+    const ckd = ckdRate * n; total += ckd;
+    html += nvRow("7. Khuyến khích PTM SIM mua gói CKD", fmt(ckdRate) + " × " + n + " thuê bao (gói " + cycle + " tháng, ARPU ≥ 100K)", ckd);
+  } else if (cycle >= 6) {
+    html += nvRow("7. Khuyến khích PTM SIM mua gói CKD", "Gói CKD cần ARPU từ 100K trở lên", 0, { na: "Chưa đủ ĐK", off: true });
+  } else {
+    html += nvRow("7. Khuyến khích PTM SIM mua gói CKD", "Chỉ áp dụng cho gói từ 6 tháng trở lên", 0, { na: "Không áp dụng", off: true });
+  }
+  $("nvResultRows").innerHTML = html;
+  $("nvTotalOut").textContent = fmt(total);
+  $("nvCostOut").textContent = n > 0 ? fmt((totalCost - total) / n) : "—";
+}
+function initNvCalc() {
+  if (!$("nvSubs")) return;
+  ["nvSubs", "nvPrice", "nvCycle", "nvMnp", "nvChanRev"].forEach((id) => {
+    const el = $(id);
+    if (el) el.addEventListener("input", calcNvCost);
+  });
+  calcNvCost();
+}
+initNvCalc();
 // Bieu do cot doanh thu theo thang + duong ke hoach (SVG vector, hover callout doanh thu + % KH)
 function mobRevChart(el, trend) {
   const W = 660, H = 300, P = { l: 56, r: 16, t: 14, b: 32 };
@@ -10044,7 +10431,7 @@ document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("clic
   $("impMonth").value = now.getMonth() + 1; $("impYear").value = now.getFullYear();
   refreshAuthUI();
   if (token && apiBase) {
-    api("/api/me").then((d) => { me = d.user; refreshAuthUI(); if (!isPosUser()) { const first = [...document.querySelectorAll(".nav-btn")].find((b) => !b.classList.contains("hidden")); openPanel(first ? first.dataset.panel : "panel-dashboard"); } })
+    api("/api/me").then((d) => { me = d.user; refreshAuthUI(); if (!isPosUser()) { const first = [...document.querySelectorAll(".nav-btn")].find((b) => !b.classList.contains("hidden")); openPanel(defaultPanelForMe(first ? first.dataset.panel : "panel-dashboard")); } })
       .catch(() => { token = ""; sessionStorage.removeItem("vnpt_token"); refreshAuthUI(); });
   }
 })();

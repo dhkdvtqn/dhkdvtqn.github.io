@@ -141,6 +141,16 @@ function publicUser(u) {
     lng: u.lng ?? null,
   };
 }
+// Bo sung ten don vi (don_vi_ten) vao doi tuong user — requireAuth/login/
+// change-password chi SELECT bang nguoi_dung nen khong co san ten don vi.
+async function withUnitName(env, u) {
+  if (!u || !u.don_vi_id) return u;
+  try {
+    const d = await env.DB.prepare("SELECT ten_don_vi FROM don_vi WHERE id = ?").bind(u.don_vi_id).first();
+    if (d) u.don_vi_ten = d.ten_don_vi;
+  } catch (e) { /* bo qua khi chua co bang don vi */ }
+  return u;
+}
 // Tu dong bo sung 2 cot nhan vien quan ly neu CSDL cu chua co (nang cap tai cho).
 async function ensureUserColumns(env) {
   try {
@@ -183,7 +193,7 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -> giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = ["dashboard", "salesdash", "mobiledash", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care", "channelmap", "staff"];
+const MODULE_KEYS = ["dashboard", "salesdash", "mobiledash", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care", "channelmap", "staff", "policy"];
 
 // Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
 // (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
@@ -199,7 +209,7 @@ function normLoaiKenh(v) {
   if (s.includes("DUQ") || s.includes("UY QUYEN")) return "DUQ";
   return "";
 }
-const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings"];
+const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings", "policy"];
 // Lanh dao don vi mac dinh them module Cham soc diem ban
 const LEADER_MODULES = [...DEFAULT_MODULES, "care"];
 // Danh sach chuc danh trong module Quan ly nguoi dung (nhan su noi bo)
@@ -891,6 +901,7 @@ export default {
         if (!user || !user.active) return err("Tai khoan khong ton tai hoac da bi khoa", 401);
         const hash = await hashPassword(password, user.salt);
         if (hash !== user.password_hash) return err("Mat khau khong dung", 401);
+        await withUnitName(env, user);
         // Ghi log dang nhap (phuc vu module Thong ke dang nhap)
         try {
           await ensureLoginLog(env);
@@ -949,7 +960,7 @@ export default {
           role: user.role,
           exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
         });
-        return json({ ok: true, token, user: publicUser(user) });
+        return json({ ok: true, token, user: publicUser(await withUnitName(env, user)) });
       }
 
       // ---- Danh muc goi cuoc: cong khai, KHONG can dang nhap ----
@@ -997,7 +1008,7 @@ export default {
       const canManageUsers = isAdmin || isSubAdmin; // Admin & SubAdmin: quan ly nguoi dung
 
       if (path === "/api/me" && method === "GET") {
-        return json({ ok: true, user: publicUser(me) });
+        return json({ ok: true, user: publicUser(await withUnitName(env, me)) });
       }
 
       // ---- Quan ly don vi ----
