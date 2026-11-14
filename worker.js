@@ -2449,6 +2449,68 @@ function normKbKey(s) {
           for (const mk of mks) { const o = await obMonth(code, mk); subs += o.subs; rev += o.rev; exists = exists || o.exists; }
           return { subs, rev, exists };
         };
+        // So sanh T-1 CUNG NGAY (14/11): neu ky dang xem chua ket thuc (thang T
+        // la thang hien tai / nam Y la nam hien tai) thi ky truoc chi tinh den
+        // cung ngay trong thang — VD: hom nay 14/11 thi T-1 chi tinh den 14/10.
+        // Ky da ket thuc thi lay tron ky truoc. Ngay lay tu cot ngay_mo_dv
+        // (co o ca 4 bang OB); dong khong doc duoc ngay thi bo qua.
+        const nowY = Number(nowM.slice(0, 4)), curMo = Number(nowM.slice(5, 7)), nowD = Number(nowM.slice(8, 10));
+        const isCurrentPeriod = ky === "nam" ? Number(nam) === nowY : thang === nowM.slice(0, 7);
+        const prevCutFor = (mk) => {
+          if (!isCurrentPeriod) return null;
+          if (ky === "thang") return nowD; // prevMonths chi co 1 thang T-1
+          const mm = Number(mk.slice(5, 7));
+          if (mm > curMo) return "skip"; // thang doi chieu sau thang hien tai thi bo qua
+          if (mm === curMo) return nowD;
+          return null;
+        };
+        const dayOf = (v) => {
+          if (v == null) return null;
+          const str = String(v).trim();
+          if (!str) return null;
+          let m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // ISO 2026-10-14
+          if (m) return Number(m[3]);
+          m = str.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/); // 14/10/2026
+          if (m) return Number(m[1]);
+          if (/^\d{5}$/.test(str)) { // so serial Excel
+            const n = Number(str);
+            if (n >= 30000 && n <= 80000) return new Date(Math.round((n - 25569) * 86400 * 1000)).getUTCDate();
+          }
+          const d = new Date(str); // chuoi Date cua JS
+          return Number.isNaN(d.getTime()) ? null : d.getDate();
+        };
+        const obMonthCut = async (code, mk, dayCut) => {
+          const cfg = MOB_SRC[code];
+          const table = monthTableName(cfg.ob, mk);
+          const out = { subs: 0, rev: 0, exists: false };
+          if (!table || !(await tableExists(table))) return out;
+          out.exists = true;
+          const cols = (await env.DB.prepare('PRAGMA table_info("' + table + '")').all()).results || [];
+          if (!cols.some((c) => c.name === "ngay_mo_dv")) return obMonth(code, mk); // khong co cot ngay thi lay tron thang
+          const rows = (await env.DB.prepare('SELECT so_thue_bao, "' + cfg.rev + '" AS rev, ngay_mo_dv FROM "' + table + '"').all()).results || [];
+          let revSum = 0;
+          for (const r of rows) {
+            const d = dayOf(r.ngay_mo_dv);
+            if (d == null || d > dayCut) continue;
+            if (r.so_thue_bao != null) out.subs += 1;
+            revSum += Number(r.rev) || 0;
+          }
+          out.rev = Math.round(revSum / 1.1);
+          return out;
+        };
+        const prevSum = async (code) => {
+          let subs = 0, rev = 0, exists = false;
+          for (const mk of prevMonths) {
+            const cut = prevCutFor(mk);
+            if (cut === "skip") continue;
+            const o = cut == null ? await obMonth(code, mk) : await obMonthCut(code, mk, cut);
+            subs += o.subs; rev += o.rev; exists = exists || o.exists;
+          }
+          return { subs, rev, exists };
+        };
+        const prevCutoff = !isCurrentPeriod ? null : ky === "thang"
+          ? { thang: prevMonths[0], ngay: nowD }
+          : { thang: (nam - 1) + "-" + String(curMo).padStart(2, "0"), ngay: nowD };
         const thMonth = async (code, mk) => {
           const cfg = MOB_SRC[code];
           const out = { called: 0, total: 0, conn: 0, conv: null, exists: false };
@@ -2495,7 +2557,7 @@ function normKbKey(s) {
         let totSubs = 0, totRev = 0, totPrevRev = 0, totYoyRev = 0, hasOb = false;
         for (const p of PROGS) {
           const cur = await obSum(p.code, curMonths);
-          const prev = await obSum(p.code, prevMonths);
+          const prev = await prevSum(p.code);
           const yoy = await obSum(p.code, yoyMonths);
           const planRev = planSum(curMonths, p.code, "doanh_thu");
           const planSubs = planSum(curMonths, p.code, "thue_bao");
@@ -2707,7 +2769,7 @@ function normKbKey(s) {
           data_note: dataNote,
           sources: { ob: hasOb, th: hasTh, ipcc: hasIpcc },
           team: {
-            programs,
+            programs, prev_cutoff: prevCutoff,
             total: { subs: totSubs, revenue: totRev, plan_rev: totalPlanRev, plan_subs: totalPlanSubs, pct_plan_rev: pct(totRev, totalPlanRev), rev_prev: totPrevRev, rev_yoy_pct: pct(totRev - totYoyRev, totYoyRev) },
             trend,
             year: { revenue: yearRev, prev_revenue: yearPrevRev, yoy_pct: ky === "nam" ? pct(yearRev - yearPrevRev, yearPrevRev) : null },

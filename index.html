@@ -4327,6 +4327,68 @@ function normKbKey(s) {
           for (const mk of mks) { const o = await obMonth(code, mk); subs += o.subs; rev += o.rev; exists = exists || o.exists; }
           return { subs, rev, exists };
         };
+        // So sanh T-1 CUNG NGAY (14/11): neu ky dang xem chua ket thuc (thang T
+        // la thang hien tai / nam Y la nam hien tai) thi ky truoc chi tinh den
+        // cung ngay trong thang — VD: hom nay 14/11 thi T-1 chi tinh den 14/10.
+        // Ky da ket thuc thi lay tron ky truoc. Ngay lay tu cot ngay_mo_dv
+        // (co o ca 4 bang OB); dong khong doc duoc ngay thi bo qua.
+        const nowY = Number(nowM.slice(0, 4)), curMo = Number(nowM.slice(5, 7)), nowD = Number(nowM.slice(8, 10));
+        const isCurrentPeriod = ky === &quot;nam&quot; ? Number(nam) === nowY : thang === nowM.slice(0, 7);
+        const prevCutFor = (mk) =&gt; {
+          if (!isCurrentPeriod) return null;
+          if (ky === &quot;thang&quot;) return nowD; // prevMonths chi co 1 thang T-1
+          const mm = Number(mk.slice(5, 7));
+          if (mm &gt; curMo) return &quot;skip&quot;; // thang doi chieu sau thang hien tai thi bo qua
+          if (mm === curMo) return nowD;
+          return null;
+        };
+        const dayOf = (v) =&gt; {
+          if (v == null) return null;
+          const str = String(v).trim();
+          if (!str) return null;
+          let m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // ISO 2026-10-14
+          if (m) return Number(m[3]);
+          m = str.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/); // 14/10/2026
+          if (m) return Number(m[1]);
+          if (/^\d{5}$/.test(str)) { // so serial Excel
+            const n = Number(str);
+            if (n &gt;= 30000 &amp;&amp; n &lt;= 80000) return new Date(Math.round((n - 25569) * 86400 * 1000)).getUTCDate();
+          }
+          const d = new Date(str); // chuoi Date cua JS
+          return Number.isNaN(d.getTime()) ? null : d.getDate();
+        };
+        const obMonthCut = async (code, mk, dayCut) =&gt; {
+          const cfg = MOB_SRC[code];
+          const table = monthTableName(cfg.ob, mk);
+          const out = { subs: 0, rev: 0, exists: false };
+          if (!table || !(await tableExists(table))) return out;
+          out.exists = true;
+          const cols = (await env.DB.prepare(&#x27;PRAGMA table_info(&quot;&#x27; + table + &#x27;&quot;)&#x27;).all()).results || [];
+          if (!cols.some((c) =&gt; c.name === &quot;ngay_mo_dv&quot;)) return obMonth(code, mk); // khong co cot ngay thi lay tron thang
+          const rows = (await env.DB.prepare(&#x27;SELECT so_thue_bao, &quot;&#x27; + cfg.rev + &#x27;&quot; AS rev, ngay_mo_dv FROM &quot;&#x27; + table + &#x27;&quot;&#x27;).all()).results || [];
+          let revSum = 0;
+          for (const r of rows) {
+            const d = dayOf(r.ngay_mo_dv);
+            if (d == null || d &gt; dayCut) continue;
+            if (r.so_thue_bao != null) out.subs += 1;
+            revSum += Number(r.rev) || 0;
+          }
+          out.rev = Math.round(revSum / 1.1);
+          return out;
+        };
+        const prevSum = async (code) =&gt; {
+          let subs = 0, rev = 0, exists = false;
+          for (const mk of prevMonths) {
+            const cut = prevCutFor(mk);
+            if (cut === &quot;skip&quot;) continue;
+            const o = cut == null ? await obMonth(code, mk) : await obMonthCut(code, mk, cut);
+            subs += o.subs; rev += o.rev; exists = exists || o.exists;
+          }
+          return { subs, rev, exists };
+        };
+        const prevCutoff = !isCurrentPeriod ? null : ky === &quot;thang&quot;
+          ? { thang: prevMonths[0], ngay: nowD }
+          : { thang: (nam - 1) + &quot;-&quot; + String(curMo).padStart(2, &quot;0&quot;), ngay: nowD };
         const thMonth = async (code, mk) =&gt; {
           const cfg = MOB_SRC[code];
           const out = { called: 0, total: 0, conn: 0, conv: null, exists: false };
@@ -4373,7 +4435,7 @@ function normKbKey(s) {
         let totSubs = 0, totRev = 0, totPrevRev = 0, totYoyRev = 0, hasOb = false;
         for (const p of PROGS) {
           const cur = await obSum(p.code, curMonths);
-          const prev = await obSum(p.code, prevMonths);
+          const prev = await prevSum(p.code);
           const yoy = await obSum(p.code, yoyMonths);
           const planRev = planSum(curMonths, p.code, &quot;doanh_thu&quot;);
           const planSubs = planSum(curMonths, p.code, &quot;thue_bao&quot;);
@@ -4585,7 +4647,7 @@ function normKbKey(s) {
           data_note: dataNote,
           sources: { ob: hasOb, th: hasTh, ipcc: hasIpcc },
           team: {
-            programs,
+            programs, prev_cutoff: prevCutoff,
             total: { subs: totSubs, revenue: totRev, plan_rev: totalPlanRev, plan_subs: totalPlanSubs, pct_plan_rev: pct(totRev, totalPlanRev), rev_prev: totPrevRev, rev_yoy_pct: pct(totRev - totYoyRev, totYoyRev) },
             trend,
             year: { revenue: yearRev, prev_revenue: yearPrevRev, yoy_pct: ky === &quot;nam&quot; ? pct(yearRev - yearPrevRev, yearPrevRev) : null },
@@ -8220,7 +8282,10 @@ function renderMobileDash(d) {
     nd.textContent = "⚠️ " + d.data_note + (!d.has_data ? (d.plans && d.plans.has_plan ? " Đã có kế hoạch TTCSKH (" + d.plans.team_plans + " dòng tập thể, " + d.plans.person_plans + " dòng cá nhân) — số liệu thực hiện sẽ hiện khi import dữ liệu OB." : " Anh giao kế hoạch ở mục Quản lý dữ liệu đầu vào → Import kế hoạch TTCSKH.") : "");
   } else nd.classList.add("hidden");
   const t = d.team || {}, progs = t.programs || [], tot = t.total || {};
-  const prevLabel = d.ky === "nam" ? "vs năm trước" : "vs T-1";
+  const cut = (t || {}).prev_cutoff;
+  const prevLabel = d.ky === "nam"
+    ? (cut ? "vs năm trước (cùng kỳ)" : "vs năm trước")
+    : (cut ? "vs T-1 (đến " + cut.ngay + "/" + cut.thang.slice(5, 7) + ")" : "vs T-1");
   const prevPct = (cur, prev) => prev > 0 ? Math.round((cur - prev) / prev * 1000) / 10 : null;
   let h = "";
   progs.forEach((p) => {
