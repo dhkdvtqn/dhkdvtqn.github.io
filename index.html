@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="data:," />
-    <title>Cơ chế chính sách kênh điểm ủy quyền — Áp dụng từ 01/10/2026</title>
+    <title>DASHBOARD KÊNH BÁN HÀNG VNPT QUẢNG NINH</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0066b3" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -512,6 +512,11 @@
 #appRoot svg.chart .line-plan {fill:none;stroke:#ef4444;stroke-width:2;stroke-dasharray:6 4}
 #appRoot #ovTrendChart, #appRoot #ovPsslChart {position:relative}
 #appRoot #mobTrendChart, #appRoot #mobShareChart, #appRoot #mobObChart, #appRoot #mobConvChart {position:relative}
+#appRoot .muted {color:#64748b}
+#appRoot .eval-list {margin:10px 0 0;padding-left:20px;line-height:1.75;font-size:14.5px}
+#appRoot .eval-list li {margin-bottom:8px}
+#appRoot .eval-list li:last-child {margin-bottom:0}
+#appRoot .eval-list li b {color:var(--blue-dark)}
 #appRoot .chart-tip {position:absolute;z-index:5;pointer-events:none;background:#0f172a;color:#e2e8f0;font-size:12px;line-height:1.7;padding:8px 12px;border-radius:8px;box-shadow:0 6px 18px rgba(2,6,23,.35);white-space:nowrap;transform:translate(-50%,calc(-100% - 8px));display:none}
 #appRoot .chart-tip .tt {font-weight:700;color:#fff}
 #appRoot .chart-tip .tr {display:flex;align-items:center;gap:6px}
@@ -1306,7 +1311,10 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         <!-- QUAN LY DON VI -->
                 <section class="panel hidden" id="panel-mobile">
           <h2>📱 Dashboard TTCSKH</h2>
-          <p class="desc">Đánh giá kết quả thực hiện của TTCSKH: gia hạn gói chu kỳ ngắn (CKN), gia hạn chu kỳ dài (CKD), bán gói (BG) và gia hạn/bán gói tập thuê bao HVC — theo tỷ lệ hoàn thành kế hoạch, tăng giảm so với tháng trước, doanh thu theo tháng/năm, bộ chỉ số tiến trình OB và kết quả từng điện thoại viên.</p>
+          <div class="card" id="mobEvalCard">
+            <h3>📋 Đánh giá nhanh <span class="sec-sub" id="mobEvalPeriod"></span></h3>
+            <div id="mobEval"><p class="muted">Chưa có dữ liệu để đánh giá.</p></div>
+          </div>
           <div class="form-grid">
             <div><label>Kỳ đánh giá</label><select id="mobKy"><option value="thang">Theo tháng</option><option value="nam">Theo năm</option></select></div>
             <div id="mobMonthWrap"><label>Tháng đánh giá</label><input type="month" id="mobMonth" /></div>
@@ -8332,6 +8340,103 @@ function renderMobileDash(d) {
   renderMobProgTable((d.individual || {}).by_program || []);
   renderMobFormTable((d.individual || {}).by_form || []);
   renderMobQualTable((d.individual || {}).quality || []);
+  renderMobEval(d);
+}
+// Danh gia nhanh TTCSKH (14/11): tong hop so lieu Dashboard thanh van ban
+// danh gia 5 tieu chi — thay dong mo ta tinh cua panel
+function renderMobEval(d) {
+  const el = $("mobEval");
+  $("mobEvalPeriod").textContent = "— " + d.period_label;
+  const t = d.team || {}, progs = t.programs || [], tot = t.total || {}, pr = t.progress || {};
+  if (!d.has_data) {
+    el.innerHTML = '<p class="muted">Chưa có dữ liệu để đánh giá — anh import dữ liệu OB ở mục Quản lý dữ liệu đầu vào → Import dữ liệu TTCSKH.</p>';
+    return;
+  }
+  const cut = t.prev_cutoff;
+  const prevLabel = d.ky === "nam"
+    ? (cut ? "năm trước (cùng kỳ)" : "năm trước")
+    : (cut ? "T-1 (đến " + cut.ngay + "/" + cut.thang.slice(5, 7) + ")" : "T-1");
+  const prevPct = (cur, prev) => prev > 0 ? Math.round((cur - prev) / prev * 1000) / 10 : null;
+  const pct1 = (n) => Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%";
+  const num2 = (n) => Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+  const deltaTxt = (pct) => pct == null ? "" : (pct >= 0 ? "tăng " : "giảm ") + pct1(Math.abs(pct));
+  const bestOf = (arr) => arr.reduce((a, b) => b.v > a.v ? b : a);
+  const worstOf = (arr) => arr.reduce((a, b) => b.v < a.v ? b : a);
+  const items = [];
+  // 1. Hoan thanh ke hoach tung chi tieu + so voi T-1
+  const withPlan = progs.filter((p) => p.plan_rev > 0);
+  if (withPlan.length) {
+    const best = bestOf(withPlan.map((p) => ({ code: p.code, v: p.pct_plan_rev ?? -1 })));
+    const worst = worstOf(withPlan.map((p) => ({ code: p.code, v: p.pct_plan_rev ?? 1e9 })));
+    let s = "Tổng doanh thu <b>" + fmt(tot.revenue) + "</b>" + (tot.pct_plan_rev != null ? ", đạt <b>" + pct1(tot.pct_plan_rev) + "</b> kế hoạch" : "") + ". ";
+    s += withPlan.map((p) => {
+      const dp = prevPct(p.revenue, p.rev_prev);
+      return p.code + " " + pct1(p.pct_plan_rev) + " KH" + (dp == null ? "" : " (" + deltaTxt(dp) + " vs " + prevLabel + ")");
+    }).join("; ") + ". ";
+    s += "Tốt nhất: <b>" + best.code + "</b> (" + pct1(best.v) + ")" + (worst.code !== best.code ? "; thấp nhất: <b>" + worst.code + "</b> (" + pct1(worst.v) + ")" : "") + ".";
+    const tp = prevPct(tot.revenue, tot.rev_prev);
+    if (tp != null) s += " Tổng doanh thu " + deltaTxt(tp) + " so với " + prevLabel + ".";
+    const noPlan = progs.filter((p) => !(p.plan_rev > 0));
+    if (noPlan.length) s += " <span class='muted'>(" + noPlan.map((p) => p.code).join(", ") + " chưa giao kế hoạch.)</span>";
+    items.push({ icon: "🎯", title: "Hoàn thành kế hoạch", html: s });
+  }
+  // 2. Ty le OB thanh cong
+  if (pr.ob_success_total != null) {
+    const osVals = ["CKN", "CKD", "BG", "HVC"].map((c) => ({ code: c, v: (pr.ob_success || {})[c] })).filter((x) => x.v != null);
+    let s = "Tỷ lệ OB thành công chung <b>" + pct1(pr.ob_success_total) + "</b>.";
+    if (osVals.length) {
+      s += " Theo chương trình: " + osVals.map((x) => x.code + " " + pct1(x.v)).join(" · ") + ".";
+      const best = bestOf(osVals), worst = worstOf(osVals);
+      s += " Cao nhất: <b>" + best.code + "</b> (" + pct1(best.v) + ")" + (worst.code !== best.code ? "; thấp nhất: <b>" + worst.code + "</b> (" + pct1(worst.v) + ")" : "") + ".";
+    }
+    items.push({ icon: "✅", title: "Tỷ lệ OB thành công", html: s });
+  }
+  // 3. Ty le gia han/ban goi thanh cong tung chuong trinh
+  const cvVals = ["CKN", "CKD", "BG", "HVC"].map((c) => ({ code: c, v: (pr.conv_rate || {})[c] })).filter((x) => x.v != null);
+  if (cvVals.length) {
+    let s = "Tỷ lệ gia hạn/bán gói trên thuê bao OB thành công: " + cvVals.map((x) => x.code + " " + pct1(x.v)).join(" · ") + ".";
+    const best = bestOf(cvVals), worst = worstOf(cvVals);
+    s += " Cao nhất: <b>" + best.code + "</b> (" + pct1(best.v) + ")" + (worst.code !== best.code ? "; thấp nhất: <b>" + worst.code + "</b> (" + pct1(worst.v) + ")" : "") + ".";
+    items.push({ icon: "🔁", title: "Tỷ lệ gia hạn/bán gói thành công", html: s });
+  }
+  // 4. Binh quan so lan goi / thue bao
+  const ac = pr.avg_calls;
+  if (ac && typeof ac === "object" && pr.avg_calls_total != null) {
+    const acVals = ["CKN", "CKD", "BG", "HVC"].map((c) => ({ code: c, v: ac[c] })).filter((x) => x.v != null);
+    let s = "Bình quân <b>" + num2(pr.avg_calls_total) + " lần gọi</b>/1 thuê bao" + (pr.total_calls > 0 ? " (" + fmtInt(pr.total_calls) + " cuộc gọi)" : "") + ".";
+    if (acVals.length) {
+      s += " Theo chương trình: " + acVals.map((x) => x.code + " " + num2(x.v) + " lần").join(" · ") + ".";
+      const most = bestOf(acVals), least = worstOf(acVals);
+      s += " Cần nhiều lần gọi nhất: <b>" + most.code + "</b> (" + num2(most.v) + " lần/TB)" + (least.code !== most.code ? "; ít nhất: <b>" + least.code + "</b> (" + num2(least.v) + " lần/TB)" : "") + ".";
+    }
+    items.push({ icon: "📞", title: "Bình quân số lần gọi / thuê bao", html: s });
+  }
+  // 5. DTV duoi muc binh quan (chi khi xem duoc so lieu ca nhan cua moi nguoi)
+  const ind = d.individual || {};
+  if (ind.scope !== "self") {
+    const totals = {};
+    (ind.by_program || []).forEach((r) => { const k = r.dien_thoai_vien || r.ma_hrm || "—"; totals[k] = (totals[k] || 0) + (r.revenue || 0); });
+    const ops = Object.entries(totals).map(([name, rev]) => ({ name, rev })).sort((a, b) => a.rev - b.rev);
+    if (ops.length >= 2) {
+      const avg = ops.reduce((a, o) => a + o.rev, 0) / ops.length;
+      const below = ops.filter((o) => o.rev < avg);
+      let s;
+      if (below.length) {
+        const shown = below.slice(0, 5);
+        s = "Bình quân <b>" + fmt(avg) + "</b>/ĐTV. Có <b>" + below.length + "/" + ops.length + " bạn</b> dưới mức bình quân: " +
+          shown.map((o) => esc(o.name) + " (" + fmt(o.rev) + ", " + Math.round(o.rev / avg * 100) + "% mức bình quân)").join("; ") +
+          (below.length > 5 ? "; và " + (below.length - 5) + " bạn khác" : "") + ".";
+      } else {
+        s = "Tất cả " + ops.length + " ĐTV đều đạt từ mức bình quân trở lên (" + fmt(avg) + "/ĐTV).";
+      }
+      items.push({ icon: "👤", title: "Điện thoại viên dưới mức bình quân", html: s });
+    }
+  }
+  if (!items.length) {
+    el.innerHTML = '<p class="muted">Chưa đủ số liệu để đánh giá.</p>';
+    return;
+  }
+  el.innerHTML = '<ul class="eval-list">' + items.map((it) => "<li><b>" + it.icon + " " + it.title + ":</b> " + it.html + "</li>").join("") + "</ul>";
 }
 // Bieu do cot doanh thu theo thang + duong ke hoach (SVG vector, hover callout doanh thu + % KH)
 function mobRevChart(el, trend) {
