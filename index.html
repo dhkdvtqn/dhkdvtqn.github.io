@@ -1362,7 +1362,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
 
           <!-- 2. DIEM TIN CA NHAN -->
           <h3 class="sec-title">👤 Điểm tin cá nhân — Kết quả điện thoại viên theo chương trình OB <span class="sec-sub" id="mobIndSub"></span></h3>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Điện thoại viên</th><th>Chương trình</th><th>Số thuê bao</th><th>Doanh thu thực hiện</th><th>Kế hoạch doanh thu</th><th>% KH doanh thu</th></tr></thead><tbody id="mobProgBody"><tr><td colspan="6">Chưa có dữ liệu.</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Điện thoại viên</th><th>ĐT CKN</th><th>TLTH</th><th>ĐT CKD</th><th>TLTH</th><th>ĐT BG</th><th>TLTH</th><th>ĐT HVC</th><th>TLTH</th><th>Tổng ĐT</th></tr></thead><tbody id="mobProgBody"><tr><td colspan="10">Chưa có dữ liệu.</td></tr></tbody></table></div>
 
           <h3 class="sec-title">👤 Kết quả điện thoại viên theo hình thức OB</h3>
           <div class="tbl-wrap"><table class="data"><thead><tr><th>Điện thoại viên</th><th>Hình thức OB</th><th>Số thuê bao</th><th>Doanh thu thực hiện</th></tr></thead><tbody id="mobFormBody"><tr><td colspan="4">Chưa có dữ liệu.</td></tr></tbody></table></div>
@@ -4261,9 +4261,11 @@ function normKbKey(s) {
         await ensureKhTtcskh(env);
         const planRows = (await env.DB.prepare(&quot;SELECT thang, doi_tuong, chuong_trinh, chi_tieu, so_luong FROM ke_hoach_ttcskh WHERE loai = &#x27;tap_the&#x27;&quot;).all()).results || [];
         const planTeam = {};
+        // Ke hoach doanh thu anh nhap tinh bang TRIEU DONG (14/11) — nhan 1e6
+        // de so sanh voi doanh thu thuc hien (dong). Chi tieu thue_bao giu nguyen.
         for (const r of planRows) {
           const k = r.thang + &quot;|&quot; + r.chuong_trinh + &quot;|&quot; + r.chi_tieu;
-          planTeam[k] = (planTeam[k] || 0) + (Number(r.so_luong) || 0);
+          planTeam[k] = (planTeam[k] || 0) + (Number(r.so_luong) || 0) * (r.chi_tieu === &quot;doanh_thu&quot; ? 1000000 : 1);
         }
         const planGet = (mk, ct, chi) =&gt; planTeam[mk + &quot;|&quot; + ct + &quot;|&quot; + chi] || 0;
         const planSum = (mks, ct, chi) =&gt; mks.reduce((a, mk) =&gt; a + planGet(mk, ct, chi), 0);
@@ -4274,7 +4276,7 @@ function normKbKey(s) {
           if (!curMonths.includes(r.thang)) continue;
           personSet.add(r.doi_tuong);
           const k = r.doi_tuong + &quot;|&quot; + r.chuong_trinh + &quot;|&quot; + r.chi_tieu;
-          personPlan[k] = (personPlan[k] || 0) + (Number(r.so_luong) || 0);
+          personPlan[k] = (personPlan[k] || 0) + (Number(r.so_luong) || 0) * (r.chi_tieu === &quot;doanh_thu&quot; ? 1000000 : 1);
         }
         const PROGS = [
           { code: &quot;CKN&quot;, name: &quot;Gia hạn gói chu kỳ ngắn&quot; },
@@ -4531,7 +4533,7 @@ function normKbKey(s) {
             if (pr || ps) planByKey.get(k)[p.code] = { pr, ps };
           }
         }
-        const byProgram = [];
+        let byProgram = [];
         const matchedPlanKeys = new Set();
         for (const [key, v] of progAgg) {
           const [code, hrm] = key.split(&quot;|&quot;);
@@ -4554,12 +4556,28 @@ function normKbKey(s) {
           }
         }
         byProgram.sort((a, b) =&gt; (a.dien_thoai_vien || &quot;&quot;).localeCompare(b.dien_thoai_vien || &quot;&quot;, &quot;vi&quot;) || a.chuong_trinh.localeCompare(b.chuong_trinh));
-        const byForm = [];
+        let byForm = [];
         for (const [key, v] of formAgg) {
           const [form, hrm] = key.split(&quot;|&quot;);
           byForm.push({ dien_thoai_vien: v.name, ma_hrm: hrm, hinh_thuc: form, subs: v.subs, revenue: v.revenue });
         }
         byForm.sort((a, b) =&gt; (a.dien_thoai_vien || &quot;&quot;).localeCompare(b.dien_thoai_vien || &quot;&quot;, &quot;vi&quot;) || FORMS.indexOf(a.hinh_thuc) - FORMS.indexOf(b.hinh_thuc));
+        // Phan quyen ca nhan (14/11): admin/subadmin + lanh dao don vi (role
+        // leader hoac chuc_danh &quot;Lãnh đạo đơn vị&quot;) xem het; nhan vien khac chi
+        // xem so lieu cua minh (khop ma HRM, neu tai khoan khong co ma HRM thi
+        // khop theo ten). Phan tap the o tren thi moi nguoi co module deu xem.
+        // (Khi lam bang chat luong cuoc goi thi ap dung loc tuong tu.)
+        const isPriv = me.role === &quot;admin&quot; || me.role === &quot;subadmin&quot;;
+        const isTLeader = me.role === &quot;leader&quot; || normProg(me.chuc_danh) === &quot;lanh dao don vi&quot;;
+        let indivScope = &quot;all&quot;;
+        if (!isPriv &amp;&amp; !isTLeader) {
+          indivScope = &quot;self&quot;;
+          const myCode = String(me.ma_hrm || &quot;&quot;).trim().toUpperCase();
+          const myName = normProg(me.ho_ten || &quot;&quot;);
+          const mine = (r) =&gt; (myCode &amp;&amp; String(r.ma_hrm || &quot;&quot;).trim().toUpperCase() === myCode) || (myName &amp;&amp; normProg(r.dien_thoai_vien) === myName);
+          byProgram = byProgram.filter(mine);
+          byForm = byForm.filter(mine);
+        }
 
         return json({
           ok: true, ky, period_label: periodLabel, has_data: hasData,
@@ -4577,7 +4595,7 @@ function normKbKey(s) {
               ob_success_total: obSuccessTotal, avg_calls: avgCalls, avg_calls_total: avgCallsTotal, total_calls: totalCalls,
             },
           },
-          individual: { by_program: byProgram, by_form: byForm, quality: [] },
+          individual: { by_program: byProgram, by_form: byForm, quality: [], scope: indivScope },
           plans: { has_plan: planRows.length + personRows.length &gt; 0, team_plans: planRows.length, person_plans: personRows.length },
         });
       }
@@ -8194,7 +8212,7 @@ async function loadMobileDash() {
 function renderMobileDash(d) {
   $("mobPeriodSub").textContent = "— " + d.period_label;
   $("mobTrendSub").textContent = d.ky === "nam" ? "— theo tháng trong năm" : "— 12 tháng gần nhất";
-  $("mobIndSub").textContent = "— " + d.period_label;
+  $("mobIndSub").textContent = "— " + d.period_label + ((d.individual || {}).scope === "self" ? " — Bạn chỉ xem số liệu của mình" : "");
   const nd = $("mobNoData");
   if (d.data_note) {
     nd.classList.remove("hidden");
@@ -8263,7 +8281,7 @@ function mobRevChart(el, trend) {
   el.querySelectorAll(".cbar,.cdot").forEach((elm) => {
     const i = Number(elm.getAttribute("data-i")); const d = trend[i];
     const pct = d.plan_rev > 0 ? Math.round((d.revenue / d.plan_rev) * 1000) / 10 : null;
-    items.push({ elm, html: "<div class='tt'>" + monthLabel(d.month) + "</div><div class='tr'><i class='dot' style='background:#f59e0b'></i>Doanh thu: <b>" + fmt(d.revenue) + "</b></div><div class='tr'><i class='dot' style='background:#ef4444'></i>Kế hoạch: <b>" + fmt(d.plan_rev) + "</b></div><div class='tr'>Tỷ lệ KH: <b>" + (pct == null ? "—" : fmtPct2(pct)) + "</b></div>" });
+    items.push({ elm, html: "<div class='tt'>" + monthLabel(d.month) + "</div><div class='tr'>Tổng số thuê bao OB: <b>" + fmtInt(d.subs) + "</b></div><div class='tr'><i class='dot' style='background:#f59e0b'></i>Doanh thu OB: <b>" + fmt(d.revenue) + "</b></div><div class='tr'><i class='dot' style='background:#ef4444'></i>Kế hoạch: <b>" + fmt(d.plan_rev) + "</b></div><div class='tr'>Tỷ lệ hoàn thành KH: <b>" + (pct == null ? "—" : fmtPct2(pct)) + "</b></div>" });
   });
   bindChartTips(el, tip, items);
 }
@@ -8325,8 +8343,29 @@ function mobRateChart(el, rates, label) {
 }
 function renderMobProgTable(rows) {
   const tb = $("mobProgBody");
-  if (!rows.length) { tb.innerHTML = '<tr><td colspan="6">Chưa có dữ liệu. Import dữ liệu TTCSKH ở mục Quản lý dữ liệu đầu vào → Import dữ liệu TTCSKH để thấy kết quả từng điện thoại viên, hoặc giao kế hoạch cá nhân ở mục Import kế hoạch TTCSKH.</td></tr>'; return; }
-  tb.innerHTML = rows.map((r) => "<tr><td>" + esc(r.dien_thoai_vien) + "</td><td><b>" + esc(r.chuong_trinh) + "</b> — " + esc(MOB_PROG_NAME[r.chuong_trinh] || "") + "</td><td>" + fmtInt(r.subs) + "</td><td>" + fmt(r.revenue) + "</td><td>" + fmt(r.plan_rev) + "</td><td>" + mobPct(r.pct_plan_rev) + "</td></tr>").join("");
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="10">Chưa có dữ liệu. Import dữ liệu TTCSKH ở mục Quản lý dữ liệu đầu vào → Import dữ liệu TTCSKH để thấy kết quả từng điện thoại viên, hoặc giao kế hoạch cá nhân ở mục Import kế hoạch TTCSKH.</td></tr>'; return; }
+  // Pivot: 1 dong / dien thoai vien — DT + TLTH tung chuong trinh + Tong DT,
+  // xep theo Tong DT giam dan.
+  const byOp = new Map();
+  rows.forEach((r) => {
+    const k = r.dien_thoai_vien || "";
+    if (!byOp.has(k)) byOp.set(k, { name: k, CKN: null, CKD: null, BG: null, HVC: null });
+    byOp.get(k)[r.chuong_trinh] = r;
+  });
+  const ops = [...byOp.values()].map((o) => {
+    let total = 0;
+    ["CKN", "CKD", "BG", "HVC"].forEach((c) => { total += (o[c] || {}).revenue || 0; });
+    return { ...o, total };
+  });
+  ops.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "vi"));
+  tb.innerHTML = ops.map((o) => {
+    let h = "<tr><td>" + esc(o.name) + "</td>";
+    ["CKN", "CKD", "BG", "HVC"].forEach((c) => {
+      const r = o[c];
+      h += "<td>" + fmt(r ? r.revenue : 0) + "</td><td>" + mobPct(r ? r.pct_plan_rev : null) + "</td>";
+    });
+    return h + "<td><b>" + fmt(o.total) + "</b></td></tr>";
+  }).join("");
 }
 function renderMobFormTable(rows) {
   const tb = $("mobFormBody");

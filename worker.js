@@ -2384,9 +2384,11 @@ function normKbKey(s) {
         await ensureKhTtcskh(env);
         const planRows = (await env.DB.prepare("SELECT thang, doi_tuong, chuong_trinh, chi_tieu, so_luong FROM ke_hoach_ttcskh WHERE loai = 'tap_the'").all()).results || [];
         const planTeam = {};
+        // Ke hoach doanh thu anh nhap tinh bang TRIEU DONG (14/11) — nhan 1e6
+        // de so sanh voi doanh thu thuc hien (dong). Chi tieu thue_bao giu nguyen.
         for (const r of planRows) {
           const k = r.thang + "|" + r.chuong_trinh + "|" + r.chi_tieu;
-          planTeam[k] = (planTeam[k] || 0) + (Number(r.so_luong) || 0);
+          planTeam[k] = (planTeam[k] || 0) + (Number(r.so_luong) || 0) * (r.chi_tieu === "doanh_thu" ? 1000000 : 1);
         }
         const planGet = (mk, ct, chi) => planTeam[mk + "|" + ct + "|" + chi] || 0;
         const planSum = (mks, ct, chi) => mks.reduce((a, mk) => a + planGet(mk, ct, chi), 0);
@@ -2397,7 +2399,7 @@ function normKbKey(s) {
           if (!curMonths.includes(r.thang)) continue;
           personSet.add(r.doi_tuong);
           const k = r.doi_tuong + "|" + r.chuong_trinh + "|" + r.chi_tieu;
-          personPlan[k] = (personPlan[k] || 0) + (Number(r.so_luong) || 0);
+          personPlan[k] = (personPlan[k] || 0) + (Number(r.so_luong) || 0) * (r.chi_tieu === "doanh_thu" ? 1000000 : 1);
         }
         const PROGS = [
           { code: "CKN", name: "Gia hạn gói chu kỳ ngắn" },
@@ -2654,7 +2656,7 @@ function normKbKey(s) {
             if (pr || ps) planByKey.get(k)[p.code] = { pr, ps };
           }
         }
-        const byProgram = [];
+        let byProgram = [];
         const matchedPlanKeys = new Set();
         for (const [key, v] of progAgg) {
           const [code, hrm] = key.split("|");
@@ -2677,12 +2679,28 @@ function normKbKey(s) {
           }
         }
         byProgram.sort((a, b) => (a.dien_thoai_vien || "").localeCompare(b.dien_thoai_vien || "", "vi") || a.chuong_trinh.localeCompare(b.chuong_trinh));
-        const byForm = [];
+        let byForm = [];
         for (const [key, v] of formAgg) {
           const [form, hrm] = key.split("|");
           byForm.push({ dien_thoai_vien: v.name, ma_hrm: hrm, hinh_thuc: form, subs: v.subs, revenue: v.revenue });
         }
         byForm.sort((a, b) => (a.dien_thoai_vien || "").localeCompare(b.dien_thoai_vien || "", "vi") || FORMS.indexOf(a.hinh_thuc) - FORMS.indexOf(b.hinh_thuc));
+        // Phan quyen ca nhan (14/11): admin/subadmin + lanh dao don vi (role
+        // leader hoac chuc_danh "Lãnh đạo đơn vị") xem het; nhan vien khac chi
+        // xem so lieu cua minh (khop ma HRM, neu tai khoan khong co ma HRM thi
+        // khop theo ten). Phan tap the o tren thi moi nguoi co module deu xem.
+        // (Khi lam bang chat luong cuoc goi thi ap dung loc tuong tu.)
+        const isPriv = me.role === "admin" || me.role === "subadmin";
+        const isTLeader = me.role === "leader" || normProg(me.chuc_danh) === "lanh dao don vi";
+        let indivScope = "all";
+        if (!isPriv && !isTLeader) {
+          indivScope = "self";
+          const myCode = String(me.ma_hrm || "").trim().toUpperCase();
+          const myName = normProg(me.ho_ten || "");
+          const mine = (r) => (myCode && String(r.ma_hrm || "").trim().toUpperCase() === myCode) || (myName && normProg(r.dien_thoai_vien) === myName);
+          byProgram = byProgram.filter(mine);
+          byForm = byForm.filter(mine);
+        }
 
         return json({
           ok: true, ky, period_label: periodLabel, has_data: hasData,
@@ -2700,7 +2718,7 @@ function normKbKey(s) {
               ob_success_total: obSuccessTotal, avg_calls: avgCalls, avg_calls_total: avgCallsTotal, total_calls: totalCalls,
             },
           },
-          individual: { by_program: byProgram, by_form: byForm, quality: [] },
+          individual: { by_program: byProgram, by_form: byForm, quality: [], scope: indivScope },
           plans: { has_plan: planRows.length + personRows.length > 0, team_plans: planRows.length, person_plans: personRows.length },
         });
       }
