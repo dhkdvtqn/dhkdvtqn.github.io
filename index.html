@@ -4428,7 +4428,7 @@ function normKbKey(s) {
             if (n.includes(&quot;hvc&quot;)) code = &quot;HVC&quot;;
             else if (n.includes(&quot;ckn&quot;)) code = &quot;CKN&quot;;
             else if (n.includes(&quot;ckd&quot;)) code = &quot;CKD&quot;;
-            else if (n.includes(&quot;bg&quot;) || n.includes(&quot;ban goi&quot;) || n.includes(&quot;ban hang&quot;)) code = &quot;BG&quot;;
+            else if (n.includes(&quot;bg&quot;) || n.includes(&quot;ban goi&quot;) || n.includes(&quot;bangoi&quot;) || n.includes(&quot;ban hang&quot;)) code = &quot;BG&quot;; // &quot;Bangoi&quot; viet lien, VD &quot;Chiến dịch OB Bangoi_QNH&quot; (14/11)
             if (!code) {
               const raw = r.ct == null ? &quot;&quot; : String(r.ct).trim();
               if (raw !== &quot;&quot; &amp;&amp; !out.unmatched.includes(raw)) out.unmatched.push(raw);

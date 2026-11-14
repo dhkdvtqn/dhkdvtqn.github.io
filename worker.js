@@ -2550,7 +2550,7 @@ function normKbKey(s) {
             if (n.includes("hvc")) code = "HVC";
             else if (n.includes("ckn")) code = "CKN";
             else if (n.includes("ckd")) code = "CKD";
-            else if (n.includes("bg") || n.includes("ban goi") || n.includes("ban hang")) code = "BG";
+            else if (n.includes("bg") || n.includes("ban goi") || n.includes("bangoi") || n.includes("ban hang")) code = "BG"; // "Bangoi" viet lien, VD "Chiến dịch OB Bangoi_QNH" (14/11)
             if (!code) {
               const raw = r.ct == null ? "" : String(r.ct).trim();
               if (raw !== "" && !out.unmatched.includes(raw)) out.unmatched.push(raw);
