@@ -1391,6 +1391,42 @@ export default {
         }
         return json({ ok: true, deleted, skipped });
       }
+      // ---- Gan/go quyen module hang loat cho nhan su (muc Quan ly nguoi dung, 15/11) ----
+      // Admin chon nhieu user + 1 module, bam Gan hoac Go: 1 lan goi cap nhat het.
+      if (path === "/api/users/bulk-modules" && method === "POST") {
+        if (!isAdmin) return err("Chi admin moi co quyen gan/go module hang loat", 403);
+        if (!hasModule(me, "staff")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
+        const b = await readBody(request);
+        const module = String(b.module || "").trim();
+        if (!MODULE_KEYS.includes(module)) return err("Module khong hop le", 422);
+        const action = b.action === "remove" ? "remove" : "assign";
+        const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map(Number).filter((n) => n > 0))];
+        if (!ids.length) return err("Chua chon nguoi dung nao", 422);
+        let updated = 0, unchanged = 0;
+        const skipped = [];
+        for (const id of ids) {
+          const row = await env.DB.prepare("SELECT id, role, modules FROM nguoi_dung WHERE id = ?").bind(id).first();
+          if (!row) { skipped.push({ id, reason: "Khong tim thay nguoi dung" }); continue; }
+          if (row.role === "user") { skipped.push({ id, reason: "Tai khoan diem ban duoc quan ly trong module Quan ly kenh ban" }); continue; }
+          const mods = parseModules(row.modules);
+          if (mods === null) {
+            // Tai khoan chua thiet lap rieng: mac dinh dung du quyen theo vai tro.
+            if (action === "assign") { unchanged++; continue; } // da co quyen roi
+            // Go khoi tai khoan day du quyen: cu the hoa thanh toan bo module tru key nay.
+            const next = MODULE_KEYS.filter((k) => k !== module);
+            await env.DB.prepare("UPDATE nguoi_dung SET modules = ? WHERE id = ?").bind(JSON.stringify(next), id).run();
+            updated++;
+            continue;
+          }
+          const has = mods.includes(module);
+          if (action === "assign" && has) { unchanged++; continue; }
+          if (action === "remove" && !has) { unchanged++; continue; }
+          const next = action === "assign" ? [...mods, module] : mods.filter((k) => k !== module);
+          await env.DB.prepare("UPDATE nguoi_dung SET modules = ? WHERE id = ?").bind(JSON.stringify(next), id).run();
+          updated++;
+        }
+        return json({ ok: true, updated, unchanged, skipped });
+      }
       // ---- Reset mat khau nhan su ve mac dinh Vnpt@2026 (module Quan ly nguoi dung) ----
       const resetMatch = path.match(/^\/api\/users\/(\d+)\/reset-password$/);
       if (resetMatch && method === "POST") {
