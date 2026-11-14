@@ -1686,7 +1686,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         </section>
                 <section class="panel hidden" id="panel-import-ttcskh-data">
           <h2>Import dữ liệu TTCSKH</h2>
-            <p class="desc">Import dữ liệu đầu vào cho Dashboard TTCSKH từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng theo từng loại (OBCKN, OBCKD, OBBG, OBHVC, IPCC, THCKN, THCKD, THBG, THHVC + _MMYYYY) — 9 loại: 5 loại KQTH OB chi tiết theo thuê bao và 4 loại Tổng hợp Autocall theo tỉnh. <b>Cột trong file được map theo đúng vị trí</b> (không theo tên cột) vì một số file có cột trùng tên. 3 chế độ import: <b>Tạo mới</b> (bảng tháng chưa có mới import được), <b>Cập nhật</b> (nạp thêm dòng vào bảng tháng đã có — không xóa dòng cũ), <b>Thay thế</b> (xóa toàn bộ bảng tháng rồi nạp lại).</p>
+            <p class="desc">Import dữ liệu đầu vào cho Dashboard TTCSKH từ file Excel (.xlsx, .xls, .csv) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng theo từng loại (OBCKN, OBCKD, OBBG, OBHVC, IPCC, THCKN, THCKD, THBG, THHVC + _MMYYYY) — 9 loại: 5 loại KQTH OB chi tiết theo thuê bao và 4 loại Tổng hợp Autocall theo tỉnh. <b>Cột trong file được map theo đúng vị trí</b> (không theo tên cột) vì một số file có cột trùng tên. Riêng IPCC map theo <b>tên cột</b>: trùng tên thì map, không trùng thì bỏ qua (vì file IPCC đã xóa bớt cột). 3 chế độ import: <b>Tạo mới</b> (bảng tháng chưa có mới import được), <b>Cập nhật</b> (nạp thêm dòng vào bảng tháng đã có — không xóa dòng cũ), <b>Thay thế</b> (xóa toàn bộ bảng tháng rồi nạp lại).</p>
             <div class="form-grid">
               <div><label>Loại dữ liệu</label><select id="ttdType"></select></div>
               <div><label>Tháng</label><input type="number" id="ttdMonth" min="1" max="12" /></div>
@@ -3503,6 +3503,8 @@ export default {
       // Tao moi (409 neu bang da co), Cap nhat (nap them dong vao bang da co),
       // Thay the (xoa bang roi nap lai). Map cot THEO VI TRI (khong theo ten)
       // vi file CKN co 2 cot &quot;Chu ky goi&quot; (cot 10: truoc OB; cot 20: goi moi).
+      // NGOAI LE: IPCC map THEO TEN (14/11, theo yeu cau anh) vi file du lieu
+      // IPCC da bi xoa bot cot — trung ten thi map, khong trung thi bo qua.
       // So dung toNumberTtcskh (khong dung toNumber chung) vi file TH co o text
       // dang &quot;62.35%&quot; — dau . la thap phan, khong phai hang nghin.
       // Parse so cho import TTCSKH: o so Excel truyen thang; o text co the la
@@ -3586,7 +3588,29 @@ export default {
         if (!thang || thang &lt; 1 || thang &gt; 12 || !nam || nam &lt; 2000 || nam &gt; 2100) return err(&quot;Thang/nam import khong hop le&quot;, 422);
         const columns = dtype.columns.map(([n, t]) =&gt; [n, t]);
         const colNames = columns.map(([n]) =&gt; n);
-        // Dong gui dang MANG theo dung thu tu cot trong file (map theo vi tri).
+        // Map cot: mac dinh THEO VI TRI (dong gui dang MANG theo dung thu tu cot
+        // trong file). Rieng IPCC map THEO TEN: file du lieu IPCC cua anh da xoa
+        // bot cot nen vi tri khong con khop; ten cot nao trung thi map, ten nao
+        // khong trung thi bo qua (khong import), cot DB khong co trong file thi
+        // de trong. Client gui kem headers (hang tieu de file).
+        const normTtcskhHdr = (x) =&gt; String(x == null ? &quot;&quot; : x).normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/đ/g, &quot;d&quot;).replace(/Đ/g, &quot;D&quot;).toLowerCase().replace(/\([^)]*\)/g, &quot;&quot;).replace(/[^a-z0-9]/g, &quot;&quot;);
+        let colIndex = colNames.map((_, idx) =&gt; idx); // vi tri mac dinh
+        let skippedHeaders = [];
+        let mappedCols = colNames.length;
+        const fileHeaders = Array.isArray(b.headers) ? b.headers.map((h) =&gt; String(h == null ? &quot;&quot; : h)) : [];
+        if (dtype.code === &quot;IPCC&quot; &amp;&amp; fileHeaders.length) {
+          const labelToIdx = new Map();
+          dtype.columns.forEach(([, , label], idx) =&gt; { const nk = normTtcskhHdr(label); if (!labelToIdx.has(nk)) labelToIdx.set(nk, idx); });
+          colIndex = colNames.map(() =&gt; -1);
+          fileHeaders.forEach((h, i) =&gt; {
+            const ci = labelToIdx.get(normTtcskhHdr(h));
+            if (ci === undefined) { if (String(h).trim() !== &quot;&quot;) skippedHeaders.push(h); return; }
+            if (colIndex[ci] === -1) colIndex[ci] = i; // 1 ten trung 2 lan: lay cot dau
+          });
+          mappedCols = colIndex.filter((i) =&gt; i &gt;= 0).length;
+          if (!mappedCols) return err(&quot;Khong co cot nao trong file khop voi dinh nghia bang IPCC. Hay kiem tra lai hang tieu de cua file.&quot;, 422);
+        }
+        // Dong gui dang MANG theo dung thu tu cot trong file.
         const rawRows = Array.isArray(b.rows) ? b.rows : [];
         const rows = rawRows.filter((row) =&gt; Array.isArray(row) &amp;&amp; row.some((v) =&gt; v !== null &amp;&amp; v !== undefined &amp;&amp; String(v).trim() !== &quot;&quot;));
         if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
@@ -3613,7 +3637,7 @@ export default {
         for (let i = 0; i &lt; rows.length; i += CHUNK) {
           const batch = rows.slice(i, i + CHUNK).map((row) =&gt; {
             const vals = colNames.map((n, idx) =&gt; {
-              const v = row[idx];
+              const v = colIndex[idx] &gt;= 0 ? row[colIndex[idx]] : undefined;
               return numericCols.has(n) ? toNumberTtcskh(v) : toText(v);
             });
             vals.push(me.username);
@@ -3622,7 +3646,7 @@ export default {
           await env.DB.batch(batch);
           inserted += batch.length;
         }
-        return json({ ok: true, table, type: dtype.code, inserted, mode });
+        return json({ ok: true, table, type: dtype.code, inserted, mode, mapped_cols: mappedCols, total_cols: colNames.length, skipped_headers: skippedHeaders.slice(0, 10) });
       }
 // ---- Dinh nghia loai kenh ban (module 5.7 &quot;Cau hinh loai kenh ban&quot;) ----
 // Admin dinh nghia: Loai diem ban (nhu trong file danh sach kenh) -&gt; Hang kenh
@@ -8184,16 +8208,33 @@ $("ttdPreviewBtn").addEventListener("click", async () => {
     const parsed = await readTtdFile();
     if (!parsed) return;
     ttdParsed = parsed;
-    const n = Math.max(parsed.headers.length, t.columns.length);
-    let h = "<div class='tbl-wrap' style='max-height:320px;overflow:auto'><table class='data'><thead><tr><th>#</th><th>Cột trong file</th><th>Cột đích (theo vị trí)</th><th>Khớp?</th></tr></thead><tbody>";
-    for (let i = 0; i < n; i++) {
-      const fh = parsed.headers[i] ?? "";
-      const tc = t.columns[i];
-      const ok = tc && ttdNorm(fh) === ttdNorm(tc.label);
-      h += "<tr><td>" + (i + 1) + "</td><td>" + esc(fh || "(trống)") + "</td><td>" + esc(tc ? tc.label : "(thừa — sẽ bỏ qua)") + "</td><td>" + (tc ? (ok ? "✅" : "⚠️ khác tên — vẫn map theo vị trí") : "—") + "</td></tr>";
+    let h = "";
+    if (t.code === "IPCC") {
+      // IPCC map theo TEN: trung ten thi map, khong trung thi bo qua
+      const labelByNorm = new Map();
+      t.columns.forEach((c) => { const k = ttdNorm(c.label); if (!labelByNorm.has(k)) labelByNorm.set(k, c); });
+      const matched = new Set();
+      h += "<div class='tbl-wrap' style='max-height:320px;overflow:auto'><table class='data'><thead><tr><th>#</th><th>Cột trong file</th><th>Map vào cột DB</th><th>Trạng thái</th></tr></thead><tbody>";
+      parsed.headers.forEach((fh, i) => {
+        const mc = labelByNorm.get(ttdNorm(fh));
+        if (mc) matched.add(mc.key);
+        h += "<tr><td>" + (i + 1) + "</td><td>" + esc(fh || "(trống)") + "</td><td>" + esc(mc ? mc.label : "—") + "</td><td>" + (mc ? "✅ Map" : "⏭️ Bỏ qua — không trùng tên") + "</td></tr>";
+      });
+      h += "</tbody></table></div>";
+      const missing = t.columns.filter((c) => !matched.has(c.key));
+      h += "<p class='desc' style='margin-top:6px'>IPCC map theo tên: <b>" + matched.size + "/" + t.columns.length + "</b> cột DB được map" + (missing.length ? "; <b>" + missing.length + "</b> cột không có trong file sẽ để trống: " + missing.map((c) => esc(c.label)).join(", ") : "") + ". File có <b>" + parsed.rows.length + "</b> dòng dữ liệu.</p>";
+    } else {
+      const n = Math.max(parsed.headers.length, t.columns.length);
+      h += "<div class='tbl-wrap' style='max-height:320px;overflow:auto'><table class='data'><thead><tr><th>#</th><th>Cột trong file</th><th>Cột đích (theo vị trí)</th><th>Khớp?</th></tr></thead><tbody>";
+      for (let i = 0; i < n; i++) {
+        const fh = parsed.headers[i] ?? "";
+        const tc = t.columns[i];
+        const ok = tc && ttdNorm(fh) === ttdNorm(tc.label);
+        h += "<tr><td>" + (i + 1) + "</td><td>" + esc(fh || "(trống)") + "</td><td>" + esc(tc ? tc.label : "(thừa — sẽ bỏ qua)") + "</td><td>" + (tc ? (ok ? "✅" : "⚠️ khác tên — vẫn map theo vị trí") : "—") + "</td></tr>";
+      }
+      h += "</tbody></table></div>";
+      h += "<p class='desc' style='margin-top:6px'>File có <b>" + parsed.rows.length + "</b> dòng dữ liệu" + (parsed.headers.length !== t.columns.length ? " — ⚠️ số cột trong file (" + parsed.headers.length + ") khác số cột chuẩn (" + t.columns.length + "), hãy kiểm tra lại thứ tự cột trước khi import." : ".") + "</p>";
     }
-    h += "</tbody></table></div>";
-    h += "<p class='desc' style='margin-top:6px'>File có <b>" + parsed.rows.length + "</b> dòng dữ liệu" + (parsed.headers.length !== t.columns.length ? " — ⚠️ số cột trong file (" + parsed.headers.length + ") khác số cột chuẩn (" + t.columns.length + "), hãy kiểm tra lại thứ tự cột trước khi import." : ".") + "</p>";
     if (parsed.rows.length) {
       h += "<div class='tbl-wrap' style='max-height:220px;overflow:auto;margin-top:6px'><table class='data'><thead><tr><th>#</th>" + t.columns.slice(0, 6).map((c) => "<th>" + esc(c.label) + "</th>").join("") + "<th>…</th></tr></thead><tbody>";
       parsed.rows.slice(0, 3).forEach((r, i) => { h += "<tr><td>" + (i + 1) + "</td>" + t.columns.slice(0, 6).map((c, j) => "<td>" + esc(r[j] ?? "") + "</td>").join("") + "<td>…</td></tr>"; });
@@ -8218,8 +8259,10 @@ $("ttdImpBtn").addEventListener("click", async () => {
       ttdParsed = parsed;
     }
     setMsg($("ttdMsg"), "Đang import " + parsed.rows.length + " dòng vào bảng " + t.prefix + "_" + String(thang).padStart(2, "0") + nam + "…");
-    const d = await api("/api/ttcskh/import", { method: "POST", body: JSON.stringify({ loai: t.code, thang, nam, mode, rows: parsed.rows }) });
-    setMsg($("ttdMsg"), "Import xong: " + d.inserted + " dòng vào bảng " + d.table + " (chế độ " + ({ create: "Tạo mới", update: "Cập nhật", replace: "Thay thế" }[d.mode] || d.mode) + ").", true);
+    const d = await api("/api/ttcskh/import", { method: "POST", body: JSON.stringify({ loai: t.code, thang, nam, mode, headers: parsed.headers, rows: parsed.rows }) });
+    let done = "Import xong: " + d.inserted + " dòng vào bảng " + d.table + " (chế độ " + ({ create: "Tạo mới", update: "Cập nhật", replace: "Thay thế" }[d.mode] || d.mode) + ")";
+    if (t.code === "IPCC") done += " — map theo tên: " + d.mapped_cols + "/" + d.total_cols + " cột" + (d.skipped_headers && d.skipped_headers.length ? "; bỏ qua " + d.skipped_headers.length + " cột không trùng: " + d.skipped_headers.map(esc).join(", ") : "");
+    setMsg($("ttdMsg"), done + ".", true);
     ttdParsed = null;
     loadTtdTables();
   } catch (e) { setMsg($("ttdMsg"), e.message, false); }

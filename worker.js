@@ -1626,6 +1626,8 @@ export default {
       // Tao moi (409 neu bang da co), Cap nhat (nap them dong vao bang da co),
       // Thay the (xoa bang roi nap lai). Map cot THEO VI TRI (khong theo ten)
       // vi file CKN co 2 cot "Chu ky goi" (cot 10: truoc OB; cot 20: goi moi).
+      // NGOAI LE: IPCC map THEO TEN (14/11, theo yeu cau anh) vi file du lieu
+      // IPCC da bi xoa bot cot — trung ten thi map, khong trung thi bo qua.
       // So dung toNumberTtcskh (khong dung toNumber chung) vi file TH co o text
       // dang "62.35%" — dau . la thap phan, khong phai hang nghin.
       // Parse so cho import TTCSKH: o so Excel truyen thang; o text co the la
@@ -1709,7 +1711,29 @@ export default {
         if (!thang || thang < 1 || thang > 12 || !nam || nam < 2000 || nam > 2100) return err("Thang/nam import khong hop le", 422);
         const columns = dtype.columns.map(([n, t]) => [n, t]);
         const colNames = columns.map(([n]) => n);
-        // Dong gui dang MANG theo dung thu tu cot trong file (map theo vi tri).
+        // Map cot: mac dinh THEO VI TRI (dong gui dang MANG theo dung thu tu cot
+        // trong file). Rieng IPCC map THEO TEN: file du lieu IPCC cua anh da xoa
+        // bot cot nen vi tri khong con khop; ten cot nao trung thi map, ten nao
+        // khong trung thi bo qua (khong import), cot DB khong co trong file thi
+        // de trong. Client gui kem headers (hang tieu de file).
+        const normTtcskhHdr = (x) => String(x == null ? "" : x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/\([^)]*\)/g, "").replace(/[^a-z0-9]/g, "");
+        let colIndex = colNames.map((_, idx) => idx); // vi tri mac dinh
+        let skippedHeaders = [];
+        let mappedCols = colNames.length;
+        const fileHeaders = Array.isArray(b.headers) ? b.headers.map((h) => String(h == null ? "" : h)) : [];
+        if (dtype.code === "IPCC" && fileHeaders.length) {
+          const labelToIdx = new Map();
+          dtype.columns.forEach(([, , label], idx) => { const nk = normTtcskhHdr(label); if (!labelToIdx.has(nk)) labelToIdx.set(nk, idx); });
+          colIndex = colNames.map(() => -1);
+          fileHeaders.forEach((h, i) => {
+            const ci = labelToIdx.get(normTtcskhHdr(h));
+            if (ci === undefined) { if (String(h).trim() !== "") skippedHeaders.push(h); return; }
+            if (colIndex[ci] === -1) colIndex[ci] = i; // 1 ten trung 2 lan: lay cot dau
+          });
+          mappedCols = colIndex.filter((i) => i >= 0).length;
+          if (!mappedCols) return err("Khong co cot nao trong file khop voi dinh nghia bang IPCC. Hay kiem tra lai hang tieu de cua file.", 422);
+        }
+        // Dong gui dang MANG theo dung thu tu cot trong file.
         const rawRows = Array.isArray(b.rows) ? b.rows : [];
         const rows = rawRows.filter((row) => Array.isArray(row) && row.some((v) => v !== null && v !== undefined && String(v).trim() !== ""));
         if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
@@ -1736,7 +1760,7 @@ export default {
         for (let i = 0; i < rows.length; i += CHUNK) {
           const batch = rows.slice(i, i + CHUNK).map((row) => {
             const vals = colNames.map((n, idx) => {
-              const v = row[idx];
+              const v = colIndex[idx] >= 0 ? row[colIndex[idx]] : undefined;
               return numericCols.has(n) ? toNumberTtcskh(v) : toText(v);
             });
             vals.push(me.username);
@@ -1745,7 +1769,7 @@ export default {
           await env.DB.batch(batch);
           inserted += batch.length;
         }
-        return json({ ok: true, table, type: dtype.code, inserted, mode });
+        return json({ ok: true, table, type: dtype.code, inserted, mode, mapped_cols: mappedCols, total_cols: colNames.length, skipped_headers: skippedHeaders.slice(0, 10) });
       }
 // ---- Dinh nghia loai kenh ban (module 5.7 "Cau hinh loai kenh ban") ----
 // Admin dinh nghia: Loai diem ban (nhu trong file danh sach kenh) -> Hang kenh
