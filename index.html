@@ -2,7 +2,7 @@
 <html lang="vi">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="data:," />
     <title>DASHBOARD KÊNH BÁN HÀNG VNPT QUẢNG NINH</title>
@@ -738,6 +738,9 @@
 }
 /* Cung bo cuc tren khi thiet bi duoc nhan dien la dien thoai
    (ke ca khi trinh duyet mo che do desktop hoac xoay ngang) */
+/* Chan zoom tren dien thoai: chi cho cuon 1 ngon (pan), trinh duyet
+   khong tu xu ly pinch-zoom / double-tap zoom (giong MyMoney) */
+html.is-mobile{touch-action:pan-x pan-y}
 html.is-mobile #appRoot .app{padding:14px 0 30px}
 html.is-mobile #appRoot .panel{padding:14px}
 html.is-mobile #appRoot .form-grid{grid-template-columns:1fr !important}
@@ -6480,6 +6483,15 @@ function normKbKey(s) {
   update();
   window.addEventListener("resize", update);
   window.addEventListener("orientationchange", update);
+})();
+/* Chan zoom tren dien thoai (giong MyMoney): iOS Safari bo qua
+   user-scalable=no trong viewport, phai chan truc tiep gesture pinch
+   (2 ngon) thi moi co tac dung. Chi chan khi cham 2 ngon tro len,
+   cuon 1 ngon van binh thuong. Chi ap dung khi html.is-mobile. */
+(function blockMobileZoom() {
+  const isMob = () => document.documentElement.classList.contains("is-mobile");
+  document.addEventListener("gesturestart", (e) => { if (isMob()) e.preventDefault(); });
+  document.addEventListener("touchmove", (e) => { if (isMob() && e.touches.length > 1) e.preventDefault(); }, { passive: false });
 })();
 const DEFAULT_API_URL = "https://co-che-duq.tuanha-qnh.workers.dev"; // Dia chi Worker API mac dinh
 const $ = (id) => document.getElementById(id);
