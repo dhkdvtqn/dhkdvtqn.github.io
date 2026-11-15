@@ -636,7 +636,7 @@
 #appRoot .guide-box {border:1.5px solid var(--line);border-radius:14px;padding:14px 18px;margin-top:16px}
 #appRoot .guide-box summary {font-weight:700;cursor:pointer;color:var(--blue-dark)}
 @media(max-width:760px){
-#appRoot .pkg-layout {grid-template-columns:1fr}
+#appRoot .pkg-layout, #appRoot .nv-grid {grid-template-columns:1fr}
 }
 #appRoot .app-banner {background:linear-gradient(120deg,var(--blue-dark),var(--blue));color:#fff;border-radius:16px;padding:20px 22px;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,30,60,.18)}
 #appRoot .app-banner h1 {margin:0 0 14px;text-align:center;font-size:clamp(17px,2.6vw,25px);letter-spacing:.4px;line-height:1.35}
@@ -1586,7 +1586,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
               </div>
             </div>
           </div>
-          <p class="muted" style="margin-top:12px">Số liệu ước tính giả định mọi thuê bao đều đủ điều kiện của từng khoản (ĐKTT và kích hoạt 900 thành công, mua gói ngay trong tháng&hellip;). Lương đơn giá và khuyến khích theo doanh thu được tính trên doanh thu trước thuế (giá gói &divide; 1,1). Lương kênh ĐUQ/ĐBL (mục 1.3) tính 5% trên tổng doanh thu trước thuế của số thuê bao nhập vào. Kết quả chỉ mang tính tham khảo để NVKD lên kế hoạch phát triển thuê bao.</p>
+          <p class="muted" style="margin-top:12px">Số liệu ước tính giả định mọi thuê bao đều đủ điều kiện của từng khoản (ĐKTT và kích hoạt 900 thành công, mua gói ngay trong tháng&hellip;). Lương đơn giá và khuyến khích theo doanh thu được tính trên doanh thu trước thuế (giá gói &divide; 1,1). Kết quả chỉ mang tính tham khảo để NVKD lên kế hoạch phát triển thuê bao.</p>
         </section>
         <section class="panel hidden" id="panel-policy-existing">
           <h2>🔄 Cơ chế chính sách — Thuê bao hiện hữu</h2>
@@ -8875,7 +8875,9 @@ function calcNvCost() {
   html += nvRow("Tiền phí hòa mạng", "75.000đ × " + n + " thuê bao", feeCost);
   html += nvRow("Tiền gói cước", fmt(price) + " × " + n + " thuê bao", pkgCost);
   html += '<div class="nv-sub"><span>Tổng chi phí đầu vào</span><span>' + fmt(totalCost) + "</span></div>";
-  // Phan 2: du toan thu nhap NVKD theo chinh sach 1.1–1.7
+  // Phan 2: du toan thu nhap NVKD theo chinh sach 1.1, 1.2, 1.4–1.7
+  // (muc 1.3 luong kenh DUQ/DBL da bo khoi bang tinh theo yeu cau anh 15/11)
+  // + chiet khau nap the
   html += '<div class="nv-part"><span class="nv-pnum">2</span> Dự toán thu nhập của NVKD</div>';
   const bckh = 20000 * n; total += bckh;
   html += nvRow("1. Tiền BCKH", "20.000đ × " + n + " thuê bao", bckh);
@@ -8887,27 +8889,25 @@ function calcNvCost() {
   else { lgRate = 0.25; lgLabel = "Gói CKD, ARPU dưới 100K: (giá gói ÷ 1,1) × 25%"; }
   const lg = lgRate * revBase * n; total += lg;
   html += nvRow("2. Tiền lương đơn giá PTM", lgLabel + " × " + n + " thuê bao", lg);
-  const lk = 0.05 * totRev; total += lk;
-  html += nvRow("3. Tiền lương từ kênh ĐUQ/ĐBL quản lý", "5% × " + fmt(totRev) + " (tổng DT trước thuế của số TB nhập vào)", lk);
   if (mnp === "pre" || mnp === "post") {
     if (price >= 50000) {
       const mnpRate = mnp === "pre" ? 100000 : 200000;
       const mnpAmt = mnpRate * n; total += mnpAmt;
-      html += nvRow("4. Khuyến khích PTTB MNP", fmt(mnpRate) + " × " + n + " thuê bao (" + (mnp === "pre" ? "trả trước" : "trả sau") + ", gói từ 50K)", mnpAmt);
+      html += nvRow("3. Khuyến khích PTTB MNP", fmt(mnpRate) + " × " + n + " thuê bao (" + (mnp === "pre" ? "trả trước" : "trả sau") + ", gói từ 50K)", mnpAmt);
     } else {
-      html += nvRow("4. Khuyến khích PTTB MNP", "Thuê bao Port-in cần mua gói tối thiểu 50K", 0, { na: "Chưa đủ ĐK", off: true });
+      html += nvRow("3. Khuyến khích PTTB MNP", "Thuê bao Port-in cần mua gói tối thiểu 50K", 0, { na: "Chưa đủ ĐK", off: true });
     }
   } else {
-    html += nvRow("4. Khuyến khích PTTB MNP", "Chỉ áp dụng với thuê bao chuyển mạng giữ số", 0, { na: "Không áp dụng", off: true });
+    html += nvRow("3. Khuyến khích PTTB MNP", "Chỉ áp dụng với thuê bao chuyển mạng giữ số", 0, { na: "Không áp dụng", off: true });
   }
   const rate = nvTierRate(n);
   if (rate > 0 && price >= 70000) {
     const sl = rate * 1000 * n; total += sl;
-    html += nvRow("5. Khuyến khích theo mức sản lượng PTTB", "Mức " + rate + "K/thuê bao × " + n + " thuê bao (không cộng dồn)", sl);
+    html += nvRow("4. Khuyến khích theo mức sản lượng PTTB", "Mức " + rate + "K/thuê bao × " + n + " thuê bao (không cộng dồn)", sl);
   } else if (rate === 0) {
-    html += nvRow("5. Khuyến khích theo mức sản lượng PTTB", "Cần đạt từ 5 thuê bao PTM trở lên", 0, { na: "Chưa đạt mức", off: true });
+    html += nvRow("4. Khuyến khích theo mức sản lượng PTTB", "Cần đạt từ 5 thuê bao PTM trở lên", 0, { na: "Chưa đạt mức", off: true });
   } else {
-    html += nvRow("5. Khuyến khích theo mức sản lượng PTTB", "Thuê bao PTM phải mua gói tối thiểu 70K", 0, { na: "Chưa đủ ĐK", off: true });
+    html += nvRow("4. Khuyến khích theo mức sản lượng PTTB", "Thuê bao PTM phải mua gói tối thiểu 70K", 0, { na: "Chưa đủ ĐK", off: true });
   }
   let dtRate = 0;
   if (totRev >= 50000000) dtRate = 0.05;
@@ -8916,22 +8916,22 @@ function calcNvCost() {
   else if (totRev >= 10000000) dtRate = 0.02;
   if (dtRate > 0) {
     const dt = dtRate * totRev; total += dt;
-    html += nvRow("6. Khuyến khích theo tổng doanh thu PTM", "Tổng DT " + fmt(totRev) + " — mức " + (dtRate * 100) + "%", dt);
+    html += nvRow("5. Khuyến khích theo tổng doanh thu PTM", "Tổng DT " + fmt(totRev) + " — mức " + (dtRate * 100) + "%", dt);
   } else {
-    html += nvRow("6. Khuyến khích theo tổng doanh thu PTM", "Tổng DT " + fmt(totRev) + " — cần đạt từ 10 triệu trở lên", 0, { na: "Chưa đạt mức", off: true });
+    html += nvRow("5. Khuyến khích theo tổng doanh thu PTM", "Tổng DT " + fmt(totRev) + " — cần đạt từ 10 triệu trở lên", 0, { na: "Chưa đạt mức", off: true });
   }
   if (cycle >= 6 && arpu >= 100000) {
     const ckdRate = cycle >= 36 ? 800000 : cycle >= 24 ? 400000 : cycle >= 18 ? 200000 : cycle >= 12 ? 100000 : 50000;
     const ckd = ckdRate * n; total += ckd;
-    html += nvRow("7. Khuyến khích PTM SIM mua gói CKD", fmt(ckdRate) + " × " + n + " thuê bao (gói " + cycle + " tháng, ARPU ≥ 100K)", ckd);
+    html += nvRow("6. Khuyến khích PTM SIM mua gói CKD", fmt(ckdRate) + " × " + n + " thuê bao (gói " + cycle + " tháng, ARPU ≥ 100K)", ckd);
   } else if (cycle >= 6) {
-    html += nvRow("7. Khuyến khích PTM SIM mua gói CKD", "Gói CKD cần ARPU từ 100K trở lên", 0, { na: "Chưa đủ ĐK", off: true });
+    html += nvRow("6. Khuyến khích PTM SIM mua gói CKD", "Gói CKD cần ARPU từ 100K trở lên", 0, { na: "Chưa đủ ĐK", off: true });
   } else {
-    html += nvRow("7. Khuyến khích PTM SIM mua gói CKD", "Chỉ áp dụng cho gói từ 6 tháng trở lên", 0, { na: "Không áp dụng", off: true });
+    html += nvRow("6. Khuyến khích PTM SIM mua gói CKD", "Chỉ áp dụng cho gói từ 6 tháng trở lên", 0, { na: "Không áp dụng", off: true });
   }
-  // 8. Chiet khau nap the = gia goi × ty le CK × so TB (giong cong cu diem ban)
+  // 7. Chiet khau nap the = gia goi × ty le CK × so TB (giong cong cu diem ban)
   const disc = price * (discRate / 100) * n; total += disc;
-  html += nvRow("8. Chiết khấu nạp thẻ", "Giá gói " + fmt(price) + " × " + discRate + "% × " + n + " thuê bao", disc);
+  html += nvRow("7. Chiết khấu nạp thẻ", "Giá gói " + fmt(price) + " × " + discRate + "% × " + n + " thuê bao", disc);
   $("nvResultRows").innerHTML = html;
   $("nvTotalOut").textContent = fmt(total);
   $("nvCostOut").textContent = n > 0 ? fmt((totalCost - total) / n) : "—";
