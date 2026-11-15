@@ -2740,8 +2740,10 @@ function normKbKey(s) {
             }
             // 2. Theo hinh thuc — chi OBCKN/OBCKD/OBHVC co doanh_thu_goi_truoc_gh
             if (p.code !== "BG") {
-              // Gia han: DT truoc = DT sau HOAC DT truoc = 0
-              const gh = (await env.DB.prepare('SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM("' + cfg.rev + '"), 0) AS rev FROM "' + table + '" WHERE COALESCE(doanh_thu_goi_truoc_gh, 0) = 0 OR COALESCE(doanh_thu_goi_truoc_gh, 0) = COALESCE("' + cfg.rev + '", 0) GROUP BY ma_hrm').all()).results || [];
+              // Gia han: DT truoc >= DT sau HOAC DT truoc = 0
+              // (15/11 anh chot: TB gia han ma DT giam — goi moi re hon goi cu —
+              // van tinh vao Gia han, vi ho da gia han, chi la goi re di)
+              const gh = (await env.DB.prepare('SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM("' + cfg.rev + '"), 0) AS rev FROM "' + table + '" WHERE COALESCE(doanh_thu_goi_truoc_gh, 0) = 0 OR COALESCE(doanh_thu_goi_truoc_gh, 0) >= COALESCE("' + cfg.rev + '", 0) GROUP BY ma_hrm').all()).results || [];
               for (const r of gh) {
                 const code = String(r.ma_hrm == null ? "" : r.ma_hrm).trim();
                 if (!code) continue;
