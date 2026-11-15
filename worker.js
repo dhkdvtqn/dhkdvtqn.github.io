@@ -2742,10 +2742,14 @@ function normKbKey(s) {
             }
             // 2. Theo hinh thuc — chi OBCKN/OBCKD/OBHVC co doanh_thu_goi_truoc_gh
             if (p.code !== "BG") {
+              // HVC: TB "Ban goi tap khong goi" da tinh vao hinh thuc Ban goi (duoi),
+              // nen loai khoi Gia han/Nang goi de khong cong trung (loi lech anh bao 15/11:
+              // tong theo hinh thuc cao hon tong theo CT dung bang DT cua cac TB nay).
+              const hvcExcl = p.code === "HVC" ? " AND COALESCE(LOWER(TRIM(ten_chuong_trinh)), '') <> 'bán gói tập không gói'" : "";
               // Gia han: DT truoc >= DT sau HOAC DT truoc = 0
               // (15/11 anh chot: TB gia han ma DT giam — goi moi re hon goi cu —
               // van tinh vao Gia han, vi ho da gia han, chi la goi re di)
-              const gh = (await env.DB.prepare('SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM("' + cfg.rev + '"), 0) AS rev FROM "' + table + '" WHERE COALESCE(doanh_thu_goi_truoc_gh, 0) = 0 OR COALESCE(doanh_thu_goi_truoc_gh, 0) >= COALESCE("' + cfg.rev + '", 0) GROUP BY ma_hrm').all()).results || [];
+              const gh = (await env.DB.prepare('SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM("' + cfg.rev + '"), 0) AS rev FROM "' + table + '" WHERE (COALESCE(doanh_thu_goi_truoc_gh, 0) = 0 OR COALESCE(doanh_thu_goi_truoc_gh, 0) >= COALESCE("' + cfg.rev + '", 0))' + hvcExcl + ' GROUP BY ma_hrm').all()).results || [];
               for (const r of gh) {
                 const code = String(r.ma_hrm == null ? "" : r.ma_hrm).trim();
                 if (!code) continue;
@@ -2754,7 +2758,7 @@ function normKbKey(s) {
               // Nang goi/nang chu ky: DT truoc < DT sau VA DT truoc != 0
               // (DT truoc = 0 da tinh vao Gia han theo dinh nghia cua anh, nen
               // loai ra day de 3 hinh thuc khong cong trung nhau)
-              const ng = (await env.DB.prepare('SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM("' + cfg.rev + '"), 0) AS rev FROM "' + table + '" WHERE COALESCE(doanh_thu_goi_truoc_gh, 0) <> 0 AND COALESCE(doanh_thu_goi_truoc_gh, 0) < COALESCE("' + cfg.rev + '", 0) GROUP BY ma_hrm').all()).results || [];
+              const ng = (await env.DB.prepare('SELECT ma_hrm, COUNT(so_thue_bao) AS subs, COALESCE(SUM("' + cfg.rev + '"), 0) AS rev FROM "' + table + '" WHERE COALESCE(doanh_thu_goi_truoc_gh, 0) <> 0 AND COALESCE(doanh_thu_goi_truoc_gh, 0) < COALESCE("' + cfg.rev + '", 0)' + hvcExcl + ' GROUP BY ma_hrm').all()).results || [];
               for (const r of ng) {
                 const code = String(r.ma_hrm == null ? "" : r.ma_hrm).trim();
                 if (!code) continue;
