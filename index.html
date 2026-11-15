@@ -513,7 +513,7 @@
 #appRoot #ovTrendChart, #appRoot #ovPsslChart {position:relative}
 #appRoot #mobTrendChart, #appRoot #mobShareChart, #appRoot #mobObChart, #appRoot #mobConvChart {position:relative}
 #appRoot /* Infographic co che chinh sach (15/11) */
-.pol-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.pol-grid {display:grid;grid-template-columns:1fr;gap:16px}
 #appRoot .pol-card {background:var(--card);border:1.5px solid var(--line);border-top:4px solid #2f7cf6;border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 18px 14px}
 #appRoot .pol-card:nth-child(4n+2) {border-top-color:#14b8a6}
 #appRoot .pol-card:nth-child(4n+3) {border-top-color:#f59e0b}
@@ -1524,8 +1524,25 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div class="nv-grid">
               <form class="nv-form" id="nvCalcForm">
                 <div class="nv-field">
-                  <label for="nvSubs">Số thuê bao phát triển mới trong tháng</label>
+                  <label for="nvSubs">Số lượng thuê bao PTM</label>
                   <input type="number" id="nvSubs" min="0" step="1" value="30" inputmode="numeric" />
+                </div>
+                <div class="nv-field">
+                  <label for="nvDisc">Tỷ lệ chiết khấu nạp thẻ (%)</label>
+                  <input type="number" id="nvDisc" min="0" max="100" step="0.1" value="0" inputmode="decimal" />
+                  <div class="nv-hint">Khoản chiết khấu nạp thẻ được cộng vào Dự toán thu nhập (Phần 2): giá gói × tỷ lệ chiết khấu × số thuê bao.</div>
+                </div>
+                <div class="nv-field">
+                  <label for="nvPkg">Chọn gói cước từ danh mục (tùy chọn)</label>
+                  <select id="nvPkg">
+                    <option value="">— Tự nhập giá gói, chu kỳ gói —</option>
+                  </select>
+                  <div class="nv-hint" id="nvPkgHint">Đang tải danh mục gói cước…</div>
+                </div>
+                <div class="nv-field" id="nvCycleWrap" style="display:none">
+                  <label for="nvPkgCycle">Chu kỳ của gói đã chọn</label>
+                  <select id="nvPkgCycle"></select>
+                  <div class="nv-hint">Chọn chu kỳ để tự điền giá gói và chu kỳ vào ô bên dưới (vẫn sửa tay được sau đó).</div>
                 </div>
                 <div class="nv-field">
                   <label for="nvPrice">Giá gói cước mỗi thuê bao mua (VNĐ)</label>
@@ -1546,17 +1563,12 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
                   <div class="nv-hint" id="nvArpuHint"></div>
                 </div>
                 <div class="nv-field">
-                  <label for="nvMnp">Loại thuê bao (MNP)</label>
+                  <label for="nvMnp">Thuê bao MNP</label>
                   <select id="nvMnp">
                     <option value="">Thuê bao thường (không phải MNP)</option>
                     <option value="pre">MNP trả trước</option>
                     <option value="post">MNP trả sau</option>
                   </select>
-                </div>
-                <div class="nv-field">
-                  <label for="nvChanRev">Doanh thu PTM qua kênh ĐUQ/ĐBL do bạn quản lý (VNĐ)</label>
-                  <input type="number" id="nvChanRev" min="0" step="100000" value="0" inputmode="numeric" />
-                  <div class="nv-hint">Nếu có doanh thu PTM từ kênh ĐUQ/ĐBL bạn quản lý thì nhập vào để tính thêm 5% (mục 1.3).</div>
                 </div>
               </form>
               <div class="nv-result">
@@ -1574,7 +1586,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
               </div>
             </div>
           </div>
-          <p class="muted" style="margin-top:12px">Số liệu ước tính giả định mọi thuê bao đều đủ điều kiện của từng khoản (ĐKTT và kích hoạt 900 thành công, mua gói ngay trong tháng&hellip;). Lương đơn giá và khuyến khích theo doanh thu được tính trên doanh thu trước thuế (giá gói &divide; 1,1). Kết quả chỉ mang tính tham khảo để NVKD lên kế hoạch phát triển thuê bao.</p>
+          <p class="muted" style="margin-top:12px">Số liệu ước tính giả định mọi thuê bao đều đủ điều kiện của từng khoản (ĐKTT và kích hoạt 900 thành công, mua gói ngay trong tháng&hellip;). Lương đơn giá và khuyến khích theo doanh thu được tính trên doanh thu trước thuế (giá gói &divide; 1,1). Lương kênh ĐUQ/ĐBL (mục 1.3) tính 5% trên tổng doanh thu trước thuế của số thuê bao nhập vào. Kết quả chỉ mang tính tham khảo để NVKD lên kế hoạch phát triển thuê bao.</p>
         </section>
         <section class="panel hidden" id="panel-policy-existing">
           <h2>🔄 Cơ chế chính sách — Thuê bao hiện hữu</h2>
@@ -8851,7 +8863,7 @@ function calcNvCost() {
   const price = Math.max(0, parseFloat($("nvPrice").value) || 0);
   const cycle = parseInt($("nvCycle").value, 10) || 1;
   const mnp = $("nvMnp").value;
-  const chanRev = Math.max(0, parseFloat($("nvChanRev").value) || 0);
+  const discRate = Math.min(100, Math.max(0, parseFloat($("nvDisc").value) || 0));
   const arpu = cycle > 0 ? price / cycle : 0;
   $("nvArpuHint").textContent = "ARPU gói = " + fmt(arpu) + " / tháng" + (cycle > 1 ? (arpu >= 100000 ? " — đạt ngưỡng ARPU 100K" : " — chưa đạt ngưỡng ARPU 100K") : "");
   let html = "", total = 0;
@@ -8868,18 +8880,15 @@ function calcNvCost() {
   const bckh = 20000 * n; total += bckh;
   html += nvRow("1. Tiền BCKH", "20.000đ × " + n + " thuê bao", bckh);
   const revBase = price / 1.1;
+  const totRev = revBase * n;
   let lgRate, lgLabel;
   if (cycle === 1) { lgRate = 0.5; lgLabel = "Gói 1T: (giá gói ÷ 1,1) × 50%"; }
   else if (arpu >= 100000) { lgRate = 0.3; lgLabel = "Gói CKD, ARPU ≥ 100K: (giá gói ÷ 1,1) × 30%"; }
   else { lgRate = 0.25; lgLabel = "Gói CKD, ARPU dưới 100K: (giá gói ÷ 1,1) × 25%"; }
   const lg = lgRate * revBase * n; total += lg;
   html += nvRow("2. Tiền lương đơn giá PTM", lgLabel + " × " + n + " thuê bao", lg);
-  if (chanRev > 0) {
-    const lk = 0.05 * chanRev; total += lk;
-    html += nvRow("3. Tiền lương từ kênh ĐUQ/ĐBL quản lý", "5% × " + fmt(chanRev), lk);
-  } else {
-    html += nvRow("3. Tiền lương từ kênh ĐUQ/ĐBL quản lý", "Nhập doanh thu PTM qua kênh bạn quản lý (nếu có)", 0, { na: "Chưa nhập", off: true });
-  }
+  const lk = 0.05 * totRev; total += lk;
+  html += nvRow("3. Tiền lương từ kênh ĐUQ/ĐBL quản lý", "5% × " + fmt(totRev) + " (tổng DT trước thuế của số TB nhập vào)", lk);
   if (mnp === "pre" || mnp === "post") {
     if (price >= 50000) {
       const mnpRate = mnp === "pre" ? 100000 : 200000;
@@ -8900,7 +8909,6 @@ function calcNvCost() {
   } else {
     html += nvRow("5. Khuyến khích theo mức sản lượng PTTB", "Thuê bao PTM phải mua gói tối thiểu 70K", 0, { na: "Chưa đủ ĐK", off: true });
   }
-  const totRev = revBase * n;
   let dtRate = 0;
   if (totRev >= 50000000) dtRate = 0.05;
   else if (totRev >= 30000000) dtRate = 0.04;
@@ -8921,17 +8929,72 @@ function calcNvCost() {
   } else {
     html += nvRow("7. Khuyến khích PTM SIM mua gói CKD", "Chỉ áp dụng cho gói từ 6 tháng trở lên", 0, { na: "Không áp dụng", off: true });
   }
+  // 8. Chiet khau nap the = gia goi × ty le CK × so TB (giong cong cu diem ban)
+  const disc = price * (discRate / 100) * n; total += disc;
+  html += nvRow("8. Chiết khấu nạp thẻ", "Giá gói " + fmt(price) + " × " + discRate + "% × " + n + " thuê bao", disc);
   $("nvResultRows").innerHTML = html;
   $("nvTotalOut").textContent = fmt(total);
   $("nvCostOut").textContent = n > 0 ? fmt((totalCost - total) / n) : "—";
 }
 function initNvCalc() {
   if (!$("nvSubs")) return;
-  ["nvSubs", "nvPrice", "nvCycle", "nvMnp", "nvChanRev"].forEach((id) => {
+  ["nvSubs", "nvDisc", "nvPrice", "nvCycle", "nvMnp"].forEach((id) => {
     const el = $(id);
     if (el) el.addEventListener("input", calcNvCost);
   });
+  initNvPkg();
   calcNvCost();
+}
+// Drop box goi cuoc cho bang tinh gia von NVKD (giong cong cu diem ban):
+// chon 1 goi trong danh muc thi tu dien gia + chu ky, van sua tay duoc sau do.
+// Neu khong tai duoc danh muc thi an toan tro ve che do nhap tay.
+function initNvPkg() {
+  const pkgSel = $("nvPkg");
+  if (!pkgSel) return;
+  const cycWrap = $("nvCycleWrap"), cycSel = $("nvPkgCycle"), hint = $("nvPkgHint");
+  const priceEl = $("nvPrice"), cycleEl = $("nvCycle");
+  const byName = {};
+  const monthsOf = (c) => parseInt(String(c).replace("T", ""), 10) || 0;
+  function applyCycle() {
+    const opt = cycSel.options[cycSel.selectedIndex];
+    if (!opt) return;
+    const months = monthsOf(opt.value);
+    priceEl.value = opt.getAttribute("data-price");
+    if (!cycleEl.querySelector('option[value="' + months + '"]')) {
+      const o = document.createElement("option");
+      o.value = String(months); o.textContent = months + " tháng";
+      cycleEl.appendChild(o);
+    }
+    cycleEl.value = String(months);
+    priceEl.dispatchEvent(new Event("input", { bubbles: true }));
+    cycleEl.dispatchEvent(new Event("input", { bubbles: true }));
+    cycleEl.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  function applyPkg() {
+    const name = pkgSel.value;
+    const cycles = (byName[name] || []).slice().sort((a, b) => monthsOf(a.chu_ky) - monthsOf(b.chu_ky));
+    if (!name || !cycles.length) { cycWrap.style.display = "none"; return; }
+    cycWrap.style.display = "";
+    cycSel.innerHTML = cycles.map((p) => '<option value="' + p.chu_ky + '" data-price="' + p.gia_goi + '">' + p.chu_ky + " — " + fmt(p.gia_goi) + "</option>").join("");
+    applyCycle();
+  }
+  pkgSel.addEventListener("change", applyPkg);
+  cycSel.addEventListener("change", applyCycle);
+  api("/api/packages").then((d) => {
+    const list = (d && d.packages) || [];
+    list.forEach((p) => { (byName[p.ten_goi] = byName[p.ten_goi] || []).push(p); });
+    const names = Object.keys(byName).sort((a, b) => a.localeCompare(b, "vi"));
+    names.forEach((n) => { const o = document.createElement("option"); o.value = n; o.textContent = n; pkgSel.appendChild(o); });
+    if (names.length) {
+      hint.textContent = "Chọn một gói cước để tự điền giá và chu kỳ (vẫn sửa tay được sau đó).";
+    } else {
+      hint.textContent = "Chưa có gói cước nào trong danh mục.";
+      pkgSel.disabled = true;
+    }
+  }).catch(() => {
+    hint.textContent = "Chưa tải được danh mục gói cước — anh vẫn nhập giá và chu kỳ bằng tay như bình thường.";
+    pkgSel.disabled = true;
+  });
 }
 initNvCalc();
 // Bieu do cot doanh thu theo thang + duong ke hoach (SVG vector, hover callout doanh thu + % KH)
