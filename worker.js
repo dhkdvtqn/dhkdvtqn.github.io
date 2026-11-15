@@ -1399,6 +1399,7 @@ export default {
         const b = await readBody(request);
         const module = String(b.module || "").trim();
         if (!MODULE_KEYS.includes(module)) return err("Module khong hop le", 422);
+        const kind = b.kind === "pos" ? "pos" : b.kind === "staff" ? "staff" : "";
         const action = b.action === "remove" ? "remove" : "assign";
         const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map(Number).filter((n) => n > 0))];
         if (!ids.length) return err("Chua chon nguoi dung nao", 422);
@@ -1407,7 +1408,8 @@ export default {
         for (const id of ids) {
           const row = await env.DB.prepare("SELECT id, role, modules FROM nguoi_dung WHERE id = ?").bind(id).first();
           if (!row) { skipped.push({ id, reason: "Khong tim thay nguoi dung" }); continue; }
-          if (row.role === "user") { skipped.push({ id, reason: "Tai khoan diem ban duoc quan ly trong module Quan ly kenh ban" }); continue; }
+          if (kind === "staff" && row.role === "user") { skipped.push({ id, reason: "Tai khoan diem ban duoc quan ly trong module Quan ly kenh ban" }); continue; }
+          if (kind === "pos" && row.role !== "user") { skipped.push({ id, reason: "Chi ap dung cho tai khoan diem ban" }); continue; }
           const mods = parseModules(row.modules);
           if (mods === null) {
             // Tai khoan chua thiet lap rieng: mac dinh dung du quyen theo vai tro.

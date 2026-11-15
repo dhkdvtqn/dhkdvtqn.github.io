@@ -1650,7 +1650,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         <!-- QUAN LY KENH BAN (diem ban) -->
         <section class="panel hidden" id="panel-users">
           <h2>Quản lý kênh bán</h2>
-          <p class="desc">Tạo tài khoản cho các điểm bán thuộc kênh bán hàng. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Admin thiết lập quyền sử dụng từng module cho mỗi điểm bán ở mục bên dưới (mặc định khi tạo mới: Dashboard chi trả hoa hồng, Báo cáo thống kê, Danh mục gói cước, Cài đặt). Khai báo tọa độ điểm bán để dùng cho module Chăm sóc điểm bán (nhận diện điểm trong bán kính 20m).</p>
+          <p class="desc">Tạo tài khoản cho các điểm bán thuộc kênh bán hàng. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Admin thiết lập quyền sử dụng từng module cho mỗi điểm bán ở mục bên dưới (mặc định khi tạo mới: Dashboard chi trả hoa hồng, Báo cáo thống kê, Danh mục gói cước, Cài đặt, Cơ chế chính sách). Khai báo tọa độ điểm bán để dùng cho module Chăm sóc điểm bán (nhận diện điểm trong bán kính 20m).</p>
           <form id="userForm" class="form-grid">
             <input type="hidden" id="userId" />
             <div><label>Mã kênh bán hàng</label><input id="uChannel" placeholder="VD: KBH-VDCT-001" /></div>
@@ -1678,7 +1678,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div class="full" id="uModulesBox">
               <label>Quyền sử dụng module <span style="font-weight:500;color:var(--muted)">(chỉ admin thiết lập)</span></label>
               <div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px" id="uModulesList"></div>
-              <div class="desc" style="margin-top:6px">Điểm bán chưa thiết lập riêng dùng 4 module mặc định: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt. Admin luôn dùng được mọi module.</div>
+              <div class="desc" style="margin-top:6px">Điểm bán chưa thiết lập riêng dùng 5 module mặc định: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt, Cơ chế chính sách. Admin luôn dùng được mọi module.</div>
             </div>
             <div class="full" style="display:flex;gap:10px"><button class="btn blue" type="submit" id="userSubmit">Tạo điểm bán</button><button class="btn gray hidden" type="button" id="userCancel">Hủy sửa</button></div>
           </form>
@@ -1688,6 +1688,13 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div style="min-width:260px;flex:1;max-width:380px"><label>Lọc theo đơn vị</label><select id="userUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
             <div style="min-width:260px;flex:1;max-width:380px"><label>Tìm kiếm</label><input id="userSearch" placeholder="Mã kênh, tên điểm bán, số Eload…" autocomplete="off" /></div>
             <div><span id="userCount" class="desc"></span></div>
+            <div id="userBulkModuleBox" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+              <div style="min-width:230px"><label>Gán/gỡ quyền module hàng loạt</label><select id="userBulkModule"><option value="">— Chọn module —</option></select></div>
+              <div style="display:flex;gap:8px;align-items:flex-end">
+                <button class="btn blue" type="button" id="userAssignModule" title="Gán module đã chọn cho các điểm bán đã đánh dấu">Gán</button>
+                <button class="btn gray" type="button" id="userRemoveModule" title="Gỡ module đã chọn khỏi các điểm bán đã đánh dấu">Gỡ</button>
+              </div>
+            </div>
             <div style="margin-left:auto"><button class="btn danger" type="button" id="uDelSel" title="Xóa các người dùng đã đánh dấu">Xóa</button></div>
           </div>
           <div class="tbl-wrap"><table class="data"><thead><tr><th><input type="checkbox" id="uSelAll" title="Đánh dấu tất cả" /></th><th data-sort="ma_kenh">Mã kênh</th><th data-sort="ho_ten">Họ tên / điểm bán</th><th data-sort="username">User</th><th data-sort="so_eload">Số Eload</th><th data-sort="so_vi">Số Ví</th><th data-sort="don_vi">Đơn vị</th><th data-sort="toado">Tọa độ điểm bán</th><th data-sort="ten_nv">Nhân viên quản lý</th><th data-sort="sdt_nv">SĐT NV quản lý</th><th data-sort="ma_hrm">Mã HRM</th><th data-sort="leader">Lãnh đạo phụ trách</th><th data-sort="loai_kenh">Loại kênh bán</th><th data-sort="can_import">Import</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="15">Đang tải…</td></tr></tbody></table></div>
@@ -3545,6 +3552,7 @@ export default {
         const b = await readBody(request);
         const module = String(b.module || &quot;&quot;).trim();
         if (!MODULE_KEYS.includes(module)) return err(&quot;Module khong hop le&quot;, 422);
+        const kind = b.kind === &quot;pos&quot; ? &quot;pos&quot; : b.kind === &quot;staff&quot; ? &quot;staff&quot; : &quot;&quot;;
         const action = b.action === &quot;remove&quot; ? &quot;remove&quot; : &quot;assign&quot;;
         const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map(Number).filter((n) =&gt; n &gt; 0))];
         if (!ids.length) return err(&quot;Chua chon nguoi dung nao&quot;, 422);
@@ -3553,7 +3561,8 @@ export default {
         for (const id of ids) {
           const row = await env.DB.prepare(&quot;SELECT id, role, modules FROM nguoi_dung WHERE id = ?&quot;).bind(id).first();
           if (!row) { skipped.push({ id, reason: &quot;Khong tim thay nguoi dung&quot; }); continue; }
-          if (row.role === &quot;user&quot;) { skipped.push({ id, reason: &quot;Tai khoan diem ban duoc quan ly trong module Quan ly kenh ban&quot; }); continue; }
+          if (kind === &quot;staff&quot; &amp;&amp; row.role === &quot;user&quot;) { skipped.push({ id, reason: &quot;Tai khoan diem ban duoc quan ly trong module Quan ly kenh ban&quot; }); continue; }
+          if (kind === &quot;pos&quot; &amp;&amp; row.role !== &quot;user&quot;) { skipped.push({ id, reason: &quot;Chi ap dung cho tai khoan diem ban&quot; }); continue; }
           const mods = parseModules(row.modules);
           if (mods === null) {
             // Tai khoan chua thiet lap rieng: mac dinh dung du quyen theo vai tro.
@@ -6512,6 +6521,8 @@ function applyUserFormPerms() {
   if (!me) return;
   // Muc phan quyen module: chi admin moi duoc thiet lap
   $("uModulesBox").classList.toggle("hidden", me.role !== "admin");
+  const bm = $("userBulkModuleBox");
+  if (bm) bm.classList.toggle("hidden", me.role !== "admin");
 }
 // Danh sach module + mac dinh khi tao moi (Dashboard, Bao cao, Goi cuoc, Cai dat)
 const MODULE_DEFS = [
@@ -7795,7 +7806,7 @@ function renderUsers() {
   }
   if ($("userCount")) $("userCount").textContent = "Hiển thị " + list.length + " / " + usersCache.length + " điểm bán";
   $("usersBody").innerHTML = list.map((u) =>
-      "<tr><td><input type='checkbox' data-user-sel='" + u.id + "'" + (userSel.has(u.id) ? " checked" : "") + " title='Đánh dấu để xóa' /></td><td>" + esc(u.ma_kenh) + "</td><td><b>" + esc(u.ho_ten) + "</b></td><td>" + esc(u.username) + "</td>" +
+      "<tr><td><input type='checkbox' data-user-sel='" + u.id + "'" + (userSel.has(u.id) ? " checked" : "") + " title='Đánh dấu để xóa hoặc gán/gỡ module' /></td><td>" + esc(u.ma_kenh) + "</td><td><b>" + esc(u.ho_ten) + "</b></td><td>" + esc(u.username) + "</td>" +
       "<td>" + esc(u.so_eload) + "</td><td>" + esc(u.so_vi) + "</td>" +
       "<td>" + esc(u.don_vi_ten) + "</td>" +
       "<td>" + ((u.lat == null || u.lng == null) ? "—" : Number(u.lat).toFixed(5) + ", " + Number(u.lng).toFixed(5)) + "</td>" +
@@ -7964,6 +7975,30 @@ $("uDelSel").addEventListener("click", async () => {
     loadUsers();
   } catch (e) { setMsg($("userMsg"), e.message, false); }
 });
+
+// Gan/go quyen module hang loat cho diem ban (15/11): giong muc Quan ly nguoi dung,
+// chi khac la goi API voi kind:'pos' de chi ap dung cho tai khoan diem ban.
+$("userBulkModule").innerHTML = '<option value="">— Chọn module —</option>' +
+  MODULE_DEFS.map((m) => '<option value="' + m[0] + '">' + esc(m[1]) + "</option>").join("");
+async function bulkUserModules(action) {
+  const mod = $("userBulkModule").value;
+  if (!mod) { setMsg($("userMsg"), "Chọn module cần gán/gỡ trước đã.", false); return; }
+  if (!userSel.size) { setMsg($("userMsg"), "Chưa đánh dấu điểm bán nào.", false); return; }
+  const label = (MODULE_DEFS.find((m) => m[0] === mod) || [mod, mod])[1];
+  const verb = action === "assign" ? "Gán" : "Gỡ";
+  if (!confirm(verb + " module \"" + label + "\" " + (action === "assign" ? "cho" : "khỏi") + " " + userSel.size + " điểm bán đã đánh dấu?")) return;
+  try {
+    const d = await api("/api/users/bulk-modules", { method: "POST", body: JSON.stringify({ ids: [...userSel], module: mod, action, kind: "pos" }) });
+    let msg = verb + " module \"" + label + "\": đã cập nhật " + (d.updated || 0) + " điểm bán.";
+    if (d.unchanged) msg += " " + d.unchanged + " điểm bán không thay đổi (đã có sẵn / đã gỡ rồi).";
+    if (d.skipped && d.skipped.length) msg += " Bỏ qua " + d.skipped.length + ": " + d.skipped.slice(0, 5).map((x) => x.reason).join("; ") + (d.skipped.length > 5 ? "…" : "");
+    setMsg($("userMsg"), msg, true);
+    userSel.clear();
+    loadUsers();
+  } catch (e) { setMsg($("userMsg"), e.message, false); }
+}
+$("userAssignModule").addEventListener("click", () => bulkUserModules("assign"));
+$("userRemoveModule").addEventListener("click", () => bulkUserModules("remove"));
 
 /* ---------------- Import nguoi dung tu Excel + file mau ---------------- */
 const USER_HEADER_MAP = {
@@ -8279,7 +8314,7 @@ async function bulkStaffModules(action) {
   const verb = action === "assign" ? "Gán" : "Gỡ";
   if (!confirm(verb + " module \"" + label + "\" " + (action === "assign" ? "cho" : "khỏi") + " " + staffSel.size + " người dùng đã đánh dấu?")) return;
   try {
-    const d = await api("/api/users/bulk-modules", { method: "POST", body: JSON.stringify({ ids: [...staffSel], module: mod, action }) });
+    const d = await api("/api/users/bulk-modules", { method: "POST", body: JSON.stringify({ ids: [...staffSel], module: mod, action, kind: "staff" }) });
     let msg = verb + " module \"" + label + "\": đã cập nhật " + (d.updated || 0) + " người dùng.";
     if (d.unchanged) msg += " " + d.unchanged + " người dùng không thay đổi (đã có sẵn / đã gỡ rồi).";
     if (d.skipped && d.skipped.length) msg += " Bỏ qua " + d.skipped.length + ": " + d.skipped.slice(0, 5).map((x) => x.reason).join("; ") + (d.skipped.length > 5 ? "…" : "");
