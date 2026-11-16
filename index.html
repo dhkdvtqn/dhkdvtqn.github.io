@@ -1790,9 +1790,10 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div><label>Tháng / Năm import</label><div style="display:flex;gap:8px"><input type="number" id="impMonth" min="1" max="12" /><input type="number" id="impYear" min="2020" max="2100" /></div></div>
             <div><label>Chế độ import</label><select id="impMode"><option value="create">Tạo mới — chỉ import khi tháng này chưa có dữ liệu (chặn import trùng)</option><option value="append">Cập nhật — thêm vào dữ liệu hiện có của tháng</option><option value="replace">Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu</option></select></div>
             <div><label>File Excel dữ liệu</label><input type="file" id="impFile" accept=".xlsx,.xls,.csv" /></div>
-            <div class="full"><button class="btn blue" type="submit" id="impBtn">Import lên D1</button></div>
+            <div class="full" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn gray" type="button" id="impPreviewBtn">Xem trước số liệu</button><button class="btn blue" type="submit" id="impBtn">Import lên D1</button></div>
           </form>
           <div id="impMsg"></div>
+          <div id="impPreview" style="margin-top:10px"></div>
           <div style="display:flex;gap:12px;align-items:flex-end;justify-content:space-between;margin:18px 0 8px;flex-wrap:wrap">
             <h3 style="margin:0;color:var(--blue-dark)">Các bảng dữ liệu đã import</h3>
             <div style="min-width:220px"><label>Bộ lọc theo loại dữ liệu</label><select id="tblTypeFilter"><option value="">— Tất cả loại —</option></select></div>
@@ -1809,9 +1810,10 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div><label>Tháng / Năm import</label><div style="display:flex;gap:8px"><input type="number" id="impMonthS" min="1" max="12" /><input type="number" id="impYearS" min="2020" max="2100" /></div></div>
             <div><label>Chế độ import</label><select id="impModeS"><option value="create">Tạo mới — chỉ import khi tháng này chưa có dữ liệu (chặn import trùng)</option><option value="append">Cập nhật — thêm vào dữ liệu hiện có của tháng</option><option value="replace">Thay thế — xóa dữ liệu cũ của tháng, import lại từ đầu</option></select></div>
             <div><label>File Excel dữ liệu</label><input type="file" id="impFileS" accept=".xlsx,.xls,.csv" /></div>
-            <div class="full"><button class="btn blue" type="submit" id="impBtnS">Import lên D1</button></div>
+            <div class="full" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn gray" type="button" id="impPreviewBtnS">Xem trước số liệu</button><button class="btn blue" type="submit" id="impBtnS">Import lên D1</button></div>
           </form>
           <div id="impMsgS"></div>
+          <div id="impPreviewS" style="margin-top:10px"></div>
           <div style="display:flex;gap:12px;align-items:flex-end;justify-content:space-between;margin:18px 0 8px;flex-wrap:wrap">
             <h3 style="margin:0;color:var(--blue-dark)">Các bảng dữ liệu bán hàng đã import</h3>
             <div style="min-width:220px"><label>Bộ lọc theo loại dữ liệu</label><select id="tblTypeFilterS"><option value="">— Tất cả loại —</option></select></div>
@@ -1827,7 +1829,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
               <div><label>Tháng / Năm</label><div style="display:flex;gap:8px"><input type="number" id="kbMonth" min="1" max="12" /><input type="number" id="kbYear" min="2020" max="2100" /></div></div>
               <div><label>Chế độ import</label><select id="kbMode"><option value="create">Tạo mới — chỉ import khi tháng này chưa có danh sách (chặn import trùng)</option><option value="append">Cập nhật — thêm vào danh sách hiện có của tháng</option><option value="replace">Thay thế — xóa danh sách cũ của tháng, import lại từ đầu</option></select></div>
               <div><label>File Excel danh sách kênh</label><input type="file" id="kbFile" accept=".xlsx,.xls,.csv" /></div>
-              <div style="align-self:end"><button class="btn blue" type="button" id="kbImpBtn">Import danh sách kênh</button></div>
+              <div style="align-self:end;display:flex;gap:8px;flex-wrap:wrap"><button class="btn gray" type="button" id="kbPreviewBtn">Xem trước số liệu</button><button class="btn blue" type="button" id="kbImpBtn">Import danh sách kênh</button></div>
             </div>
             <div id="kbMapPreview" style="margin-top:6px"></div>
             <div id="kbMsg" style="margin-top:6px"></div>
@@ -1843,7 +1845,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
               <div><label>Tháng / Năm</label><div style="display:flex;gap:8px"><input type="number" id="cbMonth" min="1" max="12" /><input type="number" id="cbYear" min="2020" max="2100" /></div></div>
               <div><label>Chế độ import</label><select id="cbMode"><option value="create">Tạo mới — chỉ import khi tháng này chưa có danh sách (chặn import trùng)</option><option value="append">Cập nhật — thêm vào danh sách hiện có của tháng</option><option value="replace">Thay thế — xóa danh sách cũ của tháng, import lại từ đầu</option></select></div>
               <div><label>File Excel danh sách CBCNV</label><input type="file" id="cbFile" accept=".xlsx,.xls,.csv" /></div>
-              <div style="align-self:end"><button class="btn blue" type="button" id="cbImpBtn">Import danh sách CBCNV</button></div>
+              <div style="align-self:end;display:flex;gap:8px;flex-wrap:wrap"><button class="btn gray" type="button" id="cbPreviewBtn">Xem trước số liệu</button><button class="btn blue" type="button" id="cbImpBtn">Import danh sách CBCNV</button></div>
             </div>
             <div id="cbMapPreview" style="margin-top:6px"></div>
             <div id="cbMsg" style="margin-top:6px"></div>
@@ -9476,25 +9478,68 @@ async function loadListTables(code, tbodyId, msgId) {
     }));
   } catch (e) { $(tbodyId).innerHTML = '<tr><td colspan="5">' + esc(e.message) + "</td></tr>"; }
 }
+// Phan canh bao + so lieu mau cho Xem truoc (5.3/5.4). Ham thuan — de test.
+// (Bang doi chieu cot do renderMapPreview ve, giong nhu hien nay.)
+function buildListPreviewExtra(cfg, map, headers, rows) {
+  const errs = [], warns = [];
+  const idKeys = cfg.idKeys.filter((k) => map[k]);
+  if (!idKeys.length) errs.push("Không nhận diện được cột định danh (" + cfg.idLabels + ") — import sẽ thất bại. Hãy kiểm tra lại tên cột trong file.");
+  else {
+    const noId = rows.filter((r) => idKeys.every((k) => String(r[map[k]] ?? "").trim() === "")).length;
+    if (noId) warns.push(noId.toLocaleString("vi-VN") + " dòng không có mã định danh (tất cả các cột định danh đều trống) — các dòng này sẽ import nhưng không map được với tài khoản/báo cáo.");
+    const firstKey = idKeys[0];
+    const seen = new Set(), dups = new Set();
+    rows.forEach((r) => { const v = String(r[map[firstKey]] ?? "").trim(); if (!v) return; if (seen.has(v)) dups.add(v); seen.add(v); });
+    if (dups.size) warns.push("Cột <b>" + esc(map[firstKey]) + "</b> có " + dups.size.toLocaleString("vi-VN") + " giá trị trùng nhau (" + [...dups].slice(0, 5).map(esc).join(", ") + (dups.size > 5 ? ", …" : "") + ") — kiểm tra lại file.");
+  }
+  const mappedFields = cfg.fields.filter((f) => map[f.key]);
+  let h = "";
+  if (errs.length) h += "<div style='margin-top:8px;border:1.5px solid #ef4444;background:#fef2f2;border-radius:10px;padding:10px 12px'>" + errs.map((w) => "<div>❌ " + w + "</div>").join("") + "</div>";
+  if (warns.length) h += "<div style='margin-top:8px;border:1.5px solid #f59e0b;background:#fffbeb;border-radius:10px;padding:10px 12px'>" + warns.map((w) => "<div>⚠️ " + w + "</div>").join("") + "</div>";
+  h += "<p class='desc' style='margin-top:6px'>File có <b>" + rows.length.toLocaleString("vi-VN") + "</b> dòng dữ liệu; map được <b>" + mappedFields.length + "/" + cfg.fields.length + "</b> trường hệ thống.</p>";
+  const showFields = mappedFields.slice(0, 6);
+  if (rows.length && showFields.length) {
+    h += "<div class='tbl-wrap' style='max-height:220px;overflow:auto;margin-top:6px'><table class='data'><thead><tr><th>#</th>" + showFields.map((f) => "<th>" + esc(f.label) + "</th>").join("") + "<th>…</th></tr></thead><tbody>";
+    rows.slice(0, 3).forEach((r, i) => { h += "<tr><td>" + (i + 1) + "</td>" + showFields.map((f) => "<td>" + esc(r[map[f.key]] ?? "") + "</td>").join("") + "<td>…</td></tr>"; });
+    h += "</tbody></table></div><p class='desc'>Xem trước 3 dòng đầu, 6 cột đầu.</p>";
+  }
+  return h;
+}
 function setupListImport(cfg) {
   const fileEl = $(cfg.fileId);
-  let lastMap = null, lastHeaders = [], lastRows = [];
-  fileEl.addEventListener("change", async () => {
-    lastMap = null; lastRows = []; lastHeaders = [];
-    $(cfg.previewId).innerHTML = ""; setMsg($(cfg.msgId), "");
+  let lastMap = null, lastHeaders = [], lastRows = [], lastDropped = [];
+  async function readListFile() {
     const file = fileEl.files[0];
-    if (!file) return;
+    if (!file) return null;
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array", cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
+    if (!raw.length) { setMsg($(cfg.msgId), "File không có dòng dữ liệu nào.", false); return null; }
+    const headers = Object.keys(raw[0]);
+    const r = autoMapColumns(headers, cfg.fields);
+    return { headers, rows: raw, map: r.map, dropped: r.dropped };
+  }
+  fileEl.addEventListener("change", async () => {
+    lastMap = null; lastRows = []; lastHeaders = []; lastDropped = [];
+    $(cfg.previewId).innerHTML = ""; setMsg($(cfg.msgId), "");
     try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array", cellDates: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
-      if (!raw.length) { setMsg($(cfg.msgId), "File không có dòng dữ liệu nào.", false); return; }
-      lastHeaders = Object.keys(raw[0]);
-      lastRows = raw;
-      const r = autoMapColumns(lastHeaders, cfg.fields);
-      lastMap = r.map;
-      renderMapPreview($(cfg.previewId), cfg.fields, lastHeaders, r.map, r.dropped);
+      const parsed = await readListFile();
+      if (!parsed) return;
+      lastHeaders = parsed.headers; lastRows = parsed.rows; lastMap = parsed.map; lastDropped = parsed.dropped;
+      renderMapPreview($(cfg.previewId), cfg.fields, lastHeaders, lastMap, lastDropped);
+    } catch (e) { setMsg($(cfg.msgId), "Không đọc được file: " + e.message, false); }
+  });
+  $(cfg.previewBtn).addEventListener("click", async () => {
+    try {
+      if (!lastMap) {
+        const parsed = await readListFile();
+        if (!parsed) { if (!fileEl.files[0]) setMsg($(cfg.msgId), "Hãy chọn file Excel trước khi xem trước.", false); return; }
+        lastHeaders = parsed.headers; lastRows = parsed.rows; lastMap = parsed.map; lastDropped = parsed.dropped;
+      }
+      renderMapPreview($(cfg.previewId), cfg.fields, lastHeaders, lastMap, lastDropped);
+      $(cfg.previewId).innerHTML += buildListPreviewExtra(cfg, lastMap, lastHeaders, lastRows);
+      setMsg($(cfg.msgId), "Đã đọc file: " + lastRows.length.toLocaleString("vi-VN") + " dòng dữ liệu. Kiểm tra bảng đối chiếu rồi bấm Import.", true);
     } catch (e) { setMsg($(cfg.msgId), "Không đọc được file: " + e.message, false); }
   });
   $(cfg.btnId).addEventListener("click", async () => {
@@ -9526,8 +9571,8 @@ function setupListImport(cfg) {
     finally { $(cfg.btnId).disabled = false; }
   });
 }
-setupListImport({ fileId: "kbFile", monthId: "kbMonth", yearId: "kbYear", modeId: "kbMode", btnId: "kbImpBtn", previewId: "kbMapPreview", msgId: "kbMsg", api: "/api/kenh-ban/import", fields: KB_FIELDS, label: "danh sách kênh bán", idKeys: ["ma_kenh", "iddaily", "id_hrm", "so_eload"], idLabels: "Mã điểm bán / IDDAILY / ID điểm bán HRM / Số Eload", tablesCode: "KENH_BAN", tablesBodyId: "kbTablesBody" });
-setupListImport({ fileId: "cbFile", monthId: "cbMonth", yearId: "cbYear", modeId: "cbMode", btnId: "cbImpBtn", previewId: "cbMapPreview", msgId: "cbMsg", api: "/api/cbcnv/import", fields: CB_FIELDS, label: "danh sách CBCNV", idKeys: ["ma_hrm", "ma_smcs", "sdt"], idLabels: "Mã NV mới / Mã SMCS / SĐT", tablesCode: "CBCNV", tablesBodyId: "cbTablesBody" });
+setupListImport({ fileId: "kbFile", monthId: "kbMonth", yearId: "kbYear", modeId: "kbMode", btnId: "kbImpBtn", previewId: "kbMapPreview", msgId: "kbMsg", api: "/api/kenh-ban/import", fields: KB_FIELDS, label: "danh sách kênh bán", idKeys: ["ma_kenh", "iddaily", "id_hrm", "so_eload"], idLabels: "Mã điểm bán / IDDAILY / ID điểm bán HRM / Số Eload", tablesCode: "KENH_BAN", tablesBodyId: "kbTablesBody", previewBtn: "kbPreviewBtn" });
+setupListImport({ fileId: "cbFile", monthId: "cbMonth", yearId: "cbYear", modeId: "cbMode", btnId: "cbImpBtn", previewId: "cbMapPreview", msgId: "cbMsg", api: "/api/cbcnv/import", fields: CB_FIELDS, label: "danh sách CBCNV", idKeys: ["ma_hrm", "ma_smcs", "sdt"], idLabels: "Mã NV mới / Mã SMCS / SĐT", tablesCode: "CBCNV", tablesBodyId: "cbTablesBody", previewBtn: "cbPreviewBtn" });
 /* ---- 5.7 Cau hinh loai kenh ban ---- */
 let lkEditId = 0;
 let lkRows = [];
@@ -9593,7 +9638,100 @@ async function delTable(name, msgId, after) {
     if (after) after();
   } catch (e) { setMsg($(msgId || "impMsg"), e.message, false); }
 }
+/* ---- Xem truoc so lieu (module 5.1/5.2, giong module 5.9 TTCSKH) ---- */
+// Vai tro cot da cau hinh tren loai du lieu: [ten truong, nhan vai tro, he qua neu thieu]
+const DATA_ROLE_INFO = [
+  ["money_col", "Số tiền", "số tiền sẽ trống"],
+  ["time_col", "Thời gian chi trả", "không có thời gian chi trả"],
+  ["eload_col", "Số Eload", "không map được dòng nào với điểm bán/người dùng"],
+  ["vi_col", "Số Ví", "không map được theo số ví"],
+  ["sub_col", "Số thuê bao", "số thuê bao sẽ trống"],
+  ["pkg_col", "Tên gói cước", "tên gói sẽ trống"],
+  ["trans_col", "Mã giao dịch", "mã giao dịch sẽ trống"],
+  ["status_col", "Trạng thái", "trạng thái sẽ trống — các dòng sẽ tính là chưa thành công"],
+  ["reason_col", "Nguyên nhân lỗi", "nguyên nhân lỗi sẽ trống"],
+  ["time_fallback_col", "Thời gian dự phòng", "thời gian dự phòng sẽ trống"],
+  ["key_col", "Mã nhân viên", "không map được với CBCNV"],
+  ["kenh_col", "Mã kênh", "không map được theo mã kênh"],
+  ["sales_unit_col", "Đơn vị (bán hàng)", "không phân bổ được theo đơn vị"],
+  ["sales_eload_col", "Số Eload (bán hàng)", "không map được với điểm bán"],
+  ["sales_kenh_col", "Mã kênh (bán hàng)", "không map được theo mã kênh"],
+  ["sales_price_col", "Giá gói", "doanh thu sẽ trống"],
+  ["sales_qty_col", "Số lượng", "số lượng mặc định là 1"],
+  ["sales_result_col", "Kết quả giao dịch", "không lọc được giao dịch không thành công"],
+  ["sales_subtype_col", "Loại thuê bao", "không phân loại được theo loại thuê bao"],
+];
+// Doc file Excel + map cot theo mau loai du lieu (dung chung cho Xem truoc va Import).
+// Tra ve { headers, rows (da map, bo dong rong), dropped, ignored, map }.
+async function parseDataImportFile(file, dtype) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array", cellDates: true });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
+  if (!raw.length) throw new Error("File không có dòng dữ liệu nào.");
+  const map = buildHeaderMap(dtype);
+  const dateFields = dateFieldsOf(dtype);
+  const ignored = new Set();
+  const headers = Object.keys(raw[0]);
+  const rows = raw.map((r) => {
+    const o = {};
+    Object.keys(r).forEach((k) => {
+      const f = map[normHeader(k)];
+      if (f) o[f] = dateFields.has(f) ? toIsoDate(r[k]) : r[k];
+      else if (String(k).trim()) ignored.add(String(k).trim());
+    });
+    return o;
+  });
+  const kept = rows.filter((o) => Object.keys(o).length);
+  return { headers, rows: kept, dropped: rows.length - kept.length, ignored: [...ignored], map };
+}
+// Render HTML xem truoc (ham thuan — de test): canh bao map khong OK,
+// bang map cot, tom tat, 3 dong dau x 6 cot dau. Khong goi API.
+function buildDataPreviewHtml(dtype, parsed) {
+  const labelOf = (key) => { const c = (dtype.columns || []).find((x) => x.key === key); return c ? c.label : key; };
+  const mappedKeys = new Set(parsed.headers.map((h) => parsed.map[normHeader(h)]).filter(Boolean));
+  const errs = [], warns = [];
+  if (!mappedKeys.size) errs.push("Không có cột nào trong file khớp với mẫu dữ liệu của loại " + dtype.code + " — import sẽ thất bại. Hãy kiểm tra lại hàng tiêu đề của file Excel.");
+  DATA_ROLE_INFO.forEach(([field, roleLabel, consequence]) => {
+    const key = dtype[field];
+    if (key && !mappedKeys.has(key)) warns.push("Thiếu cột vai trò <b>" + esc(labelOf(key)) + "</b> (" + roleLabel + ") — " + consequence + ".");
+  });
+  if (parsed.dropped) warns.push(parsed.dropped.toLocaleString("vi-VN") + " dòng sẽ bị bỏ qua vì không có cột nào map được.");
+  if (parsed.ignored.length) warns.push(parsed.ignored.length + " cột không khớp mẫu sẽ bị loại bỏ: " + parsed.ignored.map(esc).join(", ") + ".");
+  let h = "<div class='note' style='margin-top:8px'><b>Xem trước số liệu</b> — loại " + esc(dtype.name) + " (" + esc(dtype.code) + "), file có <b>" + (parsed.rows.length + parsed.dropped).toLocaleString("vi-VN") + "</b> dòng dữ liệu.";
+  if (errs.length) h += "<div style='margin-top:8px;border:1.5px solid #ef4444;background:#fef2f2;border-radius:10px;padding:10px 12px'>" + errs.map((w) => "<div>❌ " + w + "</div>").join("") + "</div>";
+  if (warns.length) h += "<div style='margin-top:8px;border:1.5px solid #f59e0b;background:#fffbeb;border-radius:10px;padding:10px 12px'>" + warns.map((w) => "<div>⚠️ " + w + "</div>").join("") + "</div>";
+  h += "<div class='tbl-wrap' style='max-height:320px;overflow:auto;margin-top:8px'><table class='data'><thead><tr><th>#</th><th>Cột trong file</th><th>Map vào cột hệ thống</th><th>Trạng thái</th></tr></thead><tbody>";
+  parsed.headers.forEach((fh, i) => {
+    const key = parsed.map[normHeader(fh)];
+    h += "<tr><td>" + (i + 1) + "</td><td>" + esc(fh || "(trống)") + "</td><td>" + esc(key ? labelOf(key) : "—") + "</td><td>" + (key ? "✅ Map" : "⏭️ Bỏ qua — không khớp mẫu") + "</td></tr>";
+  });
+  h += "</tbody></table></div>";
+  h += "<p class='desc' style='margin-top:6px'>Map được <b>" + mappedKeys.size + "/" + parsed.headers.length + "</b> cột trong file; <b>" + parsed.rows.length.toLocaleString("vi-VN") + "</b> dòng sẽ import được.</p>";
+  const showCols = (dtype.columns || []).filter((c) => mappedKeys.has(c.key)).slice(0, 6);
+  if (parsed.rows.length && showCols.length) {
+    h += "<div class='tbl-wrap' style='max-height:220px;overflow:auto;margin-top:6px'><table class='data'><thead><tr><th>#</th>" + showCols.map((c) => "<th>" + esc(c.label) + "</th>").join("") + "<th>…</th></tr></thead><tbody>";
+    parsed.rows.slice(0, 3).forEach((r, i) => { h += "<tr><td>" + (i + 1) + "</td>" + showCols.map((c) => "<td>" + esc(r[c.key] ?? "") + "</td>").join("") + "<td>…</td></tr>"; });
+    h += "</tbody></table></div><p class='desc'>Xem trước 3 dòng đầu, 6 cột đầu.</p>";
+  }
+  return h + "</div>";
+}
 function setupDataImportForm(cfg) {
+  // Doi file / doi loai -> xoa ban xem truoc cu
+  $(cfg.file).addEventListener("change", () => { $(cfg.preview).innerHTML = ""; setMsg($(cfg.msg), ""); });
+  $(cfg.type).addEventListener("change", () => { $(cfg.preview).innerHTML = ""; });
+  $(cfg.previewBtn).addEventListener("click", async () => {
+    const file = $(cfg.file).files[0];
+    if (!file) { setMsg($(cfg.msg), "Hãy chọn file Excel trước khi xem trước.", false); return; }
+    const dtype = dataTypes.find((t) => t.code === $(cfg.type).value);
+    if (!dtype) { setMsg($(cfg.msg), cfg.errNoType, false); return; }
+    try {
+      setMsg($(cfg.msg), "Đang đọc file…");
+      const parsed = await parseDataImportFile(file, dtype);
+      $(cfg.preview).innerHTML = buildDataPreviewHtml(dtype, parsed);
+      setMsg($(cfg.msg), "Đã đọc file: " + (parsed.rows.length + parsed.dropped).toLocaleString("vi-VN") + " dòng dữ liệu. Kiểm tra bảng map cột rồi bấm Import lên D1.", true);
+    } catch (e) { setMsg($(cfg.msg), e.message, false); }
+  });
   $(cfg.form).addEventListener("submit", async (e) => {
     e.preventDefault();
     const file = $(cfg.file).files[0];
@@ -9611,23 +9749,9 @@ function setupDataImportForm(cfg) {
     try {
       $(cfg.btn).disabled = true;
       setMsg($(cfg.msg), "Đang đọc file Excel…");
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array", cellDates: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json(ws, { defval: "" });
-      if (!raw.length) throw new Error("File không có dòng dữ liệu nào.");
-      const map = buildHeaderMap(dtype);
-      const dateFields = dateFieldsOf(dtype);
-      const ignored = new Set();
-      const rows = raw.map((r) => {
-        const o = {};
-        Object.keys(r).forEach((k) => {
-          const f = map[normHeader(k)];
-          if (f) o[f] = dateFields.has(f) ? toIsoDate(r[k]) : r[k];
-          else if (String(k).trim()) ignored.add(String(k).trim());
-        });
-        return o;
-      }).filter((o) => Object.keys(o).length);
+      const parsed = await parseDataImportFile(file, dtype);
+      const rows = parsed.rows;
+      const ignored = new Set(parsed.ignored);
       if (!rows.length) throw new Error("Không có cột nào trong file khớp với mẫu dữ liệu của loại " + loai + ". Hãy kiểm tra lại hàng tiêu đề của file Excel.");
       setMsg($(cfg.msg), "Đang import " + rows.length.toLocaleString("vi-VN") + " dòng lên D1 (" + modeLabel + ")…");
       const d = await api("/api/import", { method: "POST", body: JSON.stringify({ loai, thang, nam, mode, rows }) });
@@ -9639,8 +9763,8 @@ function setupDataImportForm(cfg) {
     finally { $(cfg.btn).disabled = false; }
   });
 }
-setupDataImportForm({ form: "importForm", type: "impType", month: "impMonth", year: "impYear", mode: "impMode", file: "impFile", btn: "impBtn", msg: "impMsg", errNoType: "Chưa có loại dữ liệu chi trả. Hãy tạo loại dữ liệu trong mục Quản lý loại dữ liệu trước." });
-setupDataImportForm({ form: "importFormS", type: "impTypeS", month: "impMonthS", year: "impYearS", mode: "impModeS", file: "impFileS", btn: "impBtnS", msg: "impMsgS", errNoType: "Chưa có loại dữ liệu bán hàng. Hãy tạo loại dữ liệu Doanh thu / Sản lượng PTTB trong mục Quản lý loại dữ liệu trước." });
+setupDataImportForm({ form: "importForm", type: "impType", month: "impMonth", year: "impYear", mode: "impMode", file: "impFile", btn: "impBtn", msg: "impMsg", previewBtn: "impPreviewBtn", preview: "impPreview", errNoType: "Chưa có loại dữ liệu chi trả. Hãy tạo loại dữ liệu trong mục Quản lý loại dữ liệu trước." });
+setupDataImportForm({ form: "importFormS", type: "impTypeS", month: "impMonthS", year: "impYearS", mode: "impModeS", file: "impFileS", btn: "impBtnS", msg: "impMsgS", previewBtn: "impPreviewBtnS", preview: "impPreviewS", errNoType: "Chưa có loại dữ liệu bán hàng. Hãy tạo loại dữ liệu Doanh thu / Sản lượng PTTB trong mục Quản lý loại dữ liệu trước." });
 
 /* ---------------- Quan ly loai du lieu (admin) ---------------- */
 function slugKey(s) {
