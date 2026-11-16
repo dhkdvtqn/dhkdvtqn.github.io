@@ -512,6 +512,15 @@
 #appRoot svg.chart .line-plan {fill:none;stroke:#ef4444;stroke-width:2;stroke-dasharray:6 4}
 #appRoot #ovTrendChart, #appRoot #ovPsslChart {position:relative}
 #appRoot #mobTrendChart, #appRoot #mobShareChart, #appRoot #mobObChart, #appRoot #mobConvChart {position:relative}
+#appRoot #dashTrendChart, #appRoot #dashShareChart {position:relative}
+#appRoot #dashShareChart {max-width:340px;margin:0 auto}
+#appRoot .dash-filters {display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;background:var(--blue-light);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:10px 0}
+#appRoot svg.chart .cb-mon {fill:#2f7cf6}
+#appRoot svg.chart .cb-mon:hover {fill:#1d4ed8}
+#appRoot svg.chart .cb-cur {fill:#f58220}
+#appRoot svg.chart .cb-cur:hover {fill:#d96c0d}
+#appRoot .donut-seg {cursor:pointer;transition:stroke-width .15s ease,opacity .15s ease}
+#appRoot .donut-seg:hover {stroke-width:36;opacity:.92}
 #appRoot /* Infographic co che chinh sach (15/11) */
 .pol-grid {display:grid;grid-template-columns:1fr;gap:16px}
 #appRoot .pol-card {background:var(--card);border:1.5px solid var(--line);border-top:4px solid #2f7cf6;border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 18px 14px}
@@ -1248,26 +1257,30 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
       <div>
         <!-- DASHBOARD -->
         <section class="panel hidden" id="panel-dashboard">
-          <h2>Dashboard chi trả hoa hồng</h2>
+          <h2>📈 Dashboard chi trả hoa hồng</h2>
           <p class="desc" id="dashScope">Tổng hợp số lượng giao dịch và số tiền hoa hồng đã chi trả trong tháng hiện tại và lũy kế từ đầu năm, từ toàn bộ các loại dữ liệu đã import lên D1.</p>
-          <div style="margin:10px 0"><label>Lọc theo trạng thái chi trả: </label><select id="dashStatusFilter" title="Thành công = giao dịch có trạng thái 'Thành công' hoặc 'Đã chi trả thù lao thành công'; Không thành công = các trạng thái còn lại; Tất cả trạng thái = không lọc"><option value="success">Thành công</option><option value="fail">Không thành công</option><option value="all">Tất cả trạng thái</option></select> <label style="margin-left:14px">Chọn tháng: </label><input type="month" id="dashMonth" /></div>
-          <h3 style="margin:14px 0 8px;color:var(--blue-dark)" id="dashMonthLabel">Tháng hiện tại</h3>
-          <div class="kpi-row">
-            <div class="kpi"><b id="dashMonthTx">—</b><span>Số lượng giao dịch trong tháng</span></div>
-            <div class="kpi"><b id="dashMonthMoney">—</b><span id="dashMonthMoneyCap">Số tiền hoa hồng đã chi trả trong tháng</span></div>
+          <div class="dash-filters">
+            <div><label>Lọc theo trạng thái chi trả: </label><select id="dashStatusFilter" title="Thành công = giao dịch có trạng thái 'Thành công' hoặc 'Đã chi trả thù lao thành công'; Không thành công = các trạng thái còn lại; Tất cả trạng thái = không lọc"><option value="success">Thành công</option><option value="fail">Không thành công</option><option value="all">Tất cả trạng thái</option></select></div>
+            <div><label>Chọn tháng: </label><input type="month" id="dashMonth" /></div>
           </div>
-          <h3 style="margin:18px 0 8px;color:var(--blue-dark)" id="dashYearLabel">Lũy kế từ đầu năm</h3>
-          <div class="kpi-row">
-            <div class="kpi"><b id="dashYearTx">—</b><span>Tổng số lượng giao dịch từ đầu năm</span></div>
-            <div class="kpi"><b id="dashYearMoney">—</b><span id="dashYearMoneyCap">Tổng số tiền hoa hồng đã chi trả từ đầu năm</span></div>
+          <h3 class="sec-title" id="dashMonthLabel">Tháng hiện tại</h3>
+          <div class="ov-kpis">
+            <div class="ov-kpi" style="--kc:#2f7cf6"><div class="kpi-label">💳 Số giao dịch trong tháng</div><b id="dashMonthTx">—</b><div class="kpi-deltas"><span class="delta flat" id="dashMonthTxDelta">—</span></div></div>
+            <div class="ov-kpi" style="--kc:#f58220"><div class="kpi-label">💰 <span id="dashMonthMoneyCap">Số tiền hoa hồng đã chi trả trong tháng</span></div><b id="dashMonthMoney">—</b><div class="kpi-deltas"><span class="delta flat" id="dashMonthMoneyDelta">—</span></div></div>
+            <div class="ov-kpi" style="--kc:#14b8a6"><div class="kpi-label">📅 Tổng giao dịch lũy kế từ đầu năm</div><b id="dashYearTx">—</b><div class="kpi-note">Từ 01/01 đến hết tháng đang xem</div></div>
+            <div class="ov-kpi" style="--kc:#8b5cf6"><div class="kpi-label">💵 <span id="dashYearMoneyCap">Tổng số tiền hoa hồng đã chi trả từ đầu năm</span></div><b id="dashYearMoney">—</b><div class="kpi-note">Từ 01/01 đến hết tháng đang xem</div></div>
           </div>
           <div id="dashMsg"></div>
-          <div id="dashUnitRow" style="margin-bottom:10px"><label>Lọc theo đơn vị (áp dụng cho 2 bảng dưới): </label><select id="dashUnitFilter"><option value="">Tất cả đơn vị trong phạm vi của bạn</option></select></div>
-          <h3 style="margin:18px 0 8px;color:var(--blue-dark)" id="dashTypeTitle">Chi tiết tháng hiện tại theo loại dữ liệu</h3>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Loại dữ liệu</th><th>Số giao dịch</th><th>Số tiền chi trả</th></tr></thead><tbody id="dashTypeBody"><tr><td colspan="3">Đang tải…</td></tr></tbody></table></div>
-          <h3 style="margin:18px 0 8px;color:var(--blue-dark)" id="dashYearTitle">Số liệu theo từng tháng trong năm</h3>
+          <div class="chart-row">
+            <div class="chart-card"><h4>📊 Xu hướng chi trả theo tháng <span class="sec-sub" id="dashTrendSub"></span></h4><div class="chart-legend"><span><i class="lg" style="background:#2f7cf6"></i>Số tiền chi trả</span><span><i class="lg" style="background:#f58220"></i>Tháng đang xem</span></div><div id="dashTrendChart"></div></div>
+            <div class="chart-card"><h4>🍩 Cơ cấu chi trả tháng <span id="dashShareMonth"></span> theo loại</h4><div id="dashShareChart"></div><div id="dashShareLegend" style="margin-top:8px"></div></div>
+          </div>
+          <div id="dashUnitRow" style="margin-bottom:10px"><label>Lọc theo đơn vị (áp dụng cho bảng so sánh, biểu đồ cơ cấu và bảng theo tháng): </label><select id="dashUnitFilter"><option value="">Tất cả đơn vị trong phạm vi của bạn</option></select></div>
+          <h3 class="sec-title" id="dashTypeTitle">So sánh với tháng trước theo loại dữ liệu</h3>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Loại dữ liệu</th><th>Tiền tháng T</th><th>Tiền tháng T-1</th><th>Chênh lệch tiền</th><th>GD tháng T</th><th>GD tháng T-1</th><th>Chênh lệch GD</th></tr></thead><tbody id="dashCmpBody"><tr><td colspan="7">Đang tải…</td></tr></tbody></table></div>
+          <h3 class="sec-title" id="dashYearTitle">Số liệu theo từng tháng trong năm</h3>
           <div style="margin-bottom:10px"><label>Lọc bảng theo loại chi trả: </label><select id="dashYearType"><option value="ALL">Tất cả các loại chi trả</option></select></div>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>Tháng</th><th>Số giao dịch</th><th>Số tiền chi trả</th></tr></thead><tbody id="dashYearBody"><tr><td colspan="3">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Tháng</th><th>Số giao dịch</th><th>Số tiền chi trả</th><th>Tăng/giảm vs tháng trước</th></tr></thead><tbody id="dashYearBody"><tr><td colspan="4">Đang tải…</td></tr></tbody></table></div>
         </section>
 
         <!-- DASHBOARD BAN HANG -->
@@ -6963,13 +6976,15 @@ $("pwChangeCancel").addEventListener("click", () => { pwChangeToken = ""; me = n
 
 /* ---------------- Dashboard tong hop ---------------- */
 function renderDashYearBody(rows) {
-  if (!(rows || []).length) { $("dashYearBody").innerHTML = "<tr><td colspan='3'>Chưa có dữ liệu trong năm nay.</td></tr>"; return; }
+  if (!(rows || []).length) { $("dashYearBody").innerHTML = "<tr><td colspan='4'>Chưa có dữ liệu trong năm nay.</td></tr>"; return; }
   const totTx = (rows || []).reduce((a, r) => a + (Number(r.so_giao_dich) || 0), 0);
   const totMoney = (rows || []).reduce((a, r) => a + (Number(r.tong_tien) || 0), 0);
-  $("dashYearBody").innerHTML = (rows || []).map((r) => {
+  $("dashYearBody").innerHTML = (rows || []).map((r, i) => {
     const parts = String(r.ky || "").split("-");
-    return "<tr><td><b>Tháng " + (parts[1] || "") + "/" + (parts[0] || "") + "</b></td><td>" + (r.so_giao_dich || 0).toLocaleString("vi-VN") + "</td><td>" + fmt(r.tong_tien) + "</td></tr>";
-  }).join("") + "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + totTx.toLocaleString("vi-VN") + "</b></td><td><b>" + fmt(totMoney) + "</b></td></tr>";
+    const prev = i > 0 ? rows[i - 1] : null;
+    const dHtml = prev ? deltaPillHtml(calcDelta(Number(r.tong_tien) || 0, Number(prev.tong_tien) || 0)) : "<span style='color:var(--muted)'>—</span>";
+    return "<tr><td><b>Tháng " + (parts[1] || "") + "/" + (parts[0] || "") + "</b></td><td>" + (r.so_giao_dich || 0).toLocaleString("vi-VN") + "</td><td>" + fmt(r.tong_tien) + "</td><td>" + dHtml + "</td></tr>";
+  }).join("") + "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + totTx.toLocaleString("vi-VN") + "</b></td><td><b>" + fmt(totMoney) + "</b></td><td></td></tr>";
 }
 /* Loc trang thai chi tra dung chung cho Dashboard va Bao cao thong ke:
    success = chi tinh giao dich "Thanh cong" / "Da chi tra thu lao thanh cong";
@@ -6986,6 +7001,104 @@ function dashSelMonth() {
 // Ma lan tai Dashboard: doi thang/bo loc lien tiep se chay nhieu lan tai song
 // song; chi lan tai moi nhat duoc hien thi, cac lan cu ve sau se bi bo.
 let dashLoadSeq = 0;
+// ---- So sanh T-1 + bieu do cho Dashboard chi tra hoa hong ----
+// Tinh chenh lech cur vs prev: { cls, pct (null = thang truoc = 0), dir, abs }
+function calcDelta(cur, prev) {
+  if (prev > 0) {
+    const pct = (cur - prev) / prev * 100;
+    if (Math.abs(pct) < 0.05) return { cls: "flat", pct: 0, dir: 0, abs: cur - prev };
+    return { cls: pct > 0 ? "up" : "down", pct: Math.abs(pct), dir: pct > 0 ? 1 : -1, abs: cur - prev };
+  }
+  if (cur > 0) return { cls: "up", pct: null, dir: 1, abs: cur };
+  return { cls: "flat", pct: 0, dir: 0, abs: 0 };
+}
+function deltaPillHtml(d) {
+  if (d.pct == null) return "<span class='delta up'>▲ mới</span>";
+  if (d.dir === 0) return "<span class='delta flat'>— 0,0%</span>";
+  return "<span class='delta " + d.cls + "'>" + (d.dir > 0 ? "▲ " : "▼ ") + fmtPct2(d.pct) + "</span>";
+}
+function setDeltaPill(el, cur, prev) {
+  if (!el) return;
+  const d = calcDelta(cur, prev);
+  el.className = "delta " + d.cls;
+  el.textContent = d.pct == null ? "▲ mới vs T-1" : d.dir === 0 ? "— 0,0% vs T-1" : (d.dir > 0 ? "▲ " : "▼ ") + fmtPct2(d.pct) + " vs T-1";
+  el.title = prev > 0 ? "Tháng T-1: " + fmtInt(prev) : "Tháng T-1 chưa có số liệu";
+}
+// Bieu do cot xu huong chi tra theo thang (cot thang dang xem mau cam, con lai xanh VNPT)
+function svgDashTrend(el, rows, selKy) {
+  const data = (rows || []).map((r) => ({ ky: String(r.ky || ""), tx: Number(r.so_giao_dich) || 0, money: Number(r.tong_tien) || 0 }));
+  if (!data.length) { el.innerHTML = "<p class='desc'>Chưa có dữ liệu trong năm nay.</p>"; return; }
+  const W = 660, H = 300, P = { l: 56, r: 16, t: 14, b: 32 };
+  const maxV = Math.max(1, ...data.map((d) => d.money));
+  const n = data.length, cw = (W - P.l - P.r) / Math.max(1, n);
+  const X = (i) => P.l + i * cw + cw / 2;
+  const Y = (v) => H - P.b - ((H - P.t - P.b) * v) / maxV;
+  let s = '<svg viewBox="0 0 ' + W + " " + H + '" class="chart" role="img">';
+  for (let i = 0; i <= 4; i++) {
+    const y = (P.t + ((H - P.t - P.b) * i) / 4).toFixed(1);
+    s += '<line x1="' + P.l + '" y1="' + y + '" x2="' + (W - P.r) + '" y2="' + y + '" class="grid"/>';
+    s += '<text x="' + (P.l - 6) + '" y="' + (Number(y) + 4).toFixed(1) + '" class="ylab" text-anchor="end">' + fmtCompact((maxV * (4 - i)) / 4) + "</text>";
+  }
+  data.forEach((d, i) => {
+    const bw = Math.min(40, cw * 0.62), x = X(i) - bw / 2;
+    const h = Math.max(0, H - P.b - Y(d.money)), y = Y(d.money);
+    const cur = d.ky === selKy;
+    s += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(h, 2).toFixed(1) + '" rx="3" class="cbar ' + (cur ? "cb-cur" : "cb-mon") + '" data-i="' + i + '"/>';
+    s += '<text x="' + X(i).toFixed(1) + '" y="' + (H - 10) + '" class="xlab" text-anchor="middle">' + d.ky.slice(5) + "/" + d.ky.slice(2, 4) + "</text>";
+  });
+  s += "</svg>";
+  el.innerHTML = s + '<div class="chart-tip" style="display:none"></div>';
+  const tip = el.querySelector(".chart-tip");
+  const items = [];
+  el.querySelectorAll(".cbar").forEach((elm) => {
+    const i = Number(elm.getAttribute("data-i"));
+    const d = data[i];
+    let h = "<div class='tt'>" + monthLabel(d.ky) + "</div>";
+    h += "<div class='tr'><i class='dot' style='background:#2f7cf6'></i>Số tiền: <b>" + fmt(d.money) + "</b></div>";
+    h += "<div class='tr'><i class='dot' style='background:#f58220'></i>Giao dịch: <b>" + fmtInt(d.tx) + "</b></div>";
+    if (i > 0) {
+      const dd = calcDelta(d.money, data[i - 1].money);
+      h += "<div class='tr'>vs tháng trước: <b>" + (dd.pct == null ? "mới" : dd.dir === 0 ? "— 0,0%" : (dd.dir > 0 ? "▲ " : "▼ ") + fmtPct2(dd.pct)) + "</b></div>";
+    }
+    items.push({ elm, html: h });
+  });
+  bindChartTips(el, tip, items);
+}
+function renderDashTrend(rows) {
+  const { y, mo } = dashSelMonth();
+  const p2 = (x) => String(x).padStart(2, "0");
+  const sel = $("dashYearType");
+  const typeName = sel && sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : "";
+  $("dashTrendSub").textContent = "— " + typeName;
+  svgDashTrend($("dashTrendChart"), rows, y + "-" + p2(mo + 1));
+}
+// Bieu do tron (donut) co cau chi tra theo loai; hover doi nhan o giua vong
+function svgDonut(el, legendEl, items) {
+  const total = items.reduce((a, x) => a + x.value, 0);
+  if (!total) { el.innerHTML = "<p class='desc'>Chưa có dữ liệu chi trả trong tháng này.</p>"; legendEl.innerHTML = ""; return; }
+  const R = 80, C = 2 * Math.PI * R, CX = 120, CY = 100;
+  const colors = ["#0057a8", "#f58220", "#14b8a6", "#8b5cf6", "#2f7cf6", "#ef4444"];
+  let off = 0, segs = "";
+  items.forEach((it, i) => {
+    const frac = it.value / total;
+    const len = Math.max(0, frac * C - (items.length > 1 ? 2 : 0));
+    segs += '<circle cx="' + CX + '" cy="' + CY + '" r="' + R + '" fill="none" stroke="' + colors[i % colors.length] + '" stroke-width="28" stroke-dasharray="' + len.toFixed(1) + " " + (C - len).toFixed(1) + '" stroke-dashoffset="' + (-off).toFixed(1) + '" class="donut-seg" data-i="' + i + '" transform="rotate(-90 ' + CX + " " + CY + ')"/>';
+    off += frac * C;
+  });
+  el.innerHTML = '<svg viewBox="0 0 240 200" class="chart" role="img">' + segs +
+    '<text x="' + CX + '" y="' + (CY - 6) + '" text-anchor="middle" id="donutCenterLabel" style="font-size:13px;fill:#5a7186;pointer-events:none">Tổng chi trả</text>' +
+    '<text x="' + CX + '" y="' + (CY + 18) + '" text-anchor="middle" id="donutCenterValue" style="font-size:19px;font-weight:700;fill:#003d73;pointer-events:none">' + fmtCompact(total) + "</text></svg>";
+  legendEl.innerHTML = items.map((it, i) => {
+    const pct = it.value / total * 100;
+    return "<div style='display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--line)'><span><i style='background:" + colors[i % colors.length] + ";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px'></i>" + esc(it.label) + "</span><span><b>" + fmt(it.value) + "</b> <span style='color:var(--muted)'>(" + fmtPct2(pct) + ")</span></span></div>";
+  }).join("");
+  const label = el.querySelector("#donutCenterLabel"), value = el.querySelector("#donutCenterValue");
+  el.querySelectorAll(".donut-seg").forEach((seg) => {
+    const it = items[Number(seg.getAttribute("data-i"))];
+    seg.addEventListener("mouseenter", () => { label.textContent = it.code || it.label; value.textContent = fmtPct2(it.value / total * 100); });
+    seg.addEventListener("mouseleave", () => { label.textContent = "Tổng chi trả"; value.textContent = fmtCompact(total); });
+  });
+}
 async function loadDashboard() {
   const mySeq = ++dashLoadSeq;
   const now = new Date();
@@ -6997,9 +7110,10 @@ async function loadDashboard() {
   const mFrom = isoD(new Date(y, mo, 1)), mTo = y + "-" + p2(mo + 1) + "-" + p2(lastDay);
   const yFrom = y + "-01-01", yTo = mTo;
   const isCur = y === now.getFullYear() && mo === now.getMonth();
-  $("dashMonthLabel").textContent = "Tháng " + (mo + 1) + "/" + y + (isCur ? " (tháng hiện tại)" : "");
-  $("dashYearLabel").textContent = isCur ? "Lũy kế từ đầu năm " + y : "Lũy kế từ đầu năm " + y + " đến hết tháng " + (mo + 1) + "/" + y;
-  if ($("dashTypeTitle")) $("dashTypeTitle").textContent = "Chi tiết tháng " + (mo + 1) + "/" + y + " theo loại dữ liệu";
+  const prevY = mo === 0 ? y - 1 : y, prevMo = mo === 0 ? 11 : mo - 1;
+  $("dashMonthLabel").textContent = "Tháng " + (mo + 1) + "/" + y + (isCur ? " (tháng hiện tại)" : "") + " — so với tháng " + (prevMo + 1) + "/" + prevY;
+  if ($("dashTypeTitle")) $("dashTypeTitle").textContent = "So sánh tháng " + (mo + 1) + "/" + y + " với tháng " + (prevMo + 1) + "/" + prevY + " theo loại dữ liệu";
+  if ($("dashShareMonth")) $("dashShareMonth").textContent = (mo + 1) + "/" + y;
   if ($("dashYearTitle")) $("dashYearTitle").textContent = "Số liệu theo từng tháng trong năm " + y;
   // Nhan KPI tien doi theo bo loc trang thai de khong gay hieu nham
   const stt = dashStatusVal();
@@ -7022,16 +7136,23 @@ async function loadDashboard() {
     // Dang tai so thang moi: hien "…" thay vi giu so thang cu (de khong nham).
     $("dashMonthTx").textContent = "…"; $("dashMonthMoney").textContent = "…";
     $("dashYearTx").textContent = "…"; $("dashYearMoney").textContent = "…";
-    const [dm, dy] = await Promise.all([
+    setDeltaPill($("dashMonthTxDelta"), 0, 0); setDeltaPill($("dashMonthMoneyDelta"), 0, 0);
+    const pLastDay = new Date(prevY, prevMo + 1, 0).getDate();
+    const pFrom = prevY + "-" + p2(prevMo + 1) + "-01", pTo = prevY + "-" + p2(prevMo + 1) + "-" + p2(pLastDay);
+    const [dm, dy, dp] = await Promise.all([
       api("/api/reports/summary?" + new URLSearchParams({ loai: "ALL", from: mFrom, to: mTo, group: "day", trang_thai: dashStatusVal() })),
       api("/api/reports/summary?" + new URLSearchParams({ loai: "ALL", from: yFrom, to: yTo, group: "month", trang_thai: dashStatusVal() })),
+      api("/api/reports/summary?" + new URLSearchParams({ loai: "ALL", from: pFrom, to: pTo, group: "day", trang_thai: dashStatusVal() })),
     ]);
     if (mySeq !== dashLoadSeq) return; // da co lan tai moi hon: bo ket qua cu nay
     $("dashMonthTx").textContent = (dm.tong_giao_dich || 0).toLocaleString("vi-VN");
     $("dashMonthMoney").textContent = fmt(dm.tong_tien);
     $("dashYearTx").textContent = (dy.tong_giao_dich || 0).toLocaleString("vi-VN");
     $("dashYearMoney").textContent = fmt(dy.tong_tien);
+    setDeltaPill($("dashMonthTxDelta"), dm.tong_giao_dich || 0, dp.tong_giao_dich || 0);
+    setDeltaPill($("dashMonthMoneyDelta"), dm.tong_tien || 0, dp.tong_tien || 0);
     renderDashYearBody(dy.rows);
+    renderDashTrend(dy.rows);
     const skipped = [...new Set([...(dm.skipped_tables || []), ...(dy.skipped_tables || [])])];
     setMsg($("dashMsg"), skipped.length ? "Lưu ý: các bảng tháng sau không đọc được theo cả mẫu mới lẫn mẫu cũ nên không tính vào Dashboard: " + skipped.join(", ") + "." : "");
   } catch (e) { if (mySeq === dashLoadSeq) setMsg($("dashMsg"), e.message, false); }
@@ -7086,20 +7207,34 @@ async function loadDashTypeTable(seq) {
   const { y, mo } = dashSelMonth(); const p2 = (x) => String(x).padStart(2, "0");
   const mFrom = y + "-" + p2(mo + 1) + "-01";
   const mTo = y + "-" + p2(mo + 1) + "-" + p2(new Date(y, mo + 1, 0).getDate());
+  const prevY = mo === 0 ? y - 1 : y, prevMo = mo === 0 ? 11 : mo - 1;
+  const pFrom = prevY + "-" + p2(prevMo + 1) + "-01";
+  const pTo = prevY + "-" + p2(prevMo + 1) + "-" + p2(new Date(prevY, prevMo + 1, 0).getDate());
   const dv = $("dashUnitFilter").value || "";
   try {
     // Chi hien loai chi tra hoa hong: bo loai ban hang (SMCS/TNTTTB) va bo
     // dong HHKK rieng — so lieu HHKK da gop chung vao dong HHBG (API tra ve).
+    // Moi loai lay ca thang T va thang T-1 (song song) de so sanh.
     const per = await Promise.all(dataTypes.filter((t) => !t.sales_kind && t.code !== "HHKK").map(async (t) => {
-      try {
-        const q = new URLSearchParams({ loai: t.code, from: mFrom, to: mTo, group: "month", trang_thai: dashStatusVal() });
-        if (dv) q.set("don_vi", dv);
-        const d = await api("/api/reports/summary?" + q);
-        return { name: t.name, tx: d.tong_giao_dich || 0, money: d.tong_tien || 0 };
-      } catch (e) { return { name: t.name, tx: 0, money: 0 }; }
+      const mk = async (from, to) => {
+        try {
+          const q = new URLSearchParams({ loai: t.code, from, to, group: "month", trang_thai: dashStatusVal() });
+          if (dv) q.set("don_vi", dv);
+          const d = await api("/api/reports/summary?" + q);
+          return { tx: d.tong_giao_dich || 0, money: d.tong_tien || 0 };
+        } catch (e) { return { tx: 0, money: 0 }; }
+      };
+      const [cur, prev] = await Promise.all([mk(mFrom, mTo), mk(pFrom, pTo)]);
+      return { name: t.name, code: t.code, tx: cur.tx, money: cur.money, prevTx: prev.tx, prevMoney: prev.money };
     }));
     if (seq !== undefined && seq !== dashLoadSeq) return; // lan tai cu: bo
-    $("dashTypeBody").innerHTML = per.map((r) => "<tr><td>" + esc(r.name) + "</td><td>" + r.tx.toLocaleString("vi-VN") + "</td><td>" + fmt(r.money) + "</td></tr>").join("");
+    const tot = per.reduce((a, r) => ({ tx: a.tx + r.tx, money: a.money + r.money, prevTx: a.prevTx + r.prevTx, prevMoney: a.prevMoney + r.prevMoney }), { tx: 0, money: 0, prevTx: 0, prevMoney: 0 });
+    const cell = (cur, prev, f) => { const d = calcDelta(cur, prev); return "<b>" + (d.abs >= 0 ? "+" : "") + f(d.abs) + "</b><br>" + deltaPillHtml(d); };
+    $("dashCmpBody").innerHTML = per.map((r) =>
+      "<tr><td><b>" + esc(r.name) + "</b></td><td>" + fmt(r.money) + "</td><td>" + fmt(r.prevMoney) + "</td><td>" + cell(r.money, r.prevMoney, fmt) + "</td><td>" + fmtInt(r.tx) + "</td><td>" + fmtInt(r.prevTx) + "</td><td>" + cell(r.tx, r.prevTx, fmtInt) + "</td></tr>").join("") +
+      "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + fmt(tot.money) + "</b></td><td><b>" + fmt(tot.prevMoney) + "</b></td><td>" + cell(tot.money, tot.prevMoney, fmt) + "</td><td><b>" + fmtInt(tot.tx) + "</b></td><td><b>" + fmtInt(tot.prevTx) + "</b></td><td>" + cell(tot.tx, tot.prevTx, fmtInt) + "</td></tr>";
+    // Bieu do tron co cau thang T (chi loai co so lieu)
+    svgDonut($("dashShareChart"), $("dashShareLegend"), per.filter((r) => r.money > 0).map((r) => ({ label: r.name, code: r.code, value: r.money })));
   } catch (e) { /* bo qua */ }
 }
 async function loadDashYearTable(loai) {
@@ -7112,7 +7247,8 @@ async function loadDashYearTable(loai) {
     if (dv) q.set("don_vi", dv);
     const d = await api("/api/reports/summary?" + q);
     renderDashYearBody(d.rows);
-  } catch (e) { $("dashYearBody").innerHTML = "<tr><td colspan='3'>" + esc(e.message) + "</td></tr>"; }
+    renderDashTrend(d.rows);
+  } catch (e) { $("dashYearBody").innerHTML = "<tr><td colspan='4'>" + esc(e.message) + "</td></tr>"; }
 }
 $("dashStatusFilter").addEventListener("change", () => { loadDashboard(); });
 $("dashMonth").addEventListener("change", () => { loadDashboard(); });
