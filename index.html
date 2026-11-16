@@ -1831,6 +1831,9 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             </div>
             <div id="kbMapPreview" style="margin-top:6px"></div>
             <div id="kbMsg" style="margin-top:6px"></div>
+            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Các bảng đã import</h3>
+            <p class="desc">Bảng của tháng trước trở về trước mặc định <b>đã khóa thay thế</b> — chỉ admin mới thay thế được dữ liệu của bảng đã khóa. Admin có thể khóa/mở khóa từng bảng bằng nút bên dưới.</p>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Bảng tháng</th><th>Tháng</th><th>Số dòng</th><th>Trạng thái thay thế</th><th></th></tr></thead><tbody id="kbTablesBody"><tr><td colspan="5">Chưa tải danh sách bảng.</td></tr></tbody></table></div>
         </section>
 
         <section class="panel hidden" id="panel-import-cb">
@@ -1844,6 +1847,9 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             </div>
             <div id="cbMapPreview" style="margin-top:6px"></div>
             <div id="cbMsg" style="margin-top:6px"></div>
+            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Các bảng đã import</h3>
+            <p class="desc">Bảng của tháng trước trở về trước mặc định <b>đã khóa thay thế</b> — chỉ admin mới thay thế được dữ liệu của bảng đã khóa. Admin có thể khóa/mở khóa từng bảng bằng nút bên dưới.</p>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Bảng tháng</th><th>Tháng</th><th>Số dòng</th><th>Trạng thái thay thế</th><th></th></tr></thead><tbody id="cbTablesBody"><tr><td colspan="5">Chưa tải danh sách bảng.</td></tr></tbody></table></div>
         </section>
 
         <section class="panel hidden" id="panel-import-plan">
@@ -6814,8 +6820,8 @@ function openPanel(panelId, btn) {
   if (panelId === "panel-staff") { loadStaff(); loadStaffUnits(); applyStaffFormPerms(); }
   if (panelId === "panel-import") { loadTables(); loadDataTypes(); applyImportPerms(); const pn = new Date(); if (!$("impMonth").value) $("impMonth").value = pn.getMonth() + 1; if (!$("impYear").value) $("impYear").value = pn.getFullYear(); }
   if (panelId === "panel-import-sales") { loadTables(); loadDataTypes(); applyImportPerms(IMP_CFG_S); const pn = new Date(); if (!$("impMonthS").value) $("impMonthS").value = pn.getMonth() + 1; if (!$("impYearS").value) $("impYearS").value = pn.getFullYear(); }
-  if (panelId === "panel-import-kb") { const pn = new Date(); if (!$("kbMonth").value) $("kbMonth").value = pn.getMonth() + 1; if (!$("kbYear").value) $("kbYear").value = pn.getFullYear(); }
-  if (panelId === "panel-import-cb") { const pn = new Date(); if (!$("cbMonth").value) $("cbMonth").value = pn.getMonth() + 1; if (!$("cbYear").value) $("cbYear").value = pn.getFullYear(); }
+  if (panelId === "panel-import-kb") { const pn = new Date(); if (!$("kbMonth").value) $("kbMonth").value = pn.getMonth() + 1; if (!$("kbYear").value) $("kbYear").value = pn.getFullYear(); loadListTables("KENH_BAN", "kbTablesBody", "kbMsg"); }
+  if (panelId === "panel-import-cb") { const pn = new Date(); if (!$("cbMonth").value) $("cbMonth").value = pn.getMonth() + 1; if (!$("cbYear").value) $("cbYear").value = pn.getFullYear(); loadListTables("CBCNV", "cbTablesBody", "cbMsg"); }
   if (panelId === "panel-import-plan") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("planMonth").value) $("planMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("planImpYear").value) $("planImpYear").value = pn.getFullYear(); }
   if (panelId === "panel-import-types") loadDataTypes();
   if (panelId === "panel-import-ttcskh") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("ttkhMonth").value) $("ttkhMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("ttkhImpYear").value) $("ttkhImpYear").value = pn.getFullYear(); if (!$("ttkhViewYear").value) $("ttkhViewYear").value = pn.getFullYear(); }
@@ -9442,6 +9448,34 @@ function renderMapPreview(el, fields, headers, map, dropped) {
     (dropped.length ? "<div style='margin-top:6px'>Sẽ <b>loại bỏ</b> " + dropped.length + " cột không liên quan: " + esc(dropped.join(", ")) + "</div>"
       : "<div style='margin-top:6px;color:#15803d'>Không có cột thừa nào.</div>") + "</div>";
 }
+/* ---- Bang liet ke cac bang da import (module 5.3 kenh ban / 5.4 CBCNV) ----
+   Dung chung GET /api/import/tables (da co san co locked). Bang thang truoc
+   tro ve truoc mac dinh da khoa thay the (isTableLocked); admin khoa/mo khoa
+   bang POST /api/table-locks, xoa bang bang DELETE /api/import/tables/:name. */
+async function loadListTables(code, tbodyId, msgId) {
+  try {
+    const d = await api("/api/import/tables");
+    const rows = (d.tables || []).filter((x) => x.code === code)
+      .sort((a, b) => tableMonthSortKey(b.table) < tableMonthSortKey(a.table) ? -1 : 1);
+    const canDelTable = !!me && (me.role === "admin" || (me.can_import && me.role !== "subadmin"));
+    $(tbodyId).innerHTML = rows.map((x) => {
+      const mm = x.table.match(/_(\d{2})(\d{2,4})$/);
+      const lockCell = me && me.role === "admin"
+        ? "<button class='btn sm " + (x.locked ? "gray" : "blue") + "' data-lock-table='" + esc(x.table) + "' data-locked='" + (x.locked ? 1 : 0) + "'>" + (x.locked ? "Mở khóa" : "Khóa") + "</button>"
+        : (x.locked ? "<span class='pill bad'>Đã khóa</span>" : "<span class='pill ok'>Mở</span>");
+      return "<tr><td><code class='inl'>" + esc(x.table) + "</code></td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (x.rows || 0).toLocaleString("vi-VN") + "</td><td>" + lockCell + "</td>" +
+        "<td style='white-space:nowrap'>" + (canDelTable ? "<button class='btn sm danger' data-del-table='" + esc(x.table) + "'>Xóa bảng</button>" : "") + "</td></tr>";
+    }).join("") || "<tr><td colspan='5'>Chưa import bảng nào.</td></tr>";
+    $(tbodyId).querySelectorAll("[data-del-table]").forEach((b) => b.addEventListener("click", () => delTable(b.dataset.delTable, msgId, () => loadListTables(code, tbodyId, msgId))));
+    $(tbodyId).querySelectorAll("[data-lock-table]").forEach((b) => b.addEventListener("click", async () => {
+      const name = b.dataset.lockTable;
+      const toLocked = b.dataset.locked !== "1";
+      if (!confirm((toLocked ? "Khóa" : "Mở khóa") + " thay thế cho bảng " + name + "?\n" + (toLocked ? "Sau khi khóa, chỉ admin mới thay thế được dữ liệu của bảng này." : "Sau khi mở khóa, user có quyền import cũng được thay thế dữ liệu của bảng này."))) return;
+      try { await api("/api/table-locks", { method: "POST", body: JSON.stringify({ table: name, locked: toLocked }) }); loadListTables(code, tbodyId, msgId); }
+      catch (e) { setMsg($(msgId), e.message, false); }
+    }));
+  } catch (e) { $(tbodyId).innerHTML = '<tr><td colspan="5">' + esc(e.message) + "</td></tr>"; }
+}
 function setupListImport(cfg) {
   const fileEl = $(cfg.fileId);
   let lastMap = null, lastHeaders = [], lastRows = [];
@@ -9487,12 +9521,13 @@ function setupListImport(cfg) {
       setMsg($(cfg.msgId), "Import xong: " + d.inserted + " dòng vào bảng " + d.table + "." + (d.unmapped ? " " + d.unmapped + " dòng chưa map được Hạng kênh (chưa có định nghĩa loại điểm bán — vào mục 5.7 để thêm)." : ""), true);
       fileEl.value = ""; $(cfg.previewId).innerHTML = ""; lastMap = null; lastRows = [];
       loadTables();
+      if (cfg.tablesCode) loadListTables(cfg.tablesCode, cfg.tablesBodyId, cfg.msgId);
     } catch (e) { setMsg($(cfg.msgId), e.message, false); }
     finally { $(cfg.btnId).disabled = false; }
   });
 }
-setupListImport({ fileId: "kbFile", monthId: "kbMonth", yearId: "kbYear", modeId: "kbMode", btnId: "kbImpBtn", previewId: "kbMapPreview", msgId: "kbMsg", api: "/api/kenh-ban/import", fields: KB_FIELDS, label: "danh sách kênh bán", idKeys: ["ma_kenh", "iddaily", "id_hrm", "so_eload"], idLabels: "Mã điểm bán / IDDAILY / ID điểm bán HRM / Số Eload" });
-setupListImport({ fileId: "cbFile", monthId: "cbMonth", yearId: "cbYear", modeId: "cbMode", btnId: "cbImpBtn", previewId: "cbMapPreview", msgId: "cbMsg", api: "/api/cbcnv/import", fields: CB_FIELDS, label: "danh sách CBCNV", idKeys: ["ma_hrm", "ma_smcs", "sdt"], idLabels: "Mã NV mới / Mã SMCS / SĐT" });
+setupListImport({ fileId: "kbFile", monthId: "kbMonth", yearId: "kbYear", modeId: "kbMode", btnId: "kbImpBtn", previewId: "kbMapPreview", msgId: "kbMsg", api: "/api/kenh-ban/import", fields: KB_FIELDS, label: "danh sách kênh bán", idKeys: ["ma_kenh", "iddaily", "id_hrm", "so_eload"], idLabels: "Mã điểm bán / IDDAILY / ID điểm bán HRM / Số Eload", tablesCode: "KENH_BAN", tablesBodyId: "kbTablesBody" });
+setupListImport({ fileId: "cbFile", monthId: "cbMonth", yearId: "cbYear", modeId: "cbMode", btnId: "cbImpBtn", previewId: "cbMapPreview", msgId: "cbMsg", api: "/api/cbcnv/import", fields: CB_FIELDS, label: "danh sách CBCNV", idKeys: ["ma_hrm", "ma_smcs", "sdt"], idLabels: "Mã NV mới / Mã SMCS / SĐT", tablesCode: "CBCNV", tablesBodyId: "cbTablesBody" });
 /* ---- 5.7 Cau hinh loai kenh ban ---- */
 let lkEditId = 0;
 let lkRows = [];
@@ -9549,12 +9584,13 @@ $("lkApplyBtn").addEventListener("click", async () => {
     setMsg($("lkApplyMsg"), "Đã áp dụng cho bảng " + d.table + ": " + d.mapped + "/" + d.total + " điểm map được Hạng kênh" + (d.unmapped ? ", " + d.unmapped + " điểm chưa có định nghĩa." : "."), true);
   } catch (e) { setMsg($("lkApplyMsg"), e.message, false); }
 });
-async function delTable(name, msgId) {
+async function delTable(name, msgId, after) {
   if (!confirm("Xóa hẳn bảng dữ liệu " + name + "?\nToàn bộ dữ liệu trong bảng sẽ bị xóa khỏi CSDL và không khôi phục được.")) return;
   try {
     await api("/api/import/tables/" + encodeURIComponent(name), { method: "DELETE" });
     setMsg($(msgId || "impMsg"), "Đã xóa bảng dữ liệu " + name + ".");
     loadTables();
+    if (after) after();
   } catch (e) { setMsg($(msgId || "impMsg"), e.message, false); }
 }
 function setupDataImportForm(cfg) {
