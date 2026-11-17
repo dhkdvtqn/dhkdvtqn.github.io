@@ -1704,7 +1704,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
               <div class="desc" style="margin-top:6px">Nhập tay tọa độ, hoặc bấm “Chọn trên bản đồ” để chấm vị trí trên bản đồ OpenStreetMap (miễn phí, không cần API key). Tọa độ dùng để module Chăm sóc điểm bán nhận diện điểm bán trong bán kính 20m.</div>
             </div>
             <div class="full" id="uModulesBox">
-              <label>Quyền sử dụng module <span style="font-weight:500;color:var(--muted)">(chỉ admin thiết lập)</span></label>
+              <label>Quyền sử dụng module <span style="font-weight:500;color:var(--muted)">(chỉ admin/subadmin thiết lập)</span></label>
               <div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px" id="uModulesList"></div>
               <div class="desc" style="margin-top:6px">Điểm bán chưa thiết lập riêng dùng 5 module mặc định: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt, Cơ chế chính sách. Admin luôn dùng được mọi module.</div>
             </div>
@@ -1750,7 +1750,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         <!-- QUAN LY NGUOI DUNG (nhan su noi bo) -->
         <section class="panel hidden" id="panel-staff">
           <h2>Quản lý người dùng</h2>
-          <p class="desc">Khai báo tài khoản cho nhân sự nội bộ: Quản trị viên, Lãnh đạo đơn vị, Chuyên viên, Nhân viên kinh doanh. Tài khoản điểm bán được quản lý riêng trong module Quản lý kênh bán. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Tích chọn "Cấp quyền SubAdmin" để tài khoản xem được số liệu toàn tỉnh và quản lý người dùng/kênh bán. Admin thiết lập quyền sử dụng từng module cho mỗi tài khoản ở mục bên dưới.</p>
+          <p class="desc">Khai báo tài khoản cho nhân sự nội bộ: Quản trị viên, Lãnh đạo đơn vị, Chuyên viên, Nhân viên kinh doanh. Tài khoản điểm bán được quản lý riêng trong module Quản lý kênh bán. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Tích chọn "Cấp quyền SubAdmin" để tài khoản dùng đầy đủ quyền như Admin (trừ Cấu hình kết nối D1, không được mở khóa hay xóa bảng dữ liệu). Tích module nào ở mục bên dưới thì tài khoản dùng được module đó — kể cả các module trong nhóm Công cụ dành cho Admin.</p>
           <form id="staffForm" class="form-grid">
             <input type="hidden" id="staffId" />
             <div><label>Mã nhân viên</label><input id="sMaNv" placeholder="VD: NV-001" /></div>
@@ -1762,9 +1762,9 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="sSubAdmin" /> Cấp quyền SubAdmin</label></div>
             <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="sCanImport" /> Được quyền import dữ liệu</label></div>
             <div class="full" id="sModulesBox">
-              <label>Quyền sử dụng module <span style="font-weight:500;color:var(--muted)">(chỉ admin thiết lập)</span></label>
+              <label>Quyền sử dụng module <span style="font-weight:500;color:var(--muted)">(chỉ admin/subadmin thiết lập)</span></label>
               <div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px" id="sModulesList"></div>
-              <div class="desc" style="margin-top:6px">Chuyên viên / Nhân viên kinh doanh chưa thiết lập riêng dùng 5 module mặc định: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt, Cơ chế chính sách. Lãnh đạo đơn vị mặc định thêm Chăm sóc điểm bán. Tài khoản SubAdmin và Admin dùng đủ quyền theo vai trò. Admin luôn dùng được mọi module.</div>
+              <div class="desc" style="margin-top:6px">Chuyên viên / Nhân viên kinh doanh chưa thiết lập riêng dùng 5 module mặc định: Dashboard, Báo cáo thống kê, Danh mục gói cước, Cài đặt, Cơ chế chính sách. Lãnh đạo đơn vị mặc định thêm Chăm sóc điểm bán. Tài khoản SubAdmin dùng đủ quyền như Admin (trừ Cấu hình kết nối D1) — danh sách module bên dưới chỉ có hiệu lực khi bỏ tick SubAdmin. Admin luôn dùng được mọi module.</div>
             </div>
             <div class="full" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn blue" type="submit" id="staffSubmit">Tạo người dùng</button><button class="btn gray hidden" type="button" id="staffResetPass">Reset Pass</button><button class="btn gray hidden" type="button" id="staffCancel">Hủy sửa</button></div>
           </form>
@@ -2426,17 +2426,28 @@ function parseModules(v) {
   } catch (e) { return null; }
 }
 function hasModule(meUser, key) {
-  if (!meUser || meUser.role === &quot;admin&quot;) return true;
+  if (!meUser || meUser.role === &quot;admin&quot; || meUser.role === &quot;subadmin&quot;) return true;
   const mods = parseModules(meUser.modules);
   if (!mods) return true;
   return mods.includes(key);
 }
-// Quyen dung module Cham soc diem ban: chi admin hoac Lanh dao don vi
-// (kem quyen module &quot;care&quot;; lanh dao chua thiet lap rieng thi duoc dung).
+// Module duoc cap RIENG cho user (danh sach modules khac NULL va co key):
+// dung de mo quyen that khi admin tich module cho nhan su (17/11). Tai khoan
+// diem ban (role user) khong bao gio duoc cap quyen quan tri bang cach nay.
+function hasModuleExplicit(meUser, key) {
+  if (!meUser || meUser.role === &quot;user&quot;) return false;
+  const mods = parseModules(meUser.modules);
+  if (!mods) return false;
+  return mods.includes(key);
+}
+// Quyen dung module Cham soc diem ban: admin/subadmin (du quyen nhu admin);
+// Lanh dao don vi (kem quyen module &quot;care&quot;; chua thiet lap rieng thi duoc
+// dung); nhan su khac chi khi duoc admin tich rieng module &quot;care&quot; (17/11).
 function canUseCare(meUser) {
   if (!meUser) return false;
-  if (meUser.role !== &quot;admin&quot; &amp;&amp; meUser.role !== &quot;leader&quot;) return false;
-  return hasModule(meUser, &quot;care&quot;);
+  if (meUser.role === &quot;admin&quot; || meUser.role === &quot;subadmin&quot;) return true;
+  if (meUser.role === &quot;leader&quot;) return hasModule(meUser, &quot;care&quot;);
+  return hasModuleExplicit(meUser, &quot;care&quot;);
 }
 // Khoang cach (met) giua 2 toa do WGS84 theo cong thuc haversine
 function haversineM(lat1, lng1, lat2, lng2) {
@@ -3183,6 +3194,10 @@ export default {
       if (!me) return err(&quot;Phien dang nhap khong hop le hoac da het han. Vui long dang nhap lai.&quot;, 401);
       const isAdmin = me.role === &quot;admin&quot;;
       const isSubAdmin = me.role === &quot;subadmin&quot;;
+      // SubAdmin dung day du quyen nhu Admin (17/11), TRU: khoa/mo khoa bang,
+      // xoa bang du lieu, thay the bang dang khoa, cap role admin/subadmin va
+      // xem module Cau hinh ket noi D1 — cac cho do van giu isAdmin.
+      const isAdminLike = isAdmin || isSubAdmin;
       const isLeader = me.role === &quot;leader&quot;;
       // Chuyen vien (nhan su noi bo role staff + chuc danh &quot;Chuyên viên&quot;):
       // duoc xem so lieu tuong duong Lanh dao don vi — pham vi cay don vi
@@ -3208,7 +3223,7 @@ export default {
         return json({ ok: true, units: res.results || [] });
       }
       if (path === &quot;/api/units&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen tao don vi&quot;, 403);
+        if (!isAdminLike &amp;&amp; !hasModuleExplicit(me, &quot;units&quot;)) return err(&quot;Chi admin/subadmin hoac tai khoan duoc cap module Quan ly don vi moi co quyen tao don vi&quot;, 403);
         const b = await readBody(request);
         if (!toText(b.ma_don_vi) || !toText(b.ten_don_vi)) return err(&quot;Thieu ma don vi hoac ten don vi&quot;, 422);
         const r = await env.DB.prepare(
@@ -3220,7 +3235,7 @@ export default {
       }
       const unitMatch = path.match(/^\/api\/units\/(\d+)$/);
       if (unitMatch &amp;&amp; method === &quot;PUT&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen sua don vi&quot;, 403);
+        if (!isAdminLike &amp;&amp; !hasModuleExplicit(me, &quot;units&quot;)) return err(&quot;Chi admin/subadmin hoac tai khoan duoc cap module Quan ly don vi moi co quyen sua don vi&quot;, 403);
         const b = await readBody(request);
         await env.DB.prepare(&quot;UPDATE don_vi SET ma_don_vi = ?, ten_don_vi = ?, parent_id = ? WHERE id = ?&quot;)
           .bind(toText(b.ma_don_vi), toText(b.ten_don_vi), b.parent_id ? Number(b.parent_id) : null, Number(unitMatch[1]))
@@ -3228,7 +3243,7 @@ export default {
         return json({ ok: true });
       }
       if (unitMatch &amp;&amp; method === &quot;DELETE&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen xoa don vi&quot;, 403);
+        if (!isAdminLike &amp;&amp; !hasModuleExplicit(me, &quot;units&quot;)) return err(&quot;Chi admin/subadmin hoac tai khoan duoc cap module Quan ly don vi moi co quyen xoa don vi&quot;, 403);
         await env.DB.prepare(&quot;UPDATE don_vi SET parent_id = NULL WHERE parent_id = ?&quot;).bind(Number(unitMatch[1])).run();
         await env.DB.prepare(&quot;DELETE FROM don_vi WHERE id = ?&quot;).bind(Number(unitMatch[1])).run();
         return json({ ok: true });
@@ -3239,7 +3254,7 @@ export default {
       // kind=channel: chi tai khoan diem ban (role=&#x27;user&#x27;);
       // kind=staff: tai khoan noi bo (admin/subadmin/leader/staff).
       if (path === &quot;/api/users&quot; &amp;&amp; method === &quot;GET&quot;) {
-        if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xem danh sach&quot;, 403);
+        if (!canManageUsers &amp;&amp; !hasModuleExplicit(me, &quot;users&quot;) &amp;&amp; !hasModuleExplicit(me, &quot;staff&quot;)) return err(&quot;Chi admin/subadmin hoac tai khoan duoc cap module Quan ly kenh ban / Quan ly nguoi dung moi co quyen xem danh sach&quot;, 403);
         const kind = url.searchParams.get(&quot;kind&quot;);
         const needKey = kind === &quot;staff&quot; ? &quot;staff&quot; : kind === &quot;channel&quot; ? &quot;users&quot; : null;
         if (needKey ? !hasModule(me, needKey) : !(hasModule(me, &quot;users&quot;) || hasModule(me, &quot;staff&quot;)))
@@ -3267,10 +3282,10 @@ export default {
         return JSON.stringify(DEFAULT_MODULES);
       };
       if (path === &quot;/api/users&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen tao nguoi dung&quot;, 403);
         const b = await readBody(request);
         const kind = b.kind === &quot;staff&quot; ? &quot;staff&quot; : &quot;channel&quot;;
         const needKey = kind === &quot;staff&quot; ? &quot;staff&quot; : &quot;users&quot;;
+        if (!canManageUsers &amp;&amp; !hasModuleExplicit(me, needKey)) return err(&quot;Chi admin/subadmin hoac tai khoan duoc cap module nay moi co quyen tao nguoi dung&quot;, 403);
         if (!hasModule(me, needKey)) return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
         if (!toText(b.ho_ten) || !toText(b.username)) return err(&quot;Thieu ho ten hoac user dang nhap&quot;, 422);
         const salt = randomSalt();
@@ -3282,7 +3297,7 @@ export default {
           // (Dashboard, Bao cao thong ke, Danh muc goi cuoc, Cai dat).
           newRole = &quot;user&quot;;
           newCanImport = 0;
-          if (isAdmin &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
+          if (isAdminLike &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
           else newModules = JSON.stringify(DEFAULT_MODULES);
         } else {
           newMaNv = toText(b.ma_nhan_vien);
@@ -3290,13 +3305,14 @@ export default {
           if (newChucDanh &amp;&amp; !CHUC_DANH_LIST.includes(newChucDanh)) return err(&quot;Chuc danh khong hop le&quot;, 422);
           if (isAdmin) {
             newRole = staffRoleFrom(newChucDanh, b.subadmin);
-            newCanImport = b.can_import ? 1 : 0;
           } else {
-            // SubAdmin tao nhan su: khong duoc cap subadmin/admin
+            // SubAdmin / user co quyen Quan ly nguoi dung tao nhan su: khong duoc cap subadmin/admin
             newRole = newChucDanh === &quot;Lãnh đạo đơn vị&quot; ? &quot;leader&quot; : &quot;staff&quot;;
-            newCanImport = 0;
           }
-          if (isAdmin &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
+          // Quyen import: chi admin/subadmin duoc cap khi tao (user co tick
+          // module Quan ly nguoi dung thi khong — tranh tu cap quyen).
+          newCanImport = isAdminLike &amp;&amp; b.can_import ? 1 : 0;
+          if (isAdminLike &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
           else newModules = defaultModulesForRole(newRole);
         }
         const latP = parseCoordField(b.lat, -90, 90);
@@ -3399,8 +3415,8 @@ export default {
             if (cdRaw &amp;&amp; !CHUC_DANH_LIST.includes(cdRaw)) warnings.push({ row: i + 2, reason: &quot;Chuc danh &#x27;&quot; + cdRaw + &quot;&#x27; khong hop le — da dung &#x27;Nhân viên kinh doanh&#x27;&quot; });
             else if (cdRaw) impChucDanh = cdRaw;
             impSubAdmin = !!r.subadmin;
-            impCanImport = isAdmin &amp;&amp; r.can_import ? 1 : 0;
-            if (isAdmin &amp;&amp; toText(r.modules)) {
+            impCanImport = isAdminLike &amp;&amp; r.can_import ? 1 : 0;
+            if (isAdminLike &amp;&amp; toText(r.modules)) {
               const keys = String(r.modules).split(&quot;,&quot;).map((s) =&gt; s.trim().toLowerCase()).filter((k) =&gt; MODULE_KEYS.includes(k));
               if (keys.length) impModules = JSON.stringify(keys);
               else warnings.push({ row: i + 2, reason: &quot;Cot Modules khong co ma hop le — da dung mac dinh theo chuc danh&quot; });
@@ -3487,10 +3503,10 @@ export default {
       }
       const userMatch = path.match(/^\/api\/users\/(\d+)$/);
       if (userMatch &amp;&amp; method === &quot;PUT&quot;) {
-        if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen sua nguoi dung&quot;, 403);
         const b = await readBody(request);
         const kind = b.kind === &quot;staff&quot; ? &quot;staff&quot; : &quot;channel&quot;;
         const needKey = kind === &quot;staff&quot; ? &quot;staff&quot; : &quot;users&quot;;
+        if (!canManageUsers &amp;&amp; !hasModuleExplicit(me, needKey)) return err(&quot;Chi admin/subadmin hoac tai khoan duoc cap module nay moi co quyen sua nguoi dung&quot;, 403);
         if (!hasModule(me, needKey)) return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
         const uid = Number(userMatch[1]);
         const cur = await env.DB.prepare(&quot;SELECT role, can_import, modules, chuc_danh FROM nguoi_dung WHERE id = ?&quot;).bind(uid).first();
@@ -3506,19 +3522,25 @@ export default {
           newChucDanh = (&quot;chuc_danh&quot; in b) ? toText(b.chuc_danh) : (cur.chuc_danh || &quot;&quot;);
           if (newChucDanh &amp;&amp; !CHUC_DANH_LIST.includes(newChucDanh)) return err(&quot;Chuc danh khong hop le&quot;, 422);
           const subAdm = (&quot;subadmin&quot; in b) ? !!b.subadmin : cur.role === &quot;subadmin&quot;;
+          // Doi role: CHI admin (cap/nang/hạ admin/subadmin la quyen rieng cua admin).
           if (isAdmin) {
             newRole = staffRoleFrom(newChucDanh, subAdm);
-            newCanImport = b.can_import ? 1 : 0;
-            if (Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
           } else {
-            // SubAdmin khong duoc nang/hạ loai tai khoan admin/subadmin, khong doi quyen import/module
+            // SubAdmin / user co quyen Quan ly nguoi dung: khong duoc nang/hạ
+            // loai tai khoan admin/subadmin; chi doi duoc leader &lt;-&gt; staff.
             if (cur.role === &quot;admin&quot; || cur.role === &quot;subadmin&quot;) newRole = cur.role;
             else newRole = newChucDanh === &quot;Lãnh đạo đơn vị&quot; ? &quot;leader&quot; : &quot;staff&quot;;
+          }
+          // Quyen import + modules: admin/subadmin duoc dat; user chi co tick
+          // module Quan ly nguoi dung thi KHONG (tranh tu cap quyen cho minh).
+          if (isAdminLike) {
+            newCanImport = b.can_import ? 1 : 0;
+            if (Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
           }
           if (uid === me.id &amp;&amp; newRole !== me.role) return err(&quot;Khong the tu doi loai tai khoan cua chinh minh&quot;, 422);
         } else {
           newRole = &quot;user&quot;;
-          if (isAdmin &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
+          if (isAdminLike &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
         }
         const latP = parseCoordField(b.lat, -90, 90);
         if (latP.error) return err(&quot;Vi do diem ban khong hop le (tu -90 den 90)&quot;, 422);
@@ -3553,7 +3575,7 @@ export default {
         return json({ ok: true });
       }
       if (userMatch &amp;&amp; method === &quot;DELETE&quot;) {
-        if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xoa nguoi dung&quot;, 403);
+        if (!canManageUsers &amp;&amp; !hasModuleExplicit(me, &quot;users&quot;) &amp;&amp; !hasModuleExplicit(me, &quot;staff&quot;)) return err(&quot;Chi admin/subadmin hoac tai khoan duoc cap module Quan ly kenh ban / Quan ly nguoi dung moi co quyen xoa nguoi dung&quot;, 403);
         if (!(hasModule(me, &quot;users&quot;) || hasModule(me, &quot;staff&quot;))) return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
         if (Number(userMatch[1]) === me.id) return err(&quot;Khong the tu xoa tai khoan dang dang nhap&quot;, 422);
         const leadRef = await env.DB.prepare(&quot;SELECT COUNT(*) AS c FROM nguoi_dung WHERE leader_id = ?&quot;).bind(Number(userMatch[1])).first();
@@ -3563,7 +3585,7 @@ export default {
       }
       // ---- Xoa nhieu nguoi dung cung luc (theo danh sach da danh dau) ----
       if (path === &quot;/api/users/bulk-delete&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen xoa nguoi dung&quot;, 403);
+        if (!canManageUsers &amp;&amp; !hasModuleExplicit(me, &quot;users&quot;) &amp;&amp; !hasModuleExplicit(me, &quot;staff&quot;)) return err(&quot;Chi admin/subadmin hoac tai khoan duoc cap module Quan ly kenh ban / Quan ly nguoi dung moi co quyen xoa nguoi dung&quot;, 403);
         if (!(hasModule(me, &quot;users&quot;) || hasModule(me, &quot;staff&quot;))) return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
         const b = await readBody(request);
         const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map(Number).filter((n) =&gt; n &gt; 0))];
@@ -3583,7 +3605,7 @@ export default {
       // ---- Gan/go quyen module hang loat cho nhan su (muc Quan ly nguoi dung, 15/11) ----
       // Admin chon nhieu user + 1 module, bam Gan hoac Go: 1 lan goi cap nhat het.
       if (path === &quot;/api/users/bulk-modules&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen gan/go module hang loat&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi co quyen gan/go module hang loat&quot;, 403);
         if (!hasModule(me, &quot;staff&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         const b = await readBody(request);
         const module = String(b.module || &quot;&quot;).trim();
@@ -3640,7 +3662,7 @@ export default {
         return json({ ok: true, types });
       }
       if (path === &quot;/api/datatypes&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen tao loai du lieu&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi co quyen tao loai du lieu&quot;, 403);
         const b = await readBody(request);
         const code = String(b.code || &quot;&quot;).trim().toUpperCase();
         const name = toText(b.name);
@@ -3688,7 +3710,7 @@ export default {
       // thang se lam mo coi cac bang cu.
       const dtPutMatch = path.match(/^\/api\/datatypes\/(\d+)$/);
       if (dtPutMatch &amp;&amp; method === &quot;PUT&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen sua loai du lieu&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi co quyen sua loai du lieu&quot;, 403);
         const b = await readBody(request);
         const row = await env.DB.prepare(&quot;SELECT * FROM loai_du_lieu WHERE id = ?&quot;).bind(Number(dtPutMatch[1])).first();
         if (!row) return err(&quot;Loai du lieu khong ton tai&quot;, 404);
@@ -3727,7 +3749,7 @@ export default {
       }
       const dtMatch = path.match(/^\/api\/datatypes\/(\d+)$/);
       if (dtMatch &amp;&amp; method === &quot;DELETE&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen xoa loai du lieu&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi co quyen xoa loai du lieu&quot;, 403);
         const t = await env.DB.prepare(&quot;SELECT * FROM loai_du_lieu WHERE id = ?&quot;).bind(Number(dtMatch[1])).first();
         if (!t) return err(&quot;Khong tim thay loai du lieu&quot;, 404);
         if (t.builtin) return err(&quot;Khong the xoa loai du lieu mac dinh cua he thong&quot;, 422);
@@ -3793,7 +3815,7 @@ export default {
         return json({ ok: true, table: name, locked: !!b.locked });
       }
       if (path === &quot;/api/import&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!isAdminLike &amp;&amp; !me.can_import &amp;&amp; !hasModuleExplicit(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
         if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
         const b = await readBody(request);
         const types = await getDataTypes(env);
@@ -3912,12 +3934,12 @@ export default {
         ] },
       ];
       if (path === &quot;/api/ttcskh/types&quot; &amp;&amp; method === &quot;GET&quot;) {
-        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!isAdminLike &amp;&amp; !me.can_import &amp;&amp; !hasModuleExplicit(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
         if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
         return json({ ok: true, types: TTCSKH_TYPES.map((t) =&gt; ({ code: t.code, name: t.name, prefix: t.prefix, columns: t.columns.map(([key, type, label]) =&gt; ({ key, type, label })) })) });
       }
       if (path === &quot;/api/ttcskh/tables&quot; &amp;&amp; method === &quot;GET&quot;) {
-        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!isAdminLike &amp;&amp; !me.can_import &amp;&amp; !hasModuleExplicit(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
         if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
         const out = [];
         for (const t of TTCSKH_TYPES) {
@@ -3938,7 +3960,7 @@ export default {
         return json({ ok: true, table: name });
       }
       if (path === &quot;/api/ttcskh/import&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!isAdminLike &amp;&amp; !me.can_import &amp;&amp; !hasModuleExplicit(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
         if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
         const b = await readBody(request);
         const dtype = TTCSKH_TYPES.find((t) =&gt; t.code === String(b.loai || &quot;&quot;).toUpperCase());
@@ -4031,7 +4053,7 @@ function normKbKey(s) {
       // Excel ve truong chuan va loai bo cot khong lien quan truoc khi gui;
       // server chi nhan cac truong chuan, tu giai don_vi -&gt; don_vi_id.
       if ((path === &quot;/api/kenh-ban/import&quot; || path === &quot;/api/cbcnv/import&quot;) &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin &amp;&amp; !me.can_import) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!isAdminLike &amp;&amp; !me.can_import &amp;&amp; !hasModuleExplicit(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
         if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
         const isKenh = path === &quot;/api/kenh-ban/import&quot;;
         const prefix = isKenh ? KENH_BAN_PREFIX : CBCNV_PREFIX;
@@ -4137,13 +4159,13 @@ function normKbKey(s) {
       // Bang dinh nghia: Loai diem ban -&gt; Hang kenh. He thong tra bang nay
       // khi import danh sach kenh ban de xac dinh hang kenh tung diem ban.
       if (path === &quot;/api/loai-kenh-ban&quot; &amp;&amp; method === &quot;GET&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc xem cau hinh loai kenh ban&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi duoc xem cau hinh loai kenh ban&quot;, 403);
         await ensureLoaikenh(env);
         const res = await env.DB.prepare(&quot;SELECT id, loai_diem_ban, hang_kenh FROM loai_kenh_ban ORDER BY loai_diem_ban&quot;).all();
         return json({ ok: true, rows: res.results || [] });
       }
       if (path === &quot;/api/loai-kenh-ban&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc sua cau hinh loai kenh ban&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi duoc sua cau hinh loai kenh ban&quot;, 403);
         const b = await readBody(request);
         const id = Number(b.id) || 0;
         const loai = String(b.loai_diem_ban || &quot;&quot;).trim();
@@ -4164,7 +4186,7 @@ function normKbKey(s) {
         return json({ ok: true, id: (r.meta &amp;&amp; r.meta.last_row_id) || 0 });
       }
       if (path === &quot;/api/loai-kenh-ban&quot; &amp;&amp; method === &quot;DELETE&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc xoa cau hinh loai kenh ban&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi duoc xoa cau hinh loai kenh ban&quot;, 403);
         const id = Number(new URL(request.url).searchParams.get(&quot;id&quot;)) || 0;
         if (!id) return err(&quot;Thieu id&quot;, 422);
         await ensureLoaikenh(env);
@@ -4172,7 +4194,7 @@ function normKbKey(s) {
         return json({ ok: true });
       }
       if (path === &quot;/api/loai-kenh-ban/ap-dung&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc ap dung hang kenh&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi duoc ap dung hang kenh&quot;, 403);
         const b = await readBody(request);
         const thang = Number(b.thang), nam = Number(b.nam);
         if (!thang || thang &lt; 1 || thang &gt; 12 || !nam) return err(&quot;Thang/nam khong hop le&quot;, 422);
@@ -4208,7 +4230,7 @@ function normKbKey(s) {
       // ma kenh khong co trong bang moi -&gt; xoa tai khoan.
       // dry_run=true: chi tra ke hoach (tao/cap nhat/xoa/bo qua), khong ghi.
       if (path === &quot;/api/kenh-ban/sync&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc dong bo kenh ban&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi duoc dong bo kenh ban&quot;, 403);
         const b = await readBody(request);
         const thang = Number(b.thang), nam = Number(b.nam);
         const dryRun = b.dry_run === true || b.dry_run === &quot;true&quot;;
@@ -4399,7 +4421,7 @@ function normKbKey(s) {
         return json({ ok: true, thang, plans: r.results || [] });
       }
       if (path === &quot;/api/ke-hoach&quot; &amp;&amp; method === &quot;PUT&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc giao ke hoach&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi duoc giao ke hoach&quot;, 403);
         const b = await readBody(request);
         const thang = String(b.thang || &quot;&quot;).trim();
         const loai = String(b.loai || &quot;&quot;).trim();
@@ -4429,7 +4451,7 @@ function normKbKey(s) {
         return Number(s);
       };
       if (path === &quot;/api/ke-hoach/import&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc import ke hoach&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi duoc import ke hoach&quot;, 403);
         const b = await readBody(request);
         const nam = parseInt(b.nam, 10);
         const loai = String(b.loai || &quot;&quot;).trim();
@@ -4494,7 +4516,7 @@ function normKbKey(s) {
       const KHTTCSKH_CHITIEU = [&quot;doanh_thu&quot;, &quot;thue_bao&quot;];
       const KHTTCSKH_LOAI = [&quot;tap_the&quot;, &quot;ca_nhan&quot;];
       if (path === &quot;/api/ke-hoach-ttcskh&quot; &amp;&amp; method === &quot;GET&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc xem ke hoach TTCSKH&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi duoc xem ke hoach TTCSKH&quot;, 403);
         const nam = String(url.searchParams.get(&quot;nam&quot;) || &quot;&quot;).trim();
         const loai = String(url.searchParams.get(&quot;loai&quot;) || &quot;&quot;).trim();
         const chuong_trinh = String(url.searchParams.get(&quot;chuong_trinh&quot;) || &quot;&quot;).trim();
@@ -4513,7 +4535,7 @@ function normKbKey(s) {
         return json({ ok: true, plans: r.results || [] });
       }
       if (path === &quot;/api/ke-hoach-ttcskh&quot; &amp;&amp; method === &quot;PUT&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc giao ke hoach TTCSKH&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi duoc giao ke hoach TTCSKH&quot;, 403);
         const b = await readBody(request);
         const thang = String(b.thang || &quot;&quot;).trim();
         const loai = String(b.loai || &quot;&quot;).trim();
@@ -4534,7 +4556,7 @@ function normKbKey(s) {
         return json({ ok: true, thang, loai, saved: batch.length });
       }
       if (path === &quot;/api/ke-hoach-ttcskh&quot; &amp;&amp; method === &quot;DELETE&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc xoa ke hoach TTCSKH&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi duoc xoa ke hoach TTCSKH&quot;, 403);
         const b = await readBody(request);
         const thang = String(b.thang || &quot;&quot;).trim();
         const loai = String(b.loai || &quot;&quot;).trim();
@@ -4547,7 +4569,7 @@ function normKbKey(s) {
         return json({ ok: true });
       }
       if (path === &quot;/api/ke-hoach-ttcskh/import&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi duoc import ke hoach TTCSKH&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi duoc import ke hoach TTCSKH&quot;, 403);
         const b = await readBody(request);
         const nam = parseInt(b.nam, 10);
         const loai = String(b.loai || &quot;&quot;).trim();
@@ -5641,7 +5663,7 @@ function normKbKey(s) {
 
       // ---- Danh muc goi cuoc ----
       if (path === &quot;/api/packages&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen them goi cuoc&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi co quyen them goi cuoc&quot;, 403);
         await ensurePackages(env);
         const f = await readPackageForm(request);
         if (!f.ten_goi) return err(&quot;Thieu ten goi cuoc&quot;, 422);
@@ -5670,7 +5692,7 @@ function normKbKey(s) {
       }
       const pkgMatch = path.match(/^\/api\/packages\/(\d+)$/);
       if (pkgMatch &amp;&amp; method === &quot;PUT&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen sua goi cuoc&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi co quyen sua goi cuoc&quot;, 403);
         await ensurePackages(env);
         const id = Number(pkgMatch[1]);
         const cur = await env.DB.prepare(&quot;SELECT * FROM goi_cuoc WHERE id = ?&quot;).bind(id).first();
@@ -5700,7 +5722,7 @@ function normKbKey(s) {
         return json({ ok: true, id });
       }
       if (pkgMatch &amp;&amp; method === &quot;DELETE&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen xoa goi cuoc&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi co quyen xoa goi cuoc&quot;, 403);
         await ensurePackages(env);
         const id = Number(pkgMatch[1]);
         const cur = await env.DB.prepare(&quot;SELECT anh_key FROM goi_cuoc WHERE id = ?&quot;).bind(id).first();
@@ -5716,7 +5738,7 @@ function normKbKey(s) {
       // ---- Admin ghim / bo ghim goi cuoc len top 5 hien thi ----
       const nbMatch = path.match(/^\/api\/packages\/(\d+)\/noi-bat$/);
       if (nbMatch &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen ghim goi cuoc hien thi&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi co quyen ghim goi cuoc hien thi&quot;, 403);
         await ensurePackages(env);
         const id = Number(nbMatch[1]);
         const b = await readBody(request);
@@ -5731,7 +5753,7 @@ function normKbKey(s) {
         return json({ ok: true, id, noi_bat: want });
       }
       if (path === &quot;/api/packages/import&quot; &amp;&amp; method === &quot;POST&quot;) {
-        if (!isAdmin) return err(&quot;Chi admin moi co quyen import danh sach goi cuoc&quot;, 403);
+        if (!isAdminLike) return err(&quot;Chi admin/subadmin moi co quyen import danh sach goi cuoc&quot;, 403);
         await ensurePackages(env);
         const b = await readBody(request);
         const rows = Array.isArray(b.rows) ? b.rows : [];
@@ -5775,12 +5797,12 @@ function normKbKey(s) {
         await ensureCareTables(env);
         const counts = &quot;(SELECT COUNT(*) FROM cham_soc c WHERE c.dot_id = d.id) AS so_luot, (SELECT COUNT(DISTINCT c.pos_user_id) FROM cham_soc c WHERE c.dot_id = d.id) AS so_diem&quot;;
         let res;
-        if (isAdmin) {
+        if (isAdminLike) {
           res = await env.DB.prepare(&quot;SELECT d.*, &quot; + counts + &quot; FROM dot_cham_soc d ORDER BY d.id DESC&quot;).all();
         } else {
           // Lanh dao chi thay dot do minh tao + dot do admin tao (nguoi tao co role admin hien tai);
           // khong thay dot cua lanh dao khac tao.
-          res = await env.DB.prepare(&quot;SELECT d.*, &quot; + counts + &quot; FROM dot_cham_soc d LEFT JOIN nguoi_dung u ON u.id = d.nguoi_tao_id WHERE d.nguoi_tao_id = ? OR u.role = &#x27;admin&#x27; ORDER BY d.id DESC&quot;).bind(me.id).all();
+          res = await env.DB.prepare(&quot;SELECT d.*, &quot; + counts + &quot; FROM dot_cham_soc d LEFT JOIN nguoi_dung u ON u.id = d.nguoi_tao_id WHERE d.nguoi_tao_id = ? OR u.role IN (&#x27;admin&#x27;, &#x27;subadmin&#x27;) ORDER BY d.id DESC&quot;).bind(me.id).all();
         }
         return json({ ok: true, batches: res.results || [] });
       }
@@ -5801,7 +5823,7 @@ function normKbKey(s) {
         const batch = await env.DB.prepare(&quot;SELECT * FROM dot_cham_soc WHERE id = ?&quot;).bind(Number(careBatchMatch[1])).first();
         if (!batch) return err(&quot;Khong tim thay dot cham soc&quot;, 404);
         // Admin xoa duoc dot cua moi user; user thuong chi xoa duoc dot do chinh minh tao.
-        if (!isAdmin &amp;&amp; batch.nguoi_tao_id !== me.id) return err(&quot;Ban chi duoc xoa dot cham soc do chinh minh tao&quot;, 403);
+        if (!isAdminLike &amp;&amp; batch.nguoi_tao_id !== me.id) return err(&quot;Ban chi duoc xoa dot cham soc do chinh minh tao&quot;, 403);
         // Xoa anh R2 cua cac luot cham soc trong dot (co gang het suc, loi thi bo qua),
         // roi xoa luot cham soc va dot.
         if (env.ANH) {
@@ -5821,7 +5843,7 @@ function normKbKey(s) {
         if (!isFinite(lat) || !isFinite(lng)) return json({ ok: true, pos: [], reason: &quot;no_location&quot; });
         const base = &quot;SELECT u.id, u.ho_ten, u.ma_kenh, u.lat, u.lng, u.don_vi_id, d.ten_don_vi AS don_vi_ten FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = &#x27;user&#x27; AND u.active = 1 AND u.lat IS NOT NULL AND u.lng IS NOT NULL&quot;;
         let rows;
-        if (isAdmin) {
+        if (isAdminLike) {
           rows = (await env.DB.prepare(base).all()).results || [];
         } else {
           // Lanh dao chi thay diem ban DUOC GAN cho minh (leader_id = me.id) —
@@ -5883,10 +5905,10 @@ function normKbKey(s) {
         if (!canUseCare(me)) return err(&quot;Chi Lanh dao don vi moi co quyen su dung module Cham soc diem ban&quot;, 403);
         await ensureCareTables(env);
         const dotId = url.searchParams.get(&quot;dot_id&quot;);
-        if (dotId &amp;&amp; !isAdmin) {
+        if (dotId &amp;&amp; !isAdminLike) {
           // Chan xem lich su cua dot khong thuoc pham vi nhin thay (dot cua lanh dao khac).
           const batch = await env.DB.prepare(&quot;SELECT d.nguoi_tao_id, u.role AS creator_role FROM dot_cham_soc d LEFT JOIN nguoi_dung u ON u.id = d.nguoi_tao_id WHERE d.id = ?&quot;).bind(Number(dotId)).first();
-          if (batch &amp;&amp; batch.nguoi_tao_id !== me.id &amp;&amp; batch.creator_role !== &quot;admin&quot;) return err(&quot;Ban khong co quyen xem dot cham soc nay&quot;, 403);
+          if (batch &amp;&amp; batch.nguoi_tao_id !== me.id &amp;&amp; batch.creator_role !== &quot;admin&quot; &amp;&amp; batch.creator_role !== &quot;subadmin&quot;) return err(&quot;Ban khong co quyen xem dot cham soc nay&quot;, 403);
         }
         const from = url.searchParams.get(&quot;from&quot;) || &quot;0000-01-01&quot;;
         const to = url.searchParams.get(&quot;to&quot;) || &quot;9999-12-31&quot;;
@@ -6568,10 +6590,11 @@ function fillBanner() {
 }
 function applyUserFormPerms() {
   if (!me) return;
-  // Muc phan quyen module: chi admin moi duoc thiet lap
-  $("uModulesBox").classList.toggle("hidden", me.role !== "admin");
+  // Muc phan quyen module: admin/subadmin duoc thiet lap (17/11)
+  const isAdminLike = me.role === "admin" || me.role === "subadmin";
+  $("uModulesBox").classList.toggle("hidden", !isAdminLike);
   const bm = $("userBulkModuleBox");
-  if (bm) bm.classList.toggle("hidden", me.role !== "admin");
+  if (bm) bm.classList.toggle("hidden", !isAdminLike);
 }
 // Danh sach module + mac dinh khi tao moi (Dashboard, Bao cao, Goi cuoc, Cai dat)
 const MODULE_DEFS = [
@@ -6658,18 +6681,35 @@ function refreshAuthUI() {
     fillBanner();
     applyUserFormPerms();
     applyImportPerms();
-    // Phan quyen menu: theo vai tro + theo quyen module (khi admin da thiet lap rieng)
+    // Phan quyen menu (17/11): admin thay het; subadmin nhu admin tru Cau hinh
+    // ket noi D1; user co danh sach module rieng thi danh sach do la chuan —
+    // tich module nao thi mo module do (ke ca cac muc trong Cong cu Admin);
+    // user chua thiet lap rieng (modules NULL) thi theo mac dinh vai tro.
+    // Rieng 4 muc con 5.5–5.8 trong module import van chi admin/subadmin
+    // (chung 1 key "import" nen khong tach rieng bang tick module duoc).
     document.querySelectorAll(".nav-btn").forEach((b) => {
       const p = b.dataset.panel;
-      let show = true;
-      if (p === "panel-units" || p === "panel-config") show = me.role === "admin";
-      if (p === "panel-users" || p === "panel-loginstats" || p === "panel-staff") show = me.role === "admin" || me.role === "subadmin";
-      if (p === "panel-import" || p === "panel-import-sales" || p === "panel-import-kb" || p === "panel-import-cb" || p === "panel-import-ttcskh-data") show = me.role === "admin" || me.can_import;
-      if (p === "panel-import-plan" || p === "panel-import-types" || p === "panel-import-loaikenh" || p === "panel-import-ttcskh") show = me.role === "admin";
-      if (p === "panel-carereport") show = me.role === "admin" || me.role === "subadmin" || isLeaderLikeMe();
-      if (p === "panel-care") show = me.role === "admin" || me.role === "leader";
       const key = PANEL_MODULES[p];
-      if (show && me.role !== "admin" && me.modules && key && !me.modules.includes(key)) show = false;
+      const isAdm = me.role === "admin", isSub = me.role === "subadmin";
+      const ticked = (k) => !!(k && me.modules && me.modules.includes(k));
+      const isImpMain = p === "panel-import" || p === "panel-import-sales" || p === "panel-import-kb" || p === "panel-import-cb" || p === "panel-import-ttcskh-data";
+      const isImpAdmin = p === "panel-import-plan" || p === "panel-import-types" || p === "panel-import-loaikenh" || p === "panel-import-ttcskh";
+      let show = true;
+      if (isAdm) { show = true; }
+      else if (isSub) { show = key !== "config"; }
+      else if (me.modules) {
+        if (isImpMain) show = ticked("import") || !!me.can_import;
+        else if (isImpAdmin) show = false;
+        else if (p === "panel-carereport") show = ticked("reports") && isLeaderLikeMe();
+        else show = !key || ticked(key);
+      } else {
+        if (p === "panel-units" || p === "panel-config") show = false;
+        if (p === "panel-users" || p === "panel-loginstats" || p === "panel-staff") show = false;
+        if (isImpMain) show = !!me.can_import;
+        if (isImpAdmin) show = false;
+        if (p === "panel-carereport") show = isLeaderLikeMe();
+        if (p === "panel-care") show = me.role === "leader";
+      }
       b.classList.toggle("hidden", !show);
     });
     // An ca nhom neu moi muc con trong nhom deu bi an (phan quyen)
@@ -6829,7 +6869,7 @@ function openPanel(panelId, btn) {
   if (panelId === "panel-salesdash") { initSalesDash(); }
   if (panelId === "panel-mobile") { initMobileDash(); }
   if (panelId === "panel-loginstats") loadLoginStats();
-  if (panelId === "panel-packages") { $("pkgAdminBox").classList.toggle("hidden", !(me && me.role === "admin")); loadPackages(); }
+  if (panelId === "panel-packages") { $("pkgAdminBox").classList.toggle("hidden", !(me && (me.role === "admin" || me.role === "subadmin"))); loadPackages(); }
   if (panelId === "panel-units") loadUnits();
   if (panelId === "panel-users") { loadUsers(); loadUnitOptions(); applyUserFormPerms(); loadSyncKbTables(); }
   if (panelId === "panel-staff") { loadStaff(); loadStaffUnits(); applyStaffFormPerms(); }
@@ -8004,11 +8044,11 @@ function renderUsers() {
 }
 $("userUnitFilter").addEventListener("change", renderUsers);
 $("userSearch").addEventListener("input", renderUsers);
-/* ---- Dong bo kenh ban tu bang kenh ban da import (chi admin) ---- */
+/* ---- Dong bo kenh ban tu bang kenh ban da import (admin/subadmin) ---- */
 async function loadSyncKbTables() {
   const card = $("syncKbCard");
   if (!card) return;
-  const isAdm = me && me.role === "admin";
+  const isAdm = me && (me.role === "admin" || me.role === "subadmin");
   card.classList.toggle("hidden", !isAdm);
   if (!isAdm) return;
   try {
@@ -8101,7 +8141,7 @@ $("userForm").addEventListener("submit", async (e) => {
     ten_nhan_vien: $("uManager").value.trim(), sdt_nhan_vien: $("uManagerPhone").value.trim(), ma_hrm: $("uHrm").value.trim(),
     lat: latNum, lng: lngNum,
     active: true,
-    ...(me && me.role === "admin" ? { modules: getModulesFromForm("uModule") } : {}),
+    ...(me && (me.role === "admin" || me.role === "subadmin") ? { modules: getModulesFromForm("uModule") } : {}),
   };
   try {
     if (id) await api("/api/users/" + id, { method: "PUT", body: JSON.stringify(body) });
@@ -8265,11 +8305,14 @@ function staffChucDanh(u) {
 function applyStaffFormPerms() {
   if (!me) return;
   const isAdmin = me.role === "admin";
-  $("sModulesBox").classList.toggle("hidden", !isAdmin);
+  const isAdminLike = isAdmin || me.role === "subadmin";
+  // Modules + gan/go hang loat + quyen import: admin/subadmin (17/11).
+  $("sModulesBox").classList.toggle("hidden", !isAdminLike);
   const bm = $("staffBulkModuleBox");
-  if (bm) bm.classList.toggle("hidden", !isAdmin);
+  if (bm) bm.classList.toggle("hidden", !isAdminLike);
+  $("sCanImport").disabled = !isAdminLike;
+  // Cap SubAdmin + chuc danh Quan tri vien: CHI admin (chong nang quyen).
   $("sSubAdmin").disabled = !isAdmin;
-  $("sCanImport").disabled = !isAdmin;
   const cd = $("sChucDanh");
   [...cd.options].forEach((o) => { o.disabled = (o.value === "Quản trị viên" && !isAdmin); });
   if (!isAdmin && cd.value === "Quản trị viên") { cd.value = "Chuyên viên"; setModulesBoxes("sModule", DEFAULT_MODULES); }
@@ -8428,7 +8471,7 @@ $("staffForm").addEventListener("submit", async (e) => {
     chuc_danh: $("sChucDanh").value,
     subadmin: $("sSubAdmin").checked, can_import: $("sCanImport").checked,
     active: true,
-    ...(me && me.role === "admin" ? { modules: getModulesFromForm("sModule") } : {}),
+    ...(me && (me.role === "admin" || me.role === "subadmin") ? { modules: getModulesFromForm("sModule") } : {}),
   };
   try {
     if (id) await api("/api/users/" + id, { method: "PUT", body: JSON.stringify(body) });
@@ -10127,7 +10170,7 @@ async function loadCareBatches() {
       "<td>" + esc(b.nguoi_tao_ten) + "</td><td>" + esc(b.created_at) + "</td>" +
       "<td>" + (b.so_luot || 0) + "</td><td>" + (b.so_diem || 0) + "</td>" +
       "<td style='white-space:nowrap'><button class='btn sm blue' data-care-open='" + b.id + "' data-care-name=\"" + esc(b.ten_dot) + "\">Mở đợt</button>" +
-      ((me && (me.role === "admin" || b.nguoi_tao_id === me.id)) ? " <button class='btn sm danger' data-care-del='" + b.id + "' data-care-del-name=\"" + esc(b.ten_dot) + "\">Xóa</button>" : "") + "</td></tr>").join("") ||
+      ((me && (me.role === "admin" || me.role === "subadmin" || b.nguoi_tao_id === me.id)) ? " <button class='btn sm danger' data-care-del='" + b.id + "' data-care-del-name=\"" + esc(b.ten_dot) + "\">Xóa</button>" : "") + "</td></tr>").join("") ||
       "<tr><td colspan='6'>Chưa có đợt chăm sóc nào.</td></tr>";
     $("careBatchBody").querySelectorAll("[data-care-open]").forEach((btn) => btn.addEventListener("click", () => openCareBatch(Number(btn.dataset.careOpen), btn.dataset.careName)));
     $("careBatchBody").querySelectorAll("[data-care-del]").forEach((btn) => btn.addEventListener("click", () => delCareBatch(Number(btn.dataset.careDel), btn.dataset.careDelName)));
@@ -10716,8 +10759,8 @@ async function loadPackages() {
     const cur = sel.value;
     sel.innerHTML = '<option value="">— Gói cước nổi bật (top 5) —</option>' +
       names.map((n) => "<option value='" + esc(n) + "'>" + esc(n) + "</option>").join("") +
-      (me && me.role === "admin" ? "<option value='__ALL__'>— Tất cả gói cước (chỉ admin) —</option>" : "");
-    if (cur === "__ALL__" && !(me && me.role === "admin")) sel.value = "";
+      (me && (me.role === "admin" || me.role === "subadmin") ? "<option value='__ALL__'>— Tất cả gói cước (chỉ admin/subadmin) —</option>" : "");
+    if (cur === "__ALL__" && !(me && (me.role === "admin" || me.role === "subadmin"))) sel.value = "";
     else if (names.includes(cur) || cur === "" || cur === "__ALL__") sel.value = cur;
     renderPackages();
   } catch (e) { setMsg($("pkgMsg"), e.message, false); }
@@ -10755,7 +10798,7 @@ function renderPackages() {
   }
   $("pkgBody").innerHTML = list.map((p) =>
     "<tr class='pkg-row" + (p.id === selectedPkgId ? " sel" : "") + "' data-pkg='" + p.id + "'><td><b>" + esc(p.ten_goi) + "</b></td><td>" + esc(p.chu_ky) + "</td><td>" + fmt(p.gia_goi) + "</td><td>" + esc(p.uu_dai) + "</td>" +
-    (me && me.role === "admin" ? "<td style='white-space:nowrap'><button class='btn sm " + (p.noi_bat ? "gray" : "blue") + "' data-pkg-pin='" + p.id + "' data-pinned='" + (p.noi_bat ? 1 : 0) + "'>" + (p.noi_bat ? "Bỏ ghim" : "Ghim") + "</button> <button class='btn sm gray' data-pkg-edit='" + p.id + "'>Sửa</button> <button class='btn sm danger' data-pkg-del='" + p.id + "'>Xóa</button></td>" : "<td></td>") +
+    (me && (me.role === "admin" || me.role === "subadmin") ? "<td style='white-space:nowrap'><button class='btn sm " + (p.noi_bat ? "gray" : "blue") + "' data-pkg-pin='" + p.id + "' data-pinned='" + (p.noi_bat ? 1 : 0) + "'>" + (p.noi_bat ? "Bỏ ghim" : "Ghim") + "</button> <button class='btn sm gray' data-pkg-edit='" + p.id + "'>Sửa</button> <button class='btn sm danger' data-pkg-del='" + p.id + "'>Xóa</button></td>" : "<td></td>") +
     "</tr>").join("") || "<tr><td colspan='5'>" + (mode === "" ? "Chưa có gói cước nổi bật nào được admin thiết lập." : "Chưa có gói cước nào.") + "</td></tr>";
   $("pkgBody").querySelectorAll("[data-pkg]").forEach((tr) => tr.addEventListener("click", () => selectPackage(Number(tr.dataset.pkg))));
   $("pkgBody").querySelectorAll("[data-pkg-edit]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); editPackage(Number(b.dataset.pkgEdit)); }));
