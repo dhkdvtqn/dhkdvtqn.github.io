@@ -135,6 +135,7 @@ function publicUser(u) {
     leader_id: u.leader_id ?? null,
     leader_ten: u.leader_ten || "",
     loai_kenh: u.loai_kenh || "",
+    mien_cham_soc: !!u.mien_cham_soc,
     can_import: !!u.can_import,
     modules: parseModules(u.modules),
     lat: u.lat ?? null,
@@ -167,6 +168,7 @@ async function ensureUserColumns(env) {
     if (!cols.has("loai_kenh")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN loai_kenh TEXT").run();
     if (!cols.has("ma_nhan_vien")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN ma_nhan_vien TEXT").run();
     if (!cols.has("chuc_danh")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN chuc_danh TEXT").run();
+    if (!cols.has("mien_cham_soc")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN mien_cham_soc INTEGER NOT NULL DEFAULT 0").run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -1072,7 +1074,7 @@ export default {
           return err("Tai khoan khong co quyen su dung module nay", 403);
         const where = kind === "channel" ? " WHERE u.role = 'user'" : kind === "staff" ? " WHERE u.role != 'user'" : "";
         const res = await env.DB.prepare(
-          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.ma_nhan_vien, u.chuc_danh, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id" + where + " ORDER BY u.ho_ten"
+          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.ma_nhan_vien, u.chuc_danh, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.mien_cham_soc, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id" + where + " ORDER BY u.ho_ten"
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -1141,14 +1143,14 @@ export default {
         const newLoaiKenh = normLoaiKenh(b.loai_kenh);
         if (toText(b.loai_kenh) && !newLoaiKenh) return err("Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)", 422);
         const r = await env.DB.prepare(
-          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, ma_nhan_vien, chuc_danh, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, ma_nhan_vien, chuc_danh, don_vi_id, leader_id, loai_kenh, mien_cham_soc, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm),
             newMaNv, newChucDanh,
-            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newLoaiKenh, newCanImport, newModules, latP.val, lngP.val
+            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newLoaiKenh, kind === "channel" && b.mien_cham_soc ? 1 : 0, newCanImport, newModules, latP.val, lngP.val
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -1371,9 +1373,9 @@ export default {
           sets.push("ma_nhan_vien = ?", "chuc_danh = ?"); binds.push(newMaNv, newChucDanh);
         } else {
           sets.push("ma_kenh = ?", "so_eload = ?", "so_vi = ?", "ten_nhan_vien = ?", "sdt_nhan_vien = ?", "ma_hrm = ?",
-            "leader_id = ?", "loai_kenh = ?", "lat = ?", "lng = ?");
+            "leader_id = ?", "loai_kenh = ?", "mien_cham_soc = ?", "lat = ?", "lng = ?");
           binds.push(toText(b.ma_kenh), toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien),
-            toText(b.sdt_nhan_vien), toText(b.ma_hrm), newLeaderId, newLoaiKenh, latP.val, lngP.val);
+            toText(b.sdt_nhan_vien), toText(b.ma_hrm), newLeaderId, newLoaiKenh, b.mien_cham_soc ? 1 : 0, latP.val, lngP.val);
         }
         await env.DB.prepare("UPDATE nguoi_dung SET " + sets.join(", ") + " WHERE id = ?").bind(...binds, uid).run();
         if (b.password) {
@@ -2916,7 +2918,7 @@ function normKbKey(s) {
         const monthSet = new Set(months);
         const normE = (s) => String(s == null ? "" : s).trim().toUpperCase().replace(/\s+/g, "");
         const posRows = (await env.DB.prepare(
-          "SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, d.ten_don_vi AS don_vi_ten " +
+          "SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, u.mien_cham_soc, d.ten_don_vi AS don_vi_ten " +
           "FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id " +
           "WHERE u.role = 'user' AND u.so_eload IS NOT NULL AND TRIM(u.so_eload) != ''"
         ).all()).results || [];
@@ -3142,11 +3144,16 @@ function normKbKey(s) {
               m.luot++;
             }
             const unitDuqScale = {};
+            const unitDuqExempt = {}; // don_vi_id -> Set id diem DUQ mien cham soc
             for (const e in posByEload) {
               const p = posByEload[e];
               if (!isDuqPos(p)) continue;
               if (scopeUnitIds !== null && !scopeUnitIds.includes(p.don_vi_id)) continue;
               unitDuqScale[p.don_vi_id] = (unitDuqScale[p.don_vi_id] || 0) + 1;
+              if (p.mien_cham_soc) {
+                const s = unitDuqExempt[p.don_vi_id] || (unitDuqExempt[p.don_vi_id] = new Set());
+                s.add(p.id);
+              }
             }
             const scopeDuids = scopeUnitIds === null ? Object.keys(unitDuqScale).map(Number) : scopeUnitIds.filter((id) => unitDuqScale[id]);
             const duidToName = {};
@@ -3155,7 +3162,14 @@ function normKbKey(s) {
               const qm = unitDuqScale[duid] || 0;
               const cm = careMap[duid];
               const cs = cm ? cm.pos.size : 0;
-              return { don_vi_id: duid, ten: duidToName[duid] || ("Đơn vị " + duid), quy_mo_duq: qm, duq_duoc_cs: cs, ty_le: qm > 0 ? Math.round(cs / qm * 1000) / 10 : null, luot: cm ? cm.luot : 0 };
+              // Diem DUQ duoc danh dau "khong can cham soc" (o xa): van tinh
+              // vao quy mo, va duoc cong vao tu so ty le cham soc nhu da
+              // cham soc. Lay hop cua 2 tap (da tham + mien) de diem vua
+              // duoc mien vua duoc tham that khong bi dem 2 lan.
+              const ex = unitDuqExempt[duid] || new Set();
+              let csAdj = cs;
+              for (const pid of ex) if (!cm || !cm.pos.has(pid)) csAdj++;
+              return { don_vi_id: duid, ten: duidToName[duid] || ("Đơn vị " + duid), quy_mo_duq: qm, duq_duoc_cs: csAdj, duq_mien_cs: ex.size, ty_le: qm > 0 ? Math.round(csAdj / qm * 1000) / 10 : null, luot: cm ? cm.luot : 0 };
             }).sort((a, b) => (b.ty_le || 0) - (a.ty_le || 0));
           }
         } catch (e) { console.error("sales-overview care:", e); }

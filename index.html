@@ -1678,7 +1678,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         <!-- QUAN LY KENH BAN (diem ban) -->
         <section class="panel hidden" id="panel-users">
           <h2>Quản lý kênh bán</h2>
-          <p class="desc">Tạo tài khoản cho các điểm bán thuộc kênh bán hàng. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Admin thiết lập quyền sử dụng từng module cho mỗi điểm bán ở mục bên dưới (mặc định khi tạo mới: Dashboard chi trả hoa hồng, Báo cáo thống kê, Danh mục gói cước, Cài đặt, Cơ chế chính sách). Khai báo tọa độ điểm bán để dùng cho module Chăm sóc điểm bán (nhận diện điểm trong bán kính 20m).</p>
+          <p class="desc">Tạo tài khoản cho các điểm bán thuộc kênh bán hàng. Mật khẩu mặc định khi tạo mới là <code class="inl">Vnpt@2026</code> nếu để trống. Admin thiết lập quyền sử dụng từng module cho mỗi điểm bán ở mục bên dưới (mặc định khi tạo mới: Dashboard chi trả hoa hồng, Báo cáo thống kê, Danh mục gói cước, Cài đặt, Cơ chế chính sách). Khai báo tọa độ điểm bán để dùng cho module Chăm sóc điểm bán (nhận diện điểm trong bán kính 20m). Điểm bán tích “Không cần chăm sóc” vẫn tính vào quy mô ĐUQ, và được cộng vào tỷ lệ chăm sóc như đã chăm sóc.</p>
           <form id="userForm" class="form-grid">
             <input type="hidden" id="userId" />
             <div><label>Mã kênh bán hàng</label><input id="uChannel" placeholder="VD: KBH-VDCT-001" /></div>
@@ -1690,7 +1690,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div><label>Đơn vị</label><select id="uUnit"><option value="">— Chưa thuộc đơn vị —</option></select></div>
             <div><label>Lãnh đạo đơn vị phụ trách (chỉ áp dụng cho điểm bán — lãnh đạo này sẽ thấy điểm bán trong module Chăm sóc)</label><select id="uLeader"><option value="">— Chưa gán lãnh đạo —</option></select></div>
             <div><label>Loại kênh bán</label><select id="uLoaiKenh"><option value="">— Chưa phân loại —</option><option value="DUQ">Điểm ủy quyền (ĐUQ)</option><option value="DBL">Điểm bán lẻ (ĐBL)</option><option value="GARA">Gara ô tô (GARA)</option><option value="DDV">Điểm ủy quyền bán đa dịch vụ (ĐDV)</option></select></div>
-            <div></div>
+            <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="uMienCs" /> Không cần chăm sóc (điểm bán ở xa)</label></div>
             <div><label>Tên nhân viên quản lý (có thể để trống)</label><input id="uManager" /></div>
             <div><label>Số điện thoại nhân viên quản lý (có thể để trống)</label><input id="uManagerPhone" /></div>
             <div><label>Mã HRM nhân viên quản lý (có thể để trống)</label><input id="uHrm" placeholder="VD: HRM-01234" /></div>
@@ -2324,6 +2324,7 @@ function publicUser(u) {
     leader_id: u.leader_id ?? null,
     leader_ten: u.leader_ten || &quot;&quot;,
     loai_kenh: u.loai_kenh || &quot;&quot;,
+    mien_cham_soc: !!u.mien_cham_soc,
     can_import: !!u.can_import,
     modules: parseModules(u.modules),
     lat: u.lat ?? null,
@@ -2356,6 +2357,7 @@ async function ensureUserColumns(env) {
     if (!cols.has(&quot;loai_kenh&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN loai_kenh TEXT&quot;).run();
     if (!cols.has(&quot;ma_nhan_vien&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN ma_nhan_vien TEXT&quot;).run();
     if (!cols.has(&quot;chuc_danh&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN chuc_danh TEXT&quot;).run();
+    if (!cols.has(&quot;mien_cham_soc&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN mien_cham_soc INTEGER NOT NULL DEFAULT 0&quot;).run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -3261,7 +3263,7 @@ export default {
           return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
         const where = kind === &quot;channel&quot; ? &quot; WHERE u.role = &#x27;user&#x27;&quot; : kind === &quot;staff&quot; ? &quot; WHERE u.role != &#x27;user&#x27;&quot; : &quot;&quot;;
         const res = await env.DB.prepare(
-          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.ma_nhan_vien, u.chuc_danh, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id&quot; + where + &quot; ORDER BY u.ho_ten&quot;
+          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.ma_nhan_vien, u.chuc_danh, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.mien_cham_soc, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id&quot; + where + &quot; ORDER BY u.ho_ten&quot;
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -3330,14 +3332,14 @@ export default {
         const newLoaiKenh = normLoaiKenh(b.loai_kenh);
         if (toText(b.loai_kenh) &amp;&amp; !newLoaiKenh) return err(&quot;Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)&quot;, 422);
         const r = await env.DB.prepare(
-          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, ma_nhan_vien, chuc_danh, don_vi_id, leader_id, loai_kenh, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, ma_nhan_vien, chuc_danh, don_vi_id, leader_id, loai_kenh, mien_cham_soc, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm),
             newMaNv, newChucDanh,
-            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newLoaiKenh, newCanImport, newModules, latP.val, lngP.val
+            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newLoaiKenh, kind === &quot;channel&quot; &amp;&amp; b.mien_cham_soc ? 1 : 0, newCanImport, newModules, latP.val, lngP.val
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -3560,9 +3562,9 @@ export default {
           sets.push(&quot;ma_nhan_vien = ?&quot;, &quot;chuc_danh = ?&quot;); binds.push(newMaNv, newChucDanh);
         } else {
           sets.push(&quot;ma_kenh = ?&quot;, &quot;so_eload = ?&quot;, &quot;so_vi = ?&quot;, &quot;ten_nhan_vien = ?&quot;, &quot;sdt_nhan_vien = ?&quot;, &quot;ma_hrm = ?&quot;,
-            &quot;leader_id = ?&quot;, &quot;loai_kenh = ?&quot;, &quot;lat = ?&quot;, &quot;lng = ?&quot;);
+            &quot;leader_id = ?&quot;, &quot;loai_kenh = ?&quot;, &quot;mien_cham_soc = ?&quot;, &quot;lat = ?&quot;, &quot;lng = ?&quot;);
           binds.push(toText(b.ma_kenh), toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien),
-            toText(b.sdt_nhan_vien), toText(b.ma_hrm), newLeaderId, newLoaiKenh, latP.val, lngP.val);
+            toText(b.sdt_nhan_vien), toText(b.ma_hrm), newLeaderId, newLoaiKenh, b.mien_cham_soc ? 1 : 0, latP.val, lngP.val);
         }
         await env.DB.prepare(&quot;UPDATE nguoi_dung SET &quot; + sets.join(&quot;, &quot;) + &quot; WHERE id = ?&quot;).bind(...binds, uid).run();
         if (b.password) {
@@ -5105,7 +5107,7 @@ function normKbKey(s) {
         const monthSet = new Set(months);
         const normE = (s) =&gt; String(s == null ? &quot;&quot; : s).trim().toUpperCase().replace(/\s+/g, &quot;&quot;);
         const posRows = (await env.DB.prepare(
-          &quot;SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, d.ten_don_vi AS don_vi_ten &quot; +
+          &quot;SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, u.mien_cham_soc, d.ten_don_vi AS don_vi_ten &quot; +
           &quot;FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id &quot; +
           &quot;WHERE u.role = &#x27;user&#x27; AND u.so_eload IS NOT NULL AND TRIM(u.so_eload) != &#x27;&#x27;&quot;
         ).all()).results || [];
@@ -5331,11 +5333,16 @@ function normKbKey(s) {
               m.luot++;
             }
             const unitDuqScale = {};
+            const unitDuqExempt = {}; // don_vi_id -&gt; Set id diem DUQ mien cham soc
             for (const e in posByEload) {
               const p = posByEload[e];
               if (!isDuqPos(p)) continue;
               if (scopeUnitIds !== null &amp;&amp; !scopeUnitIds.includes(p.don_vi_id)) continue;
               unitDuqScale[p.don_vi_id] = (unitDuqScale[p.don_vi_id] || 0) + 1;
+              if (p.mien_cham_soc) {
+                const s = unitDuqExempt[p.don_vi_id] || (unitDuqExempt[p.don_vi_id] = new Set());
+                s.add(p.id);
+              }
             }
             const scopeDuids = scopeUnitIds === null ? Object.keys(unitDuqScale).map(Number) : scopeUnitIds.filter((id) =&gt; unitDuqScale[id]);
             const duidToName = {};
@@ -5344,7 +5351,14 @@ function normKbKey(s) {
               const qm = unitDuqScale[duid] || 0;
               const cm = careMap[duid];
               const cs = cm ? cm.pos.size : 0;
-              return { don_vi_id: duid, ten: duidToName[duid] || (&quot;Đơn vị &quot; + duid), quy_mo_duq: qm, duq_duoc_cs: cs, ty_le: qm &gt; 0 ? Math.round(cs / qm * 1000) / 10 : null, luot: cm ? cm.luot : 0 };
+              // Diem DUQ duoc danh dau &quot;khong can cham soc&quot; (o xa): van tinh
+              // vao quy mo, va duoc cong vao tu so ty le cham soc nhu da
+              // cham soc. Lay hop cua 2 tap (da tham + mien) de diem vua
+              // duoc mien vua duoc tham that khong bi dem 2 lan.
+              const ex = unitDuqExempt[duid] || new Set();
+              let csAdj = cs;
+              for (const pid of ex) if (!cm || !cm.pos.has(pid)) csAdj++;
+              return { don_vi_id: duid, ten: duidToName[duid] || (&quot;Đơn vị &quot; + duid), quy_mo_duq: qm, duq_duoc_cs: csAdj, duq_mien_cs: ex.size, ty_le: qm &gt; 0 ? Math.round(csAdj / qm * 1000) / 10 : null, luot: cm ? cm.luot : 0 };
             }).sort((a, b) =&gt; (b.ty_le || 0) - (a.ty_le || 0));
           }
         } catch (e) { console.error(&quot;sales-overview care:&quot;, e); }
@@ -7687,11 +7701,12 @@ function renderOvUnit(d, showRev) {
   bindCellTips($("ovUnitBody"));
 }
 function renderOvCare(d) {
-  $("ovCareSub").textContent = "— " + d.period_label;
   const rows = sortUnitsFixed((d.care && d.care.by_unit) || [], (r) => r.ten);
+  const totMien = rows.reduce((s, r) => s + (r.duq_mien_cs || 0), 0);
+  $("ovCareSub").textContent = "— " + d.period_label + (totMien > 0 ? " — " + totMien + " điểm miễn CS được tính như đã chăm sóc" : "");
   $("ovCareHead").innerHTML = "<tr><th>Đơn vị</th><th>Quy mô ĐUQ</th><th>ĐUQ được chăm sóc</th><th>Tỷ lệ</th><th>Lượt chăm sóc</th></tr>";
   $("ovCareBody").innerHTML = rows.length ? rows.map((r) =>
-    "<tr><td>" + esc(r.ten) + "</td><td>" + fmtInt(r.quy_mo_duq) + "</td><td>" + fmtInt(r.duq_duoc_cs) + "</td>" +
+    "<tr><td>" + esc(r.ten) + "</td><td>" + fmtInt(r.quy_mo_duq) + "</td><td>" + fmtInt(r.duq_duoc_cs) + ((r.duq_mien_cs || 0) > 0 ? " <span class='muted'>(gồm " + fmtInt(r.duq_mien_cs) + " miễn CS)</span>" : "") + "</td>" +
     "<td>" + (r.ty_le == null ? "—" : '<span class="delta ' + (r.ty_le >= 100 ? "up" : r.ty_le >= 50 ? "flat" : "down") + '">' + r.ty_le.toLocaleString("vi-VN") + "%</span>") + "</td>" +
     "<td>" + fmtInt(r.luot) + "</td></tr>"
   ).join("") : "<tr><td colspan='5'>Chưa có dữ liệu chăm sóc trong " + d.period_label + ".</td></tr>";
@@ -8024,7 +8039,7 @@ function renderUsers() {
       "<td>" + ((u.lat == null || u.lng == null) ? "—" : Number(u.lat).toFixed(5) + ", " + Number(u.lng).toFixed(5)) + "</td>" +
       "<td>" + esc(u.ten_nhan_vien) + "</td><td>" + esc(u.sdt_nhan_vien) + "</td><td>" + esc(u.ma_hrm) + "</td>" +
       "<td>" + esc(u.leader_ten) + "</td>" +
-      "<td>" + esc(u.loai_kenh) + "</td>" +
+      "<td>" + esc(u.loai_kenh) + (u.mien_cham_soc ? " <span class='pill user'>Miễn CS</span>" : "") + "</td>" +
       "<td>" + (u.can_import ? "<span class='pill ok'>Có</span>" : "—") + "</td>" +
       "<td style='white-space:nowrap'><button class='btn sm gray' data-edit-user='" + u.id + "'>Sửa</button> " +
       (me && u.id === me.id
@@ -8110,6 +8125,7 @@ async function editUser(id) {
   $("uUnit").value = u.don_vi_id || "";
   $("uLeader").value = u.leader_id || "";
   $("uLoaiKenh").value = u.loai_kenh || "";
+  $("uMienCs").checked = !!u.mien_cham_soc;
   $("uManager").value = u.ten_nhan_vien || ""; $("uManagerPhone").value = u.sdt_nhan_vien || ""; $("uHrm").value = u.ma_hrm || "";
   $("uLat").value = u.lat == null ? "" : u.lat; $("uLng").value = u.lng == null ? "" : u.lng;
   // Quyen module: da thiet lap rieng thi hien dung danh sach do; chua thiet lap (null) thi hien du
@@ -8138,6 +8154,7 @@ $("userForm").addEventListener("submit", async (e) => {
     don_vi_id: $("uUnit").value ? Number($("uUnit").value) : null,
     leader_id: $("uLeader").value ? Number($("uLeader").value) : null,
     loai_kenh: $("uLoaiKenh").value || "",
+    mien_cham_soc: $("uMienCs").checked,
     ten_nhan_vien: $("uManager").value.trim(), sdt_nhan_vien: $("uManagerPhone").value.trim(), ma_hrm: $("uHrm").value.trim(),
     lat: latNum, lng: lngNum,
     active: true,
