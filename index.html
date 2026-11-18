@@ -3643,18 +3643,16 @@ export default {
         }
         return json({ ok: true, updated, unchanged, skipped });
       }
-      // ---- Reset mat khau ve mac dinh Vnpt@2026 (nhan su + diem ban).
-      // Nut Reset co o bang Quan ly nguoi dung va bang Thong ke dang nhap.
-      // Sau reset, lan dang nhap tiep theo he thong bat doi mat khau moi
-      // (login tra must_change_password khi mat khau van la mac dinh).
+      // ---- Reset mat khau nhan su ve mac dinh Vnpt@2026 (module Quan ly nguoi dung) ----
       const resetMatch = path.match(/^\/api\/users\/(\d+)\/reset-password$/);
       if (resetMatch &amp;&amp; method === &quot;POST&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen reset mat khau&quot;, 403);
-        if (!(hasModule(me, &quot;staff&quot;) || hasModule(me, &quot;users&quot;))) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung / Quan ly kenh ban&quot;, 403);
+        if (!hasModule(me, &quot;staff&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
         const rid = Number(resetMatch[1]);
         if (rid === me.id) return err(&quot;Khong the reset mat khau chinh minh tai day — doi mat khau trong module Cai dat&quot;, 422);
-        const target = await env.DB.prepare(&quot;SELECT id FROM nguoi_dung WHERE id = ?&quot;).bind(rid).first();
+        const target = await env.DB.prepare(&quot;SELECT id, role FROM nguoi_dung WHERE id = ?&quot;).bind(rid).first();
         if (!target) return err(&quot;Khong tim thay nguoi dung&quot;, 404);
+        if (target.role === &quot;user&quot;) return err(&quot;Tai khoan diem ban duoc quan ly trong module Quan ly kenh ban&quot;, 422);
         const salt = randomSalt();
         const hash = await hashPassword(&quot;Vnpt@2026&quot;, salt);
         await env.DB.prepare(&quot;UPDATE nguoi_dung SET password_hash = ?, salt = ? WHERE id = ?&quot;).bind(hash, salt, rid).run();
@@ -4072,14 +4070,26 @@ function normKbKey(s) {
         const columns = isKenh ? KENH_BAN_COLS : CBCNV_COLS;
         const colNames = columns.map(([n]) =&gt; n);
         const rawRows = Array.isArray(b.rows) ? b.rows : [];
-        const rows = rawRows.filter((row) =&gt; {
+        let rows = rawRows.filter((row) =&gt; {
           if (!row || typeof row !== &quot;object&quot;) return false;
           return colNames.some((n) =&gt; {
             const v = row[n];
             return v !== null &amp;&amp; v !== undefined &amp;&amp; String(v).trim() !== &quot;&quot;;
           });
         });
-        if (!rows.length) return err(&quot;Khong co dong du lieu nao de import&quot;, 422);
+        // Kenh ban: chi import dong co &quot;ID diem ban HRM&quot; (id_hrm) — dong
+        // thieu ID nay bi bo qua hoan toan, khong ghi vao CSDL.
+        let skippedEmptyId = 0;
+        if (isKenh) {
+          const kept = [];
+          for (const row of rows) {
+            const idv = row.id_hrm;
+            if (idv === undefined || idv === null || String(idv).trim() === &quot;&quot;) { skippedEmptyId++; continue; }
+            kept.push(row);
+          }
+          rows = kept;
+        }
+        if (!rows.length) return err(skippedEmptyId &gt; 0 ? &quot;Tat ca &quot; + skippedEmptyId + &quot; dong deu thieu ID diem ban HRM nen khong co dong nao de import&quot; : &quot;Khong co dong du lieu nao de import&quot;, 422);
         if (mode === &quot;replace&quot; &amp;&amp; !isAdmin) {
           const locked = await isTableLocked(env, table);
           if (locked) return err(&quot;Bang &quot; + table + &quot; dang bi khoa thay the. Chi admin moi duoc thay the. Lien he admin de mo khoa neu can.&quot;, 403);
@@ -4157,7 +4167,7 @@ function normKbKey(s) {
           await env.DB.batch(batch);
           inserted += batch.length;
         }
-        return json({ ok: true, table, inserted, mode, unmapped });
+        return json({ ok: true, table, inserted, mode, unmapped, skipped_empty_id: skippedEmptyId });
       }
 
       // ---- Cau hinh loai kenh ban (module 5.7, chi admin) ----
@@ -5677,6 +5687,22 @@ function normKbKey(s) {
           tong_luot: rows.reduce((a, r) =&gt; a + (r.so_lan || 0), 0),
           tong_nguoi: rows.length,
         });
+      }
+
+      // ---- Reset so lan dang nhap: xoa log cua 1 user trong thang dang xem ----
+      // Nut Reset o bang Thong ke dang nhap. Chi xoa trong thang duoc chon,
+      // khong anh huong cac thang khac.
+      if (path === &quot;/api/login-stats/reset&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isPrivileged) return err(&quot;Chi admin/subadmin moi co quyen reset thong ke dang nhap&quot;, 403);
+        if (!hasModule(me, &quot;loginstats&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Thong ke dang nhap&quot;, 403);
+        await ensureLoginLog(env);
+        const b = await readBody(request);
+        const userId = Number(b.user_id);
+        const month = String(b.month || &quot;&quot;);
+        if (!userId) return err(&quot;Thieu user_id&quot;, 422);
+        if (!/^\d{4}-\d{2}$/.test(month)) return err(&quot;Thang khong hop le (YYYY-MM)&quot;, 422);
+        const r = await env.DB.prepare(&quot;DELETE FROM dang_nhap_log WHERE user_id = ? AND substr(thoi_gian, 1, 7) = ?&quot;).bind(userId, month).run();
+        return json({ ok: true, deleted: r.meta.changes || 0 });
       }
 
       // ---- Danh muc goi cuoc ----
@@ -9686,6 +9712,13 @@ async function loadListTables(code, tbodyId, msgId) {
 // (Bang doi chieu cot do renderMapPreview ve, giong nhu hien nay.)
 function buildListPreviewExtra(cfg, map, headers, rows) {
   const errs = [], warns = [];
+  if (cfg.requiredKey) {
+    if (!map[cfg.requiredKey]) errs.push("Không nhận diện được cột " + cfg.requiredLabel + " — mọi dòng đều sẽ bị bỏ qua, import sẽ thất bại. Hãy kiểm tra lại tên cột trong file.");
+    else {
+      const noReq = rows.filter((r) => String(r[map[cfg.requiredKey]] ?? "").trim() === "").length;
+      if (noReq) warns.push(noReq.toLocaleString("vi-VN") + " dòng thiếu " + cfg.requiredLabel + " — các dòng này sẽ bị bỏ qua khi import.");
+    }
+  }
   const idKeys = cfg.idKeys.filter((k) => map[k]);
   if (!idKeys.length) errs.push("Không nhận diện được cột định danh (" + cfg.idLabels + ") — import sẽ thất bại. Hãy kiểm tra lại tên cột trong file.");
   else {
@@ -9767,7 +9800,7 @@ function setupListImport(cfg) {
       $(cfg.btnId).disabled = true;
       setMsg($(cfg.msgId), "Đang import " + rows.length + " dòng " + cfg.label + " tháng " + mm + "/" + nam + "…");
       const d = await api(cfg.api, { method: "POST", body: JSON.stringify({ thang, nam, mode, rows }) });
-      setMsg($(cfg.msgId), "Import xong: " + d.inserted + " dòng vào bảng " + d.table + "." + (d.unmapped ? " " + d.unmapped + " dòng chưa map được Hạng kênh (chưa có định nghĩa loại điểm bán — vào mục 5.7 để thêm)." : ""), true);
+      setMsg($(cfg.msgId), "Import xong: " + d.inserted + " dòng vào bảng " + d.table + "." + (d.skipped_empty_id ? " " + d.skipped_empty_id + " dòng thiếu ID điểm bán HRM đã bị bỏ qua." : "") + (d.unmapped ? " " + d.unmapped + " dòng chưa map được Hạng kênh (chưa có định nghĩa loại điểm bán — vào mục 5.7 để thêm)." : ""), true);
       fileEl.value = ""; $(cfg.previewId).innerHTML = ""; lastMap = null; lastRows = [];
       loadTables();
       if (cfg.tablesCode) loadListTables(cfg.tablesCode, cfg.tablesBodyId, cfg.msgId);
@@ -9775,7 +9808,7 @@ function setupListImport(cfg) {
     finally { $(cfg.btnId).disabled = false; }
   });
 }
-setupListImport({ fileId: "kbFile", monthId: "kbMonth", yearId: "kbYear", modeId: "kbMode", btnId: "kbImpBtn", previewId: "kbMapPreview", msgId: "kbMsg", api: "/api/kenh-ban/import", fields: KB_FIELDS, label: "danh sách kênh bán", idKeys: ["ma_kenh", "iddaily", "id_hrm", "so_eload"], idLabels: "Mã điểm bán / IDDAILY / ID điểm bán HRM / Số Eload", tablesCode: "KENH_BAN", tablesBodyId: "kbTablesBody", previewBtn: "kbPreviewBtn" });
+setupListImport({ fileId: "kbFile", monthId: "kbMonth", yearId: "kbYear", modeId: "kbMode", btnId: "kbImpBtn", previewId: "kbMapPreview", msgId: "kbMsg", api: "/api/kenh-ban/import", fields: KB_FIELDS, label: "danh sách kênh bán", idKeys: ["ma_kenh", "iddaily", "id_hrm", "so_eload"], idLabels: "Mã điểm bán / IDDAILY / ID điểm bán HRM / Số Eload", requiredKey: "id_hrm", requiredLabel: "ID điểm bán HRM", tablesCode: "KENH_BAN", tablesBodyId: "kbTablesBody", previewBtn: "kbPreviewBtn" });
 setupListImport({ fileId: "cbFile", monthId: "cbMonth", yearId: "cbYear", modeId: "cbMode", btnId: "cbImpBtn", previewId: "cbMapPreview", msgId: "cbMsg", api: "/api/cbcnv/import", fields: CB_FIELDS, label: "danh sách CBCNV", idKeys: ["ma_hrm", "ma_smcs", "sdt"], idLabels: "Mã NV mới / Mã SMCS / SĐT", tablesCode: "CBCNV", tablesBodyId: "cbTablesBody", previewBtn: "cbPreviewBtn" });
 /* ---- 5.7 Cau hinh loai kenh ban ---- */
 let lkEditId = 0;
@@ -10767,21 +10800,21 @@ async function loadLoginStats() {
     $("lsUsers").textContent = (d.tong_nguoi || 0).toLocaleString("vi-VN");
     $("lsBody").innerHTML = lsRows.map((r) =>
       "<tr><td>" + esc(r.username) + "</td><td><b>" + esc(r.ho_ten) + "</b></td><td>" + (r.so_lan || 0).toLocaleString("vi-VN") + "</td><td>" + esc(r.lan_gan_nhat) + "</td><td>" +
-      (me && r.user_id === me.id
-        ? "<button class='btn sm gray' disabled title='Không thể reset mật khẩu của chính tài khoản đang đăng nhập'>Reset</button>"
-        : "<button class='btn sm gray' data-reset-login='" + r.user_id + "' title='Đặt lại mật khẩu về Vnpt@2026'>Reset</button>") + "</td></tr>").join("") ||
+      "<button class='btn sm gray' data-reset-login='" + r.user_id + "' title='Đặt lại số lần đăng nhập trong tháng đang xem về 0'>Reset</button></td></tr>").join("") ||
       "<tr><td colspan='5'>Không có lượt đăng nhập nào trong tháng này.</td></tr>";
-    $("lsBody").querySelectorAll("[data-reset-login]").forEach((b) => b.addEventListener("click", () => resetLoginPass(Number(b.dataset.resetLogin))));
+    $("lsBody").querySelectorAll("[data-reset-login]").forEach((b) => b.addEventListener("click", () => resetLoginCount(Number(b.dataset.resetLogin))));
     setMsg($("lsMsg"), "");
   } catch (e) { setMsg($("lsMsg"), e.message, false); }
 }
-async function resetLoginPass(id) {
+async function resetLoginCount(id) {
   const r = lsRows.find((x) => x.user_id === id);
   if (!r) return;
-  if (!confirm("Đặt lại mật khẩu của \"" + r.ho_ten + " (" + r.username + ")\" về mặc định Vnpt@2026? Người dùng sẽ phải đổi mật khẩu ở lần đăng nhập tiếp theo.")) return;
+  const month = $("lsMonth").value;
+  if (!confirm("Xóa toàn bộ lượt đăng nhập của \"" + r.ho_ten + " (" + r.username + ")\" trong " + monthLabel(month) + "? Số lần đăng nhập sẽ về 0.")) return;
   try {
-    await api("/api/users/" + id + "/reset-password", { method: "POST" });
-    setMsg($("lsMsg"), "Đã reset mật khẩu của " + r.ho_ten + " (" + r.username + ") về Vnpt@2026.", true);
+    const d = await api("/api/login-stats/reset", { method: "POST", body: JSON.stringify({ user_id: id, month }) });
+    await loadLoginStats();
+    setMsg($("lsMsg"), "Đã reset số lần đăng nhập của " + r.ho_ten + " (" + r.username + ") trong " + monthLabel(month) + " (đã xóa " + (d.deleted || 0) + " lượt).", true);
   } catch (e) { setMsg($("lsMsg"), e.message, false); }
 }
 $("lsForm").addEventListener("submit", (e) => { e.preventDefault(); loadLoginStats(); });

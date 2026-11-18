@@ -1453,18 +1453,16 @@ export default {
         }
         return json({ ok: true, updated, unchanged, skipped });
       }
-      // ---- Reset mat khau ve mac dinh Vnpt@2026 (nhan su + diem ban).
-      // Nut Reset co o bang Quan ly nguoi dung va bang Thong ke dang nhap.
-      // Sau reset, lan dang nhap tiep theo he thong bat doi mat khau moi
-      // (login tra must_change_password khi mat khau van la mac dinh).
+      // ---- Reset mat khau nhan su ve mac dinh Vnpt@2026 (module Quan ly nguoi dung) ----
       const resetMatch = path.match(/^\/api\/users\/(\d+)\/reset-password$/);
       if (resetMatch && method === "POST") {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen reset mat khau", 403);
-        if (!(hasModule(me, "staff") || hasModule(me, "users"))) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung / Quan ly kenh ban", 403);
+        if (!hasModule(me, "staff")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
         const rid = Number(resetMatch[1]);
         if (rid === me.id) return err("Khong the reset mat khau chinh minh tai day — doi mat khau trong module Cai dat", 422);
-        const target = await env.DB.prepare("SELECT id FROM nguoi_dung WHERE id = ?").bind(rid).first();
+        const target = await env.DB.prepare("SELECT id, role FROM nguoi_dung WHERE id = ?").bind(rid).first();
         if (!target) return err("Khong tim thay nguoi dung", 404);
+        if (target.role === "user") return err("Tai khoan diem ban duoc quan ly trong module Quan ly kenh ban", 422);
         const salt = randomSalt();
         const hash = await hashPassword("Vnpt@2026", salt);
         await env.DB.prepare("UPDATE nguoi_dung SET password_hash = ?, salt = ? WHERE id = ?").bind(hash, salt, rid).run();
@@ -1882,14 +1880,26 @@ function normKbKey(s) {
         const columns = isKenh ? KENH_BAN_COLS : CBCNV_COLS;
         const colNames = columns.map(([n]) => n);
         const rawRows = Array.isArray(b.rows) ? b.rows : [];
-        const rows = rawRows.filter((row) => {
+        let rows = rawRows.filter((row) => {
           if (!row || typeof row !== "object") return false;
           return colNames.some((n) => {
             const v = row[n];
             return v !== null && v !== undefined && String(v).trim() !== "";
           });
         });
-        if (!rows.length) return err("Khong co dong du lieu nao de import", 422);
+        // Kenh ban: chi import dong co "ID diem ban HRM" (id_hrm) — dong
+        // thieu ID nay bi bo qua hoan toan, khong ghi vao CSDL.
+        let skippedEmptyId = 0;
+        if (isKenh) {
+          const kept = [];
+          for (const row of rows) {
+            const idv = row.id_hrm;
+            if (idv === undefined || idv === null || String(idv).trim() === "") { skippedEmptyId++; continue; }
+            kept.push(row);
+          }
+          rows = kept;
+        }
+        if (!rows.length) return err(skippedEmptyId > 0 ? "Tat ca " + skippedEmptyId + " dong deu thieu ID diem ban HRM nen khong co dong nao de import" : "Khong co dong du lieu nao de import", 422);
         if (mode === "replace" && !isAdmin) {
           const locked = await isTableLocked(env, table);
           if (locked) return err("Bang " + table + " dang bi khoa thay the. Chi admin moi duoc thay the. Lien he admin de mo khoa neu can.", 403);
@@ -1967,7 +1977,7 @@ function normKbKey(s) {
           await env.DB.batch(batch);
           inserted += batch.length;
         }
-        return json({ ok: true, table, inserted, mode, unmapped });
+        return json({ ok: true, table, inserted, mode, unmapped, skipped_empty_id: skippedEmptyId });
       }
 
       // ---- Cau hinh loai kenh ban (module 5.7, chi admin) ----
@@ -3487,6 +3497,22 @@ function normKbKey(s) {
           tong_luot: rows.reduce((a, r) => a + (r.so_lan || 0), 0),
           tong_nguoi: rows.length,
         });
+      }
+
+      // ---- Reset so lan dang nhap: xoa log cua 1 user trong thang dang xem ----
+      // Nut Reset o bang Thong ke dang nhap. Chi xoa trong thang duoc chon,
+      // khong anh huong cac thang khac.
+      if (path === "/api/login-stats/reset" && method === "POST") {
+        if (!isPrivileged) return err("Chi admin/subadmin moi co quyen reset thong ke dang nhap", 403);
+        if (!hasModule(me, "loginstats")) return err("Tai khoan khong co quyen su dung module Thong ke dang nhap", 403);
+        await ensureLoginLog(env);
+        const b = await readBody(request);
+        const userId = Number(b.user_id);
+        const month = String(b.month || "");
+        if (!userId) return err("Thieu user_id", 422);
+        if (!/^\d{4}-\d{2}$/.test(month)) return err("Thang khong hop le (YYYY-MM)", 422);
+        const r = await env.DB.prepare("DELETE FROM dang_nhap_log WHERE user_id = ? AND substr(thoi_gian, 1, 7) = ?").bind(userId, month).run();
+        return json({ ok: true, deleted: r.meta.changes || 0 });
       }
 
       // ---- Danh muc goi cuoc ----
