@@ -1453,16 +1453,18 @@ export default {
         }
         return json({ ok: true, updated, unchanged, skipped });
       }
-      // ---- Reset mat khau nhan su ve mac dinh Vnpt@2026 (module Quan ly nguoi dung) ----
+      // ---- Reset mat khau ve mac dinh Vnpt@2026 (nhan su + diem ban).
+      // Nut Reset co o bang Quan ly nguoi dung va bang Thong ke dang nhap.
+      // Sau reset, lan dang nhap tiep theo he thong bat doi mat khau moi
+      // (login tra must_change_password khi mat khau van la mac dinh).
       const resetMatch = path.match(/^\/api\/users\/(\d+)\/reset-password$/);
       if (resetMatch && method === "POST") {
         if (!canManageUsers) return err("Chi admin/subadmin moi co quyen reset mat khau", 403);
-        if (!hasModule(me, "staff")) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung", 403);
+        if (!(hasModule(me, "staff") || hasModule(me, "users"))) return err("Tai khoan khong co quyen su dung module Quan ly nguoi dung / Quan ly kenh ban", 403);
         const rid = Number(resetMatch[1]);
         if (rid === me.id) return err("Khong the reset mat khau chinh minh tai day — doi mat khau trong module Cai dat", 422);
-        const target = await env.DB.prepare("SELECT id, role FROM nguoi_dung WHERE id = ?").bind(rid).first();
+        const target = await env.DB.prepare("SELECT id FROM nguoi_dung WHERE id = ?").bind(rid).first();
         if (!target) return err("Khong tim thay nguoi dung", 404);
-        if (target.role === "user") return err("Tai khoan diem ban duoc quan ly trong module Quan ly kenh ban", 422);
         const salt = randomSalt();
         const hash = await hashPassword("Vnpt@2026", salt);
         await env.DB.prepare("UPDATE nguoi_dung SET password_hash = ?, salt = ? WHERE id = ?").bind(hash, salt, rid).run();
@@ -3473,7 +3475,7 @@ function normKbKey(s) {
         const month = url.searchParams.get("month") || saigonNow().slice(0, 7);
         if (!/^\d{4}-\d{2}$/.test(month)) return err("Thang khong hop le (YYYY-MM)", 422);
         const res = await env.DB.prepare(
-          "SELECT username, ho_ten, COUNT(*) AS so_lan, MAX(thoi_gian) AS lan_gan_nhat FROM dang_nhap_log WHERE substr(thoi_gian, 1, 7) = ? GROUP BY username, ho_ten ORDER BY so_lan DESC, ho_ten"
+          "SELECT user_id, username, ho_ten, COUNT(*) AS so_lan, MAX(thoi_gian) AS lan_gan_nhat FROM dang_nhap_log WHERE substr(thoi_gian, 1, 7) = ? GROUP BY user_id, username, ho_ten ORDER BY so_lan DESC, ho_ten"
         )
           .bind(month)
           .all();

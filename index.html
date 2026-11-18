@@ -3643,16 +3643,18 @@ export default {
         }
         return json({ ok: true, updated, unchanged, skipped });
       }
-      // ---- Reset mat khau nhan su ve mac dinh Vnpt@2026 (module Quan ly nguoi dung) ----
+      // ---- Reset mat khau ve mac dinh Vnpt@2026 (nhan su + diem ban).
+      // Nut Reset co o bang Quan ly nguoi dung va bang Thong ke dang nhap.
+      // Sau reset, lan dang nhap tiep theo he thong bat doi mat khau moi
+      // (login tra must_change_password khi mat khau van la mac dinh).
       const resetMatch = path.match(/^\/api\/users\/(\d+)\/reset-password$/);
       if (resetMatch &amp;&amp; method === &quot;POST&quot;) {
         if (!canManageUsers) return err(&quot;Chi admin/subadmin moi co quyen reset mat khau&quot;, 403);
-        if (!hasModule(me, &quot;staff&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung&quot;, 403);
+        if (!(hasModule(me, &quot;staff&quot;) || hasModule(me, &quot;users&quot;))) return err(&quot;Tai khoan khong co quyen su dung module Quan ly nguoi dung / Quan ly kenh ban&quot;, 403);
         const rid = Number(resetMatch[1]);
         if (rid === me.id) return err(&quot;Khong the reset mat khau chinh minh tai day — doi mat khau trong module Cai dat&quot;, 422);
-        const target = await env.DB.prepare(&quot;SELECT id, role FROM nguoi_dung WHERE id = ?&quot;).bind(rid).first();
+        const target = await env.DB.prepare(&quot;SELECT id FROM nguoi_dung WHERE id = ?&quot;).bind(rid).first();
         if (!target) return err(&quot;Khong tim thay nguoi dung&quot;, 404);
-        if (target.role === &quot;user&quot;) return err(&quot;Tai khoan diem ban duoc quan ly trong module Quan ly kenh ban&quot;, 422);
         const salt = randomSalt();
         const hash = await hashPassword(&quot;Vnpt@2026&quot;, salt);
         await env.DB.prepare(&quot;UPDATE nguoi_dung SET password_hash = ?, salt = ? WHERE id = ?&quot;).bind(hash, salt, rid).run();
@@ -5663,7 +5665,7 @@ function normKbKey(s) {
         const month = url.searchParams.get(&quot;month&quot;) || saigonNow().slice(0, 7);
         if (!/^\d{4}-\d{2}$/.test(month)) return err(&quot;Thang khong hop le (YYYY-MM)&quot;, 422);
         const res = await env.DB.prepare(
-          &quot;SELECT username, ho_ten, COUNT(*) AS so_lan, MAX(thoi_gian) AS lan_gan_nhat FROM dang_nhap_log WHERE substr(thoi_gian, 1, 7) = ? GROUP BY username, ho_ten ORDER BY so_lan DESC, ho_ten&quot;
+          &quot;SELECT user_id, username, ho_ten, COUNT(*) AS so_lan, MAX(thoi_gian) AS lan_gan_nhat FROM dang_nhap_log WHERE substr(thoi_gian, 1, 7) = ? GROUP BY user_id, username, ho_ten ORDER BY so_lan DESC, ho_ten&quot;
         )
           .bind(month)
           .all();
@@ -6227,7 +6229,7 @@ function normKbKey(s) {
             <div class="kpi"><b id="lsTotal">—</b><span>Tổng lượt đăng nhập trong tháng</span></div>
             <div class="kpi"><b id="lsUsers">—</b><span>Số người dùng đã đăng nhập</span></div>
           </div>
-          <div class="tbl-wrap"><table class="data"><thead><tr><th>User đăng nhập</th><th>Họ tên / điểm bán</th><th>Số lần đăng nhập</th><th>Lần đăng nhập gần nhất</th></tr></thead><tbody id="lsBody"><tr><td colspan="4">Chưa có dữ liệu — hãy chọn tháng và bấm Xem thống kê.</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>User đăng nhập</th><th>Họ tên / điểm bán</th><th>Số lần đăng nhập</th><th>Lần đăng nhập gần nhất</th><th>Reset</th></tr></thead><tbody id="lsBody"><tr><td colspan="5">Chưa có dữ liệu — hãy chọn tháng và bấm Xem thống kê.</td></tr></tbody></table></div>
         </section>
 
         <!-- CAI DAT -->
@@ -10753,18 +10755,33 @@ $("careRepExportBtn").addEventListener("click", async () => {
     setMsg($("careRepMsg"), "Đã xuất file Excel báo cáo chăm sóc (" + (d.records || []).length + " dòng chi tiết).");
   } catch (e) { setMsg($("careRepMsg"), e.message, false); }
 });
+let lsRows = [];
 async function loadLoginStats() {
   const month = $("lsMonth").value;
   if (!month) { setMsg($("lsMsg"), "Hãy chọn tháng cần xem.", false); return; }
   try {
     setMsg($("lsMsg"), "Đang tải thống kê…");
     const d = await api("/api/login-stats?month=" + encodeURIComponent(month));
+    lsRows = d.rows || [];
     $("lsTotal").textContent = (d.tong_luot || 0).toLocaleString("vi-VN");
     $("lsUsers").textContent = (d.tong_nguoi || 0).toLocaleString("vi-VN");
-    $("lsBody").innerHTML = (d.rows || []).map((r) =>
-      "<tr><td>" + esc(r.username) + "</td><td><b>" + esc(r.ho_ten) + "</b></td><td>" + (r.so_lan || 0).toLocaleString("vi-VN") + "</td><td>" + esc(r.lan_gan_nhat) + "</td></tr>").join("") ||
-      "<tr><td colspan='4'>Không có lượt đăng nhập nào trong tháng này.</td></tr>";
+    $("lsBody").innerHTML = lsRows.map((r) =>
+      "<tr><td>" + esc(r.username) + "</td><td><b>" + esc(r.ho_ten) + "</b></td><td>" + (r.so_lan || 0).toLocaleString("vi-VN") + "</td><td>" + esc(r.lan_gan_nhat) + "</td><td>" +
+      (me && r.user_id === me.id
+        ? "<button class='btn sm gray' disabled title='Không thể reset mật khẩu của chính tài khoản đang đăng nhập'>Reset</button>"
+        : "<button class='btn sm gray' data-reset-login='" + r.user_id + "' title='Đặt lại mật khẩu về Vnpt@2026'>Reset</button>") + "</td></tr>").join("") ||
+      "<tr><td colspan='5'>Không có lượt đăng nhập nào trong tháng này.</td></tr>";
+    $("lsBody").querySelectorAll("[data-reset-login]").forEach((b) => b.addEventListener("click", () => resetLoginPass(Number(b.dataset.resetLogin))));
     setMsg($("lsMsg"), "");
+  } catch (e) { setMsg($("lsMsg"), e.message, false); }
+}
+async function resetLoginPass(id) {
+  const r = lsRows.find((x) => x.user_id === id);
+  if (!r) return;
+  if (!confirm("Đặt lại mật khẩu của \"" + r.ho_ten + " (" + r.username + ")\" về mặc định Vnpt@2026? Người dùng sẽ phải đổi mật khẩu ở lần đăng nhập tiếp theo.")) return;
+  try {
+    await api("/api/users/" + id + "/reset-password", { method: "POST" });
+    setMsg($("lsMsg"), "Đã reset mật khẩu của " + r.ho_ten + " (" + r.username + ") về Vnpt@2026.", true);
   } catch (e) { setMsg($("lsMsg"), e.message, false); }
 }
 $("lsForm").addEventListener("submit", (e) => { e.preventDefault(); loadLoginStats(); });
