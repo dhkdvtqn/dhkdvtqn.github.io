@@ -5428,6 +5428,7 @@ function normKbKey(s) {
           return { eload: info.so_eload || e, ma_kenh: info.ma_kenh || &quot;&quot;, ho_ten: info.ho_ten || e,
             ten_diem_ban: ci.ten_diem_ban || &quot;&quot;, quan_ly: ci.quan_ly || &quot;&quot;,
             don_vi_id: info.don_vi_id || null, don_vi_ten: info.don_vi_ten || &quot;&quot;,
+            loai_kenh: info.loai_kenh || &quot;&quot;,
             subs: a.subs, revenue: Math.round(a.revenue),
             subs_c1: b.subs, subs_c1_pct: pct(a.subs, b.subs),
             rev_c1: Math.round(b.revenue), rev_c1_pct: pct(a.revenue, b.revenue),
@@ -7729,21 +7730,21 @@ function applyOvPosFilter() {
   const fp = $("ovPosPssl").value;
   const rows = (d.by_pos || []).filter((r) => {
     if (du && String(r.don_vi_id || "") !== du) return false;
-    if (q && !ovNormSearch((r.ten_diem_ban || "") + " " + (r.ho_ten || "") + " " + (r.ma_kenh || "") + " " + (r.eload || "") + " " + (r.quan_ly || "")).includes(q)) return false;
+    if (q && !ovNormSearch((r.ten_diem_ban || "") + " " + (r.ho_ten || "") + " " + (r.ma_kenh || "") + " " + (r.eload || "") + " " + (r.quan_ly || "") + " " + (r.loai_kenh || "")).includes(q)) return false;
     if (fp === "1" && !r.pssl) return false;
     if (fp === "0" && r.pssl) return false;
     return true;
   });
-  const cols = 6 + (showRev ? 2 : 0);
+  const cols = 8 + (showRev ? 2 : 0);
   const deltaHead2 = d.ky === "nam" ? "Tăng/giảm năm trước" : "Tăng/giảm T-1";
-  $("ovPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th><th>NV quản lý</th><th>Thuê bao</th><th>" + deltaHead2 + "</th>" +
+  $("ovPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th><th>Loại KBH</th><th>NV quản lý</th><th>Thuê bao</th><th>" + deltaHead2 + "</th>" +
     (showRev ? "<th>Doanh thu</th><th>" + deltaHead2 + "</th>" : "") + "<th style='text-align:center'>PSSL</th></tr>";
   $("ovPosBody").innerHTML = rows.length ? rows.map((r) =>
-    "<tr><td>" + esc(r.ten_diem_ban || r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.don_vi_ten || "—") + "</td><td>" + esc(r.quan_ly || "—") + "</td>" +
+    "<tr><td>" + esc(r.ten_diem_ban || r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.don_vi_ten || "—") + "</td><td>" + esc(r.loai_kenh || "—") + "</td><td>" + esc(r.quan_ly || "—") + "</td>" +
     "<td>" + fmtInt(r.subs) + "</td>" + ovCellDelta(r.subs_c1_pct, deltaTipSubs(d, r.subs_c1)) +
     (showRev ? "<td>" + fmt(r.revenue) + "</td>" + ovCellDelta(r.rev_c1_pct, deltaTipRev(d, r.rev_c1)) : "") +
     '<td style="text-align:center">' + (r.pssl ? '<span style="color:#15803d;font-weight:700">✓</span>' : "—") + "</td></tr>"
-  ).join("") + "<tr style='background:var(--blue-light)'><td colspan='4'><b>Tổng cộng (" + rows.length + " điểm)</b></td>" +
+  ).join("") + "<tr style='background:var(--blue-light)'><td colspan='5'><b>Tổng cộng (" + rows.length + " điểm)</b></td>" +
     "<td><b>" + fmtInt(rows.reduce((a, r) => a + r.subs, 0)) + "</b></td><td></td>" +
     (showRev ? "<td><b>" + fmt(rows.reduce((a, r) => a + r.revenue, 0)) + "</b></td><td></td>" : "") +
     '<td style="text-align:center"><b>' + rows.filter((r) => r.pssl).length + "</b></td></tr>"
@@ -7832,21 +7833,21 @@ function applySrPosFilter() {
   const fp = $("srPosPssl").value;
   const rows = (d.by_pos || []).filter((r) => {
     if (du && String(r.don_vi_id || "") !== du) return false;
-    if (q && !ovNormSearch((r.ten_diem_ban || "") + " " + (r.ho_ten || "") + " " + (r.ma_kenh || "") + " " + (r.eload || "") + " " + (r.quan_ly || "")).includes(q)) return false;
+    if (q && !ovNormSearch((r.ten_diem_ban || "") + " " + (r.ho_ten || "") + " " + (r.ma_kenh || "") + " " + (r.eload || "") + " " + (r.quan_ly || "") + " " + (r.loai_kenh || "")).includes(q)) return false;
     if (fp === "1" && !r.pssl) return false;
     if (fp === "0" && r.pssl) return false;
     return true;
   });
-  const cols = 6 + (showRev ? 2 : 0);
+  const cols = 8 + (showRev ? 2 : 0);
   const deltaHead2 = d.ky === "nam" ? "Tăng/giảm năm trước" : "Tăng/giảm T-1";
-  $("srPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th><th>NV quản lý</th><th>Thuê bao</th><th>" + deltaHead2 + "</th>" +
+  $("srPosHead").innerHTML = "<tr><th>Điểm bán</th><th>Mã kênh</th><th>Đơn vị</th><th>Loại KBH</th><th>NV quản lý</th><th>Thuê bao</th><th>" + deltaHead2 + "</th>" +
     (showRev ? "<th>Doanh thu</th><th>" + deltaHead2 + "</th>" : "") + "<th style='text-align:center'>PSSL</th></tr>";
   $("srPosBody").innerHTML = rows.length ? rows.map((r) =>
-    "<tr><td>" + esc(r.ten_diem_ban || r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.don_vi_ten || "—") + "</td><td>" + esc(r.quan_ly || "—") + "</td>" +
+    "<tr><td>" + esc(r.ten_diem_ban || r.ho_ten) + "</td><td>" + esc(r.ma_kenh || "—") + "</td><td>" + esc(r.don_vi_ten || "—") + "</td><td>" + esc(r.loai_kenh || "—") + "</td><td>" + esc(r.quan_ly || "—") + "</td>" +
     "<td>" + fmtInt(r.subs) + "</td>" + ovCellDelta(r.subs_c1_pct, deltaTipSubs(d, r.subs_c1)) +
     (showRev ? "<td>" + fmt(r.revenue) + "</td>" + ovCellDelta(r.rev_c1_pct, deltaTipRev(d, r.rev_c1)) : "") +
     '<td style="text-align:center">' + (r.pssl ? '<span style="color:#15803d;font-weight:700">✓</span>' : "—") + "</td></tr>"
-  ).join("") + "<tr style='background:var(--blue-light)'><td colspan='4'><b>Tổng cộng (" + rows.length + " điểm)</b></td>" +
+  ).join("") + "<tr style='background:var(--blue-light)'><td colspan='5'><b>Tổng cộng (" + rows.length + " điểm)</b></td>" +
     "<td><b>" + fmtInt(rows.reduce((a, r) => a + r.subs, 0)) + "</b></td><td></td>" +
     (showRev ? "<td><b>" + fmt(rows.reduce((a, r) => a + r.revenue, 0)) + "</b></td><td></td>" : "") +
     '<td style="text-align:center"><b>' + rows.filter((r) => r.pssl).length + "</b></td></tr>"

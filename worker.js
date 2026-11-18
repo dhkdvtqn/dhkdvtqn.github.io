@@ -3239,6 +3239,7 @@ function normKbKey(s) {
           return { eload: info.so_eload || e, ma_kenh: info.ma_kenh || "", ho_ten: info.ho_ten || e,
             ten_diem_ban: ci.ten_diem_ban || "", quan_ly: ci.quan_ly || "",
             don_vi_id: info.don_vi_id || null, don_vi_ten: info.don_vi_ten || "",
+            loai_kenh: info.loai_kenh || "",
             subs: a.subs, revenue: Math.round(a.revenue),
             subs_c1: b.subs, subs_c1_pct: pct(a.subs, b.subs),
             rev_c1: Math.round(b.revenue), rev_c1_pct: pct(a.revenue, b.revenue),
