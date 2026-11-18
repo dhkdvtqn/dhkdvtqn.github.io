@@ -1714,6 +1714,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
           <h3 style="margin:18px 0 8px;color:var(--blue-dark)">Danh sách điểm bán</h3>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
             <div style="min-width:260px;flex:1;max-width:380px"><label>Lọc theo đơn vị</label><select id="userUnitFilter"><option value="">— Tất cả đơn vị —</option><option value="none">Chưa thuộc đơn vị</option></select></div>
+            <div style="min-width:260px;flex:1;max-width:380px"><label>Lọc theo loại kênh bán</label><select id="userLoaiKenhFilter"><option value="">— Tất cả loại —</option><option value="DUQ">Điểm ủy quyền (ĐUQ)</option><option value="DBL">Điểm bán lẻ (ĐBL)</option><option value="GARA">Gara ô tô (GARA)</option><option value="DDV">Điểm ủy quyền bán đa dịch vụ (ĐDV)</option><option value="none">Chưa phân loại</option></select></div>
             <div style="min-width:260px;flex:1;max-width:380px"><label>Tìm kiếm</label><input id="userSearch" placeholder="Mã kênh, tên điểm bán, số Eload…" autocomplete="off" /></div>
             <div><span id="userCount" class="desc"></span></div>
             <div id="userBulkModuleBox" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -8017,8 +8018,11 @@ function refreshUserSelUI() {
 function renderUsers() {
   const fEl = $("userUnitFilter");
   const f = fEl ? fEl.value : "";
+  const lkEl = $("userLoaiKenhFilter");
+  const lk = lkEl ? lkEl.value : "";
   const q = ovNormSearch(($("userSearch") && $("userSearch").value) || "");
   const list = usersCache.filter((u) => (f === "" ? true : f === "none" ? !u.don_vi_id : String(u.don_vi_id) === String(f)) &&
+    (lk === "" ? true : lk === "none" ? !u.loai_kenh : u.loai_kenh === lk) &&
     (!q || ["ma_kenh", "ho_ten", "username", "so_eload", "so_vi", "don_vi_ten", "ten_nhan_vien", "sdt_nhan_vien", "ma_hrm", "leader_ten", "loai_kenh"].some((k) => ovNormSearch(u[k]).includes(q))));
   if (userSort.key) {
     const k = userSort.key, d = userSort.dir;
@@ -8047,7 +8051,7 @@ function renderUsers() {
         ? "<button class='btn sm gray' disabled title='Không thể tự xóa tài khoản đang đăng nhập'>Xóa</button>"
         : "<button class='btn sm danger' data-del-user='" + u.id + "'>Xóa</button>") +
       "</td></tr>").join("") ||
-      "<tr><td colspan='15'>" + (usersCache.length ? "Không có điểm bán nào thuộc đơn vị đã chọn." : "Chưa có điểm bán nào.") + "</td></tr>";
+      "<tr><td colspan='15'>" + (usersCache.length ? "Không có điểm bán nào khớp bộ lọc." : "Chưa có điểm bán nào.") + "</td></tr>";
   $("usersBody").querySelectorAll("[data-edit-user]").forEach((b) => b.addEventListener("click", () => editUser(Number(b.dataset.editUser))));
   $("usersBody").querySelectorAll("[data-del-user]").forEach((b) => b.addEventListener("click", () => delUser(Number(b.dataset.delUser))));
   $("usersBody").querySelectorAll("[data-user-sel]").forEach((c) => c.addEventListener("change", () => {
@@ -8059,6 +8063,7 @@ function renderUsers() {
   refreshUserSortUI();
 }
 $("userUnitFilter").addEventListener("change", renderUsers);
+$("userLoaiKenhFilter").addEventListener("change", renderUsers);
 $("userSearch").addEventListener("input", renderUsers);
 /* ---- Dong bo kenh ban tu bang kenh ban da import (admin/subadmin) ---- */
 async function loadSyncKbTables() {
