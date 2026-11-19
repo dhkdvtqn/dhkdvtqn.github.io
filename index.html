@@ -6300,6 +6300,7 @@ function normKbKey(s) {
     <form id="loginForm">
       <div class="field"><label id="loginUserLabel">Tên đăng nhập</label><input id="loginUser" required autocomplete="username" /></div>
       <div class="field"><label>Mật khẩu</label><input id="loginPass" type="password" required autocomplete="current-password" /></div>
+      <div class="field"><label class="checkline"><input type="checkbox" id="loginRememberPw" /> Lưu mật khẩu (lần sau mở lên không cần nhập lại)</label></div>
       <div style="display:flex;gap:10px;margin-top:6px"><button class="btn blue" type="submit" style="flex:1">Đăng nhập</button><button class="btn gray" type="button" id="loginCancel">Đóng</button></div>
     </form>
     <p class="sub" id="apiWarn" style="margin-top:14px"></p>
@@ -6954,6 +6955,28 @@ document.querySelectorAll(".nav-group-head").forEach((h) => h.addEventListener("
   if (willOpen) g.classList.remove("closed");
 }));
 
+// Luu mat khau (anh Tuan chon 19/11/2026): khi nguoi dung tick "Luu mat khau",
+// ten dang nhap + mat khau duoc luu vao localStorage cua trinh duyet nay;
+// lan sau mo form dang nhap se tu dien san. CHI luu khi co tick; bo tick
+// luc dang nhap thi xoa luon thong tin da luu truoc do.
+const SAVED_LOGIN_KEY = "vnpt_saved_login";
+let pendingRememberPw = false; // tick "Luu MK" o lan dang nhap phai doi MK lan dau
+function getSavedLogin() {
+  try { const s = JSON.parse(localStorage.getItem(SAVED_LOGIN_KEY) || "null"); return (s && s.u && s.p) ? s : null; } catch (e) { return null; }
+}
+function saveLoginCreds(u, p) {
+  try { localStorage.setItem(SAVED_LOGIN_KEY, JSON.stringify({ u, p })); } catch (e) {}
+}
+function clearSavedLogin() {
+  try { localStorage.removeItem(SAVED_LOGIN_KEY); } catch (e) {}
+}
+function prefillSavedLogin() {
+  if ($("loginUser").value || $("loginPass").value) return; // nguoi dung dang nhap san thi khong de
+  const s = getSavedLogin();
+  if (!s) { $("loginRememberPw").checked = false; return; }
+  $("loginUser").value = s.u; $("loginPass").value = s.p; $("loginRememberPw").checked = true;
+}
+
 // Dang nhap theo vai tro chon tren trang clo-kbh: cbcnv (tai khoan EOFFICE),
 // pos (so Eload), null (mac dinh nhu cu).
 function showLogin(role) {
@@ -6979,6 +7002,7 @@ function showLogin(role) {
   $("bootCfg").classList.toggle("hidden", !!apiBase);
   $("apiWarn").textContent = apiBase ? "" : "Hệ thống chưa được kết nối tới Worker API. Hãy nhập địa chỉ Worker ở mục cấu hình phía dưới (xem hướng dẫn trong module Cấu hình kết nối D1 sau khi có tài khoản admin, hoặc liên hệ quản trị viên).";
   setMsg($("loginErr"), "");
+  prefillSavedLogin();
 }
 $("loginBtn").addEventListener("click", () => showLogin(null));
 const rbCbcnv = $("roleCbcnvBtn"); if (rbCbcnv) rbCbcnv.addEventListener("click", () => showLogin("cbcnv"));
@@ -7012,14 +7036,16 @@ $("loginForm").addEventListener("submit", async (e) => {
       const u = ($("bootApiUrl").value || "").trim().replace(/\/+$/, "");
       if (u) { apiBase = u; sessionStorage.setItem("vnpt_api_url", u); }
     }
+    const lu = $("loginUser").value.trim(), lp = $("loginPass").value;
     const res = await fetch(apiBase + "/api/login", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: $("loginUser").value.trim(), password: $("loginPass").value }),
+      body: JSON.stringify({ username: lu, password: lp }),
     });
     const d = await res.json();
     if (!res.ok || !d.ok) throw new Error(d.error || "Đăng nhập thất bại");
     if (d.must_change_password) {
       pwChangeToken = d.token; me = d.user;
+      pendingRememberPw = $("loginRememberPw").checked;
       $("loginModal").classList.add("hidden");
       $("pwChangeUser").textContent = d.user.username + (d.user.ho_ten ? " (" + d.user.ho_ten + ")" : "");
       $("pwFirstNew").value = ""; $("pwFirstNew2").value = "";
@@ -7029,6 +7055,7 @@ $("loginForm").addEventListener("submit", async (e) => {
     }
     token = d.token; me = d.user;
     sessionStorage.setItem("vnpt_token", token);
+    if ($("loginRememberPw").checked) saveLoginCreds(lu, lp); else clearSavedLogin();
     $("loginModal").classList.add("hidden");
     posView = "home";
     refreshAuthUI();
@@ -7058,6 +7085,10 @@ $("pwChangeForm").addEventListener("submit", async (e) => {
     if (!res.ok || !d.ok) throw new Error(d.error || "Đổi mật khẩu thất bại");
     token = d.token; me = d.user; pwChangeToken = "";
     sessionStorage.setItem("vnpt_token", token);
+    const mu = me ? me.username : "";
+    if (pendingRememberPw && mu) saveLoginCreds(mu, np);
+    else { const s = getSavedLogin(); if (s && s.u === mu) clearSavedLogin(); }
+    pendingRememberPw = false;
     $("pwChangeModal").classList.add("hidden");
     $("pwFirstNew").value = ""; $("pwFirstNew2").value = "";
     posView = "home";
@@ -10995,8 +11026,10 @@ $("pkgImportForm").addEventListener("submit", async (e) => {
 /* ---------------- Cai dat tai khoan ---------------- */
 $("pwForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const npw = $("pwNew").value;
   try {
-    await api("/api/settings/password", { method: "POST", body: JSON.stringify({ old_password: $("pwOld").value, new_password: $("pwNew").value }) });
+    await api("/api/settings/password", { method: "POST", body: JSON.stringify({ old_password: $("pwOld").value, new_password: npw }) });
+    const s = getSavedLogin(); if (s && me && s.u === me.username) saveLoginCreds(me.username, npw);
     setMsg($("pwMsg"), "Đã đổi mật khẩu thành công.");
     $("pwForm").reset();
   } catch (err) { setMsg($("pwMsg"), err.message, false); }
