@@ -5343,10 +5343,21 @@ function normKbKey(s) {
           if (v == null) return null;
           const str = String(v).trim();
           if (!str) return null;
-          let m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // ISO 2026-11-05 (ca dang co gio)
+          let m = str.match(/^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})/); // ISO 2026-11-05 (ca dang co gio, ca 2026/11/05)
           if (m) return m[1] + &quot;-&quot; + String(Number(m[2])).padStart(2, &quot;0&quot;);
-          m = str.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/); // 05/11/2026
-          if (m) { let y = Number(m[3]); if (y &lt; 100) y += 2000; return y + &quot;-&quot; + String(Number(m[2])).padStart(2, &quot;0&quot;); }
+          m = str.match(/^(\d{4})(\d{2})(\d{2})$/); // 20261105
+          if (m) return m[1] + &quot;-&quot; + m[2];
+          m = str.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/); // 05/11/2026 (VN) hoac 11/05/2026 (US)
+          if (m) {
+            let y = Number(m[3]); if (y &lt; 100) y += 2000;
+            const a = Number(m[1]), b = Number(m[2]);
+            // Phan biet DD/MM vs MM/DD: so nao &gt; 12 thi chac chan la ngay.
+            // Ca 2 deu &lt;= 12 thi mo ho — mac dinh DD/MM theo chuan VN.
+            const mo = a &gt; 12 ? b : b &gt; 12 ? a : b;
+            return y + &quot;-&quot; + String(mo).padStart(2, &quot;0&quot;);
+          }
+          m = str.match(/^(\d{1,2})[/\-.](\d{4})$/); // 11/2026 (chi co thang/nam)
+          if (m) return m[2] + &quot;-&quot; + String(Number(m[1])).padStart(2, &quot;0&quot;);
           if (/^\d{5}$/.test(str)) { // so serial Excel
             const n = Number(str);
             if (n &gt;= 30000 &amp;&amp; n &lt;= 80000) {
@@ -5357,7 +5368,7 @@ function normKbKey(s) {
           const dd = new Date(str); // chuoi Date cua JS
           return Number.isNaN(dd.getTime()) ? null : dd.getFullYear() + &quot;-&quot; + String(dd.getMonth() + 1).padStart(2, &quot;0&quot;);
         };
-        let duqNew = { table: null, has_table: false, count: null, count_prev: null, by_unit: [], unreadable: 0 };
+        let duqNew = { table: null, has_table: false, count: null, count_prev: null, by_unit: [], unreadable: 0, newest: null };
         try {
           let kbTable = null;
           if (ky === &quot;nam&quot;) {
@@ -5375,7 +5386,7 @@ function normKbKey(s) {
             const kbUnitName = {};
             for (const u of allUnits) kbUnitName[u.id] = u.ten_don_vi;
             const byUnitMap = {};
-            let cnt = 0, cntPrev = 0, unread = 0;
+            let cnt = 0, cntPrev = 0, unread = 0, newest = null;
             for (const r of krs) {
               if (normLoaiKenh(r.loai_kenh) !== &quot;DUQ&quot;) continue;
               const duid = r.don_vi_id != null &amp;&amp; r.don_vi_id !== &quot;&quot; ? Number(r.don_vi_id) : unitNameToId[normU(r.don_vi || &quot;&quot;)];
@@ -5383,6 +5394,7 @@ function normKbKey(s) {
               if (ownOnly &amp;&amp; normE(r.so_eload) !== meEload) continue;
               const mk = parseKbMonth(r.ngay_khai_bao);
               if (!mk) { unread++; continue; }
+              if (!newest || mk &gt; newest) newest = mk;
               if (inCur(mk)) {
                 cnt++;
                 const key = duid != null ? &quot;id:&quot; + duid : &quot;ten:&quot; + normU(r.don_vi || &quot;&quot;);
@@ -5392,7 +5404,7 @@ function normKbKey(s) {
             }
             duqNew = { table: kbTable, has_table: true, count: cnt, count_prev: cntPrev,
               by_unit: Object.values(byUnitMap).sort((a, b) =&gt; b.count - a.count || String(a.ten).localeCompare(String(b.ten), &quot;vi&quot;)),
-              unreadable: unread };
+              unreadable: unread, newest };
           }
         } catch (e) { console.error(&quot;sales-overview duq-new:&quot;, e); }
         // Cham soc kenh DUQ theo don vi trong ky
@@ -7892,8 +7904,7 @@ function renderOvEval(d) {
     });
     let s = "Doanh thu bán gói <b>" + fmt(k.rev) + "</b>" + planTxt(k.tyle_rev) + ".";
     s += vsTxt(k.rev_c1_pct, k.rev_c2_pct);
-    const share = (k.rev || 0) > 0 ? Math.round(revDD / k.rev * 1000) / 10 : null;
-    s += " Trong đó qua kênh ĐUQ/ĐBL: <b>" + fmt(revDD) + "</b>" + (share != null ? " (chiếm " + pct1(share) + " tổng doanh thu)" : "") + " — ĐUQ " + fmt(revDuqOnly) + ", ĐBL " + fmt(revDblOnly) + ".";
+    s += " Trong đó doanh thu qua kênh ĐUQ: <b>" + fmt(revDuqOnly) + "</b>, doanh thu qua kênh ĐBL: <b>" + fmt(revDblOnly) + "</b>.";
     const revUnits = Object.entries(revByUnitDD).map(([name, v]) => ({ name, v })).filter((x) => x.v > 0);
     if (revUnits.length >= 2) s += rankTxt(revUnits, (v) => fmt(v), "Doanh thu ĐUQ/ĐBL cao nhất");
     if (revOther > 0) s += " <span class='muted'>Còn " + fmt(revOther) + " từ kênh khác (" + [...otherTypes].join(", ") + ").</span>";
@@ -7909,7 +7920,10 @@ function renderOvEval(d) {
       s += ".";
       const nb = (dn.by_unit || []).filter((x) => x.count > 0);
       if (nb.length) s += " Mở mới nhiều nhất: " + nb.slice(0, 3).map((x) => "<b>" + esc(x.ten) + "</b> (" + fmtInt(x.count) + " điểm)").join(", ") + ".";
-      else if (dn.count === 0) s += " Chưa có đơn vị nào mở mới ĐUQ trong kỳ.";
+      else if (dn.count === 0) {
+        s += " Chưa có đơn vị nào mở mới ĐUQ trong kỳ.";
+        if (dn.newest) { const nm = String(dn.newest).split("-"); s += " <span class='muted'>(Ngày khai báo mới nhất trong bảng kênh bán: tháng " + Number(nm[1]) + "/" + nm[0] + ".)</span>"; }
+      }
     } else if (dn.has_table === false) {
       s += " <span class='muted'>Chưa có bảng kênh bán " + d.period_label + " nên chưa đếm được số ĐUQ mở mới.</span>";
     }

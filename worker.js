@@ -3139,10 +3139,21 @@ function normKbKey(s) {
           if (v == null) return null;
           const str = String(v).trim();
           if (!str) return null;
-          let m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // ISO 2026-11-05 (ca dang co gio)
+          let m = str.match(/^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})/); // ISO 2026-11-05 (ca dang co gio, ca 2026/11/05)
           if (m) return m[1] + "-" + String(Number(m[2])).padStart(2, "0");
-          m = str.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/); // 05/11/2026
-          if (m) { let y = Number(m[3]); if (y < 100) y += 2000; return y + "-" + String(Number(m[2])).padStart(2, "0"); }
+          m = str.match(/^(\d{4})(\d{2})(\d{2})$/); // 20261105
+          if (m) return m[1] + "-" + m[2];
+          m = str.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/); // 05/11/2026 (VN) hoac 11/05/2026 (US)
+          if (m) {
+            let y = Number(m[3]); if (y < 100) y += 2000;
+            const a = Number(m[1]), b = Number(m[2]);
+            // Phan biet DD/MM vs MM/DD: so nao > 12 thi chac chan la ngay.
+            // Ca 2 deu <= 12 thi mo ho — mac dinh DD/MM theo chuan VN.
+            const mo = a > 12 ? b : b > 12 ? a : b;
+            return y + "-" + String(mo).padStart(2, "0");
+          }
+          m = str.match(/^(\d{1,2})[/\-.](\d{4})$/); // 11/2026 (chi co thang/nam)
+          if (m) return m[2] + "-" + String(Number(m[1])).padStart(2, "0");
           if (/^\d{5}$/.test(str)) { // so serial Excel
             const n = Number(str);
             if (n >= 30000 && n <= 80000) {
@@ -3153,7 +3164,7 @@ function normKbKey(s) {
           const dd = new Date(str); // chuoi Date cua JS
           return Number.isNaN(dd.getTime()) ? null : dd.getFullYear() + "-" + String(dd.getMonth() + 1).padStart(2, "0");
         };
-        let duqNew = { table: null, has_table: false, count: null, count_prev: null, by_unit: [], unreadable: 0 };
+        let duqNew = { table: null, has_table: false, count: null, count_prev: null, by_unit: [], unreadable: 0, newest: null };
         try {
           let kbTable = null;
           if (ky === "nam") {
@@ -3171,7 +3182,7 @@ function normKbKey(s) {
             const kbUnitName = {};
             for (const u of allUnits) kbUnitName[u.id] = u.ten_don_vi;
             const byUnitMap = {};
-            let cnt = 0, cntPrev = 0, unread = 0;
+            let cnt = 0, cntPrev = 0, unread = 0, newest = null;
             for (const r of krs) {
               if (normLoaiKenh(r.loai_kenh) !== "DUQ") continue;
               const duid = r.don_vi_id != null && r.don_vi_id !== "" ? Number(r.don_vi_id) : unitNameToId[normU(r.don_vi || "")];
@@ -3179,6 +3190,7 @@ function normKbKey(s) {
               if (ownOnly && normE(r.so_eload) !== meEload) continue;
               const mk = parseKbMonth(r.ngay_khai_bao);
               if (!mk) { unread++; continue; }
+              if (!newest || mk > newest) newest = mk;
               if (inCur(mk)) {
                 cnt++;
                 const key = duid != null ? "id:" + duid : "ten:" + normU(r.don_vi || "");
@@ -3188,7 +3200,7 @@ function normKbKey(s) {
             }
             duqNew = { table: kbTable, has_table: true, count: cnt, count_prev: cntPrev,
               by_unit: Object.values(byUnitMap).sort((a, b) => b.count - a.count || String(a.ten).localeCompare(String(b.ten), "vi")),
-              unreadable: unread };
+              unreadable: unread, newest };
           }
         } catch (e) { console.error("sales-overview duq-new:", e); }
         // Cham soc kenh DUQ theo don vi trong ky
