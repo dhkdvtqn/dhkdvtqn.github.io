@@ -208,7 +208,7 @@ function normLoaiKenh(v) {
   if (s.includes("DDV") || s.includes("DA DICH VU")) return "DDV";
   if (s.includes("DBL") || s.includes("BAN LE")) return "DBL";
   if (s.includes("GARA")) return "GARA";
-  if (s.includes("DUQ") || s.includes("UY QUYEN")) return "DUQ";
+  if (s.includes("DUQ") || s.includes("UY QUYEN") || s.includes("PHAP NHAN")) return "DUQ";
   return "";
 }
 const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings", "policy"];
@@ -3176,7 +3176,7 @@ function normKbKey(s) {
             kbTable = await monthTableExists(env, KENH_BAN_PREFIX, curMonths[0]);
           }
           if (kbTable) {
-            const krs = (await env.DB.prepare('SELECT don_vi, don_vi_id, loai_kenh, ngay_khai_bao, so_eload FROM "' + kbTable + '"').all()).results || [];
+            const krs = (await env.DB.prepare('SELECT don_vi, don_vi_id, loai_kenh, hang_kenh, ngay_khai_bao, so_eload FROM "' + kbTable + '"').all()).results || [];
             const inCur = (mk) => ky === "nam" ? mk.slice(0, 4) === String(nam) : mk === curMonths[0];
             const inPrev = (mk) => ky === "nam" ? mk.slice(0, 4) === String(nam - 1) : mk === prevMonths[0];
             const kbUnitName = {};
@@ -3184,7 +3184,12 @@ function normKbKey(s) {
             const byUnitMap = {};
             let cnt = 0, cntPrev = 0, unread = 0, newest = null;
             for (const r of krs) {
-              if (normLoaiKenh(r.loai_kenh) !== "DUQ") continue;
+              // Giai loai kenh giong he sync (dong bo kenh ban): hang_kenh
+              // (admin dinh nghia o module 5.7) uu tien truoc, roi moi den
+              // loai_kenh goc trong file — vi file ghi ten day du nhu
+              // "Phap nhan cap TTKD" chu khong ghi ma DUQ.
+              const rawLoai = (r.hang_kenh != null && String(r.hang_kenh).trim() !== "") ? r.hang_kenh : r.loai_kenh;
+              if (normLoaiKenh(rawLoai) !== "DUQ") continue;
               const duid = r.don_vi_id != null && r.don_vi_id !== "" ? Number(r.don_vi_id) : unitNameToId[normU(r.don_vi || "")];
               if (scopeUnitIds !== null && (duid == null || !scopeUnitIds.includes(duid))) continue;
               if (ownOnly && normE(r.so_eload) !== meEload) continue;
