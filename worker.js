@@ -3127,6 +3127,70 @@ function normKbKey(s) {
         const psslDuqPrev = [...prev.pssl].filter((e) => { const p = posByEload[e]; return p && isDuqPos(p); }).length;
         const tyleDuq = scaleDuq > 0 ? Math.round(psslDuq / scaleDuq * 1000) / 10 : null;
         const tyleDuqPrev = scaleDuq > 0 ? Math.round(psslDuqPrev / scaleDuq * 1000) / 10 : null;
+        const psslDuqC2 = [...c2.pssl].filter((e) => { const p = posByEload[e]; return p && isDuqPos(p); }).length;
+        const tyleDuqC2 = scaleDuq > 0 ? Math.round(psslDuqC2 / scaleDuq * 1000) / 10 : null;
+        // DUQ phat trien moi theo ngay_khai_bao tren bang kenh_ban (20/11/2026,
+        // phuc vu the "Danh gia nhanh" o Dashboard KBH): doc bang kenh_ban cua
+        // thang cuoi trong ky (thang dang xem; voi ky=nam la thang cuoi cung
+        // cua nam co bang) — bang nay la anh chup moi nhat cua mang luoi kenh
+        // nen chua ca diem moi mo trong ky. Ky truoc dem tu cung bang nay
+        // (ngay_khai_bao goc cua diem khong doi theo thang import).
+        const parseKbMonth = (v) => {
+          if (v == null) return null;
+          const str = String(v).trim();
+          if (!str) return null;
+          let m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // ISO 2026-11-05 (ca dang co gio)
+          if (m) return m[1] + "-" + String(Number(m[2])).padStart(2, "0");
+          m = str.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/); // 05/11/2026
+          if (m) { let y = Number(m[3]); if (y < 100) y += 2000; return y + "-" + String(Number(m[2])).padStart(2, "0"); }
+          if (/^\d{5}$/.test(str)) { // so serial Excel
+            const n = Number(str);
+            if (n >= 30000 && n <= 80000) {
+              const dd = new Date(Math.round((n - 25569) * 86400 * 1000));
+              return dd.getUTCFullYear() + "-" + String(dd.getUTCMonth() + 1).padStart(2, "0");
+            }
+          }
+          const dd = new Date(str); // chuoi Date cua JS
+          return Number.isNaN(dd.getTime()) ? null : dd.getFullYear() + "-" + String(dd.getMonth() + 1).padStart(2, "0");
+        };
+        let duqNew = { table: null, has_table: false, count: null, count_prev: null, by_unit: [], unreadable: 0 };
+        try {
+          let kbTable = null;
+          if (ky === "nam") {
+            for (let mm = 12; mm >= 1; mm--) {
+              const t = await monthTableExists(env, KENH_BAN_PREFIX, nam + "-" + String(mm).padStart(2, "0"));
+              if (t) { kbTable = t; break; }
+            }
+          } else {
+            kbTable = await monthTableExists(env, KENH_BAN_PREFIX, curMonths[0]);
+          }
+          if (kbTable) {
+            const krs = (await env.DB.prepare('SELECT don_vi, don_vi_id, loai_kenh, ngay_khai_bao, so_eload FROM "' + kbTable + '"').all()).results || [];
+            const inCur = (mk) => ky === "nam" ? mk.slice(0, 4) === String(nam) : mk === curMonths[0];
+            const inPrev = (mk) => ky === "nam" ? mk.slice(0, 4) === String(nam - 1) : mk === prevMonths[0];
+            const kbUnitName = {};
+            for (const u of allUnits) kbUnitName[u.id] = u.ten_don_vi;
+            const byUnitMap = {};
+            let cnt = 0, cntPrev = 0, unread = 0;
+            for (const r of krs) {
+              if (normLoaiKenh(r.loai_kenh) !== "DUQ") continue;
+              const duid = r.don_vi_id != null && r.don_vi_id !== "" ? Number(r.don_vi_id) : unitNameToId[normU(r.don_vi || "")];
+              if (scopeUnitIds !== null && (duid == null || !scopeUnitIds.includes(duid))) continue;
+              if (ownOnly && normE(r.so_eload) !== meEload) continue;
+              const mk = parseKbMonth(r.ngay_khai_bao);
+              if (!mk) { unread++; continue; }
+              if (inCur(mk)) {
+                cnt++;
+                const key = duid != null ? "id:" + duid : "ten:" + normU(r.don_vi || "");
+                const b = byUnitMap[key] || (byUnitMap[key] = { don_vi_id: duid != null ? duid : null, ten: (duid != null ? kbUnitName[duid] : null) || r.don_vi || "Chưa xác định", count: 0 });
+                b.count++;
+              } else if (inPrev(mk)) cntPrev++;
+            }
+            duqNew = { table: kbTable, has_table: true, count: cnt, count_prev: cntPrev,
+              by_unit: Object.values(byUnitMap).sort((a, b) => b.count - a.count || String(a.ten).localeCompare(String(b.ten), "vi")),
+              unreadable: unread };
+          }
+        } catch (e) { console.error("sales-overview duq-new:", e); }
         // Cham soc kenh DUQ theo don vi trong ky
         let careByUnit = [];
         try {
@@ -3273,9 +3337,13 @@ function normKbKey(s) {
           },
           trend,
           pssl: { count: psslCount, c1: psslPrev, c1_pct: pct(psslCount, psslPrev),
+            c2: c2.pssl.size, c2_pct: c2Months.length ? pct(psslCount, c2.pssl.size) : null,
             ke_hoach: khPssl, ty_le: tyle(psslCount, khPssl), trend: psslTrend },
           duq: { quy_mo: scaleDuq, pssl: psslDuq, ty_le: tyleDuq, ty_le_c1: tyleDuqPrev,
-            ty_le_c1_pct: (tyleDuq != null && tyleDuqPrev != null && tyleDuqPrev > 0) ? Math.round((tyleDuq - tyleDuqPrev) / tyleDuqPrev * 1000) / 10 : null },
+            ty_le_c1_pct: (tyleDuq != null && tyleDuqPrev != null && tyleDuqPrev > 0) ? Math.round((tyleDuq - tyleDuqPrev) / tyleDuqPrev * 1000) / 10 : null,
+            ty_le_c2: tyleDuqC2,
+            ty_le_c2_pct: (tyleDuq != null && tyleDuqC2 != null && tyleDuqC2 > 0) ? Math.round((tyleDuq - tyleDuqC2) / tyleDuqC2 * 1000) / 10 : null },
+          duq_new: duqNew,
           care: { by_unit: careByUnit },
           by_unit, by_pos,
           loai_tb_values: [...stSet].sort(sortVi),

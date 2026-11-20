@@ -1297,7 +1297,10 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         <!-- DASHBOARD BAN HANG -->
         <section class="panel hidden" id="panel-salesdash">
           <h2>🛒 Dashboard KBH</h2>
-          <p class="desc" id="salesScope">Tổng hợp số liệu phát triển thuê bao di động và doanh thu bán gói di động phát triển mới (trước thuế = giá gói ÷ 1,1) theo đơn vị và theo điểm bán, từ loại dữ liệu do anh thiết kế trong Cấu hình. Chỉ tính các thuê bao do tài khoản Eload của điểm bán phát triển.</p>
+          <div class="card" id="ovEvalCard">
+            <h3>📋 Đánh giá nhanh <span class="sec-sub" id="ovEvalPeriod"></span></h3>
+            <div id="ovEval"><p class="muted">Chưa có dữ liệu để đánh giá.</p></div>
+          </div>
           <div class="form-grid">
             <div><label>Kỳ đánh giá</label><select id="salesKy"><option value="thang">Theo tháng</option><option value="nam">Theo năm</option></select></div>
             <div id="salesMonthWrap"><label>Tháng đánh giá</label><input type="month" id="salesMonth" /></div>
@@ -5328,6 +5331,70 @@ function normKbKey(s) {
         const psslDuqPrev = [...prev.pssl].filter((e) =&gt; { const p = posByEload[e]; return p &amp;&amp; isDuqPos(p); }).length;
         const tyleDuq = scaleDuq &gt; 0 ? Math.round(psslDuq / scaleDuq * 1000) / 10 : null;
         const tyleDuqPrev = scaleDuq &gt; 0 ? Math.round(psslDuqPrev / scaleDuq * 1000) / 10 : null;
+        const psslDuqC2 = [...c2.pssl].filter((e) =&gt; { const p = posByEload[e]; return p &amp;&amp; isDuqPos(p); }).length;
+        const tyleDuqC2 = scaleDuq &gt; 0 ? Math.round(psslDuqC2 / scaleDuq * 1000) / 10 : null;
+        // DUQ phat trien moi theo ngay_khai_bao tren bang kenh_ban (20/11/2026,
+        // phuc vu the &quot;Danh gia nhanh&quot; o Dashboard KBH): doc bang kenh_ban cua
+        // thang cuoi trong ky (thang dang xem; voi ky=nam la thang cuoi cung
+        // cua nam co bang) — bang nay la anh chup moi nhat cua mang luoi kenh
+        // nen chua ca diem moi mo trong ky. Ky truoc dem tu cung bang nay
+        // (ngay_khai_bao goc cua diem khong doi theo thang import).
+        const parseKbMonth = (v) =&gt; {
+          if (v == null) return null;
+          const str = String(v).trim();
+          if (!str) return null;
+          let m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // ISO 2026-11-05 (ca dang co gio)
+          if (m) return m[1] + &quot;-&quot; + String(Number(m[2])).padStart(2, &quot;0&quot;);
+          m = str.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/); // 05/11/2026
+          if (m) { let y = Number(m[3]); if (y &lt; 100) y += 2000; return y + &quot;-&quot; + String(Number(m[2])).padStart(2, &quot;0&quot;); }
+          if (/^\d{5}$/.test(str)) { // so serial Excel
+            const n = Number(str);
+            if (n &gt;= 30000 &amp;&amp; n &lt;= 80000) {
+              const dd = new Date(Math.round((n - 25569) * 86400 * 1000));
+              return dd.getUTCFullYear() + &quot;-&quot; + String(dd.getUTCMonth() + 1).padStart(2, &quot;0&quot;);
+            }
+          }
+          const dd = new Date(str); // chuoi Date cua JS
+          return Number.isNaN(dd.getTime()) ? null : dd.getFullYear() + &quot;-&quot; + String(dd.getMonth() + 1).padStart(2, &quot;0&quot;);
+        };
+        let duqNew = { table: null, has_table: false, count: null, count_prev: null, by_unit: [], unreadable: 0 };
+        try {
+          let kbTable = null;
+          if (ky === &quot;nam&quot;) {
+            for (let mm = 12; mm &gt;= 1; mm--) {
+              const t = await monthTableExists(env, KENH_BAN_PREFIX, nam + &quot;-&quot; + String(mm).padStart(2, &quot;0&quot;));
+              if (t) { kbTable = t; break; }
+            }
+          } else {
+            kbTable = await monthTableExists(env, KENH_BAN_PREFIX, curMonths[0]);
+          }
+          if (kbTable) {
+            const krs = (await env.DB.prepare(&#x27;SELECT don_vi, don_vi_id, loai_kenh, ngay_khai_bao, so_eload FROM &quot;&#x27; + kbTable + &#x27;&quot;&#x27;).all()).results || [];
+            const inCur = (mk) =&gt; ky === &quot;nam&quot; ? mk.slice(0, 4) === String(nam) : mk === curMonths[0];
+            const inPrev = (mk) =&gt; ky === &quot;nam&quot; ? mk.slice(0, 4) === String(nam - 1) : mk === prevMonths[0];
+            const kbUnitName = {};
+            for (const u of allUnits) kbUnitName[u.id] = u.ten_don_vi;
+            const byUnitMap = {};
+            let cnt = 0, cntPrev = 0, unread = 0;
+            for (const r of krs) {
+              if (normLoaiKenh(r.loai_kenh) !== &quot;DUQ&quot;) continue;
+              const duid = r.don_vi_id != null &amp;&amp; r.don_vi_id !== &quot;&quot; ? Number(r.don_vi_id) : unitNameToId[normU(r.don_vi || &quot;&quot;)];
+              if (scopeUnitIds !== null &amp;&amp; (duid == null || !scopeUnitIds.includes(duid))) continue;
+              if (ownOnly &amp;&amp; normE(r.so_eload) !== meEload) continue;
+              const mk = parseKbMonth(r.ngay_khai_bao);
+              if (!mk) { unread++; continue; }
+              if (inCur(mk)) {
+                cnt++;
+                const key = duid != null ? &quot;id:&quot; + duid : &quot;ten:&quot; + normU(r.don_vi || &quot;&quot;);
+                const b = byUnitMap[key] || (byUnitMap[key] = { don_vi_id: duid != null ? duid : null, ten: (duid != null ? kbUnitName[duid] : null) || r.don_vi || &quot;Chưa xác định&quot;, count: 0 });
+                b.count++;
+              } else if (inPrev(mk)) cntPrev++;
+            }
+            duqNew = { table: kbTable, has_table: true, count: cnt, count_prev: cntPrev,
+              by_unit: Object.values(byUnitMap).sort((a, b) =&gt; b.count - a.count || String(a.ten).localeCompare(String(b.ten), &quot;vi&quot;)),
+              unreadable: unread };
+          }
+        } catch (e) { console.error(&quot;sales-overview duq-new:&quot;, e); }
         // Cham soc kenh DUQ theo don vi trong ky
         let careByUnit = [];
         try {
@@ -5474,9 +5541,13 @@ function normKbKey(s) {
           },
           trend,
           pssl: { count: psslCount, c1: psslPrev, c1_pct: pct(psslCount, psslPrev),
+            c2: c2.pssl.size, c2_pct: c2Months.length ? pct(psslCount, c2.pssl.size) : null,
             ke_hoach: khPssl, ty_le: tyle(psslCount, khPssl), trend: psslTrend },
           duq: { quy_mo: scaleDuq, pssl: psslDuq, ty_le: tyleDuq, ty_le_c1: tyleDuqPrev,
-            ty_le_c1_pct: (tyleDuq != null &amp;&amp; tyleDuqPrev != null &amp;&amp; tyleDuqPrev &gt; 0) ? Math.round((tyleDuq - tyleDuqPrev) / tyleDuqPrev * 1000) / 10 : null },
+            ty_le_c1_pct: (tyleDuq != null &amp;&amp; tyleDuqPrev != null &amp;&amp; tyleDuqPrev &gt; 0) ? Math.round((tyleDuq - tyleDuqPrev) / tyleDuqPrev * 1000) / 10 : null,
+            ty_le_c2: tyleDuqC2,
+            ty_le_c2_pct: (tyleDuq != null &amp;&amp; tyleDuqC2 != null &amp;&amp; tyleDuqC2 &gt; 0) ? Math.round((tyleDuq - tyleDuqC2) / tyleDuqC2 * 1000) / 10 : null },
+          duq_new: duqNew,
           care: { by_unit: careByUnit },
           by_unit, by_pos,
           loai_tb_values: [...stSet].sort(sortVi),
@@ -7643,9 +7714,6 @@ function planChip(id, tyle, kh) {
 async function loadSalesOverview() {
   const ky = $("salesKy").value;
   const thang = $("salesMonth").value, nam = $("salesYear").value;
-  const ll = isLeaderLikeMe();
-  const scopeTxt = me && (me.role === "admin" || me.role === "subadmin") ? "toàn tỉnh" : me && ll ? "đơn vị của bạn (bao gồm các đơn vị trực thuộc)" : "chính điểm bán của bạn";
-  $("salesScope").textContent = "Điểm tin điều hành kinh doanh " + scopeTxt + ": tự động tổng hợp TẤT CẢ loại dữ liệu bán hàng (doanh thu + sản lượng); phát triển thuê bao di động và doanh thu bán gói (trước thuế = giá gói ÷ 1,1). Các giao dịch có kết quả \"Đăng ký không thành công\" được loại bỏ khỏi mọi số liệu.";
   const q = new URLSearchParams({ ky });
   if (ky === "nam") {
     if (!nam) { setMsg($("salesMsg"), "Hãy chọn năm đánh giá.", false); return; }
@@ -7667,6 +7735,7 @@ async function loadSalesOverview() {
       checkDropSet("salesSubtypeDrop", (d.loai_tb_values || []).map((v) => ({ value: v === "(Trống)" ? "" : v, label: v })), cur);
     } else checkDropSet("salesSubtypeDrop", [], []);
     const showRev = renderOvKpis(d);
+    renderOvEval(d);
     renderOvPlan(d);
     renderOvCare(d);
     renderOvUnit(d, showRev);
@@ -7745,6 +7814,165 @@ function renderOvPlan(d) {
   } else {
     $("paceNote").textContent = "Chưa giao kế hoạch cho " + d.period_label + " — admin giao kế hoạch trong module Quản lý dữ liệu đầu vào.";
   }
+}
+// Chuan hoa loai kenh o frontend (giong normLoaiKenh o worker): ve 1 trong
+// DUQ / DBL / GARA / DDV, khong nhan dien duoc thi "".
+function ovNormLoai(v) {
+  const s = String(v || "").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/Đ/g, "D");
+  if (["DUQ", "DBL", "GARA", "DDV"].includes(s)) return s;
+  if (s.includes("DDV") || s.includes("DA DICH VU")) return "DDV";
+  if (s.includes("DBL") || s.includes("BAN LE")) return "DBL";
+  if (s.includes("GARA")) return "GARA";
+  if (s.includes("DUQ") || s.includes("UY QUYEN")) return "DUQ";
+  return "";
+}
+// The "Danh gia nhanh" o Dashboard KBH (20/11/2026): nhan dinh den ngay hien
+// tai tren 6 chi tieu (san luong TB, doanh thu DUQ/DBL, quy mo + DUQ moi,
+// DUQ co PSSL, kenh co PSSL, cham soc DUQ) kem diem danh don vi tot/chua tot.
+// Giong mau renderMobEval ben Dashboard TTCSKH.
+function renderOvEval(d) {
+  const el = $("ovEval");
+  const k = d.kpi || {}, p = d.pssl || {}, u = d.duq || {}, dn = d.duq_new || {};
+  const now = new Date();
+  const curKey = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+  const isCurPeriod = d.ky === "nam" ? Number(d.nam) === now.getFullYear() : d.thang === curKey;
+  $("ovEvalPeriod").textContent = "— " + d.period_label + (isCurPeriod ? " · số liệu đến ngày " + now.getDate() + "/" + (now.getMonth() + 1) + "/" + now.getFullYear() : "");
+  const pct1 = (n) => Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%";
+  const deltaTxt = (pct) => pct == null ? "" : pct === 0 ? "không đổi" : (pct >= 0 ? "tăng " : "giảm ") + pct1(Math.abs(pct));
+  const planTxt = (tyle) => tyle == null ? "" : ", đạt <b>" + pct1(tyle) + "</b> kế hoạch";
+  const vsTxt = (c1, c2) => {
+    const l1 = String(d.cmp1_label || "").replace(/^vs\s+/, "");
+    const l2 = String(d.cmp2_label || "").replace(/^vs\s+/, "");
+    const parts = [];
+    if (c1 != null && l1) parts.push("so với " + l1 + " " + deltaTxt(c1));
+    if (c2 != null && l2) parts.push("so với " + l2 + " " + deltaTxt(c2));
+    if (!parts.length) return "";
+    const s = parts.join("; ");
+    return " " + s.charAt(0).toUpperCase() + s.slice(1) + ".";
+  };
+  const bestOf = (arr) => arr.reduce((a, b) => b.v > a.v ? b : a);
+  const worstOf = (arr) => arr.reduce((a, b) => b.v < a.v ? b : a);
+  const rankTxt = (arr, fmtV, label) => {
+    if (arr.length < 2) return "";
+    const best = bestOf(arr), worst = worstOf(arr);
+    let s = " " + label + ": <b>" + esc(best.name) + "</b> (" + fmtV(best.v) + ")";
+    if (worst.name !== best.name) s += "; thấp nhất: <b>" + esc(worst.name) + "</b> (" + fmtV(worst.v) + ")";
+    return s + ".";
+  };
+  const units = sortUnitsFixed(d.by_unit || [], (x) => x.name);
+  const posRows = d.by_pos || [];
+  const items = [];
+  // 1. San luong thue bao phat trien moi
+  if (d.has_subs_src !== false) {
+    let s = "Phát triển mới <b>" + fmtInt(k.subs) + " thuê bao</b>" + planTxt(k.tyle_subs) + ".";
+    s += vsTxt(k.subs_c1_pct, k.subs_c2_pct);
+    const withPlan = units.filter((x) => x.kh_subs > 0);
+    if (withPlan.length >= 2) s += rankTxt(withPlan.map((x) => ({ name: x.name, v: x.tyle_subs })), (v) => pct1(v) + " KH", "Hoàn thành KH tốt nhất");
+    else if (units.length >= 2) s += rankTxt(units.map((x) => ({ name: x.name, v: x.subs })), (v) => fmtInt(v) + " TB", "Phát triển nhiều nhất");
+    const zero = units.filter((x) => (x.subs || 0) === 0);
+    if (zero.length && units.length >= 2) s += " Các đơn vị chưa phát triển được thuê bao nào: <b>" + zero.map((x) => esc(x.name)).join(", ") + "</b>.";
+    items.push({ icon: "📱", title: "Sản lượng thuê bao phát triển mới", html: s });
+  }
+  // 2. Doanh thu ban goi qua kenh DUQ/DBL (tinh tu by_pos theo loai_kenh)
+  if (d.has_rev_src !== false) {
+    let revDD = 0, revDuqOnly = 0, revDblOnly = 0, revOther = 0, revUnc = 0;
+    const otherTypes = new Set();
+    const revByUnitDD = {};
+    posRows.forEach((r) => {
+      const t = ovNormLoai(r.loai_kenh);
+      const rv = r.revenue || 0;
+      if (t === "DUQ" || t === "DBL") {
+        revDD += rv;
+        if (t === "DUQ") revDuqOnly += rv; else revDblOnly += rv;
+        const un = r.don_vi_ten || "Chưa xác định";
+        revByUnitDD[un] = (revByUnitDD[un] || 0) + rv;
+      } else if (rv > 0) {
+        if (t) { revOther += rv; otherTypes.add(t); } else revUnc += rv;
+      }
+    });
+    let s = "Doanh thu bán gói <b>" + fmt(k.rev) + "</b>" + planTxt(k.tyle_rev) + ".";
+    s += vsTxt(k.rev_c1_pct, k.rev_c2_pct);
+    const share = (k.rev || 0) > 0 ? Math.round(revDD / k.rev * 1000) / 10 : null;
+    s += " Trong đó qua kênh ĐUQ/ĐBL: <b>" + fmt(revDD) + "</b>" + (share != null ? " (chiếm " + pct1(share) + " tổng doanh thu)" : "") + " — ĐUQ " + fmt(revDuqOnly) + ", ĐBL " + fmt(revDblOnly) + ".";
+    const revUnits = Object.entries(revByUnitDD).map(([name, v]) => ({ name, v })).filter((x) => x.v > 0);
+    if (revUnits.length >= 2) s += rankTxt(revUnits, (v) => fmt(v), "Doanh thu ĐUQ/ĐBL cao nhất");
+    if (revOther > 0) s += " <span class='muted'>Còn " + fmt(revOther) + " từ kênh khác (" + [...otherTypes].join(", ") + ").</span>";
+    if (revUnc > 0) s += " <span class='muted'>Còn " + fmt(revUnc) + " từ điểm bán chưa phân loại kênh.</span>";
+    items.push({ icon: "💰", title: "Doanh thu bán gói qua kênh ĐUQ/ĐBL", html: s });
+  }
+  // 3. Quy mo kenh DUQ + DUQ phat trien moi (theo ngay_khai_bao, bang kenh_ban)
+  {
+    let s = "Quy mô kênh ĐUQ hiện có <b>" + fmtInt(u.quy_mo) + " điểm</b>.";
+    if (dn.has_table && dn.count != null) {
+      s += " Trong " + d.period_label + ": phát triển mới <b>" + fmtInt(dn.count) + " điểm</b>";
+      if (dn.count_prev != null) s += " (kỳ trước: " + fmtInt(dn.count_prev) + " điểm)";
+      s += ".";
+      const nb = (dn.by_unit || []).filter((x) => x.count > 0);
+      if (nb.length) s += " Mở mới nhiều nhất: " + nb.slice(0, 3).map((x) => "<b>" + esc(x.ten) + "</b> (" + fmtInt(x.count) + " điểm)").join(", ") + ".";
+      else if (dn.count === 0) s += " Chưa có đơn vị nào mở mới ĐUQ trong kỳ.";
+    } else if (dn.has_table === false) {
+      s += " <span class='muted'>Chưa có bảng kênh bán " + d.period_label + " nên chưa đếm được số ĐUQ mở mới.</span>";
+    }
+    if ((dn.unreadable || 0) > 0) s += " <span class='muted'>(" + fmtInt(dn.unreadable) + " điểm ĐUQ chưa đọc được ngày khai báo.)</span>";
+    items.push({ icon: "🏬", title: "Quy mô kênh ĐUQ", html: s });
+  }
+  // 4. So luong va ty le DUQ co PSSL (ty le theo don vi tinh tu by_pos)
+  {
+    let s = "Có <b>" + fmtInt(u.pssl) + "/" + fmtInt(u.quy_mo) + " ĐUQ</b> phát sinh PSSL" + (u.ty_le != null ? ", tỷ lệ <b>" + pct1(u.ty_le) + "</b>" : "") + ".";
+    s += vsTxt(u.ty_le_c1_pct, u.ty_le_c2_pct);
+    const rest = (u.quy_mo || 0) - (u.pssl || 0);
+    if (rest > 0) s += " Còn <b>" + fmtInt(rest) + " ĐUQ</b> chưa phát sinh PSSL.";
+    const duqByUnit = {};
+    posRows.forEach((r) => {
+      if (ovNormLoai(r.loai_kenh) !== "DUQ") return;
+      const un = r.don_vi_ten || "Chưa xác định";
+      const m = duqByUnit[un] || (duqByUnit[un] = { name: un, total: 0, pssl: 0 });
+      m.total++; if (r.pssl) m.pssl++;
+    });
+    const duqRates = Object.values(duqByUnit).filter((x) => x.total > 0).map((x) => ({ name: x.name, v: Math.round(x.pssl / x.total * 1000) / 10, n: x.pssl }));
+    if (duqRates.length >= 2) s += rankTxt(duqRates, (v) => pct1(v), "Tỷ lệ ĐUQ có PSSL cao nhất");
+    const duqZero = duqRates.filter((x) => x.n === 0);
+    if (duqZero.length) s += " Các đơn vị chưa có ĐUQ nào phát sinh PSSL: <b>" + duqZero.map((x) => esc(x.name)).join(", ") + "</b>.";
+    items.push({ icon: "📊", title: "ĐUQ có PSSL", html: s });
+  }
+  // 5. So luong va ty le kenh diem ban co PSSL (vs KH, vs cung ky)
+  {
+    const totalPos = posRows.length;
+    const ratePos = totalPos > 0 ? Math.round((p.count || 0) / totalPos * 1000) / 10 : null;
+    let s = "Có <b>" + fmtInt(p.count) + "/" + fmtInt(totalPos) + " điểm bán</b> phát sinh PSSL" + (ratePos != null ? " (tỷ lệ <b>" + pct1(ratePos) + "</b>)" : "") + planTxt(p.ty_le) + ".";
+    s += vsTxt(p.c1_pct, p.c2_pct);
+    const posByUnit = {};
+    posRows.forEach((r) => { const k2 = normOrd(r.don_vi_ten || ""); posByUnit[k2] = (posByUnit[k2] || 0) + 1; });
+    const posRates = units.map((x) => {
+      const t = posByUnit[normOrd(x.name)] || 0;
+      return { name: x.name, v: t > 0 ? Math.round((x.pssl || 0) / t * 1000) / 10 : null };
+    }).filter((x) => x.v != null);
+    const withPlanP = units.filter((x) => x.kh_pssl > 0);
+    if (withPlanP.length >= 2) s += rankTxt(withPlanP.map((x) => ({ name: x.name, v: x.tyle_pssl })), (v) => pct1(v) + " KH", "Hoàn thành KH PSSL tốt nhất");
+    else if (posRates.length >= 2) s += rankTxt(posRates, (v) => pct1(v), "Tỷ lệ điểm bán có PSSL cao nhất");
+    items.push({ icon: "🏪", title: "Kênh điểm bán có PSSL", html: s });
+  }
+  // 6. Cong tac cham soc kenh DUQ cua cac don vi
+  const careRows = sortUnitsFixed((d.care && d.care.by_unit) || [], (r) => r.ten);
+  if (careRows.length) {
+    const totQ = careRows.reduce((a, r) => a + (r.quy_mo_duq || 0), 0);
+    const totC = careRows.reduce((a, r) => a + (r.duq_duoc_cs || 0), 0);
+    const totL = careRows.reduce((a, r) => a + (r.luot || 0), 0);
+    const totM = careRows.reduce((a, r) => a + (r.duq_mien_cs || 0), 0);
+    const careRate = totQ > 0 ? Math.round(totC / totQ * 1000) / 10 : null;
+    let s = "Đã chăm sóc <b>" + fmtInt(totC) + "/" + fmtInt(totQ) + " ĐUQ</b>" + (careRate != null ? " (tỷ lệ <b>" + pct1(careRate) + "</b>)" : "") + ", tổng <b>" + fmtInt(totL) + " lượt</b>.";
+    if (totM > 0) s += " (Trong đó " + fmtInt(totM) + " điểm miễn CS được tính như đã chăm sóc.)";
+    const rated = careRows.filter((r) => r.ty_le != null).map((r) => ({ name: r.ten, v: r.ty_le }));
+    if (rated.length >= 2) s += rankTxt(rated, (v) => pct1(v), "Chăm sóc tốt nhất");
+    const zeroCare = careRows.filter((r) => (r.duq_duoc_cs || 0) === 0 && (r.quy_mo_duq || 0) > 0);
+    if (zeroCare.length) s += " Các đơn vị chưa chăm sóc điểm ĐUQ nào: <b>" + zeroCare.map((r) => esc(r.ten)).join(", ") + "</b>.";
+    items.push({ icon: "💆", title: "Chăm sóc kênh ĐUQ", html: s });
+  }
+  if (!items.length) {
+    el.innerHTML = '<p class="muted">Chưa đủ số liệu để đánh giá.</p>';
+    return;
+  }
+  el.innerHTML = '<ul class="eval-list">' + items.map((it) => "<li><b>" + it.icon + " " + it.title + ":</b> " + it.html + "</li>").join("") + "</ul>";
 }
 const ovPctCell = (tyle, kh) => {
   if (tyle == null) return "<td>—</td>";
