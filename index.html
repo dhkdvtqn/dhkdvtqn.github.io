@@ -1328,6 +1328,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
               <div class="kpi-label">🏬 Quy mô kênh ĐUQ</div>
               <b id="ovDuqScale">—</b>
               <div class="kpi-deltas"><span class="delta flat" id="ovDuqScaleSub">điểm bán ủy quyền</span></div>
+              <div class="kpi-deltas" style="margin-top:6px"><span class="delta flat" id="ovDuqNew">ĐUQ PTM: —</span></div>
             </div>
             <div class="ov-kpi" id="kpiDuqRate" style="--kc:#ec4899">
               <div class="kpi-label">📊 Tỷ lệ ĐUQ có PSSL</div>
@@ -7798,6 +7799,17 @@ function renderOvKpis(d) {
   $("ovPlanPct").textContent = p.ty_le == null ? "—" : fmtPct2(p.ty_le);
   $("ovPlanSub").textContent = p.ke_hoach > 0 ? fmtInt(p.count) + "/" + fmtInt(p.ke_hoach) + " kênh · lũy kế" : "chưa giao kế hoạch kỳ này";
   $("ovDuqScale").textContent = fmtInt(u.quy_mo) + " điểm";
+  const dnEl = $("ovDuqNew"), duqNew = d.duq_new;
+  if (!duqNew || !duqNew.has_table || duqNew.count == null) {
+    dnEl.className = "delta flat";
+    dnEl.textContent = "ĐUQ PTM: —";
+    dnEl.title = duqNew && !duqNew.has_table ? "Chưa có bảng kênh bán trong kỳ" : "";
+  } else {
+    const lbl = d.ky === "nam" ? "năm nay" : "tháng này";
+    dnEl.className = "delta " + (duqNew.count > 0 ? "up" : "flat");
+    dnEl.textContent = "ĐUQ PTM: " + fmtInt(duqNew.count) + " điểm";
+    dnEl.title = "ĐUQ phát triển mới " + lbl + (duqNew.count_prev != null ? " · kỳ trước: " + fmtInt(duqNew.count_prev) + " điểm" : "");
+  }
   $("ovDuqRate").textContent = u.ty_le == null ? "—" : u.ty_le.toLocaleString("vi-VN") + "%";
   setDelta("ovDuqRateC1", u.ty_le_c1_pct, d.cmp1_label);
   $("ovDuqRateSub").textContent = fmtInt(u.pssl) + "/" + fmtInt(u.quy_mo) + " ĐUQ có PSSL";
