@@ -195,7 +195,7 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -> giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = ["dashboard", "salesdash", "mobiledash", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care", "channelmap", "staff", "policy"];
+const MODULE_KEYS = ["dashboard", "salesdash", "mobiledash", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care", "channelmap", "staff", "policy", "gsheet"];
 
 // Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
 // (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
@@ -840,6 +840,175 @@ async function ensureCareTables(env) {
   const names = new Set((cols.results || []).map((c) => c.name));
   if (!names.has("y_kien")) await env.DB.prepare("ALTER TABLE cham_soc ADD COLUMN y_kien TEXT").run();
 }
+
+// ---- Dong bo du lieu tu Google Sheet (module 5.10) ----
+// Bang cau hinh dong bo: 1 dong / 1 mon du lieu (SMCS, TNTTTB + 9 loai
+// TTCSKH). Moi mon luu link sheet cong khai + vung lay du lieu + map cot.
+async function ensureGsheetConfig(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS gsheet_sync_config (data_key TEXT PRIMARY KEY, sheet_url TEXT, gid TEXT, start_col TEXT, start_row INTEGER, end_col TEXT, end_row INTEGER, col_map TEXT, updated_at TEXT, last_sync_at TEXT, last_sync_rows INTEGER, last_sync_status TEXT, last_sync_msg TEXT)"
+  ).run();
+}
+
+// Tach ID + gid tu link Google Sheet (gid o fragment #gid=... hoac query
+// ?gid=...; mac dinh gid=0 la tab dau tien).
+function parseSheetLink(url) {
+  const m = String(url || "").match(/\/d\/([A-Za-z0-9_-]+)/);
+  if (!m) throw new Error("Link Google Sheet khong hop le — khong tim thay ID bang tinh trong link. Hay dan dung link chia se cua Google Sheet.");
+  let gid = "0";
+  const frag = String(url).match(/[#?&]gid=(\d+)/);
+  if (frag) gid = frag[1];
+  return { id: m[1], gid };
+}
+
+// Chuyen tham chieu cot ve chi so 0-based: "A" -> 0, "Z" -> 25, "AA" -> 26;
+// so "1" -> 0 (1-based). Tra null khi rong/khong hop le.
+function colRefToIndex(ref) {
+  const s = String(ref == null ? "" : ref).trim().toUpperCase();
+  if (!s) return null;
+  if (/^[A-Z]+$/.test(s)) {
+    let n = 0;
+    for (const ch of s) n = n * 26 + (ch.charCodeAt(0) - 64);
+    return n - 1;
+  }
+  if (/^\d+$/.test(s)) {
+    const n = parseInt(s, 10);
+    return n >= 1 ? n - 1 : null;
+  }
+  return null;
+}
+
+// Parser CSV: xu ly field trong dau ngoac kep, "" thoat, phay/xuong dong trong
+// ngoac kep, CRLF, BOM dau file. Tra mang cac dong (moi dong la mang chuoi).
+function parseGsheetCsv(text) {
+  let s = String(text || "");
+  if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
+  const rows = [];
+  let row = [], field = "", inQ = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inQ) {
+      if (c === '"') {
+        if (s[i + 1] === '"') { field += '"'; i++; }
+        else inQ = false;
+      } else field += c;
+    } else if (c === '"') {
+      if (field === "") inQ = true; else field += c;
+    } else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\r") { /* bo qua, \n sau se ket thuc dong */ }
+    else if (c === "\n") { row.push(field); field = ""; rows.push(row); row = []; }
+    else field += c;
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+// Chuan hoa tieu de cot de tu map: bo dau, viet thuong, bo ky tu khac chu/so.
+function normGsheetHeader(s) {
+  return String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+// Goi y map cot: tieu de sheet (da chuan hoa) khop voi ten cot DB hoac nhan
+// cot. Tra { "0": "so_thue_bao", ... } — key la index cot trong vung (0-based).
+function suggestGsheetMap(headers, columns) {
+  const byKey = new Map(), byLabel = new Map();
+  for (const [key, , label] of columns) {
+    const nk = normGsheetHeader(key);
+    if (!byKey.has(nk)) byKey.set(nk, key);
+    const nl = normGsheetHeader(label);
+    if (nl && !byLabel.has(nl)) byLabel.set(nl, key);
+  }
+  const used = new Set(), map = {};
+  headers.forEach((h, i) => {
+    const nh = normGsheetHeader(h);
+    if (!nh) return;
+    const hit = byKey.get(nh) || byLabel.get(nh);
+    if (hit && !used.has(hit)) { used.add(hit); map[String(i)] = hit; }
+  });
+  return map;
+}
+
+// Kiem tra dinh dang vung lay du lieu (khong can biet kich thuoc sheet):
+// tra cac chi so 0-based (null = lay tu dau/den het). Nem loi khi sai.
+function parseGsheetRange(cfg) {
+  const sc = colRefToIndex(cfg.start_col);
+  const ec = colRefToIndex(cfg.end_col);
+  const hasSr = cfg.start_row != null && cfg.start_row !== "";
+  const hasEr = cfg.end_row != null && cfg.end_row !== "";
+  const sr = hasSr ? Number(cfg.start_row) - 1 : null;
+  const er = hasEr ? Number(cfg.end_row) - 1 : null;
+  if (cfg.start_col != null && cfg.start_col !== "" && sc === null) throw new Error("Cot bat dau khong hop le (nhap chu cot VD: A, hoac so VD: 1)");
+  if (cfg.end_col != null && cfg.end_col !== "" && ec === null) throw new Error("Cot ket thuc khong hop le (nhap chu cot VD: Z, hoac so VD: 26)");
+  if (hasSr && (!Number.isInteger(Number(cfg.start_row)) || sr < 0)) throw new Error("Dong bat dau khong hop le (phai la so nguyen >= 1)");
+  if (hasEr && (!Number.isInteger(Number(cfg.end_row)) || er < 0)) throw new Error("Dong ket thuc khong hop le (phai la so nguyen >= 1)");
+  if (sr != null && er != null && sr > er) throw new Error("Dong bat dau lon hon dong ket thuc");
+  if (sc != null && ec != null && sc > ec) throw new Error("Cot bat dau lon hon cot ket thuc");
+  return { sc, sr, ec, er };
+}
+
+// Ap vung lay du lieu len luoi CSV: dong dau cua vung la tieu de.
+// Tra {headers, rows, totalRows, totalCols}. End vuot qua sheet thi kep lai.
+function applyGsheetRange(grid, cfg) {
+  const totalRows = grid.length;
+  const totalCols = grid.reduce((m, r) => Math.max(m, r.length), 0);
+  if (totalRows === 0) throw new Error("Sheet khong co du lieu");
+  const { sc, sr, ec, er } = parseGsheetRange(cfg);
+  const c0 = sc == null ? 0 : sc;
+  const c1 = ec == null ? totalCols - 1 : Math.min(ec, totalCols - 1);
+  const r0 = sr == null ? 0 : sr;
+  const r1 = er == null ? totalRows - 1 : Math.min(er, totalRows - 1);
+  if (r0 >= totalRows) throw new Error("Dong bat dau (" + (r0 + 1) + ") vuot qua so dong cua sheet (" + totalRows + " dong)");
+  if (c0 >= totalCols) throw new Error("Cot bat dau vuot qua so cot cua sheet (" + totalCols + " cot)");
+  if (r0 > r1) throw new Error("Dong bat dau lon hon dong ket thuc (sau khi kep theo kich thuoc sheet)");
+  if (c0 > c1) throw new Error("Cot bat dau lon hon cot ket thuc (sau khi kep theo kich thuoc sheet)");
+  const slice = (r) => {
+    const out = [];
+    for (let c = c0; c <= c1; c++) out.push(r[c] == null ? "" : String(r[c]));
+    return out;
+  };
+  const headers = slice(grid[r0]);
+  const rows = [];
+  for (let r = r0 + 1; r <= r1; r++) rows.push(slice(grid[r]));
+  return { headers, rows, totalRows: rows.length, totalCols: c1 - c0 + 1 };
+}
+
+// Tai sheet cong khai ve dang luoi: thu export CSV truoc, neu that bai thi
+// fallback gviz JSON (khong can Publish to web, chi can link cong khai).
+// Loi tra ve thong bao ro rang cho admin kiem tra quyen chia se.
+async function fetchSheetGrid(sheetUrl, gidOverride) {
+  const { id, gid } = parseSheetLink(sheetUrl);
+  const g = gidOverride != null && String(gidOverride) !== "" ? String(gidOverride) : gid;
+  const csvUrl = "https://docs.google.com/spreadsheets/d/" + id + "/export?format=csv&gid=" + encodeURIComponent(g);
+  let csvErr = null;
+  try {
+    const res = await fetch(csvUrl, { redirect: "follow" });
+    const text = await res.text();
+    if (res.ok && text && !text.trimStart().startsWith("<")) return parseGsheetCsv(text);
+    csvErr = "HTTP " + res.status;
+  } catch (e) { csvErr = e && e.message ? e.message : String(e); }
+  try {
+    const res = await fetch("https://docs.google.com/spreadsheets/d/" + id + "/gviz/tq?tqx=out:json&gid=" + encodeURIComponent(g), { redirect: "follow" });
+    const text = await res.text();
+    const m = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)\s*;?\s*$/);
+    if (res.ok && m) {
+      const j = JSON.parse(m[1]);
+      if (j && j.status === "ok" && j.table && Array.isArray(j.table.rows)) {
+        const ncols = (j.table.cols || []).length;
+        return j.table.rows.map((r) => {
+          const cells = (r && r.c) || [];
+          const out = [];
+          for (let i = 0; i < ncols; i++) {
+            const cell = cells[i];
+            out.push(cell == null ? "" : (cell.v != null ? String(cell.v) : (cell.f != null ? String(cell.f) : "")));
+          }
+          return out;
+        });
+      }
+    }
+  } catch (e2) { /* roi xuong loi chung ben duoi */ }
+  throw new Error("Khong tai duoc Google Sheet (" + (csvErr || "khong ro nguyen nhan") + "). Hay kiem tra: link dung va sheet da chia se o che do 'Bat ky ai co duong lien ket deu co the xem'.");
+}
+
 async function uploadPackageImage(env, pkgId, file) {
   if (!env.ANH) throw new Error("Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker). Xem huong dan cau hinh R2 trong module Danh muc goi cuoc.");
   const mime = file.type || "";
@@ -1844,6 +2013,209 @@ export default {
         }
         return json({ ok: true, table, type: dtype.code, inserted, mode, mapped_cols: mappedCols, total_cols: colNames.length, skipped_headers: skippedHeaders.slice(0, 10) });
       }
+
+      // ---- Dong bo du lieu tu Google Sheet (module 5.10) ----
+      // 11 mon: SMCS + TNTTTB (cot lay tu loai_du_lieu, muc 5.6) + 9 loai
+      // TTCSKH (cot co dinh nhu module 5.9). Chi dong bo vao bang cua THANG
+      // HIEN TAI, che do thay the toan bo; bang chua co thi tu tao moi.
+      const GSHEET_ITEMS = [
+        { key: "SMCS", name: "Dữ liệu đầu vào bảng SMCS", kind: "datatype" },
+        { key: "TNTTTB", name: "Dữ liệu đầu vào bảng TNTTTB", kind: "datatype" },
+        { key: "OBCKN", name: "Dữ liệu đầu vào bảng chi tiết OBCKN", kind: "ttcskh" },
+        { key: "OBCKD", name: "Dữ liệu đầu vào bảng chi tiết OBCKD", kind: "ttcskh" },
+        { key: "OBBG", name: "Dữ liệu đầu vào bảng chi tiết OBBG", kind: "ttcskh" },
+        { key: "OBHVC", name: "Dữ liệu đầu vào bảng chi tiết OBHVC", kind: "ttcskh" },
+        { key: "THCKN", name: "Dữ liệu đầu vào bảng THCKN", kind: "ttcskh" },
+        { key: "THCKD", name: "Dữ liệu đầu vào bảng THCKD", kind: "ttcskh" },
+        { key: "THBG", name: "Dữ liệu đầu vào bảng THBG", kind: "ttcskh" },
+        { key: "THHVC", name: "Dữ liệu đầu vào bảng THHVC", kind: "ttcskh" },
+        { key: "IPCC", name: "Dữ liệu đầu vào bảng IPCC", kind: "ttcskh" },
+      ];
+      // Cot dich + ten bang thang hien tai cua 1 mon. Tra {error} neu loai
+      // SMCS/TNTTTB chua duoc cau hinh o muc 5.6.
+      const gsheetTarget = async (env, key) => {
+        const item = GSHEET_ITEMS.find((x) => x.key === key);
+        if (!item) return { error: "Mon dong bo khong ton tai: " + key };
+        const month = saigonNow().slice(0, 7);
+        if (item.kind === "ttcskh") {
+          const t = TTCSKH_TYPES.find((x) => x.code === key);
+          return { item, month, prefix: t.prefix, name: t.name, table: monthTableName(t.prefix, month), columns: t.columns.map(([k, ty, lb]) => ({ key: k, type: ty, label: lb })) };
+        }
+        const types = await getDataTypes(env);
+        const dt = types.find((t) => t.code === key);
+        if (!dt) return { item, month, error: "Chua cau hinh loai du lieu " + key + " o muc 5.6 (Quan ly loai du lieu). Hay tao loai du lieu nay truoc roi quay lai day." };
+        return { item, month, prefix: dt.prefix, name: dt.name, table: monthTableName(dt.prefix, month), columns: (dt.columns || []).map((c) => ({ key: c.key, type: c.type === "money" || c.type === "number" ? "REAL" : "TEXT", label: c.label })) };
+      };
+      // Doc cau hinh da luu cua 1 mon (null neu chua cau hinh).
+      const gsheetReadConfig = async (env, key) => {
+        await ensureGsheetConfig(env);
+        const r = await env.DB.prepare("SELECT * FROM gsheet_sync_config WHERE data_key = ?").bind(key).first();
+        if (!r) return null;
+        let colMap = null;
+        try { colMap = r.col_map ? JSON.parse(r.col_map) : null; } catch (e) { colMap = null; }
+        return { key: r.data_key, sheet_url: r.sheet_url || "", gid: r.gid || "0", start_col: r.start_col || "", start_row: r.start_row, end_col: r.end_col || "", end_row: r.end_row, col_map: colMap, updated_at: r.updated_at, last_sync_at: r.last_sync_at, last_sync_rows: r.last_sync_rows, last_sync_status: r.last_sync_status, last_sync_msg: r.last_sync_msg };
+      };
+      const gsheetWriteSyncStatus = async (env, key, status, rows, msg) => {
+        await env.DB.prepare("UPDATE gsheet_sync_config SET last_sync_at = ?, last_sync_rows = ?, last_sync_status = ?, last_sync_msg = ? WHERE data_key = ?").bind(saigonNow(), rows, status, msg || "", key).run();
+      };
+      const gsheetErr = (message, status) => Object.assign(new Error(message), { status });
+      // Dong bo 1 mon: tai sheet -> ap vung/map -> thay the bang thang hien tai.
+      const gsheetSyncOne = async (env, meUser, key) => {
+        const target = await gsheetTarget(env, key);
+        if (target.error) throw gsheetErr(target.error, 422);
+        const cfg = await gsheetReadConfig(env, key);
+        if (!cfg || !cfg.sheet_url) throw gsheetErr("Mon " + key + " chua cau hinh link Google Sheet. Hay nhap link, xem truoc va luu cau hinh truoc.", 422);
+        let grid;
+        try { grid = await fetchSheetGrid(cfg.sheet_url, cfg.gid); }
+        catch (e) { throw gsheetErr(e.message, 422); }
+        let ranged;
+        try { ranged = applyGsheetRange(grid, cfg); }
+        catch (e) { throw gsheetErr(e.message, 422); }
+        const columns = target.columns.map((c) => [c.key, c.type]);
+        const colNames = columns.map(([n]) => n);
+        const map = (cfg.col_map && typeof cfg.col_map === "object" && Object.keys(cfg.col_map).length)
+          ? cfg.col_map
+          : suggestGsheetMap(ranged.headers, target.columns.map((c) => [c.key, c.type, c.label]));
+        // Chuyen dong sheet -> dong DB theo map (cot khong map thi bo qua,
+        // cot DB khong map thi de trong); dong rong hoan toan thi bo.
+        const dbRows = [];
+        for (const r of ranged.rows) {
+          const obj = {};
+          let any = false;
+          for (const idx in map) {
+            const dbCol = map[idx];
+            if (!colNames.includes(dbCol)) continue;
+            const v = r[Number(idx)];
+            if (v !== undefined && v !== null && String(v).trim() !== "") { obj[dbCol] = v; any = true; }
+          }
+          if (any) dbRows.push(obj);
+        }
+        if (!dbRows.length) throw gsheetErr("Sheet khong co dong du lieu nao sau khi ap vung va map cot (tieu de: " + ranged.headers.filter((h) => String(h).trim() !== "").join(", ") + ").", 422);
+        if (!isAdmin) {
+          const locked = await isTableLocked(env, target.table);
+          if (locked) throw gsheetErr("Bang " + target.table + " dang bi khoa thay the. Chi admin moi duoc dong bo thay the bang nay. Lien he admin de mo khoa neu can.", 403);
+        }
+        await env.DB.prepare('DROP TABLE IF EXISTS "' + target.table + '"').run();
+        await env.DB.prepare(createTableSQL(target.table, columns)).run();
+        await ensureListColumns(env, target.table, columns);
+        const numericCols = new Set(columns.filter(([, t]) => t === "REAL").map(([n]) => n));
+        const toNum = target.item.kind === "ttcskh" ? toNumberTtcskh : toNumber;
+        const sql =
+          'INSERT INTO "' + target.table + '" (' + colNames.map((n) => '"' + n + '"').join(", ") +
+          ", imported_by) VALUES (" + colNames.map(() => "?").join(", ") + ", ?)";
+        let inserted = 0;
+        const CHUNK = 100;
+        for (let i = 0; i < dbRows.length; i += CHUNK) {
+          const batch = dbRows.slice(i, i + CHUNK).map((row) => {
+            const vals = colNames.map((n) => {
+              const v = row[n];
+              return numericCols.has(n) ? toNum(v) : toText(v);
+            });
+            vals.push(meUser.username);
+            return env.DB.prepare(sql).bind(...vals);
+          });
+          await env.DB.batch(batch);
+          inserted += batch.length;
+        }
+        await gsheetWriteSyncStatus(env, key, "ok", inserted, "Dong bo thanh cong " + inserted + " dong vao " + target.table);
+        return { key, table: target.table, inserted };
+      };
+      if (path === "/api/gsheet/config" && method === "GET") {
+        if (!isAdminLike) return err("Chi admin/subadmin moi duoc su dung module Dong bo Google Sheet", 403);
+        await ensureGsheetConfig(env);
+        const month = saigonNow().slice(0, 7);
+        const items = [];
+        for (const it of GSHEET_ITEMS) {
+          const target = await gsheetTarget(env, it.key);
+          const cfg = await gsheetReadConfig(env, it.key);
+          let table = null, exists = false, rows = 0;
+          if (!target.error) {
+            table = target.table;
+            const ex = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").bind(table).first();
+            exists = !!ex;
+            if (exists) {
+              const c = await env.DB.prepare('SELECT COUNT(*) AS n FROM "' + table + '"').first();
+              rows = c ? c.n : 0;
+            }
+          }
+          items.push({ key: it.key, name: it.name, kind: it.kind, error: target.error || null, columns: target.error ? [] : target.columns, table, exists, rows, config: cfg });
+        }
+        return json({ ok: true, month, items });
+      }
+      if (path === "/api/gsheet/config" && method === "POST") {
+        if (!isAdminLike) return err("Chi admin/subadmin moi duoc su dung module Dong bo Google Sheet", 403);
+        const b = await readBody(request);
+        const key = String(b.key || "").toUpperCase();
+        if (!GSHEET_ITEMS.some((x) => x.key === key)) return err("Mon dong bo khong ton tai: " + (b.key || ""), 422);
+        const sheetUrl = toText(b.sheet_url);
+        if (!sheetUrl) return err("Chua nhap link Google Sheet", 422);
+        let parsed;
+        try { parsed = parseSheetLink(sheetUrl); } catch (e) { return err(e.message, 422); }
+        try { parseGsheetRange(b); } catch (e) { return err(e.message, 422); }
+        const gid = toText(b.gid) || parsed.gid;
+        const target = await gsheetTarget(env, key);
+        let colMap = null;
+        if (b.col_map && typeof b.col_map === "object") {
+          const known = target.error ? null : new Set(target.columns.map((c) => c.key));
+          colMap = {};
+          for (const idx in b.col_map) {
+            const v = String(b.col_map[idx] || "");
+            if (!/^\d+$/.test(String(idx)) || !v) continue;
+            if (known && !known.has(v)) continue;
+            colMap[idx] = v;
+          }
+        }
+        await ensureGsheetConfig(env);
+        await env.DB.prepare(
+          "INSERT INTO gsheet_sync_config (data_key, sheet_url, gid, start_col, start_row, end_col, end_row, col_map, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(data_key) DO UPDATE SET sheet_url = excluded.sheet_url, gid = excluded.gid, start_col = excluded.start_col, start_row = excluded.start_row, end_col = excluded.end_col, end_row = excluded.end_row, col_map = excluded.col_map, updated_at = excluded.updated_at"
+        )
+          .bind(key, sheetUrl, gid, toText(b.start_col) || null, b.start_row === "" || b.start_row == null ? null : Number(b.start_row), toText(b.end_col) || null, b.end_row === "" || b.end_row == null ? null : Number(b.end_row), colMap ? JSON.stringify(colMap) : null, saigonNow())
+          .run();
+        return json({ ok: true, key });
+      }
+      if (path === "/api/gsheet/preview" && method === "POST") {
+        if (!isAdminLike) return err("Chi admin/subadmin moi duoc su dung module Dong bo Google Sheet", 403);
+        const b = await readBody(request);
+        const key = String(b.key || "").toUpperCase();
+        const target = await gsheetTarget(env, key);
+        if (target.error) return err(target.error, 422);
+        const sheetUrl = toText(b.sheet_url);
+        if (!sheetUrl) return err("Chua nhap link Google Sheet", 422);
+        try {
+          const grid = await fetchSheetGrid(sheetUrl, toText(b.gid));
+          const ranged = applyGsheetRange(grid, b);
+          return json({ ok: true, key, headers: ranged.headers, sample: ranged.rows.slice(0, 10), total_rows: ranged.totalRows, total_cols: ranged.totalCols, suggested_map: suggestGsheetMap(ranged.headers, target.columns.map((c) => [c.key, c.type, c.label])), columns: target.columns });
+        } catch (e) { return err(e.message, 422); }
+      }
+      if (path === "/api/gsheet/sync" && method === "POST") {
+        if (!isAdminLike) return err("Chi admin/subadmin moi duoc su dung module Dong bo Google Sheet", 403);
+        const b = await readBody(request);
+        const key = String(b.key || "").toUpperCase();
+        try {
+          const r = await gsheetSyncOne(env, me, key);
+          return json({ ok: true, ...r });
+        } catch (e) {
+          try { await gsheetWriteSyncStatus(env, key, "error", null, e.message); } catch (e2) { /* bo qua */ }
+          return err(e.message, e.status || 500);
+        }
+      }
+      if (path === "/api/gsheet/sync-all" && method === "POST") {
+        if (!isAdminLike) return err("Chi admin/subadmin moi duoc su dung module Dong bo Google Sheet", 403);
+        const results = [];
+        for (const it of GSHEET_ITEMS) {
+          const cfg = await gsheetReadConfig(env, it.key);
+          if (!cfg || !cfg.sheet_url) { results.push({ key: it.key, ok: false, skipped: true, error: "Chua cau hinh" }); continue; }
+          try {
+            const r = await gsheetSyncOne(env, me, it.key);
+            results.push({ key: it.key, ok: true, table: r.table, inserted: r.inserted });
+          } catch (e) {
+            try { await gsheetWriteSyncStatus(env, it.key, "error", null, e.message); } catch (e2) { /* bo qua */ }
+            results.push({ key: it.key, ok: false, error: e.message });
+          }
+        }
+        return json({ ok: true, results });
+      }
+
 // ---- Dinh nghia loai kenh ban (module 5.7 "Cau hinh loai kenh ban") ----
 // Admin dinh nghia: Loai diem ban (nhu trong file danh sach kenh) -> Hang kenh
 // (VD: ĐUQ, ĐBL, Chuoi, ĐGD, GARA, ĐDV). He thong tra bang nay khi import
