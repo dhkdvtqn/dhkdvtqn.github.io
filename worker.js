@@ -2167,7 +2167,7 @@ export default {
         }
         await ensureGsheetConfig(env);
         await env.DB.prepare(
-          "INSERT INTO gsheet_sync_config (data_key, sheet_url, gid, start_col, start_row, end_col, end_row, col_map, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(data_key) DO UPDATE SET sheet_url = excluded.sheet_url, gid = excluded.gid, start_col = excluded.start_col, start_row = excluded.start_row, end_col = excluded.end_col, end_row = excluded.end_row, col_map = excluded.col_map, updated_at = excluded.updated_at"
+          "INSERT INTO gsheet_sync_config (data_key, sheet_url, gid, start_col, start_row, end_col, end_row, col_map, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(data_key) DO UPDATE SET sheet_url = excluded.sheet_url, gid = excluded.gid, start_col = excluded.start_col, start_row = excluded.start_row, end_col = excluded.end_col, end_row = excluded.end_row, col_map = COALESCE(excluded.col_map, gsheet_sync_config.col_map), updated_at = excluded.updated_at"
         )
           .bind(key, sheetUrl, gid, toText(b.start_col) || null, b.start_row === "" || b.start_row == null ? null : Number(b.start_row), toText(b.end_col) || null, b.end_row === "" || b.end_row == null ? null : Number(b.end_row), colMap ? JSON.stringify(colMap) : null, saigonNow())
           .run();
