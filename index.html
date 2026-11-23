@@ -7406,7 +7406,7 @@ function openPanel(panelId, btn) {
   fillBanner();
   syncMobileNav(panelId);
   if (panelId === "panel-dashboard") { loadDataTypes(); loadDashboard(); }
-  if (panelId === "panel-salesdash") { initSalesDash(); }
+  if (panelId === "panel-salesdash") { initSalesDash(); loadSalesOverview(); }
   if (panelId === "panel-mobile") { initMobileDash(); }
   if (panelId === "panel-loginstats") loadLoginStats();
   if (panelId === "panel-packages") { $("pkgAdminBox").classList.toggle("hidden", !(me && (me.role === "admin" || me.role === "subadmin"))); loadPackages(); }
@@ -7921,9 +7921,14 @@ document.addEventListener("change", (e) => {
 });
 
 function initSalesDash() {
+  // Mo Dashboard KBH luon ve thang hien tai (ky thang + thang/nam hien tai),
+  // roi openPanel goi loadSalesOverview() nap so lieu ngay, khong can bam Xem tong hop.
   const now = new Date(); const p2 = (x) => String(x).padStart(2, "0");
-  if (!$("salesMonth").value) $("salesMonth").value = now.getFullYear() + "-" + p2(now.getMonth() + 1);
-  if (!$("salesYear").value) $("salesYear").value = now.getFullYear();
+  $("salesKy").value = "thang";
+  $("salesMonthWrap").classList.remove("hidden");
+  $("salesYearWrap").classList.add("hidden");
+  $("salesMonth").value = now.getFullYear() + "-" + p2(now.getMonth() + 1);
+  $("salesYear").value = now.getFullYear();
 }
 /* ---------------- Dashboard ban hang kieu dieu hanh ---------------- */
 let ovData = null;
