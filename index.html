@@ -8416,19 +8416,35 @@ function renderOvUnit(d, showRev) {
   const cols = 3 + 2 + (showRev ? 2 : 0) + 3;
   const deltaHead = d.ky === "nam" ? "Tăng/giảm năm trước" : "Tăng/giảm T-1";
   $("ovUnitHead").innerHTML = "<tr><th>Đơn vị</th><th>Thuê bao</th><th>" + deltaHead + "</th>" +
-    (showRev ? "<th>Doanh thu</th><th>" + deltaHead + "</th>" : "") + "<th>Kênh PSSL</th><th>% KH PSSL</th><th>% KH TB</th><th>% KH DT</th></tr>";
+    (showRev ? "<th>Doanh thu</th><th>" + deltaHead + "</th>" : "") + "<th>Kênh PSSL</th><th>% KH PSSL</th><th>ĐUQ có PSSL</th><th>% KH TB</th><th>% KH DT</th></tr>";
   const allRows = d.by_unit || [];
   let tS = 0, tR = 0, tKP = 0, tKS = 0, tKR = 0;
   allRows.forEach((u) => { tS += u.subs || 0; tR += u.revenue || 0; tKP += u.kh_pssl || 0; tKS += u.kh_subs || 0; tKR += u.kh_rev || 0; });
   const footPct = (actual, kh) => kh > 0 ? fmtPct2(actual / kh * 100) : "—";
+  // DUQ co PSSL theo don vi: dem tu by_pos (giong muc 4 the Danh gia nhanh),
+  // khop ten don vi qua normOrd vi by_unit/by_pos lay ten tu 2 nguon khac nhau.
+  const duqByUnit = {};
+  (d.by_pos || []).forEach((r) => {
+    if (ovNormLoai(r.loai_kenh) !== "DUQ") return;
+    const k2 = normOrd(r.don_vi_ten || "");
+    const m = duqByUnit[k2] || (duqByUnit[k2] = { total: 0, pssl: 0 });
+    m.total++; if (r.pssl) m.pssl++;
+  });
+  const duqCell = (dq, boldAll) => {
+    if (!dq || dq.total <= 0) return "<td>—</td>";
+    const rate = Math.round(dq.pssl / dq.total * 1000) / 10;
+    const pct = rate.toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%";
+    const frac = fmtInt(dq.pssl) + "/" + fmtInt(dq.total);
+    return "<td>" + (boldAll ? "<b>" + frac + " (" + pct + ")</b>" : "<b>" + frac + "</b> (" + pct + ")") + "</td>";
+  };
   const rows = sortUnitsFixed(allRows, (u) => u.name);
   $("ovUnitBody").innerHTML = rows.length ? rows.map((u) => {
     return "<tr><td>" + esc(u.name) + "</td><td>" + fmtInt(u.subs) + "</td>" + ovCellDelta(u.subs_c1_pct, deltaTipSubs(d, u.subs_c1)) +
       (showRev ? "<td>" + fmt(u.revenue) + "</td>" + ovCellDelta(u.rev_c1_pct, deltaTipRev(d, u.rev_c1)) : "") +
-      "<td>" + fmtInt(u.pssl) + "</td>" + ovPctCell(u.tyle_pssl, u.kh_pssl) + ovPctCell(u.tyle_subs, u.kh_subs) + ovPctCell(u.tyle_rev, u.kh_rev) + "</tr>";
+      "<td>" + fmtInt(u.pssl) + "</td>" + ovPctCell(u.tyle_pssl, u.kh_pssl) + duqCell(duqByUnit[normOrd(u.name)]) + ovPctCell(u.tyle_subs, u.kh_subs) + ovPctCell(u.tyle_rev, u.kh_rev) + "</tr>";
   }).join("") + "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + fmtInt(tS) + "</b></td><td></td>" +
     (showRev ? "<td><b>" + fmt(tR) + "</b></td><td></td>" : "") +
-    "<td><b>" + fmtInt(d.pssl.count) + "</b></td><td><b>" + footPct(d.pssl.count, tKP) + "</b></td><td><b>" + footPct(tS, tKS) + "</b></td><td><b>" + footPct(tR, tKR) + "</b></td></tr>"
+    "<td><b>" + fmtInt(d.pssl.count) + "</b></td><td><b>" + footPct(d.pssl.count, tKP) + "</b></td>" + duqCell({ total: (d.duq || {}).quy_mo || 0, pssl: (d.duq || {}).pssl || 0 }, true) + "<td><b>" + footPct(tS, tKS) + "</b></td><td><b>" + footPct(tR, tKR) + "</b></td></tr>"
     : "<tr><td colspan='" + cols + "'>Không có số liệu trong " + d.period_label + ".</td></tr>";
   bindCellTips($("ovUnitBody"));
 }
