@@ -580,6 +580,8 @@
 #appRoot .chart-tip b {color:#fff}
 #appRoot svg.chart .cbar {cursor:pointer;transition:transform .15s ease,fill .15s ease}
 #appRoot svg.chart .cbar:hover {transform:translateY(-4px)}
+#appRoot svg.chart .pie-top {cursor:pointer;transition:opacity .15s ease}
+#appRoot svg.chart .pie-top:hover {opacity:.85}
 #appRoot svg.chart .cb-sub {fill:#2f7cf6}
 #appRoot svg.chart .cb-sub:hover {fill:#1d4ed8}
 #appRoot svg.chart .cb-pssl {fill:#14b8a6}
@@ -10016,31 +10018,105 @@ function mobRevChart(el, trend) {
   bindChartTips(el, tip, items);
 }
 // Bieu do thanh ngang co cau doanh thu theo chuong trinh (SVG vector, hover callout doanh thu + ty trong %)
+// Bieu do Pie 3D: co cau doanh thu theo chuong trinh — hieu ung quet tu 0% den 100%
 function mobShareChart(el, progs) {
   const total = progs.reduce((a, p) => a + (p.revenue || 0), 0);
-  const W = 660, H = 300, P = { l: 64, r: 110, t: 18, b: 20 };
+  if (el._pieRaf) { cancelAnimationFrame(el._pieRaf); el._pieRaf = null; }
   const rows = MOB_PROGS.map((mp) => { const p = progs.find((x) => x.code === mp.code) || { revenue: 0, subs: 0 }; return { ...mp, revenue: p.revenue || 0, subs: p.subs || 0 }; });
-  const maxV = Math.max(1, ...rows.map((r) => r.revenue));
-  const rh = (H - P.t - P.b) / rows.length, bh = Math.min(34, rh * 0.55);
+  if (total <= 0) {
+    el.innerHTML = '<div class="muted" style="padding:60px 0;text-align:center">Chưa có dữ liệu doanh thu theo chương trình.</div>';
+    return;
+  }
+  const W = 660, H = 340, CX = 330, CY = 148, RX = 200, RY = 106, D = 20;
+  const shade = (hex, f) => {
+    const n = parseInt(hex.slice(1), 16);
+    const c = (v) => Math.max(0, Math.min(255, Math.round(v * f)));
+    return "rgb(" + c((n >> 16) & 255) + "," + c((n >> 8) & 255) + "," + c(n & 255) + ")";
+  };
+  const pt = (a, rx, ry, dy) => { const r = (a * Math.PI) / 180; return { x: CX + rx * Math.cos(r), y: CY + ry * Math.sin(r) + (dy || 0) }; };
+  const fx = (n) => n.toFixed(1);
+  // Goc ket thuc cua tung lat (bat dau -90 do, theo chieu kim dong ho)
+  let acc = -90;
+  const slices = rows.map((r) => {
+    const span = (r.revenue / total) * 360;
+    const s = { ...r, a0: acc, a1: acc + span, span };
+    acc += span;
+    return s;
+  });
+  // Khung SVG co dinh — animation chi cap nhat thuoc tinh, khong ve lai innerHTML
   let s = '<svg viewBox="0 0 ' + W + " " + H + '" class="chart" role="img">';
-  rows.forEach((r, i) => {
-    const y = P.t + i * rh + (rh - bh) / 2;
-    const w = Math.max(2, ((W - P.l - P.r) * r.revenue) / maxV);
-    const pct = total > 0 ? (r.revenue / total) * 100 : 0;
-    s += '<text x="' + (P.l - 8) + '" y="' + (y + bh / 2 + 4).toFixed(1) + '" class="ylab" text-anchor="end" style="font-weight:700;fill:#334155">' + r.code + "</text>";
-    s += '<rect x="' + P.l + '" y="' + y.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="4" class="cbar" data-i="' + i + '" fill="' + r.color + '"/>';
-    s += '<text x="' + (P.l + w + 8).toFixed(1) + '" y="' + (y + bh / 2 + 4).toFixed(1) + '" class="ylab" style="fill:#334155">' + fmtCompact(r.revenue) + " (" + pct.toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%)</text>";
+  slices.forEach((sl, i) => { s += '<path class="pie-side" data-i="' + i + '" fill="' + shade(sl.color, 0.62) + '"/>'; });
+  slices.forEach((sl, i) => { s += '<path class="pie-top" data-i="' + i + '" fill="' + sl.color + '" stroke="#fff" stroke-width="1.5"/>'; });
+  slices.forEach((sl, i) => {
+    s += '<g class="pie-call" data-i="' + i + '"><polyline fill="none" stroke="' + sl.color + '" stroke-width="1.5"/>' +
+      '<text style="font-size:15px;fill:#334155"><tspan class="pc-code" font-weight="700"></tspan><tspan class="pc-rev"></tspan><tspan class="pc-pct" dy="17"></tspan></text></g>';
   });
   s += "</svg>";
   el.innerHTML = s + '<div class="chart-tip" style="display:none"></div>';
   const tip = el.querySelector(".chart-tip");
+  const sideEls = [...el.querySelectorAll(".pie-side")];
+  const topEls = [...el.querySelectorAll(".pie-top")];
+  const callEls = [...el.querySelectorAll(".pie-call")];
+  const draw = (p) => {
+    slices.forEach((sl, i) => {
+      const a0 = sl.a0, a1 = sl.a0 + sl.span * p;
+      const span = a1 - a0;
+      if (span <= 0.01) { topEls[i].setAttribute("d", ""); sideEls[i].setAttribute("d", ""); callEls[i].style.opacity = "0"; return; }
+      if (span >= 359.9) {
+        // 1 lat duy nhat = tron day
+        topEls[i].setAttribute("d", "M " + fx(CX - RX) + "," + fx(CY) + " A " + RX + "," + RY + " 0 1,1 " + fx(CX + RX) + "," + fx(CY) + " A " + RX + "," + RY + " 0 1,1 " + fx(CX - RX) + "," + fx(CY) + " Z");
+        sideEls[i].setAttribute("d", "M " + fx(CX + RX) + "," + fx(CY) + " A " + RX + "," + RY + " 0 0,1 " + fx(CX - RX) + "," + fx(CY) + " L " + fx(CX - RX) + "," + fx(CY + D) + " A " + RX + "," + RY + " 0 0,0 " + fx(CX + RX) + "," + fx(CY + D) + " Z");
+      } else {
+        const p0 = pt(a0, RX, RY), p1 = pt(a1, RX, RY);
+        topEls[i].setAttribute("d", "M " + CX + "," + CY + " L " + fx(p0.x) + "," + fx(p0.y) + " A " + RX + "," + RY + " 0 " + (span > 180 ? 1 : 0) + ",1 " + fx(p1.x) + "," + fx(p1.y) + " Z");
+        // Thanh hong: chi phan cung o nua truoc (goc 0..180 do)
+        const f0 = Math.max(a0, 0), f1x = Math.min(a1, 180);
+        if (f1x - f0 > 0.5) {
+          const q0 = pt(f0, RX, RY), q1 = pt(f1x, RX, RY);
+          sideEls[i].setAttribute("d", "M " + fx(q0.x) + "," + fx(q0.y) + " A " + RX + "," + RY + " 0 0,1 " + fx(q1.x) + "," + fx(q1.y) + " L " + fx(q1.x) + "," + fx(q1.y + D) + " A " + RX + "," + RY + " 0 0,0 " + fx(q0.x) + "," + fx(q0.y + D) + " Z");
+        } else sideEls[i].setAttribute("d", "");
+      }
+      // Callout: duong dan tu giua lat ra ngoai + nhan ten + doanh thu + ty le
+      const mid = (a0 + a1) / 2, mr = (mid * Math.PI) / 180;
+      const ex = CX + (RX + 26) * Math.cos(mr), ey = CY + (RY + 14) * Math.sin(mr);
+      const dir = Math.cos(mr) >= 0 ? 1 : -1;
+      const tx = ex + dir * 30;
+      const pctNow = (sl.revenue / total) * 100 * p;
+      const g = callEls[i];
+      g.style.opacity = String(Math.min(1, p * 1.6));
+      const edge = pt(mid, RX, RY);
+      g.querySelector("polyline").setAttribute("points", fx(edge.x) + "," + fx(edge.y) + " " + fx(ex) + "," + fx(ey) + " " + fx(tx) + "," + fx(ey));
+      const t = g.querySelector("text");
+      t.setAttribute("x", tx + (dir > 0 ? 6 : -6));
+      t.setAttribute("y", (ey - 4).toFixed(1));
+      t.setAttribute("text-anchor", dir > 0 ? "start" : "end");
+      g.querySelector(".pc-code").textContent = sl.code;
+      g.querySelector(".pc-rev").textContent = " " + fmtCompact(sl.revenue);
+      const pctEl = g.querySelector(".pc-pct");
+      pctEl.setAttribute("x", tx + (dir > 0 ? 6 : -6));
+      pctEl.textContent = "(" + pctNow.toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%)";
+    });
+  };
   const items = [];
-  el.querySelectorAll(".cbar").forEach((elm) => {
-    const r = rows[Number(elm.getAttribute("data-i"))];
+  topEls.forEach((elm) => {
+    const r = slices[Number(elm.getAttribute("data-i"))];
     const pct = total > 0 ? (r.revenue / total) * 100 : 0;
     items.push({ elm, html: "<div class='tt'>" + esc(r.name) + "</div><div class='tr'><i class='dot' style='background:" + r.color + "'></i>Doanh thu: <b>" + fmt(r.revenue) + "</b></div><div class='tr'>Thuê bao: <b>" + fmtInt(r.subs) + "</b></div><div class='tr'>Tỷ trọng: <b>" + pct.toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%</b></div>" });
   });
   bindChartTips(el, tip, items);
+  // Hieu ung quet tu 0% den 100%
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { draw(1); return; }
+  const t0 = performance.now(), DUR = 900;
+  const step = (now) => {
+    const raw = Math.min(1, (now - t0) / DUR);
+    const e = 1 - Math.pow(1 - raw, 3);
+    draw(e);
+    if (raw < 1) el._pieRaf = requestAnimationFrame(step);
+    else el._pieRaf = null;
+  };
+  draw(0.001);
+  el._pieRaf = requestAnimationFrame(step);
 }
 // Bieu do cot ty le (%) theo chuong trinh — dung chung cho OB thanh cong va ty le gia han/ban goi
 function mobRateChart(el, rates, label) {
@@ -10088,6 +10164,23 @@ function renderMobProgTable(rows) {
     return { ...o, total };
   });
   ops.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "vi"));
+  // Dong Tong cong: cong DT + TLTH chung (tong DT / tong KH) tung chuong trinh
+  const sums = { CKN: { rev: 0, plan: 0 }, CKD: { rev: 0, plan: 0 }, BG: { rev: 0, plan: 0 }, HVC: { rev: 0, plan: 0 } };
+  let totRev = 0;
+  ops.forEach((o) => {
+    ["CKN", "CKD", "BG", "HVC"].forEach((c) => {
+      const r = o[c];
+      sums[c].rev += r ? r.revenue || 0 : 0;
+      sums[c].plan += r ? r.plan_rev || 0 : 0;
+    });
+    totRev += o.total;
+  });
+  let f = "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td>";
+  ["CKN", "CKD", "BG", "HVC"].forEach((c) => {
+    const s = sums[c];
+    f += "<td><b>" + fmt(s.rev) + "</b></td><td><b>" + mobPct(s.plan > 0 ? Math.round(s.rev / s.plan * 1000) / 10 : null) + "</b></td>";
+  });
+  f += "<td><b>" + fmt(totRev) + "</b></td></tr>";
   tb.innerHTML = ops.map((o) => {
     let h = "<tr><td>" + esc(o.name) + "</td>";
     ["CKN", "CKD", "BG", "HVC"].forEach((c) => {
@@ -10095,7 +10188,7 @@ function renderMobProgTable(rows) {
       h += "<td>" + fmt(r ? r.revenue : 0) + "</td><td>" + mobPct(r ? r.pct_plan_rev : null) + "</td>";
     });
     return h + "<td><b>" + fmt(o.total) + "</b></td></tr>";
-  }).join("");
+  }).join("") + f;
 }
 function renderMobFormTable(rows) {
   const tb = $("mobFormBody");
@@ -10114,11 +10207,18 @@ function renderMobFormTable(rows) {
     return { ...o, total };
   });
   ops.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "vi"));
+  // Dong Tong cong: cong DT tung hinh thuc + tong DT
+  const sums = { "Gia hạn": 0, "Bán gói": 0, "Nâng gói/Nâng chu kỳ": 0 };
+  let totRev = 0;
+  ops.forEach((o) => { FORMS.forEach((f2) => { sums[f2] += (o[f2] || {}).revenue || 0; }); totRev += o.total; });
+  let f = "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td>";
+  FORMS.forEach((f2) => { f += "<td><b>" + fmt(sums[f2]) + "</b></td>"; });
+  f += "<td><b>" + fmt(totRev) + "</b></td></tr>";
   tb.innerHTML = ops.map((o) => {
     let h = "<tr><td>" + esc(o.name) + "</td>";
-    FORMS.forEach((f) => { const r = o[f]; h += "<td>" + fmt(r ? r.revenue : 0) + "</td>"; });
+    FORMS.forEach((f2) => { const r = o[f2]; h += "<td>" + fmt(r ? r.revenue : 0) + "</td>"; });
     return h + "<td><b>" + fmt(o.total) + "</b></td></tr>";
-  }).join("");
+  }).join("") + f;
 }
 function renderMobQualTable(rows) {
   const tb = $("mobQualBody");
