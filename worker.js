@@ -2047,16 +2047,16 @@ export default {
         ["trang_thai_cham_soc", "TEXT", "Trạng thái chăm sóc"],
         ["anh_roi_di", "TEXT", "Ảnh rời đi"],
       ];
-      // Quy tac ghi nhan ket qua cham soc (anh Tuan chot 26/11/2026):
-      // - Chi dong co "Trang thai cham soc" = "Da hoan thanh" moi tinh la 1 lan
-      //   cham soc. Dong "Khong du thoi gian": NV co ghe tham (co anh roi di)
-      //   nhung o chua du thoi gian chuan nen chua dat. Dong "Khong/Chua hoan
-      //   thanh": khong co anh roi di nen khong co bang chung da ghe tham.
+      // Quy tac ghi nhan ket qua cham soc NVQL (anh Tuan chot 26/11/2026):
+      // - Moi dong trong bang CSKBH deu tinh la 1 lan cham soc (du lieu import
+      //   100% hop le): KHONG loc theo "Trang thai cham soc", KHONG doi anh roi
+      //   di, KHONG kiem tra toa do. (Bang LD VNPT KV thi nguoc lai: chi ghi
+      //   nhan luot tham thuc dia trong app, khong lay tu file import.)
       // - Cung 1 ngay cham soc nhieu lan chi tinh 1 lan (dem theo ngay khac nhau).
       // - DUQ: >= 2 ngay khac nhau/thang moi dat; DBL: >= 1 ngay/thang.
-      // Neu anh muon doi sang "tinh tat ca cac dong": chi can doi hang so duoi
-      // thanh "" (bo loc trang thai) — bao truoc khi doi de kiem chung lai so lieu.
-      const CSKBH_VALID_STATUS_NORM = "da hoan thanh";
+      // - Mau so: chi lay tu bang kenh_ban cua thang (480 dong T11/2026) + diem
+      //   chi co trong file CS; KHONG cong tai khoan diem ban vao mau so (ma
+      //   kenh tai khoan dang KBH... khac ma kenh_ban QNH... nen cong trung).
       const normCareStatus = (v) => String(v == null ? "" : v).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/\s+/g, " ");
       // Chuan hoa ngay cham soc ve YYYY-MM-DD: nhan "DD/MM/YYYY" (file Excel/
       // CSV), "YYYY-MM-DD", ISO datetime (SheetJS cellDates) va serial Excel.
@@ -2176,8 +2176,10 @@ export default {
       // ma_kenh (bang kenh_ban) TRUOC, roi ma tai khoan, cuoi cung la SDT.
       // Mau so: hop nhat tai khoan diem ban + danh sach kenh ban thang + diem
       // chi co trong file cham soc (de diem da CS luon nam trong mau so).
-      // Tu so: diem dat chuan thang (DUQ >= 2 ngay khac nhau, DBL >= 1 ngay)
-      // trong ky; ky nam thi dat neu dat chuan o it nhat 1 thang trong nam.
+      // NVQL (26/11/2026, anh Tuan): nguon DUY NHAT la bang CSKBH; moi dong
+      // deu tinh (khong loc trang thai/anh/toa do); mau so chi tu bang kenh_ban
+      // cua thang + diem chi co trong file CS. DUQ >= 2 ngay khac nhau/thang,
+      // DBL >= 1 ngay/thang; ky nam thi dat neu dat chuan o it nhat 1 thang.
       if (path === "/api/care-nvql" && method === "GET") {
         if (!hasModule(me, "salesdash")) return err("Tai khoan khong co quyen xem Dashboard ban hang", 403);
         const ky = url.searchParams.get("ky") === "nam" ? "nam" : "thang";
@@ -2210,14 +2212,14 @@ export default {
           if (h === "DUQ" || h === "DBL") return h;
           return normLoaiKenh(loai);
         };
-        // Vu tru diem ban: tai khoan + kenh_ban + diem chi co trong file CS.
-        // Join theo so Eload truoc (on dinh nhat), roi ma kenh; ma kenh khac
-        // nhau cho cung 1 diem thi luu alias de dong CS sau van map dung.
+        // Vu tru diem ban: bang kenh_ban thang gan nhat trong ky + diem chi co
+        // trong file CS (26/11/2026, anh Tuan: tong kenh la 480 dong kenh_ban;
+        // tai khoan diem ban KHONG cong vao mau so vi ma kenh tai khoan dang
+        // KBH... khac ma kenh_ban QNH... nen cong trung thanh 655 diem).
         const posMap = new Map();
         const eloadToKey = new Map();
         const codeAlias = new Map();
         const kbCodeToKey = new Map(); // ma_kenh trong bang kenh_ban -> key
-        const accCodeToKey = new Map(); // ma_kenh tai khoan -> key
         const registerKeys = (key, code, el) => {
           if (code) codeAlias.set("mk:" + code, key);
           if (el) eloadToKey.set(el, key);
@@ -2234,18 +2236,8 @@ export default {
           registerKeys(key, o.code, o.eload);
           return o;
         };
-        // (1) Tai khoan diem ban
-        const accRows = (await env.DB.prepare("SELECT u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, d.ten_don_vi AS don_vi_ten FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = 'user'").all()).results || [];
-        for (const r of accRows) {
-          const code = normE2(r.ma_kenh);
-          const el = normE2(r.so_eload);
-          const key = code ? "mk:" + code : (el ? "el:" + el : null);
-          if (!key || posMap.has(key)) continue;
-          newPos(key, { code, eload: el, don_vi_id: r.don_vi_id, ten_don_vi: r.don_vi_ten || "", type: normLoaiKenh(r.loai_kenh) });
-          if (code) accCodeToKey.set(code, key);
-        }
-        // (2) Bang kenh_ban thang gan nhat trong ky: bo sung diem chua co tai
-        // khoan + ma NV quan ly + ten NV (ten_nv_bh).
+        // (1) Bang kenh_ban thang gan nhat trong ky: vu tru mau so + ma NV
+        // quan ly + ten NV (ten_nv_bh).
         for (const mk of [...curMonths].reverse()) {
           const t = await monthTableExists(env, KENH_BAN_PREFIX, mk);
           if (!t) continue;
@@ -2289,10 +2281,12 @@ export default {
           }
           break;
         }
-        // (4) Dong cham soc: chi tinh dong "Da hoan thanh", dem theo ngay khac nhau
+        // (4) Dong cham soc: MOI dong deu tinh (26/11/2026, anh Tuan: du lieu
+        // import 100% hop le), dem theo ngay khac nhau; chi bo dong khong doc
+        // duoc ngay (khong xep vao thang nao duoc).
         let tables = [];
         let careRows = 0, validRows = 0;
-        const diag = { matched_kb: 0, matched_acc: 0, matched_phone: 0, matched_code: 0, matched_new: 0, rows_no_key: 0, date_bad: 0, status_top: {} };
+        const diag = { matched_kb: 0, matched_phone: 0, matched_code: 0, matched_new: 0, rows_no_key: 0, date_bad: 0, status_top: {} };
         for (const mk of curMonths) {
           const t = await monthTableExists(env, CSKBH_PREFIX, mk);
           if (!t) continue;
@@ -2308,11 +2302,10 @@ export default {
             // roi ma tai khoan, cuoi cung SDT (26/11/2026, anh Tuan).
             let key = null, matchHow = "";
             if (code && kbCodeToKey.has(code)) { key = kbCodeToKey.get(code); matchHow = "kb"; }
-            else if (code && accCodeToKey.has(code)) { key = accCodeToKey.get(code); matchHow = "acc"; }
             else if (el && eloadToKey.has(el)) { key = eloadToKey.get(el); matchHow = "phone"; }
             else if (code && posMap.has("mk:" + code)) { key = "mk:" + code; matchHow = "code"; }
             let p = key ? posMap.get(key) : null;
-            if (p) { if (matchHow === "kb") diag.matched_kb++; else if (matchHow === "acc") diag.matched_acc++; else if (matchHow === "phone") diag.matched_phone++; else diag.matched_code++; }
+            if (p) { if (matchHow === "kb") diag.matched_kb++; else if (matchHow === "phone") diag.matched_phone++; else diag.matched_code++; }
             else diag.matched_new++;
             if (!p) {
               key = code ? "mk:" + code : "el:" + el;
@@ -2330,7 +2323,6 @@ export default {
             const stN = normCareStatus(r.trang_thai_cham_soc);
             const stK = stN || "(trong)";
             diag.status_top[stK] = (diag.status_top[stK] || 0) + 1;
-            if (stN !== CSKBH_VALID_STATUS_NORM) continue;
             const day = normCareDate(r.ngay_cham_soc);
             if (!day) { diag.date_bad++; continue; }
             validRows++;
@@ -2380,7 +2372,7 @@ export default {
         tong.ty_le_duq = rate1(tong.sl_duq_cs, tong.sl_duq);
         tong.ty_le_dbl = rate1(tong.sl_dbl_cs, tong.sl_dbl);
         const statusTop = Object.entries(diag.status_top).sort((a, b) => b[1] - a[1]).slice(0, 6);
-        return json({ ok: true, ky, thang: ky === "thang" ? curMonths[0] : null, nam: ky === "nam" ? nam : null, period_label: periodLabel, has_data: tables.length > 0, tables, care_rows: careRows, valid_rows: validRows, by_unit, by_nv, tong, meta: { pos_no_mgr: posNoMgr, pos_unclassified: posUnclassified }, diag: { tables, care_rows: careRows, valid_rows: validRows, matched_kb_code: diag.matched_kb, matched_acc_code: diag.matched_acc, matched_phone: diag.matched_phone, matched_code_other: diag.matched_code, matched_new: diag.matched_new, rows_no_key: diag.rows_no_key, date_bad: diag.date_bad, status_top: statusTop } });
+        return json({ ok: true, ky, thang: ky === "thang" ? curMonths[0] : null, nam: ky === "nam" ? nam : null, period_label: periodLabel, has_data: tables.length > 0, tables, care_rows: careRows, valid_rows: validRows, by_unit, by_nv, tong, meta: { pos_no_mgr: posNoMgr, pos_unclassified: posUnclassified }, diag: { tables, care_rows: careRows, valid_rows: validRows, matched_kb_code: diag.matched_kb, matched_phone: diag.matched_phone, matched_code_other: diag.matched_code, matched_new: diag.matched_new, rows_no_key: diag.rows_no_key, date_bad: diag.date_bad, status_top: statusTop } });
       }
 
       // ---- Dong bo du lieu tu Google Sheet (module 5.10) ----
@@ -3675,7 +3667,7 @@ function normKbKey(s) {
         const monthSet = new Set(months);
         const normE = (s) => String(s == null ? "" : s).trim().toUpperCase().replace(/\s+/g, "");
         const posRows = (await env.DB.prepare(
-          "SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, u.mien_cham_soc, d.ten_don_vi AS don_vi_ten " +
+          "SELECT u.id, u.ho_ten, u.ten_nhan_vien, u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, u.mien_cham_soc, d.ten_don_vi AS don_vi_ten " +
           "FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id " +
           "WHERE u.role = 'user' AND u.so_eload IS NOT NULL AND TRIM(u.so_eload) != ''"
         ).all()).results || [];
@@ -4075,7 +4067,7 @@ function normKbKey(s) {
           const ci = chanInfo[info.ma_kenh || ""] || chanInfo[e] || {};
           const a = cur.pos[e] || { subs: 0, revenue: 0 }, b = prev.pos[e] || { subs: 0, revenue: 0 };
           return { eload: info.so_eload || e, ma_kenh: info.ma_kenh || "", ho_ten: info.ho_ten || e,
-            ten_diem_ban: ci.ten_diem_ban || "", quan_ly: ci.quan_ly || "",
+            ten_diem_ban: ci.ten_diem_ban || "", quan_ly: ci.quan_ly || info.ten_nhan_vien || "", // fallback: ten NV quan ly luu tren chinh tai khoan diem ban (module Quan ly kenh ban hien ten nay nen luon co; chanInfo chi co khi ma/Eload khop duoc bang kenh_ban)
             don_vi_id: info.don_vi_id || null, don_vi_ten: info.don_vi_ten || "",
             loai_kenh: info.loai_kenh || "",
             subs: a.subs, revenue: Math.round(a.revenue),

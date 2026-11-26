@@ -1609,7 +1609,7 @@ html.is-mobile #mobileNav button span{font-size:6.6px}
         <!-- TONG HOP CS KBH THEO NV -->
         <section class="panel hidden" id="panel-salescare-nv">
           <h2>👥 Tổng hợp CS KBH theo NV</h2>
-          <p class="desc">Tổng hợp số lượng kênh bán do từng nhân viên quản lý (NVQL kênh) và kết quả chăm sóc trong kỳ. ĐUQ đạt khi có từ <b>02 lần chăm sóc trở lên trong tháng</b> (các lần khác ngày nhau, chỉ tính lần "Đã hoàn thành"); ĐBL đạt khi có từ <b>01 lần/tháng</b>. Đơn vị nào chỉ được xem số liệu của đơn vị đó; tài khoản cấp VNPT Quảng Ninh xem toàn tỉnh.</p>
+          <p class="desc">Tổng hợp số lượng kênh bán do từng nhân viên quản lý (NVQL kênh) và kết quả chăm sóc trong kỳ. ĐUQ đạt khi có từ <b>02 lần chăm sóc trở lên trong tháng</b> (các lần khác ngày nhau, mọi dòng đã import đều tính); ĐBL đạt khi có từ <b>01 lần/tháng</b>. Đơn vị nào chỉ được xem số liệu của đơn vị đó; tài khoản cấp VNPT Quảng Ninh xem toàn tỉnh.</p>
           <div class="form-grid">
             <div><label>Tháng đánh giá</label><input type="month" id="careNvMonth" /></div>
             <div><label>Lọc theo đơn vị</label><select id="careNvUnit"><option value="">— Tất cả đơn vị trong phạm vi của bạn —</option></select></div>
@@ -4510,16 +4510,16 @@ export default {
         [&quot;trang_thai_cham_soc&quot;, &quot;TEXT&quot;, &quot;Trạng thái chăm sóc&quot;],
         [&quot;anh_roi_di&quot;, &quot;TEXT&quot;, &quot;Ảnh rời đi&quot;],
       ];
-      // Quy tac ghi nhan ket qua cham soc (anh Tuan chot 26/11/2026):
-      // - Chi dong co &quot;Trang thai cham soc&quot; = &quot;Da hoan thanh&quot; moi tinh la 1 lan
-      //   cham soc. Dong &quot;Khong du thoi gian&quot;: NV co ghe tham (co anh roi di)
-      //   nhung o chua du thoi gian chuan nen chua dat. Dong &quot;Khong/Chua hoan
-      //   thanh&quot;: khong co anh roi di nen khong co bang chung da ghe tham.
+      // Quy tac ghi nhan ket qua cham soc NVQL (anh Tuan chot 26/11/2026):
+      // - Moi dong trong bang CSKBH deu tinh la 1 lan cham soc (du lieu import
+      //   100% hop le): KHONG loc theo &quot;Trang thai cham soc&quot;, KHONG doi anh roi
+      //   di, KHONG kiem tra toa do. (Bang LD VNPT KV thi nguoc lai: chi ghi
+      //   nhan luot tham thuc dia trong app, khong lay tu file import.)
       // - Cung 1 ngay cham soc nhieu lan chi tinh 1 lan (dem theo ngay khac nhau).
       // - DUQ: &gt;= 2 ngay khac nhau/thang moi dat; DBL: &gt;= 1 ngay/thang.
-      // Neu anh muon doi sang &quot;tinh tat ca cac dong&quot;: chi can doi hang so duoi
-      // thanh &quot;&quot; (bo loc trang thai) — bao truoc khi doi de kiem chung lai so lieu.
-      const CSKBH_VALID_STATUS_NORM = &quot;da hoan thanh&quot;;
+      // - Mau so: chi lay tu bang kenh_ban cua thang (480 dong T11/2026) + diem
+      //   chi co trong file CS; KHONG cong tai khoan diem ban vao mau so (ma
+      //   kenh tai khoan dang KBH... khac ma kenh_ban QNH... nen cong trung).
       const normCareStatus = (v) =&gt; String(v == null ? &quot;&quot; : v).trim().toLowerCase().normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/đ/g, &quot;d&quot;).replace(/\s+/g, &quot; &quot;);
       // Chuan hoa ngay cham soc ve YYYY-MM-DD: nhan &quot;DD/MM/YYYY&quot; (file Excel/
       // CSV), &quot;YYYY-MM-DD&quot;, ISO datetime (SheetJS cellDates) va serial Excel.
@@ -4639,8 +4639,10 @@ export default {
       // ma_kenh (bang kenh_ban) TRUOC, roi ma tai khoan, cuoi cung la SDT.
       // Mau so: hop nhat tai khoan diem ban + danh sach kenh ban thang + diem
       // chi co trong file cham soc (de diem da CS luon nam trong mau so).
-      // Tu so: diem dat chuan thang (DUQ &gt;= 2 ngay khac nhau, DBL &gt;= 1 ngay)
-      // trong ky; ky nam thi dat neu dat chuan o it nhat 1 thang trong nam.
+      // NVQL (26/11/2026, anh Tuan): nguon DUY NHAT la bang CSKBH; moi dong
+      // deu tinh (khong loc trang thai/anh/toa do); mau so chi tu bang kenh_ban
+      // cua thang + diem chi co trong file CS. DUQ &gt;= 2 ngay khac nhau/thang,
+      // DBL &gt;= 1 ngay/thang; ky nam thi dat neu dat chuan o it nhat 1 thang.
       if (path === &quot;/api/care-nvql&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!hasModule(me, &quot;salesdash&quot;)) return err(&quot;Tai khoan khong co quyen xem Dashboard ban hang&quot;, 403);
         const ky = url.searchParams.get(&quot;ky&quot;) === &quot;nam&quot; ? &quot;nam&quot; : &quot;thang&quot;;
@@ -4673,14 +4675,14 @@ export default {
           if (h === &quot;DUQ&quot; || h === &quot;DBL&quot;) return h;
           return normLoaiKenh(loai);
         };
-        // Vu tru diem ban: tai khoan + kenh_ban + diem chi co trong file CS.
-        // Join theo so Eload truoc (on dinh nhat), roi ma kenh; ma kenh khac
-        // nhau cho cung 1 diem thi luu alias de dong CS sau van map dung.
+        // Vu tru diem ban: bang kenh_ban thang gan nhat trong ky + diem chi co
+        // trong file CS (26/11/2026, anh Tuan: tong kenh la 480 dong kenh_ban;
+        // tai khoan diem ban KHONG cong vao mau so vi ma kenh tai khoan dang
+        // KBH... khac ma kenh_ban QNH... nen cong trung thanh 655 diem).
         const posMap = new Map();
         const eloadToKey = new Map();
         const codeAlias = new Map();
         const kbCodeToKey = new Map(); // ma_kenh trong bang kenh_ban -&gt; key
-        const accCodeToKey = new Map(); // ma_kenh tai khoan -&gt; key
         const registerKeys = (key, code, el) =&gt; {
           if (code) codeAlias.set(&quot;mk:&quot; + code, key);
           if (el) eloadToKey.set(el, key);
@@ -4697,18 +4699,8 @@ export default {
           registerKeys(key, o.code, o.eload);
           return o;
         };
-        // (1) Tai khoan diem ban
-        const accRows = (await env.DB.prepare(&quot;SELECT u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, d.ten_don_vi AS don_vi_ten FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = &#x27;user&#x27;&quot;).all()).results || [];
-        for (const r of accRows) {
-          const code = normE2(r.ma_kenh);
-          const el = normE2(r.so_eload);
-          const key = code ? &quot;mk:&quot; + code : (el ? &quot;el:&quot; + el : null);
-          if (!key || posMap.has(key)) continue;
-          newPos(key, { code, eload: el, don_vi_id: r.don_vi_id, ten_don_vi: r.don_vi_ten || &quot;&quot;, type: normLoaiKenh(r.loai_kenh) });
-          if (code) accCodeToKey.set(code, key);
-        }
-        // (2) Bang kenh_ban thang gan nhat trong ky: bo sung diem chua co tai
-        // khoan + ma NV quan ly + ten NV (ten_nv_bh).
+        // (1) Bang kenh_ban thang gan nhat trong ky: vu tru mau so + ma NV
+        // quan ly + ten NV (ten_nv_bh).
         for (const mk of [...curMonths].reverse()) {
           const t = await monthTableExists(env, KENH_BAN_PREFIX, mk);
           if (!t) continue;
@@ -4752,10 +4744,12 @@ export default {
           }
           break;
         }
-        // (4) Dong cham soc: chi tinh dong &quot;Da hoan thanh&quot;, dem theo ngay khac nhau
+        // (4) Dong cham soc: MOI dong deu tinh (26/11/2026, anh Tuan: du lieu
+        // import 100% hop le), dem theo ngay khac nhau; chi bo dong khong doc
+        // duoc ngay (khong xep vao thang nao duoc).
         let tables = [];
         let careRows = 0, validRows = 0;
-        const diag = { matched_kb: 0, matched_acc: 0, matched_phone: 0, matched_code: 0, matched_new: 0, rows_no_key: 0, date_bad: 0, status_top: {} };
+        const diag = { matched_kb: 0, matched_phone: 0, matched_code: 0, matched_new: 0, rows_no_key: 0, date_bad: 0, status_top: {} };
         for (const mk of curMonths) {
           const t = await monthTableExists(env, CSKBH_PREFIX, mk);
           if (!t) continue;
@@ -4771,11 +4765,10 @@ export default {
             // roi ma tai khoan, cuoi cung SDT (26/11/2026, anh Tuan).
             let key = null, matchHow = &quot;&quot;;
             if (code &amp;&amp; kbCodeToKey.has(code)) { key = kbCodeToKey.get(code); matchHow = &quot;kb&quot;; }
-            else if (code &amp;&amp; accCodeToKey.has(code)) { key = accCodeToKey.get(code); matchHow = &quot;acc&quot;; }
             else if (el &amp;&amp; eloadToKey.has(el)) { key = eloadToKey.get(el); matchHow = &quot;phone&quot;; }
             else if (code &amp;&amp; posMap.has(&quot;mk:&quot; + code)) { key = &quot;mk:&quot; + code; matchHow = &quot;code&quot;; }
             let p = key ? posMap.get(key) : null;
-            if (p) { if (matchHow === &quot;kb&quot;) diag.matched_kb++; else if (matchHow === &quot;acc&quot;) diag.matched_acc++; else if (matchHow === &quot;phone&quot;) diag.matched_phone++; else diag.matched_code++; }
+            if (p) { if (matchHow === &quot;kb&quot;) diag.matched_kb++; else if (matchHow === &quot;phone&quot;) diag.matched_phone++; else diag.matched_code++; }
             else diag.matched_new++;
             if (!p) {
               key = code ? &quot;mk:&quot; + code : &quot;el:&quot; + el;
@@ -4793,7 +4786,6 @@ export default {
             const stN = normCareStatus(r.trang_thai_cham_soc);
             const stK = stN || &quot;(trong)&quot;;
             diag.status_top[stK] = (diag.status_top[stK] || 0) + 1;
-            if (stN !== CSKBH_VALID_STATUS_NORM) continue;
             const day = normCareDate(r.ngay_cham_soc);
             if (!day) { diag.date_bad++; continue; }
             validRows++;
@@ -4843,7 +4835,7 @@ export default {
         tong.ty_le_duq = rate1(tong.sl_duq_cs, tong.sl_duq);
         tong.ty_le_dbl = rate1(tong.sl_dbl_cs, tong.sl_dbl);
         const statusTop = Object.entries(diag.status_top).sort((a, b) =&gt; b[1] - a[1]).slice(0, 6);
-        return json({ ok: true, ky, thang: ky === &quot;thang&quot; ? curMonths[0] : null, nam: ky === &quot;nam&quot; ? nam : null, period_label: periodLabel, has_data: tables.length &gt; 0, tables, care_rows: careRows, valid_rows: validRows, by_unit, by_nv, tong, meta: { pos_no_mgr: posNoMgr, pos_unclassified: posUnclassified }, diag: { tables, care_rows: careRows, valid_rows: validRows, matched_kb_code: diag.matched_kb, matched_acc_code: diag.matched_acc, matched_phone: diag.matched_phone, matched_code_other: diag.matched_code, matched_new: diag.matched_new, rows_no_key: diag.rows_no_key, date_bad: diag.date_bad, status_top: statusTop } });
+        return json({ ok: true, ky, thang: ky === &quot;thang&quot; ? curMonths[0] : null, nam: ky === &quot;nam&quot; ? nam : null, period_label: periodLabel, has_data: tables.length &gt; 0, tables, care_rows: careRows, valid_rows: validRows, by_unit, by_nv, tong, meta: { pos_no_mgr: posNoMgr, pos_unclassified: posUnclassified }, diag: { tables, care_rows: careRows, valid_rows: validRows, matched_kb_code: diag.matched_kb, matched_phone: diag.matched_phone, matched_code_other: diag.matched_code, matched_new: diag.matched_new, rows_no_key: diag.rows_no_key, date_bad: diag.date_bad, status_top: statusTop } });
       }
 
       // ---- Dong bo du lieu tu Google Sheet (module 5.10) ----
@@ -6138,7 +6130,7 @@ function normKbKey(s) {
         const monthSet = new Set(months);
         const normE = (s) =&gt; String(s == null ? &quot;&quot; : s).trim().toUpperCase().replace(/\s+/g, &quot;&quot;);
         const posRows = (await env.DB.prepare(
-          &quot;SELECT u.id, u.ho_ten, u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, u.mien_cham_soc, d.ten_don_vi AS don_vi_ten &quot; +
+          &quot;SELECT u.id, u.ho_ten, u.ten_nhan_vien, u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, u.mien_cham_soc, d.ten_don_vi AS don_vi_ten &quot; +
           &quot;FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id &quot; +
           &quot;WHERE u.role = &#x27;user&#x27; AND u.so_eload IS NOT NULL AND TRIM(u.so_eload) != &#x27;&#x27;&quot;
         ).all()).results || [];
@@ -6538,7 +6530,7 @@ function normKbKey(s) {
           const ci = chanInfo[info.ma_kenh || &quot;&quot;] || chanInfo[e] || {};
           const a = cur.pos[e] || { subs: 0, revenue: 0 }, b = prev.pos[e] || { subs: 0, revenue: 0 };
           return { eload: info.so_eload || e, ma_kenh: info.ma_kenh || &quot;&quot;, ho_ten: info.ho_ten || e,
-            ten_diem_ban: ci.ten_diem_ban || &quot;&quot;, quan_ly: ci.quan_ly || &quot;&quot;,
+            ten_diem_ban: ci.ten_diem_ban || &quot;&quot;, quan_ly: ci.quan_ly || info.ten_nhan_vien || &quot;&quot;, // fallback: ten NV quan ly luu tren chinh tai khoan diem ban (module Quan ly kenh ban hien ten nay nen luon co; chanInfo chi co khi ma/Eload khop duoc bang kenh_ban)
             don_vi_id: info.don_vi_id || null, don_vi_ten: info.don_vi_ten || &quot;&quot;,
             loai_kenh: info.loai_kenh || &quot;&quot;,
             subs: a.subs, revenue: Math.round(a.revenue),
@@ -9205,7 +9197,7 @@ function renderOvCarePie(d) {
 function diagHtml(d) {
   const g = d && d.diag; if (!g) return "";
   const st = (g.status_top || []).map((x) => esc(String(x[0])) + ": " + fmtInt(x[1])).join(" · ");
-  return "Nguồn: bảng <b>" + esc((g.tables || []).join(", ") || "—") + "</b> — " + fmtInt(g.care_rows) + " dòng, " + fmtInt(g.valid_rows) + " dòng “Đã hoàn thành” hợp lệ. Khớp mã kênh bán: <b>" + fmtInt(g.matched_kb_code) + "</b> · khớp mã tài khoản: " + fmtInt(g.matched_acc_code) + " · khớp SĐT: " + fmtInt(g.matched_phone) + " · chỉ có trong file CS: " + fmtInt(g.matched_new) + (g.rows_no_key ? " · thiếu cả mã lẫn SĐT: " + fmtInt(g.rows_no_key) : "") + (g.date_bad ? " · ngày không đọc được: " + fmtInt(g.date_bad) : "") + (st ? "<br>Trạng thái trong bảng: " + st + "." : "");
+  return "Nguồn: bảng <b>" + esc((g.tables || []).join(", ") || "—") + "</b> — " + fmtInt(g.care_rows) + " dòng, " + fmtInt(g.valid_rows) + " dòng hợp lệ (mọi dòng đã import đều tính). Khớp mã kênh bán: <b>" + fmtInt(g.matched_kb_code) + "</b> · khớp SĐT: " + fmtInt(g.matched_phone) + " · chỉ có trong file CS: " + fmtInt(g.matched_new) + (g.rows_no_key ? " · thiếu cả mã lẫn SĐT: " + fmtInt(g.rows_no_key) : "") + (g.date_bad ? " · ngày không đọc được: " + fmtInt(g.date_bad) : "") + (st ? "<br>Trạng thái trong bảng: " + st + "." : "");
 }
 function renderCareNvql(d) {
   const head = $("ovCareNvqlHead"), body = $("ovCareNvqlBody");
@@ -11351,7 +11343,7 @@ async function previewCskbh() {
     let extra = "<div class='note' style='margin-top:8px'>Tìm thấy hàng tiêu đề ở <b>hàng " + parsed.headerRow + "</b>; tổng <b>" + parsed.rows.length + "</b> dòng dữ liệu; đã map <b>" + Object.keys(map).length + "/15</b> cột.";
     if (!map.ma_diem_ban || !map.ngay_cham_soc) extra += "<br><span style='color:#b91c1c'><b>Lỗi:</b> bắt buộc phải map được 2 cột <b>Mã điểm bán</b> và <b>Ngày chăm sóc</b> mới import được.</span>";
     if (emptyMa > 0) extra += "<br><span style='color:#b45309'>Có <b>" + emptyMa + "</b> dòng thiếu Mã điểm bán (VD: dòng chữ ký cuối file) — sẽ bị bỏ qua khi import.</span>";
-    if (!map.trang_thai_cham_soc) extra += "<br><span style='color:#b45309'>Chưa map được cột <b>Trạng thái chăm sóc</b> — mọi dòng sẽ được tính là chưa rõ trạng thái (không đạt chuẩn 'Đã hoàn thành').</span>";
+    if (!map.trang_thai_cham_soc) extra += "<br><span style='color:#b45309'>Chưa map được cột <b>Trạng thái chăm sóc</b> — cột này chỉ để tham khảo, không ảnh hưởng kết quả (mọi dòng đã import đều tính).</span>";
     extra += "</div>";
     const sampleKeys = CSKBH_FIELDS.filter((f) => map[f.key]).slice(0, 6);
     if (sampleKeys.length) {
