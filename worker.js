@@ -2172,6 +2172,8 @@ export default {
       // Dung cho: bang diem tin NVQL tren Dashboard KBH + muc "Tong hop CS KBH
       // theo NV". Nguon: bang CSKBH_MMYYYY (5.11/5.10) + tai khoan diem ban +
       // bang kenh_ban thang do (ma NV quan ly) + bang cbcnv (ten NV).
+      // Join dong CS (26/11/2026, anh Tuan): ma_diem_ban (CSKBH) map voi
+      // ma_kenh (bang kenh_ban) TRUOC, roi ma tai khoan, cuoi cung la SDT.
       // Mau so: hop nhat tai khoan diem ban + danh sach kenh ban thang + diem
       // chi co trong file cham soc (de diem da CS luon nam trong mau so).
       // Tu so: diem dat chuan thang (DUQ >= 2 ngay khac nhau, DBL >= 1 ngay)
@@ -2214,6 +2216,8 @@ export default {
         const posMap = new Map();
         const eloadToKey = new Map();
         const codeAlias = new Map();
+        const kbCodeToKey = new Map(); // ma_kenh trong bang kenh_ban -> key
+        const accCodeToKey = new Map(); // ma_kenh tai khoan -> key
         const registerKeys = (key, code, el) => {
           if (code) codeAlias.set("mk:" + code, key);
           if (el) eloadToKey.set(el, key);
@@ -2238,6 +2242,7 @@ export default {
           const key = code ? "mk:" + code : (el ? "el:" + el : null);
           if (!key || posMap.has(key)) continue;
           newPos(key, { code, eload: el, don_vi_id: r.don_vi_id, ten_don_vi: r.don_vi_ten || "", type: normLoaiKenh(r.loai_kenh) });
+          if (code) accCodeToKey.set(code, key);
         }
         // (2) Bang kenh_ban thang gan nhat trong ky: bo sung diem chua co tai
         // khoan + ma NV quan ly + ten NV (ten_nv_bh).
@@ -2255,9 +2260,11 @@ export default {
               key = code ? "mk:" + code : (el ? "el:" + el : null);
               if (!key) continue;
               newPos(key, { code, eload: el, don_vi_id: duid, ten_don_vi: duid != null ? (duidToName[duid] || "") : (r.don_vi || ""), type: tp, mgr: normE2(r.ma_nv_quan_ly), mgrTen: r.ten_nv_bh ? String(r.ten_nv_bh).trim() : "" });
+              if (code) kbCodeToKey.set(code, key);
             } else {
               const p = posMap.get(key);
               registerKeys(key, code, el);
+              if (code) kbCodeToKey.set(code, key);
               if (!p.type && tp) p.type = tp;
               if (p.don_vi_id == null && duid != null) { p.don_vi_id = duid; p.ten_don_vi = duidToName[duid] || r.don_vi || p.ten_don_vi; }
               if (!p.mgr && normE2(r.ma_nv_quan_ly)) p.mgr = normE2(r.ma_nv_quan_ly);
@@ -2285,6 +2292,7 @@ export default {
         // (4) Dong cham soc: chi tinh dong "Da hoan thanh", dem theo ngay khac nhau
         let tables = [];
         let careRows = 0, validRows = 0;
+        const diag = { matched_kb: 0, matched_acc: 0, matched_phone: 0, matched_code: 0, matched_new: 0, rows_no_key: 0, date_bad: 0, status_top: {} };
         for (const mk of curMonths) {
           const t = await monthTableExists(env, CSKBH_PREFIX, mk);
           if (!t) continue;
@@ -2295,9 +2303,17 @@ export default {
             const code = normE2(r.ma_diem_ban);
             const el = normE2(r.sdt_diem_ban);
             const nvCode = normE2(r.ma_hrm_nv);
-            if (!code && !el) continue;
-            let key = resolveKey(code, el);
+            if (!code && !el) { diag.rows_no_key++; continue; }
+            // Join chinh: ma_diem_ban (CSKBH) <-> ma_kenh (bang kenh_ban),
+            // roi ma tai khoan, cuoi cung SDT (26/11/2026, anh Tuan).
+            let key = null, matchHow = "";
+            if (code && kbCodeToKey.has(code)) { key = kbCodeToKey.get(code); matchHow = "kb"; }
+            else if (code && accCodeToKey.has(code)) { key = accCodeToKey.get(code); matchHow = "acc"; }
+            else if (el && eloadToKey.has(el)) { key = eloadToKey.get(el); matchHow = "phone"; }
+            else if (code && posMap.has("mk:" + code)) { key = "mk:" + code; matchHow = "code"; }
             let p = key ? posMap.get(key) : null;
+            if (p) { if (matchHow === "kb") diag.matched_kb++; else if (matchHow === "acc") diag.matched_acc++; else if (matchHow === "phone") diag.matched_phone++; else diag.matched_code++; }
+            else diag.matched_new++;
             if (!p) {
               key = code ? "mk:" + code : "el:" + el;
               const duid = unitNameToId[normU(r.phong_bhkv)] || null;
@@ -2311,9 +2327,12 @@ export default {
               const duid = unitNameToId[normU(r.phong_bhkv)] || null;
               if (duid != null) { p.don_vi_id = duid; p.ten_don_vi = duidToName[duid] || p.ten_don_vi; }
             }
-            if (normCareStatus(r.trang_thai_cham_soc) !== CSKBH_VALID_STATUS_NORM) continue;
+            const stN = normCareStatus(r.trang_thai_cham_soc);
+            const stK = stN || "(trong)";
+            diag.status_top[stK] = (diag.status_top[stK] || 0) + 1;
+            if (stN !== CSKBH_VALID_STATUS_NORM) continue;
             const day = normCareDate(r.ngay_cham_soc);
-            if (!day) continue;
+            if (!day) { diag.date_bad++; continue; }
             validRows++;
             const mm = day.slice(0, 7);
             if (!p.days[mm]) p.days[mm] = new Set();
@@ -2360,7 +2379,8 @@ export default {
         const tong = by_unit.reduce((t, u) => ({ sl_duq: t.sl_duq + u.sl_duq, sl_duq_cs: t.sl_duq_cs + u.sl_duq_cs, sl_dbl: t.sl_dbl + u.sl_dbl, sl_dbl_cs: t.sl_dbl_cs + u.sl_dbl_cs }), { sl_duq: 0, sl_duq_cs: 0, sl_dbl: 0, sl_dbl_cs: 0 });
         tong.ty_le_duq = rate1(tong.sl_duq_cs, tong.sl_duq);
         tong.ty_le_dbl = rate1(tong.sl_dbl_cs, tong.sl_dbl);
-        return json({ ok: true, ky, thang: ky === "thang" ? curMonths[0] : null, nam: ky === "nam" ? nam : null, period_label: periodLabel, has_data: tables.length > 0, tables, care_rows: careRows, valid_rows: validRows, by_unit, by_nv, tong, meta: { pos_no_mgr: posNoMgr, pos_unclassified: posUnclassified } });
+        const statusTop = Object.entries(diag.status_top).sort((a, b) => b[1] - a[1]).slice(0, 6);
+        return json({ ok: true, ky, thang: ky === "thang" ? curMonths[0] : null, nam: ky === "nam" ? nam : null, period_label: periodLabel, has_data: tables.length > 0, tables, care_rows: careRows, valid_rows: validRows, by_unit, by_nv, tong, meta: { pos_no_mgr: posNoMgr, pos_unclassified: posUnclassified }, diag: { tables, care_rows: careRows, valid_rows: validRows, matched_kb_code: diag.matched_kb, matched_acc_code: diag.matched_acc, matched_phone: diag.matched_phone, matched_code_other: diag.matched_code, matched_new: diag.matched_new, rows_no_key: diag.rows_no_key, date_bad: diag.date_bad, status_top: statusTop } });
       }
 
       // ---- Dong bo du lieu tu Google Sheet (module 5.10) ----
