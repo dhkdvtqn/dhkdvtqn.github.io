@@ -2353,7 +2353,10 @@ export default {
           delete nv._units;
         }
         const by_unit = [...byUnitMap.values()].map((u) => ({ ...u, ty_le_duq: rate1(u.sl_duq_cs, u.sl_duq), ty_le_dbl: rate1(u.sl_dbl_cs, u.sl_dbl) }));
-        const by_nv = [...byNvMap.values()].map((nv) => ({ ...nv, ty_le_duq: rate1(nv.sl_duq_cs, nv.sl_duq), ty_le_dbl: rate1(nv.sl_dbl_cs, nv.sl_dbl) })).sort((a, b) => String(a.ten_don_vi).localeCompare(String(b.ten_don_vi), "vi") || String(a.ten_nv).localeCompare(String(b.ten_nv), "vi"));
+        // Chi liet ke NV duoc giao quan ly it nhat 1 diem DUQ/DBL (26/11/2026,
+        // anh Tuan: NV khong co diem ban thi an di). NV chi co diem DDV hoac
+        // chua phan loai da bi loai o vong lap tren, day la lop chan them.
+        const by_nv = [...byNvMap.values()].filter((nv) => (nv.sl_duq || 0) + (nv.sl_dbl || 0) > 0).map((nv) => ({ ...nv, ty_le_duq: rate1(nv.sl_duq_cs, nv.sl_duq), ty_le_dbl: rate1(nv.sl_dbl_cs, nv.sl_dbl) })).sort((a, b) => String(a.ten_don_vi).localeCompare(String(b.ten_don_vi), "vi") || String(a.ten_nv).localeCompare(String(b.ten_nv), "vi"));
         const tong = by_unit.reduce((t, u) => ({ sl_duq: t.sl_duq + u.sl_duq, sl_duq_cs: t.sl_duq_cs + u.sl_duq_cs, sl_dbl: t.sl_dbl + u.sl_dbl, sl_dbl_cs: t.sl_dbl_cs + u.sl_dbl_cs }), { sl_duq: 0, sl_duq_cs: 0, sl_dbl: 0, sl_dbl_cs: 0 });
         tong.ty_le_duq = rate1(tong.sl_duq_cs, tong.sl_duq);
         tong.ty_le_dbl = rate1(tong.sl_dbl_cs, tong.sl_dbl);

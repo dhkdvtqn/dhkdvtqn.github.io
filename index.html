@@ -497,6 +497,12 @@
 @media(max-width:900px){
 #appRoot .chart-row {grid-template-columns:1fr}
 }
+#appRoot .chart-row.care-row {grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)}
+@media(max-width:900px){
+#appRoot .chart-row.care-row {grid-template-columns:1fr}
+}
+#appRoot .care-pie-note {margin-top:10px;border-top:1.5px dashed var(--line);padding-top:10px;font-size:13.5px;line-height:1.8}
+#appRoot .care-pie-note b {color:var(--blue-dark)}
 #appRoot .chart-card {background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:0 2px 10px rgba(15,40,80,.06)}
 #appRoot .chart-card h4 {margin:0 0 6px;color:var(--blue-dark);font-size:15px}
 #appRoot .chart-legend {display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:4px}
@@ -834,6 +840,178 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
 @media(max-width:640px){
 #publicView.pos-home{margin-left:0}
 }
+/* Font mobile giam 40% (con 60% co chu cu) — 26/11/2026
+   Sinh tu dong tu CSS hien tai bang gen_mobile_font.py
+   KHONG giam input select textarea (giu 16px de iOS khong tu zoom khi focus) */
+html.is-mobile .hero .brand{font-size:9px}
+html.is-mobile .hero h1{font-size:clamp(18px, 3.2vw, 31.2px)}
+html.is-mobile .hero .sub{font-size:clamp(9px, 1.3vw, 10.8px)}
+html.is-mobile .hero .date-badge{font-size:9px}
+html.is-mobile .hl-card .v{font-size:15.6px}
+html.is-mobile .hl-card .l{font-size:7.8px}
+html.is-mobile .num{font-size:13.2px}
+html.is-mobile .card h2{font-size:11.4px}
+html.is-mobile .card .tag{font-size:7.5px}
+html.is-mobile .big-value .amount{font-size:20.4px}
+html.is-mobile .big-value .unit{font-size:8.1px}
+html.is-mobile .cond-title{font-size:7.2px}
+html.is-mobile ul.cond li{font-size:8.7px}
+html.is-mobile .note{font-size:8.1px}
+html.is-mobile .formula{font-size:9px}
+html.is-mobile .split-row .lbl{font-size:8.4px}
+html.is-mobile .split-row .pct{font-size:14.4px}
+html.is-mobile .tier .t-range{font-size:7.8px}
+html.is-mobile .tier .t-amount{font-size:clamp(14.4px, 1.8vw, 19.2px)}
+html.is-mobile .tier .t-unit{font-size:7.2px}
+html.is-mobile .tier .t-rank{font-size:6.6px}
+html.is-mobile .ckd-box .ckd-amt{font-size:24px}
+html.is-mobile .ckd-box .ckd-lbl{font-size:9px}
+html.is-mobile .ckd-box .ckd-sub{font-size:7.8px}
+html.is-mobile .calc-head h2{font-size:12.6px}
+html.is-mobile .calc-head p{font-size:8.4px}
+html.is-mobile .field label{font-size:8.1px}
+html.is-mobile .field .hint{font-size:7.2px}
+html.is-mobile .calc-result h3{font-size:8.4px}
+html.is-mobile .part-head{font-size:8.1px}
+html.is-mobile .part-head .pnum{font-size:7.8px}
+html.is-mobile .subtotal{font-size:8.7px}
+html.is-mobile .giavon .gv-l{font-size:9px}
+html.is-mobile .giavon .gv-l small{font-size:7.5px}
+html.is-mobile .giavon .gv-v{font-size:16.2px}
+html.is-mobile .rrow{font-size:8.7px}
+html.is-mobile .rrow .rn small{font-size:7.5px}
+html.is-mobile .rrow .rv.na{font-size:7.5px}
+html.is-mobile .rtotal .tl{font-size:9px}
+html.is-mobile .rtotal .tl small{font-size:7.5px}
+html.is-mobile .rtotal .tv{font-size:16.2px}
+html.is-mobile .calc-note{font-size:7.5px}
+html.is-mobile .greeting .g-title{font-size:clamp(12.6px, 2vw, 16.8px)}
+html.is-mobile .greeting p{font-size:clamp(8.7px, 1.2vw, 9.9px)}
+html.is-mobile .greeting .g-sign{font-size:9px}
+html.is-mobile .foot-note{font-size:7.5px}
+html.is-mobile /* ===== GIAO DIEN DIEN THOAI (tu dong ap dung theo man hinh nho) ===== */ @media (max-width: 640px){font-size:7.8px}
+html.is-mobile #appRoot label{font-size:7.8px}
+html.is-mobile #appRoot .brand .logo{font-size:10.2px}
+html.is-mobile #appRoot .brand small{font-size:6.6px}
+html.is-mobile #appRoot .btn{font-size:8.4px}
+html.is-mobile #appRoot .btn.sm{font-size:7.8px}
+html.is-mobile #appRoot .userchip{font-size:7.8px}
+html.is-mobile #appRoot .hero .kicker{font-size:7.5px}
+html.is-mobile #appRoot .hero h1{font-size:clamp(15.6px,2.6vw,25.2px)}
+html.is-mobile #appRoot .hero p{font-size:9.6px}
+html.is-mobile #appRoot .stat b{font-size:15.6px}
+html.is-mobile #appRoot .stat span{font-size:7.8px}
+html.is-mobile #appRoot .sec-num{font-size:11.4px}
+html.is-mobile #appRoot .sec-head h2{font-size:clamp(11.4px,1.6vw,15px)}
+html.is-mobile #appRoot .sec-head p{font-size:8.4px}
+html.is-mobile #appRoot .big-price{font-size:clamp(20.4px,3vw,31.2px)}
+html.is-mobile #appRoot .big-price small{font-size:10.2px}
+html.is-mobile #appRoot ul.cond{font-size:9px}
+html.is-mobile #appRoot .note{font-size:8.7px}
+html.is-mobile #appRoot .rate-row .pct{font-size:18px}
+html.is-mobile #appRoot .tier .lv{font-size:6.9px}
+html.is-mobile #appRoot .tier .amt{font-size:16.2px}
+html.is-mobile #appRoot .tier .rng{font-size:7.8px}
+html.is-mobile #appRoot .est-part h3{font-size:9.9px}
+html.is-mobile #appRoot .est-part h3 .tag{font-size:7.5px}
+html.is-mobile #appRoot .est-row{font-size:9px}
+html.is-mobile #appRoot .est-row.total{font-size:9.9px}
+html.is-mobile #appRoot .est-grand b{font-size:17.4px}
+html.is-mobile #appRoot .sim-cost b{font-size:17.4px}
+html.is-mobile #appRoot .fineprint{font-size:7.8px}
+html.is-mobile #appRoot .greeting h2{font-size:13.2px}
+html.is-mobile #appRoot footer{font-size:7.8px}
+html.is-mobile #appRoot .modal h2{font-size:12.6px}
+html.is-mobile #appRoot .modal .sub{font-size:8.1px}
+html.is-mobile #appRoot .form-err{font-size:8.1px}
+html.is-mobile #appRoot .form-ok{font-size:8.1px}
+html.is-mobile #appRoot .sidebar .who b{font-size:9.3px}
+html.is-mobile #appRoot .sidebar .who span{font-size:7.5px}
+html.is-mobile #appRoot .nav-btn{font-size:8.7px}
+html.is-mobile #appRoot .nav-group-head{font-size:8.7px}
+html.is-mobile #appRoot .nav-group-head .nav-caret{font-size:7.2px}
+html.is-mobile #appRoot .nav-btn.nav-sub{font-size:8.4px}
+html.is-mobile #appRoot /* ---------- Ban do kenh ban ---------- */ .pos-pin{font-size:10.2px}
+html.is-mobile #appRoot .checkdrop-btn{font-size:8.4px}
+html.is-mobile #appRoot .checkdrop-tools a{font-size:7.2px}
+html.is-mobile #appRoot .sec-title{font-size:10.2px}
+html.is-mobile #appRoot .sec-sub{font-size:7.8px}
+html.is-mobile #appRoot .ov-kpi .kpi-label{font-size:7.8px}
+html.is-mobile #appRoot .ov-kpi b{font-size:16.2px}
+html.is-mobile #appRoot .delta{font-size:7.2px}
+html.is-mobile #appRoot .kpi-note{font-size:6.6px}
+html.is-mobile #appRoot .care-pie-note{font-size:8.1px}
+html.is-mobile #appRoot .chart-card h4{font-size:9px}
+html.is-mobile #appRoot .chart-legend{font-size:7.2px}
+html.is-mobile #appRoot svg.chart .ylab{font-size:6px}
+html.is-mobile #appRoot svg.chart .xlab{font-size:6px}
+html.is-mobile #appRoot .pol-num{font-size:7.8px}
+html.is-mobile #appRoot .pol-head h4{font-size:9.6px}
+html.is-mobile #appRoot .pol-rate{font-size:9px}
+html.is-mobile #appRoot .pol-rate b{font-size:14.4px}
+html.is-mobile #appRoot .pol-tier{font-size:8.7px}
+html.is-mobile #appRoot .pol-notes li{font-size:8.1px}
+html.is-mobile #appRoot .nv-hint{font-size:7.5px}
+html.is-mobile #appRoot .nv-result h3{font-size:8.4px}
+html.is-mobile #appRoot .nv-part{font-size:9px}
+html.is-mobile #appRoot .nv-pnum{font-size:7.8px}
+html.is-mobile #appRoot .nv-row{font-size:8.7px}
+html.is-mobile #appRoot .nv-rn small{font-size:7.5px}
+html.is-mobile #appRoot .nv-rv.na{font-size:7.8px}
+html.is-mobile #appRoot .nv-total .tl small{font-size:7.2px}
+html.is-mobile #appRoot .nv-total .tv{font-size:13.2px}
+html.is-mobile #appRoot .nv-cost .gv-l{font-size:9px}
+html.is-mobile #appRoot .nv-cost .gv-l small{font-size:7.5px}
+html.is-mobile #appRoot .nv-cost .gv-v{font-size:15.6px}
+html.is-mobile #appRoot .eval-list{font-size:8.7px}
+html.is-mobile #appRoot .chart-tip{font-size:7.2px}
+html.is-mobile #appRoot .cell-tip-fixed{font-size:7.2px}
+html.is-mobile #appRoot .mob-note{font-size:7.8px}
+html.is-mobile #appRoot .pos-label{font-size:7.2px}
+html.is-mobile #appRoot .map-legend{font-size:7.8px}
+html.is-mobile #appRoot .panel h2{font-size:10.8px}
+html.is-mobile #appRoot .panel .desc{font-size:8.4px}
+html.is-mobile #appRoot .checkline{font-size:8.7px}
+html.is-mobile #appRoot table.data{font-size:7.5px}
+html.is-mobile #appRoot .sort-ind{font-size:6px}
+html.is-mobile #appRoot .tree{font-size:9px}
+html.is-mobile #appRoot .tree .u-code{font-size:7.5px}
+html.is-mobile #appRoot .pill{font-size:7.2px}
+html.is-mobile #appRoot .pkg-media-box{font-size:8.4px}
+html.is-mobile #appRoot .pkg-media-info{font-size:8.7px}
+html.is-mobile #appRoot .app-banner h1{font-size:11.4px}
+html.is-mobile #appRoot .banner-info{font-size:8.7px}
+html.is-mobile #appRoot .guide-step h3{font-size:9.9px}
+html.is-mobile #appRoot .guide-step p, #appRoot .guide-step li{font-size:8.7px}
+html.is-mobile #appRoot pre.code{font-size:7.4px}
+html.is-mobile #appRoot code.inl{font-size:7.8px}
+html.is-mobile #appRoot .kpi b{font-size:13.2px}
+html.is-mobile #appRoot .kpi span{font-size:7.8px}
+html.is-mobile #appRoot table.data .pill{font-size:6.6px}
+html.is-mobile #appRoot table.data.stacked td::before{font-size:6.6px}
+html.is-mobile #appRoot .role-logo{font-size:13.2px}
+html.is-mobile #appRoot .role-top .role-brand{font-size:10.8px}
+html.is-mobile #appRoot .role-top .role-brand small{font-size:7.8px}
+html.is-mobile #appRoot .role-hero h1{font-size:13.2px}
+html.is-mobile #appRoot .role-hero p{font-size:9px}
+html.is-mobile #appRoot .role-feat b{font-size:8.4px}
+html.is-mobile #appRoot .role-feat span{font-size:7.8px}
+html.is-mobile #appRoot .role-ask h2{font-size:14.4px}
+html.is-mobile #appRoot .role-btn{font-size:10.2px}
+html.is-mobile #appRoot .role-btn small{font-size:8.1px}
+html.is-mobile #appRoot .role-foot{font-size:7.8px}
+html.is-mobile #appRoot .pos-logo{font-size:9px}
+html.is-mobile #appRoot .pos-brand small{font-size:7.2px}
+html.is-mobile #appRoot .pos-btn{font-size:9px}
+html.is-mobile /* Giao dien dien thoai: thanh dang nhap noi gon lai */ @media(max-width:640px){font-size:7.8px}
+html.is-mobile #mobileSheet .msheet-head b{font-size:10.2px}
+html.is-mobile #mobileSheet #msheetClose{font-size:9px}
+html.is-mobile #mobileSheet .msheet-sec{font-size:7.2px}
+html.is-mobile #mobileSheet .msheet-item{font-size:9px}
+/* Thanh dieu huong duoi + bang menu truot tren mobile: giam 40% nhu phan con lai */
+html.is-mobile #mobileNav button{font-size:11.4px}
+html.is-mobile #mobileNav button span{font-size:6.6px}
+#mobileSheet .msheet-item.msheet-sub{padding-left:30px}
 
 </style>
 </head>
@@ -1230,9 +1408,8 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
         <div class="who"><b id="whoName">—</b><span id="whoRole">—</span></div>
         <button class="nav-btn" data-panel="panel-dashboard">📈 Dashboard chi trả hoa hồng</button>
         <div class="nav-group closed" data-group="salesdash">
-          <button class="nav-group-head" type="button">🛒 Dashboard KBH <span class="nav-caret">▾</span></button>
+          <button class="nav-group-head nav-btn" type="button" data-panel="panel-salesdash">🛒 Dashboard KBH <span class="nav-caret">▾</span></button>
           <div class="nav-group-body">
-            <button class="nav-btn nav-sub" data-panel="panel-salesdash">🛒 Dashboard KBH</button>
             <button class="nav-btn nav-sub" data-panel="panel-salescare-nv">👥 Tổng hợp CS KBH theo NV</button>
           </div>
         </div>
@@ -1394,14 +1571,15 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
 
           <!-- CHAM SOC KENH DUQ (LD VNPT KV) -->
           <h3 class="sec-title">💆 Chăm sóc kênh ĐUQ theo đơn vị (dành cho LĐ VNPT KV) <span class="sec-sub" id="ovCareSub"></span></h3>
-          <div class="chart-row" style="grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)">
+          <div class="chart-row care-row">
             <div class="chart-card" style="min-width:0">
               <h4>Bảng tổng hợp theo đơn vị</h4>
               <div class="tbl-wrap"><table class="data"><thead id="ovCareHead"></thead><tbody id="ovCareBody"><tr><td>—</td></tr></tbody></table></div>
             </div>
             <div class="chart-card" style="min-width:0">
-              <h4>Tỷ lệ chăm sóc ĐUQ (toàn tỉnh)</h4>
+              <h4>Tỷ lệ chăm sóc ĐUQ của LĐ VNPT KV (toàn tỉnh)</h4>
               <div id="ovCarePieChart"></div>
+              <div id="ovCarePieNote" class="care-pie-note"></div>
             </div>
           </div>
 
@@ -4636,7 +4814,10 @@ export default {
           delete nv._units;
         }
         const by_unit = [...byUnitMap.values()].map((u) =&gt; ({ ...u, ty_le_duq: rate1(u.sl_duq_cs, u.sl_duq), ty_le_dbl: rate1(u.sl_dbl_cs, u.sl_dbl) }));
-        const by_nv = [...byNvMap.values()].map((nv) =&gt; ({ ...nv, ty_le_duq: rate1(nv.sl_duq_cs, nv.sl_duq), ty_le_dbl: rate1(nv.sl_dbl_cs, nv.sl_dbl) })).sort((a, b) =&gt; String(a.ten_don_vi).localeCompare(String(b.ten_don_vi), &quot;vi&quot;) || String(a.ten_nv).localeCompare(String(b.ten_nv), &quot;vi&quot;));
+        // Chi liet ke NV duoc giao quan ly it nhat 1 diem DUQ/DBL (26/11/2026,
+        // anh Tuan: NV khong co diem ban thi an di). NV chi co diem DDV hoac
+        // chua phan loai da bi loai o vong lap tren, day la lop chan them.
+        const by_nv = [...byNvMap.values()].filter((nv) =&gt; (nv.sl_duq || 0) + (nv.sl_dbl || 0) &gt; 0).map((nv) =&gt; ({ ...nv, ty_le_duq: rate1(nv.sl_duq_cs, nv.sl_duq), ty_le_dbl: rate1(nv.sl_dbl_cs, nv.sl_dbl) })).sort((a, b) =&gt; String(a.ten_don_vi).localeCompare(String(b.ten_don_vi), &quot;vi&quot;) || String(a.ten_nv).localeCompare(String(b.ten_nv), &quot;vi&quot;));
         const tong = by_unit.reduce((t, u) =&gt; ({ sl_duq: t.sl_duq + u.sl_duq, sl_duq_cs: t.sl_duq_cs + u.sl_duq_cs, sl_dbl: t.sl_dbl + u.sl_dbl, sl_dbl_cs: t.sl_dbl_cs + u.sl_dbl_cs }), { sl_duq: 0, sl_duq_cs: 0, sl_dbl: 0, sl_dbl_cs: 0 });
         tong.ty_le_duq = rate1(tong.sl_duq_cs, tong.sl_duq);
         tong.ty_le_dbl = rate1(tong.sl_dbl_cs, tong.sl_dbl);
@@ -7769,15 +7950,19 @@ function buildMobileSheet() {
       list.appendChild(sheetRow(el.dataset.panel, el.textContent.trim(), cur));
     } else {
       const head = el.querySelector(".nav-group-head");
-      if (head) {
+      if (head && head.dataset.panel) {
+        if (!head.classList.contains("hidden")) list.appendChild(sheetRow(head.dataset.panel, head.textContent.replace("▾", "").trim(), cur));
+      } else if (head) {
         const sec = document.createElement("div");
         sec.className = "msheet-sec";
         sec.textContent = head.textContent.replace("▾", "").trim();
         list.appendChild(sec);
       }
-      el.querySelectorAll(".nav-btn").forEach((b) => {
+      el.querySelectorAll(".nav-group-body .nav-btn").forEach((b) => {
         if (b.classList.contains("hidden")) return;
-        list.appendChild(sheetRow(b.dataset.panel, b.textContent.trim(), cur));
+        const row = sheetRow(b.dataset.panel, b.textContent.trim(), cur);
+        if (head && head.dataset.panel) row.classList.add("msheet-sub");
+        list.appendChild(row);
       });
     }
   });
@@ -7841,6 +8026,7 @@ function openPanel(panelId, btn) {
 document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel, b)));
 // Thu gon / mo nhom menu
 document.querySelectorAll(".nav-group-head").forEach((h) => h.addEventListener("click", () => {
+  if (h.dataset.panel) return;
   const g = h.closest(".nav-group");
   const willOpen = g.classList.contains("closed");
   // Accordion: mo nhom nay thi dong het cac nhom khac; bam lai nhom dang mo thi thu gon
@@ -8980,6 +9166,18 @@ function renderOvCarePie(d) {
   const totQ = units.reduce((a, r) => a + (r.quy_mo_duq || 0), 0);
   const totC = units.reduce((a, r) => a + (r.duq_duoc_cs || 0), 0);
   ovCarePie(el, totC, totQ, d.period_label);
+  const note = $("ovCarePieNote");
+  if (note) {
+    const pct1 = (n) => Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%";
+    const rated = units.filter((r) => (r.quy_mo_duq || 0) > 0 && r.ty_le != null).slice().sort((a, b) => b.ty_le - a.ty_le);
+    const top = rated.slice(0, 3);
+    const bot = rated.filter((r) => top.indexOf(r) < 0).slice(-2).reverse();
+    let s = "";
+    if (top.length) s += "<div><b>✅ Tốt nhất:</b> " + top.map((r) => esc(r.ten) + " " + pct1(r.ty_le)).join(" · ") + "</div>";
+    if (bot.length) s += "<div><b>⚠️ Thấp nhất:</b> " + bot.map((r) => esc(r.ten) + " " + pct1(r.ty_le)).join(" · ") + "</div>";
+    note.innerHTML = s;
+    note.classList.toggle("hidden", !s);
+  }
 }
 // Bang + danh gia nhanh ket qua CS cua NVQL kenh (duoi bang LD)
 function renderCareNvql(d) {
@@ -9057,7 +9255,7 @@ function fillCareNvFilters(d) {
 function fillCareNvSel() {
   const sel = $("careNvSel"), cur = sel.value, unit = $("careNvUnit").value;
   const rows = (careNvData && careNvData.by_nv) || [];
-  const list = rows.filter((r) => !unit || String(r.don_vi_id) === unit).slice().sort((a, b) => String(a.ten_nv || "").localeCompare(String(b.ten_nv || ""), "vi"));
+  const list = rows.filter((r) => ((r.sl_duq || 0) + (r.sl_dbl || 0)) > 0 && (!unit || String(r.don_vi_id) === unit)).slice().sort((a, b) => String(a.ten_nv || "").localeCompare(String(b.ten_nv || ""), "vi"));
   sel.innerHTML = '<option value="">— Tất cả nhân viên —</option>' + list.map((r) => '<option value="' + esc(r.ma_nv) + '">' + esc(r.ten_nv || r.ma_nv) + " (" + esc(r.ma_nv) + ")</option>").join("");
   sel.value = list.some((r) => String(r.ma_nv) === cur) ? cur : "";
 }
@@ -9068,7 +9266,7 @@ function renderCareNv() {
   const sub = $("careNvSub"); if (sub) sub.textContent = d ? (d.period_label || "") : "";
   if (!d || !d.has_data) { body.innerHTML = "<tr><td colspan='9'>Chưa có số liệu chăm sóc kênh bán trong kỳ.</td></tr>"; return; }
   const unit = $("careNvUnit").value, nv = $("careNvSel").value;
-  const rows = (d.by_nv || []).filter((r) => (!unit || String(r.don_vi_id) === unit) && (!nv || String(r.ma_nv) === nv))
+  const rows = (d.by_nv || []).filter((r) => ((r.sl_duq || 0) + (r.sl_dbl || 0)) > 0 && (!unit || String(r.don_vi_id) === unit) && (!nv || String(r.ma_nv) === nv))
     .slice().sort((a, b) => {
       const ia = UNIT_ORDER.indexOf(normOrd(a.ten_don_vi || "")), ib = UNIT_ORDER.indexOf(normOrd(b.ten_don_vi || ""));
       if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
