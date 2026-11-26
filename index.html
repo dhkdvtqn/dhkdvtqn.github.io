@@ -1016,6 +1016,11 @@ html.is-mobile #mobileNav button span{font-size:6.6px}
 html.is-mobile #appRoot table.data{font-size:7px}
 html.is-mobile #appRoot table.data th{white-space:nowrap}
 html.is-mobile #appRoot table.data:not(.stacked) th,html.is-mobile #appRoot table.data:not(.stacked) td{padding:5px 3px}
+/* Cot bang tren dien thoai vong 2 (26/11/2026, anh Tuan): so khong be dong, text chi be o khoang trang, cot rong hon */
+html.is-mobile #appRoot table.data:not(.stacked) td:not(.cell-name){overflow-wrap:normal;word-break:normal;min-width:56px}
+html.is-mobile #appRoot table.data .delta,html.is-mobile #appRoot table.data .pill{white-space:nowrap}
+/* Cot ten (ten NV / ten diem ban / ten dot) tren dien thoai: rong hon de text toi da 2 dong */
+html.is-mobile #appRoot #careNvBody td:nth-child(3),html.is-mobile #appRoot #ovPosBody td:first-child,html.is-mobile #appRoot #srPosBody td:first-child,html.is-mobile #appRoot #lsBody td:nth-child(2),html.is-mobile #appRoot #careBatchBody td:first-child{min-width:110px}
 
 </style>
 </head>
