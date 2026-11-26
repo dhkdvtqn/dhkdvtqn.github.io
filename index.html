@@ -511,7 +511,7 @@
 #appRoot svg.chart .dot-rev {fill:#f59e0b;stroke:#fff;stroke-width:1}
 #appRoot svg.chart .bar-pssl {fill:#14b8a6}
 #appRoot svg.chart .line-plan {fill:none;stroke:#ef4444;stroke-width:2;stroke-dasharray:6 4}
-#appRoot #ovTrendChart, #appRoot #ovPsslChart {position:relative}
+#appRoot #ovTrendChart, #appRoot #ovPsslChart, #appRoot #ovCarePieChart {position:relative}
 #appRoot #mobTrendChart, #appRoot #mobShareChart, #appRoot #mobObChart, #appRoot #mobConvChart {position:relative}
 #appRoot #dashTrendChart, #appRoot #dashShareChart {position:relative}
 #appRoot #dashShareChart {max-width:340px;margin:0 auto}
@@ -1229,7 +1229,13 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
       <aside class="sidebar">
         <div class="who"><b id="whoName">—</b><span id="whoRole">—</span></div>
         <button class="nav-btn" data-panel="panel-dashboard">📈 Dashboard chi trả hoa hồng</button>
-        <button class="nav-btn" data-panel="panel-salesdash">🛒 Dashboard KBH</button>
+        <div class="nav-group closed" data-group="salesdash">
+          <button class="nav-group-head" type="button">🛒 Dashboard KBH <span class="nav-caret">▾</span></button>
+          <div class="nav-group-body">
+            <button class="nav-btn nav-sub" data-panel="panel-salesdash">🛒 Dashboard KBH</button>
+            <button class="nav-btn nav-sub" data-panel="panel-salescare-nv">👥 Tổng hợp CS KBH theo NV</button>
+          </div>
+        </div>
         <button class="nav-btn" data-panel="panel-mobile">📱 Dashboard TTCSKH</button>
         <div class="nav-group closed" data-group="policy">
           <button class="nav-group-head" type="button">📋 Cơ chế chính sách <span class="nav-caret">▾</span></button>
@@ -1270,6 +1276,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <button class="nav-btn nav-sub" data-panel="panel-import-ttcskh">📋 Import kế hoạch TTCSKH</button>
             <button class="nav-btn nav-sub" data-panel="panel-import-ttcskh-data">📥 Import dữ liệu TTCSKH</button>
             <button class="nav-btn nav-sub" data-panel="panel-gsheet">🔄 Đồng bộ Google Sheet</button>
+            <button class="nav-btn nav-sub" data-panel="panel-import-cskbh">📥 Import kết quả chăm sóc kênh bán</button>
           </div>
         </div>
         <button class="nav-btn" data-panel="panel-channelmap">🗺️ Bản đồ kênh bán</button>
@@ -1385,9 +1392,26 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             </div>
           </div>
 
-          <!-- CHAM SOC KENH DUQ -->
-          <h3 class="sec-title">💆 Chăm sóc kênh ĐUQ theo đơn vị <span class="sec-sub" id="ovCareSub"></span></h3>
-          <div class="tbl-wrap"><table class="data"><thead id="ovCareHead"></thead><tbody id="ovCareBody"><tr><td>—</td></tr></tbody></table></div>
+          <!-- CHAM SOC KENH DUQ (LD VNPT KV) -->
+          <h3 class="sec-title">💆 Chăm sóc kênh ĐUQ theo đơn vị (dành cho LĐ VNPT KV) <span class="sec-sub" id="ovCareSub"></span></h3>
+          <div class="chart-row" style="grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)">
+            <div class="chart-card" style="min-width:0">
+              <h4>Bảng tổng hợp theo đơn vị</h4>
+              <div class="tbl-wrap"><table class="data"><thead id="ovCareHead"></thead><tbody id="ovCareBody"><tr><td>—</td></tr></tbody></table></div>
+            </div>
+            <div class="chart-card" style="min-width:0">
+              <h4>Tỷ lệ chăm sóc ĐUQ (toàn tỉnh)</h4>
+              <div id="ovCarePieChart"></div>
+            </div>
+          </div>
+
+          <!-- DIEM TIN CS NVQL KENH -->
+          <h3 class="sec-title">🧭 Điểm tin kết quả chăm sóc kênh bán của NVQL kênh <span class="sec-sub" id="ovCareNvqlSub"></span></h3>
+          <div class="card" id="ovCareNvqlEvalCard">
+            <h3>📋 Đánh giá nhanh chăm sóc kênh bán <span class="sec-sub" id="ovCareNvqlEvalPeriod"></span></h3>
+            <div id="ovCareNvqlEval"><p class="muted">Chưa có dữ liệu chăm sóc NVQL.</p></div>
+          </div>
+          <div class="tbl-wrap"><table class="data"><thead id="ovCareNvqlHead"></thead><tbody id="ovCareNvqlBody"><tr><td>—</td></tr></tbody></table></div>
 
           <!-- DANH GIA THEO DON VI -->
           <h3 class="sec-title" id="ovUnitSec">🏢 Đánh giá theo đơn vị <span class="sec-sub" id="ovUnitSub"></span></h3>
@@ -1401,6 +1425,21 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div><label>Điểm bán PSSL</label><select id="ovPosPssl"><option value="">— Tất cả —</option><option value="1" selected>Có PSSL</option><option value="0">Chưa PSSL</option></select></div>
           </div>
           <div class="tbl-wrap"><table class="data"><thead id="ovPosHead"></thead><tbody id="ovPosBody"><tr><td>—</td></tr></tbody></table></div>
+        </section>
+
+        <!-- TONG HOP CS KBH THEO NV -->
+        <section class="panel hidden" id="panel-salescare-nv">
+          <h2>👥 Tổng hợp CS KBH theo NV</h2>
+          <p class="desc">Tổng hợp số lượng kênh bán do từng nhân viên quản lý (NVQL kênh) và kết quả chăm sóc trong kỳ. ĐUQ đạt khi có từ <b>02 lần chăm sóc trở lên trong tháng</b> (các lần khác ngày nhau, chỉ tính lần "Đã hoàn thành"); ĐBL đạt khi có từ <b>01 lần/tháng</b>. Đơn vị nào chỉ được xem số liệu của đơn vị đó; tài khoản cấp VNPT Quảng Ninh xem toàn tỉnh.</p>
+          <div class="form-grid">
+            <div><label>Tháng đánh giá</label><input type="month" id="careNvMonth" /></div>
+            <div><label>Lọc theo đơn vị</label><select id="careNvUnit"><option value="">— Tất cả đơn vị trong phạm vi của bạn —</option></select></div>
+            <div><label>Lọc theo nhân viên</label><select id="careNvSel"><option value="">— Tất cả nhân viên —</option></select></div>
+            <div style="align-self:end"><button class="btn blue" id="careNvBtn">Xem tổng hợp</button></div>
+          </div>
+          <div id="careNvMsg" style="margin-top:8px"></div>
+          <h3 class="sec-title">👥 Kết quả chăm sóc theo nhân viên <span class="sec-sub" id="careNvSub"></span></h3>
+          <div class="tbl-wrap"><table class="data"><thead id="careNvHead"></thead><tbody id="careNvBody"><tr><td>—</td></tr></tbody></table></div>
         </section>
 
         <!-- QUAN LY DON VI -->
@@ -1838,7 +1877,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <h3 style="margin:0;color:var(--blue-dark)">Các bảng dữ liệu đã import</h3>
             <div style="min-width:220px"><label>Bộ lọc theo loại dữ liệu</label><select id="tblTypeFilter"><option value="">— Tất cả loại —</option></select></div>
           </div>
-          <div class="tbl-wrap" style="max-height:215px;overflow-y:auto"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th>Khóa thay thế</th><th></th></tr></thead><tbody id="tablesBody"><tr><td colspan="6">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap" style="max-height:215px;overflow-y:auto"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th>Import gần nhất</th><th>Khóa thay thế</th><th></th></tr></thead><tbody id="tablesBody"><tr><td colspan="7">Đang tải…</td></tr></tbody></table></div>
           <div class="note"><b>Trường dữ liệu HHBG:</b> Tên Eload, Số Eload, Số Ví, Số thuê bao, Loại thuê bao, Chu kỳ chi trả, Tên gói cước, Giá gói cước, Thời gian giao dịch, Trans ID, Kênh thực hiện, Thù lao chi trả, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.<br/><b>Trường dữ liệu BCKH:</b> Số Eload, Tên Eload, Số thuê bao, Thời gian kích hoạt, Hoa hồng BCKH, Mã giao dịch, Thời gian chi trả, Trạng thái chi trả, Nguyên nhân lỗi.</div>
         </section>
 
@@ -1858,7 +1897,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <h3 style="margin:0;color:var(--blue-dark)">Các bảng dữ liệu bán hàng đã import</h3>
             <div style="min-width:220px"><label>Bộ lọc theo loại dữ liệu</label><select id="tblTypeFilterS"><option value="">— Tất cả loại —</option></select></div>
           </div>
-          <div class="tbl-wrap" style="max-height:215px;overflow-y:auto"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th>Khóa thay thế</th><th></th></tr></thead><tbody id="tablesBodyS"><tr><td colspan="6">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap" style="max-height:215px;overflow-y:auto"><table class="data"><thead><tr><th>Tên bảng</th><th>Loại</th><th>Tháng</th><th>Số dòng</th><th>Import gần nhất</th><th>Khóa thay thế</th><th></th></tr></thead><tbody id="tablesBodyS"><tr><td colspan="7">Đang tải…</td></tr></tbody></table></div>
           <div class="note"><b>Quy tắc tổng hợp Dashboard KBH:</b> doanh thu trước thuế = giá gói ÷ 1,1; chỉ tính thuê bao do Eload của điểm bán phát triển; thuê bao PTM chỉ tổng hợp từ loại Sản lượng PTTB; giao dịch có kết quả "Đăng ký không thành công" bị loại khỏi mọi số liệu. Các cột dữ liệu của từng loại lấy theo cấu hình trong mục <b>Quản lý loại dữ liệu</b>.</div>
         </section>
 
@@ -1875,7 +1914,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div id="kbMsg" style="margin-top:6px"></div>
             <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Các bảng đã import</h3>
             <p class="desc">Bảng của tháng trước trở về trước mặc định <b>đã khóa thay thế</b> — chỉ admin mới thay thế được dữ liệu của bảng đã khóa. Admin có thể khóa/mở khóa từng bảng bằng nút bên dưới.</p>
-            <div class="tbl-wrap"><table class="data"><thead><tr><th>Bảng tháng</th><th>Tháng</th><th>Số dòng</th><th>Trạng thái thay thế</th><th></th></tr></thead><tbody id="kbTablesBody"><tr><td colspan="5">Chưa tải danh sách bảng.</td></tr></tbody></table></div>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Bảng tháng</th><th>Tháng</th><th>Số dòng</th><th>Import gần nhất</th><th>Trạng thái thay thế</th><th></th></tr></thead><tbody id="kbTablesBody"><tr><td colspan="6">Chưa tải danh sách bảng.</td></tr></tbody></table></div>
         </section>
 
         <section class="panel hidden" id="panel-import-cb">
@@ -1891,7 +1930,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div id="cbMsg" style="margin-top:6px"></div>
             <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Các bảng đã import</h3>
             <p class="desc">Bảng của tháng trước trở về trước mặc định <b>đã khóa thay thế</b> — chỉ admin mới thay thế được dữ liệu của bảng đã khóa. Admin có thể khóa/mở khóa từng bảng bằng nút bên dưới.</p>
-            <div class="tbl-wrap"><table class="data"><thead><tr><th>Bảng tháng</th><th>Tháng</th><th>Số dòng</th><th>Trạng thái thay thế</th><th></th></tr></thead><tbody id="cbTablesBody"><tr><td colspan="5">Chưa tải danh sách bảng.</td></tr></tbody></table></div>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Bảng tháng</th><th>Tháng</th><th>Số dòng</th><th>Import gần nhất</th><th>Trạng thái thay thế</th><th></th></tr></thead><tbody id="cbTablesBody"><tr><td colspan="6">Chưa tải danh sách bảng.</td></tr></tbody></table></div>
         </section>
 
         <section class="panel hidden" id="panel-import-plan">
@@ -2038,7 +2077,7 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
             <div id="ttdMsg" style="margin-top:6px"></div>
             <div id="ttdPreview" style="margin-top:10px"></div>
             <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Bảng dữ liệu TTCSKH đã import</h3>
-            <div class="tbl-wrap"><table class="data"><thead><tr><th>Bảng tháng</th><th>Loại dữ liệu</th><th>Số dòng</th><th>Trạng thái</th><th></th></tr></thead><tbody id="ttdTablesBody"><tr><td colspan="5">Chưa tải danh sách bảng.</td></tr></tbody></table></div>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Bảng tháng</th><th>Loại dữ liệu</th><th>Số dòng</th><th>Import gần nhất</th><th>Trạng thái</th><th></th></tr></thead><tbody id="ttdTablesBody"><tr><td colspan="6">Chưa tải danh sách bảng.</td></tr></tbody></table></div>
         </section>
         <section class="panel hidden" id="panel-gsheet">
           <h2>🔄 Đồng bộ dữ liệu từ Google Sheet</h2>
@@ -2052,6 +2091,21 @@ html.is-mobile body.has-mobilenav #publicView.pos-home{padding-bottom:78px}
               <div id="gsheetSyncAllResult" style="margin-top:8px"></div>
             </div>
             <div class="gsheet-grid" id="gsheetList"><p class="muted">Đang tải cấu hình…</p></div>
+        </section>
+        <section class="panel hidden" id="panel-import-cskbh">
+          <h2>Import kết quả chăm sóc kênh bán hàng</h2>
+            <p class="desc">Import báo cáo chi tiết chăm sóc điểm bán (file Excel .xls/.xlsx/.csv, mẫu <b>CT_CSKBH</b>) lên CSDL D1 theo từng tháng. Mỗi tháng hệ thống tạo một bảng riêng <code class="inl">CSKBH_MMYYYY</code> (15 cột: STT, TTKD, Phòng BHKV, Tên điểm bán, Mã điểm bán, Loại điểm bán, ID chuỗi, Nhân viên quản lý, Mã HRM của nhân viên quản lý, Số điện thoại điểm bán, Ngày chăm sóc, Điểm đánh giá, Cách thức đánh giá, Trạng thái chăm sóc, Ảnh rời đi). File có khối tiêu đề phía trên — hệ thống <b>tự tìm hàng tiêu đề</b> (hàng chứa "Mã điểm bán") và <b>map cột theo tên</b>. Dòng thiếu Mã điểm bán (VD: dòng chữ ký cuối file) sẽ bị bỏ qua. 3 chế độ import: <b>Tạo mới</b> (bảng tháng chưa có mới import được), <b>Cập nhật</b> (nạp thêm dòng vào bảng tháng đã có), <b>Thay thế</b> (xóa toàn bộ bảng tháng rồi nạp lại).</p>
+            <div class="form-grid">
+              <div><label>Tháng</label><input type="number" id="cskbhMonth" min="1" max="12" /></div>
+              <div><label>Năm</label><input type="number" id="cskbhYear" min="2000" max="2100" /></div>
+              <div><label>Chế độ import</label><select id="cskbhMode"><option value="create">Tạo mới</option><option value="update">Cập nhật</option><option value="replace">Thay thế</option></select></div>
+              <div><label>File Excel dữ liệu</label><input type="file" id="cskbhFile" accept=".xlsx,.xls,.csv" /></div>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn gray" type="button" id="cskbhPreviewBtn">Xem trước</button><button class="btn blue" type="button" id="cskbhImpBtn">Import dữ liệu</button></div>
+            <div id="cskbhMsg" style="margin-top:6px"></div>
+            <div id="cskbhPreview" style="margin-top:10px"></div>
+            <h3 style="margin:22px 0 8px;color:var(--blue-dark)">Bảng dữ liệu chăm sóc kênh bán đã import</h3>
+            <div class="tbl-wrap"><table class="data"><thead><tr><th>Bảng tháng</th><th>Loại dữ liệu</th><th>Số dòng</th><th>Import gần nhất</th><th>Trạng thái</th><th></th></tr></thead><tbody id="cskbhTablesBody"><tr><td colspan="6">Chưa tải danh sách bảng.</td></tr></tbody></table></div>
         </section>
         <section class="panel hidden" id="panel-config">
           <h2>Cấu hình kết nối CSDL Cloudflare D1</h2>
@@ -3006,6 +3060,16 @@ async function listMonthlyTables(env, prefix) {
     .bind(prefix + &quot;_%&quot;)
     .all();
   return (res.results || []).map((r) =&gt; r.name);
+}
+// Thoi gian import gan nhat cua 1 bang thang: MAX(imported_at) cua cac dong
+// (cot imported_at do createTableSQL them, DEFAULT CURRENT_TIMESTAMP = gio
+// UTC). Doi sang gio Sai Gon (+7h) de hien thi. Bang cu chua co cot nay
+// (tao truoc khi them cot) thi tra null — giao dien hien &quot;—&quot;.
+async function lastImportAt(env, name) {
+  try {
+    const r = await env.DB.prepare(&#x27;SELECT datetime(MAX(imported_at), \&#x27;+7 hours\&#x27;) AS t FROM &quot;&#x27; + name + &#x27;&quot;&#x27;).first();
+    return r &amp;&amp; r.t ? r.t : null;
+  } catch (e) { return null; }
 }
 function tableInRange(name, loai, from, to) {
   // from/to: &#x27;YYYY-MM-DD&#x27;. Ten bang: HHBG_MMYYYY hoac BCKH_MMYY -&gt; lay thang dau &amp; cuoi.
@@ -3977,7 +4041,7 @@ export default {
           const tables = await listMonthlyTables(env, t.prefix);
           for (const name of tables) {
             const c = await env.DB.prepare(&#x27;SELECT COUNT(*) AS n FROM &quot;&#x27; + name + &#x27;&quot;&#x27;).first();
-            out.push({ table: name, code: t.code, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
+            out.push({ table: name, code: t.code, rows: c ? c.n : 0, locked: await isTableLocked(env, name), last_import_at: await lastImportAt(env, name) });
           }
         }
         // Bang danh sach kenh ban / CBCNV theo thang
@@ -3985,7 +4049,7 @@ export default {
           const tables = await listMonthlyTables(env, pfx);
           for (const name of tables) {
             const c = await env.DB.prepare(&#x27;SELECT COUNT(*) AS n FROM &quot;&#x27; + name + &#x27;&quot;&#x27;).first();
-            out.push({ table: name, code, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
+            out.push({ table: name, code, rows: c ? c.n : 0, locked: await isTableLocked(env, name), last_import_at: await lastImportAt(env, name) });
           }
         }
         return json({ ok: true, tables: out });
@@ -4156,7 +4220,7 @@ export default {
         for (const t of TTCSKH_TYPES) {
           for (const name of await listMonthlyTables(env, t.prefix)) {
             const c = await env.DB.prepare(&#x27;SELECT COUNT(*) n FROM &quot;&#x27; + name + &#x27;&quot;&#x27;).first();
-            out.push({ table: name, code: t.code, name: t.name, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
+            out.push({ table: name, code: t.code, name: t.name, rows: c ? c.n : 0, locked: await isTableLocked(env, name), last_import_at: await lastImportAt(env, name) });
           }
         }
         out.sort((a, b) =&gt; a.table.localeCompare(b.table));
@@ -4243,6 +4307,342 @@ export default {
         return json({ ok: true, table, type: dtype.code, inserted, mode, mapped_cols: mappedCols, total_cols: colNames.length, skipped_headers: skippedHeaders.slice(0, 10) });
       }
 
+      // ---- Ket qua cham soc kenh ban (module 5.11 &quot;Import ket qua cham soc kenh ban&quot;) ----
+      // Dinh dang file: bao cao chi tiet cham soc diem ban (15 cot, hang tieu de
+      // nam sau khoi tieu de — file mau co tieu de o hang 6; frontend tu tim
+      // hang chua &quot;Ma diem ban&quot; trong 12 hang dau). Moi thang 1 bang CSKBH_MMYYYY.
+      // Map cot THEO TEN (15 cot khong trung ten) — khac 5.9 (map theo vi tri).
+      const CSKBH_PREFIX = &quot;CSKBH&quot;;
+      const CSKBH_COLUMNS = [
+        [&quot;stt&quot;, &quot;TEXT&quot;, &quot;STT&quot;],
+        [&quot;ttkd&quot;, &quot;TEXT&quot;, &quot;TTKD&quot;],
+        [&quot;phong_bhkv&quot;, &quot;TEXT&quot;, &quot;Phòng BHKV&quot;],
+        [&quot;ten_diem_ban&quot;, &quot;TEXT&quot;, &quot;Tên điểm bán&quot;],
+        [&quot;ma_diem_ban&quot;, &quot;TEXT&quot;, &quot;Mã điểm bán&quot;],
+        [&quot;loai_diem_ban&quot;, &quot;TEXT&quot;, &quot;Loại điểm bán&quot;],
+        [&quot;id_chuoi&quot;, &quot;TEXT&quot;, &quot;ID chuỗi&quot;],
+        [&quot;nhan_vien_quan_ly&quot;, &quot;TEXT&quot;, &quot;Nhân viên quản lý&quot;],
+        [&quot;ma_hrm_nv&quot;, &quot;TEXT&quot;, &quot;Mã HRM của nhân viên quản lý&quot;],
+        [&quot;sdt_diem_ban&quot;, &quot;TEXT&quot;, &quot;Số điện thoại điểm bán&quot;],
+        [&quot;ngay_cham_soc&quot;, &quot;TEXT&quot;, &quot;Ngày chăm sóc&quot;],
+        [&quot;diem_danh_gia&quot;, &quot;TEXT&quot;, &quot;Điểm đánh giá&quot;],
+        [&quot;cach_thuc_danh_gia&quot;, &quot;TEXT&quot;, &quot;Cách thức đánh giá&quot;],
+        [&quot;trang_thai_cham_soc&quot;, &quot;TEXT&quot;, &quot;Trạng thái chăm sóc&quot;],
+        [&quot;anh_roi_di&quot;, &quot;TEXT&quot;, &quot;Ảnh rời đi&quot;],
+      ];
+      // Quy tac ghi nhan ket qua cham soc (anh Tuan chot 26/11/2026):
+      // - Chi dong co &quot;Trang thai cham soc&quot; = &quot;Da hoan thanh&quot; moi tinh la 1 lan
+      //   cham soc. Dong &quot;Khong du thoi gian&quot;: NV co ghe tham (co anh roi di)
+      //   nhung o chua du thoi gian chuan nen chua dat. Dong &quot;Khong/Chua hoan
+      //   thanh&quot;: khong co anh roi di nen khong co bang chung da ghe tham.
+      // - Cung 1 ngay cham soc nhieu lan chi tinh 1 lan (dem theo ngay khac nhau).
+      // - DUQ: &gt;= 2 ngay khac nhau/thang moi dat; DBL: &gt;= 1 ngay/thang.
+      // Neu anh muon doi sang &quot;tinh tat ca cac dong&quot;: chi can doi hang so duoi
+      // thanh &quot;&quot; (bo loc trang thai) — bao truoc khi doi de kiem chung lai so lieu.
+      const CSKBH_VALID_STATUS_NORM = &quot;da hoan thanh&quot;;
+      const normCareStatus = (v) =&gt; String(v == null ? &quot;&quot; : v).trim().toLowerCase().normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/đ/g, &quot;d&quot;).replace(/\s+/g, &quot; &quot;);
+      // Chuan hoa ngay cham soc ve YYYY-MM-DD: nhan &quot;DD/MM/YYYY&quot; (file Excel/
+      // CSV), &quot;YYYY-MM-DD&quot;, ISO datetime (SheetJS cellDates) va serial Excel.
+      const normCareDate = (v) =&gt; {
+        if (v == null || v === &quot;&quot;) return &quot;&quot;;
+        if (typeof v === &quot;number&quot; &amp;&amp; Number.isFinite(v)) {
+          const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+          return isNaN(d.getTime()) ? &quot;&quot; : d.toISOString().slice(0, 10);
+        }
+        const s = String(v).trim();
+        let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) return m[1] + &quot;-&quot; + m[2] + &quot;-&quot; + m[3];
+        m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) return m[3] + &quot;-&quot; + m[2].padStart(2, &quot;0&quot;) + &quot;-&quot; + m[1].padStart(2, &quot;0&quot;);
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? &quot;&quot; : d.toISOString().slice(0, 10);
+      };
+      if (path === &quot;/api/cskbh/types&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!isAdminLike &amp;&amp; !me.can_import &amp;&amp; !hasModuleExplicit(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
+        return json({ ok: true, types: [{ code: CSKBH_PREFIX, name: &quot;Kết quả chăm sóc kênh bán hàng&quot;, prefix: CSKBH_PREFIX, columns: CSKBH_COLUMNS.map(([key, type, label]) =&gt; ({ key, type, label })) }] });
+      }
+      if (path === &quot;/api/cskbh/tables&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!isAdminLike &amp;&amp; !me.can_import &amp;&amp; !hasModuleExplicit(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
+        const out = [];
+        for (const name of await listMonthlyTables(env, CSKBH_PREFIX)) {
+          const c = await env.DB.prepare(&#x27;SELECT COUNT(*) n FROM &quot;&#x27; + name + &#x27;&quot;&#x27;).first();
+          out.push({ table: name, code: CSKBH_PREFIX, name: &quot;Kết quả chăm sóc kênh bán hàng&quot;, rows: c ? c.n : 0, locked: await isTableLocked(env, name), last_import_at: await lastImportAt(env, name) });
+        }
+        out.sort((a, b) =&gt; a.table.localeCompare(b.table));
+        return json({ ok: true, tables: out });
+      }
+      if (path === &quot;/api/cskbh/tables&quot; &amp;&amp; method === &quot;DELETE&quot;) {
+        if (!isAdmin) return err(&quot;Chi admin moi duoc xoa bang du lieu cham soc kenh ban&quot;, 403);
+        const name = String(url.searchParams.get(&quot;name&quot;) || &quot;&quot;).trim();
+        if (!/^CSKBH_\d{6}$/.test(name)) return err(&quot;Ten bang khong hop le&quot;, 422);
+        await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + name + &#x27;&quot;&#x27;).run();
+        return json({ ok: true, table: name });
+      }
+      if (path === &quot;/api/cskbh/import&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!isAdminLike &amp;&amp; !me.can_import &amp;&amp; !hasModuleExplicit(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen import du lieu&quot;, 403);
+        if (!hasModule(me, &quot;import&quot;)) return err(&quot;Tai khoan khong co quyen su dung module Quan ly du lieu dau vao&quot;, 403);
+        const b = await readBody(request);
+        const mode = b.mode === &quot;replace&quot; ? &quot;replace&quot; : b.mode === &quot;create&quot; ? &quot;create&quot; : &quot;update&quot;;
+        const thang = Number(b.thang);
+        const nam = Number(b.nam);
+        if (!thang || thang &lt; 1 || thang &gt; 12 || !nam || nam &lt; 2000 || nam &gt; 2100) return err(&quot;Thang/nam import khong hop le&quot;, 422);
+        const columns = CSKBH_COLUMNS.map(([n, t]) =&gt; [n, t]);
+        const colNames = columns.map(([n]) =&gt; n);
+        // Map cot THEO TEN: chuan hoa tieu de file (bo dau, bo khoang trang, bo
+        // phan trong ngoac) roi khop voi nhan cot he thong. Cot khong khop thi
+        // bo qua; cot DB khong co trong file thi de trong. 0 cot khop -&gt; loi.
+        const normHdr = (x) =&gt; String(x == null ? &quot;&quot; : x).normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/đ/g, &quot;d&quot;).replace(/Đ/g, &quot;D&quot;).toLowerCase().replace(/\([^)]*\)/g, &quot;&quot;).replace(/[^a-z0-9]/g, &quot;&quot;);
+        const labelToIdx = new Map();
+        CSKBH_COLUMNS.forEach(([, , label], idx) =&gt; { const nk = normHdr(label); if (!labelToIdx.has(nk)) labelToIdx.set(nk, idx); });
+        const colIndex = colNames.map(() =&gt; -1);
+        const fileHeaders = Array.isArray(b.headers) ? b.headers.map((h) =&gt; String(h == null ? &quot;&quot; : h)) : [];
+        const skippedHeaders = [];
+        fileHeaders.forEach((h, i) =&gt; {
+          const ci = labelToIdx.get(normHdr(h));
+          if (ci === undefined) { if (String(h).trim() !== &quot;&quot;) skippedHeaders.push(h); return; }
+          if (colIndex[ci] === -1) colIndex[ci] = i;
+        });
+        const mappedCols = colIndex.filter((i) =&gt; i &gt;= 0).length;
+        if (!mappedCols) return err(&quot;Khong co cot nao trong file khop voi dinh nghia bang cham soc kenh ban. Hay kiem tra lai hang tieu de cua file.&quot;, 422);
+        if (colIndex[colNames.indexOf(&quot;ma_diem_ban&quot;)] &lt; 0 || colIndex[colNames.indexOf(&quot;ngay_cham_soc&quot;)] &lt; 0) return err(&quot;File thieu cot bat buoc &#x27;Ma diem ban&#x27; hoac &#x27;Ngay cham soc&#x27;. Hay kiem tra lai hang tieu de cua file.&quot;, 422);
+        const rawRows = Array.isArray(b.rows) ? b.rows : [];
+        const rows = [];
+        let skippedEmptyMa = 0;
+        for (const row of rawRows) {
+          if (!Array.isArray(row) || !row.some((v) =&gt; v !== null &amp;&amp; v !== undefined &amp;&amp; String(v).trim() !== &quot;&quot;)) continue;
+          const maIdx = colIndex[colNames.indexOf(&quot;ma_diem_ban&quot;)];
+          if (!String(row[maIdx] ?? &quot;&quot;).trim()) { skippedEmptyMa++; continue; }
+          rows.push(row);
+        }
+        if (!rows.length) return err(&quot;Khong co dong du lieu nao de import (cac dong deu thieu Ma diem ban).&quot;, 422);
+        const table = monthTableName(CSKBH_PREFIX, nam + &quot;-&quot; + String(thang).padStart(2, &quot;0&quot;));
+        if (mode === &quot;replace&quot; &amp;&amp; !isAdmin) {
+          const locked = await isTableLocked(env, table);
+          if (locked) return err(&quot;Bang du lieu &quot; + table + &quot; dang bi khoa thay the. Chi admin moi duoc thay the du lieu cua bang nay. Lien he admin de mo khoa neu can.&quot;, 403);
+        }
+        if (mode === &quot;create&quot;) {
+          const ex = await env.DB.prepare(&quot;SELECT name FROM sqlite_master WHERE type=&#x27;table&#x27; AND name = ?&quot;).bind(table).first();
+          if (ex) return err(&quot;Bang du lieu &quot; + table + &quot; da ton tai. Hay dung che do &#x27;Cap nhat&#x27; de nap them du lieu, hoac &#x27;Thay the&#x27; de xoa du lieu cu va nap lai tu dau.&quot;, 409);
+        }
+        if (mode === &quot;replace&quot;) {
+          await env.DB.prepare(&#x27;DROP TABLE IF EXISTS &quot;&#x27; + table + &#x27;&quot;&#x27;).run();
+        }
+        await env.DB.prepare(createTableSQL(table, columns)).run();
+        await ensureListColumns(env, table, columns);
+        const sql =
+          &#x27;INSERT INTO &quot;&#x27; + table + &#x27;&quot; (&#x27; + colNames.map((n) =&gt; &#x27;&quot;&#x27; + n + &#x27;&quot;&#x27;).join(&quot;, &quot;) +
+          &quot;, imported_by) VALUES (&quot; + colNames.map(() =&gt; &quot;?&quot;).join(&quot;, &quot;) + &quot;, ?)&quot;;
+        let inserted = 0;
+        const CHUNK = 100;
+        for (let i = 0; i &lt; rows.length; i += CHUNK) {
+          const batch = rows.slice(i, i + CHUNK).map((row) =&gt; {
+            const vals = colNames.map((n, idx) =&gt; {
+              const v = colIndex[idx] &gt;= 0 ? row[colIndex[idx]] : undefined;
+              return toText(v);
+            });
+            vals.push(me.username);
+            return env.DB.prepare(sql).bind(...vals);
+          });
+          await env.DB.batch(batch);
+          inserted += batch.length;
+        }
+        return json({ ok: true, table, type: CSKBH_PREFIX, inserted, skipped_empty_ma: skippedEmptyMa, mode, mapped_cols: mappedCols, total_cols: colNames.length, skipped_headers: skippedHeaders.slice(0, 10) });
+      }
+
+      // ---- Tong hop cham soc kenh ban cua NVQL kenh ----
+      // Dung cho: bang diem tin NVQL tren Dashboard KBH + muc &quot;Tong hop CS KBH
+      // theo NV&quot;. Nguon: bang CSKBH_MMYYYY (5.11/5.10) + tai khoan diem ban +
+      // bang kenh_ban thang do (ma NV quan ly) + bang cbcnv (ten NV).
+      // Mau so: hop nhat tai khoan diem ban + danh sach kenh ban thang + diem
+      // chi co trong file cham soc (de diem da CS luon nam trong mau so).
+      // Tu so: diem dat chuan thang (DUQ &gt;= 2 ngay khac nhau, DBL &gt;= 1 ngay)
+      // trong ky; ky nam thi dat neu dat chuan o it nhat 1 thang trong nam.
+      if (path === &quot;/api/care-nvql&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;salesdash&quot;)) return err(&quot;Tai khoan khong co quyen xem Dashboard ban hang&quot;, 403);
+        const ky = url.searchParams.get(&quot;ky&quot;) === &quot;nam&quot; ? &quot;nam&quot; : &quot;thang&quot;;
+        const nowS = saigonNow();
+        let thang = String(url.searchParams.get(&quot;thang&quot;) || &quot;&quot;).trim();
+        if (!/^\d{4}-\d{2}$/.test(thang)) thang = nowS.slice(0, 7);
+        let nam = parseInt(url.searchParams.get(&quot;nam&quot;), 10);
+        if (!nam || nam &lt; 2000 || nam &gt; 2100) nam = Number(nowS.slice(0, 4));
+        const curMonths = ky === &quot;nam&quot;
+          ? Array.from({ length: 12 }, (_, i) =&gt; nam + &quot;-&quot; + String(i + 1).padStart(2, &quot;0&quot;))
+          : [thang];
+        const periodLabel = ky === &quot;nam&quot; ? &quot;năm &quot; + nam : &quot;tháng &quot; + Number(thang.slice(5, 7)) + &quot;/&quot; + thang.slice(0, 4);
+        const normU = (s) =&gt; String(s == null ? &quot;&quot; : s).trim().toLowerCase().normalize(&quot;NFD&quot;).replace(/[\u0300-\u036f]/g, &quot;&quot;).replace(/đ/g, &quot;d&quot;).replace(/[–—−‐‒]/g, &quot;-&quot;).replace(/\s+/g, &quot; &quot;).replace(/\s*-\s*/g, &quot;-&quot;);
+        const allUnits = (await env.DB.prepare(&quot;SELECT id, ten_don_vi FROM don_vi&quot;).all()).results || [];
+        const unitNameToId = {};
+        const duidToName = {};
+        for (const u of allUnits) { unitNameToId[normU(u.ten_don_vi)] = u.id; duidToName[u.id] = u.ten_don_vi; }
+        let scopeUnitIds = null;
+        const leaderScoped = isLeaderLike &amp;&amp; me.don_vi_id;
+        if (leaderScoped) {
+          const urs = (await env.DB.prepare(unitSubtreeCTE() + &quot; SELECT d.id, d.ten_don_vi FROM don_vi d WHERE d.id IN (SELECT id FROM subtree)&quot;).bind(me.don_vi_id).all()).results || [];
+          scopeUnitIds = urs.map((u) =&gt; u.id);
+        } else if (!isPrivileged) {
+          scopeUnitIds = me.don_vi_id ? [me.don_vi_id] : [];
+        }
+        const inScope = (duid) =&gt; scopeUnitIds === null || (duid != null &amp;&amp; scopeUnitIds.includes(duid));
+        const normE2 = (s) =&gt; String(s == null ? &quot;&quot; : s).trim().toUpperCase().replace(/\s+/g, &quot;&quot;);
+        const resolveType = (hang, loai) =&gt; {
+          const h = normLoaiKenh(hang);
+          if (h === &quot;DUQ&quot; || h === &quot;DBL&quot;) return h;
+          return normLoaiKenh(loai);
+        };
+        // Vu tru diem ban: tai khoan + kenh_ban + diem chi co trong file CS.
+        // Join theo so Eload truoc (on dinh nhat), roi ma kenh; ma kenh khac
+        // nhau cho cung 1 diem thi luu alias de dong CS sau van map dung.
+        const posMap = new Map();
+        const eloadToKey = new Map();
+        const codeAlias = new Map();
+        const registerKeys = (key, code, el) =&gt; {
+          if (code) codeAlias.set(&quot;mk:&quot; + code, key);
+          if (el) eloadToKey.set(el, key);
+        };
+        const resolveKey = (code, el) =&gt; {
+          if (code &amp;&amp; codeAlias.has(&quot;mk:&quot; + code)) return codeAlias.get(&quot;mk:&quot; + code);
+          if (el &amp;&amp; eloadToKey.has(el)) return eloadToKey.get(el);
+          if (code &amp;&amp; posMap.has(&quot;mk:&quot; + code)) return &quot;mk:&quot; + code;
+          return null;
+        };
+        const newPos = (key, p) =&gt; {
+          const o = { code: &quot;&quot;, eload: &quot;&quot;, don_vi_id: null, ten_don_vi: &quot;&quot;, type: &quot;&quot;, mgr: &quot;&quot;, mgrTen: &quot;&quot;, days: {}, ...p };
+          posMap.set(key, o);
+          registerKeys(key, o.code, o.eload);
+          return o;
+        };
+        // (1) Tai khoan diem ban
+        const accRows = (await env.DB.prepare(&quot;SELECT u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, d.ten_don_vi AS don_vi_ten FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = &#x27;user&#x27;&quot;).all()).results || [];
+        for (const r of accRows) {
+          const code = normE2(r.ma_kenh);
+          const el = normE2(r.so_eload);
+          const key = code ? &quot;mk:&quot; + code : (el ? &quot;el:&quot; + el : null);
+          if (!key || posMap.has(key)) continue;
+          newPos(key, { code, eload: el, don_vi_id: r.don_vi_id, ten_don_vi: r.don_vi_ten || &quot;&quot;, type: normLoaiKenh(r.loai_kenh) });
+        }
+        // (2) Bang kenh_ban thang gan nhat trong ky: bo sung diem chua co tai
+        // khoan + ma NV quan ly + ten NV (ten_nv_bh).
+        for (const mk of [...curMonths].reverse()) {
+          const t = await monthTableExists(env, KENH_BAN_PREFIX, mk);
+          if (!t) continue;
+          const kbRows = (await env.DB.prepare(&#x27;SELECT * FROM &quot;&#x27; + t + &#x27;&quot;&#x27;).all()).results || [];
+          for (const r of kbRows) {
+            const code = normE2(r.ma_kenh);
+            const el = normE2(r.so_eload);
+            let key = resolveKey(code, el);
+            const duid = r.don_vi_id != null &amp;&amp; String(r.don_vi_id).trim() !== &quot;&quot; ? Number(r.don_vi_id) : (unitNameToId[normU(r.don_vi)] || null);
+            const tp = resolveType(r.hang_kenh, r.loai_kenh);
+            if (!key) {
+              key = code ? &quot;mk:&quot; + code : (el ? &quot;el:&quot; + el : null);
+              if (!key) continue;
+              newPos(key, { code, eload: el, don_vi_id: duid, ten_don_vi: duid != null ? (duidToName[duid] || &quot;&quot;) : (r.don_vi || &quot;&quot;), type: tp, mgr: normE2(r.ma_nv_quan_ly), mgrTen: r.ten_nv_bh ? String(r.ten_nv_bh).trim() : &quot;&quot; });
+            } else {
+              const p = posMap.get(key);
+              registerKeys(key, code, el);
+              if (!p.type &amp;&amp; tp) p.type = tp;
+              if (p.don_vi_id == null &amp;&amp; duid != null) { p.don_vi_id = duid; p.ten_don_vi = duidToName[duid] || r.don_vi || p.ten_don_vi; }
+              if (!p.mgr &amp;&amp; normE2(r.ma_nv_quan_ly)) p.mgr = normE2(r.ma_nv_quan_ly);
+              if (!p.mgrTen &amp;&amp; r.ten_nv_bh) p.mgrTen = String(r.ten_nv_bh).trim();
+            }
+          }
+          break;
+        }
+        // (3) Ten NV quan ly tu bang cbcnv thang gan nhat trong ky
+        const mgrName = new Map();
+        for (const mk of [...curMonths].reverse()) {
+          const t = await monthTableExists(env, CBCNV_PREFIX, mk);
+          if (!t) continue;
+          const mrs = (await env.DB.prepare(&#x27;SELECT * FROM &quot;&#x27; + t + &#x27;&quot;&#x27;).all()).results || [];
+          for (const m of mrs) {
+            const nm = String(m.ho_ten || &quot;&quot;).trim();
+            if (!nm) continue;
+            for (const col of [&quot;ma_smcs&quot;, &quot;ma_hrm&quot;, &quot;user_ccbs&quot;]) {
+              const k = normE2(m[col]);
+              if (k &amp;&amp; !mgrName.has(k)) mgrName.set(k, nm);
+            }
+          }
+          break;
+        }
+        // (4) Dong cham soc: chi tinh dong &quot;Da hoan thanh&quot;, dem theo ngay khac nhau
+        let tables = [];
+        let careRows = 0, validRows = 0;
+        for (const mk of curMonths) {
+          const t = await monthTableExists(env, CSKBH_PREFIX, mk);
+          if (!t) continue;
+          tables.push(t);
+          const rows = (await env.DB.prepare(&#x27;SELECT * FROM &quot;&#x27; + t + &#x27;&quot;&#x27;).all()).results || [];
+          for (const r of rows) {
+            careRows++;
+            const code = normE2(r.ma_diem_ban);
+            const el = normE2(r.sdt_diem_ban);
+            const nvCode = normE2(r.ma_hrm_nv);
+            if (!code &amp;&amp; !el) continue;
+            let key = resolveKey(code, el);
+            let p = key ? posMap.get(key) : null;
+            if (!p) {
+              key = code ? &quot;mk:&quot; + code : &quot;el:&quot; + el;
+              const duid = unitNameToId[normU(r.phong_bhkv)] || null;
+              p = newPos(key, { code, eload: el, don_vi_id: duid, ten_don_vi: duid != null ? (duidToName[duid] || &quot;&quot;) : (r.phong_bhkv || &quot;&quot;), type: normLoaiKenh(r.loai_diem_ban), mgr: nvCode, mgrTen: r.nhan_vien_quan_ly ? String(r.nhan_vien_quan_ly).trim() : &quot;&quot; });
+            } else {
+              registerKeys(key, code, el);
+            }
+            if (!p.mgr &amp;&amp; nvCode) { p.mgr = nvCode; p.mgrTen = r.nhan_vien_quan_ly ? String(r.nhan_vien_quan_ly).trim() : p.mgrTen; }
+            if (!p.type) p.type = normLoaiKenh(r.loai_diem_ban);
+            if (p.don_vi_id == null) {
+              const duid = unitNameToId[normU(r.phong_bhkv)] || null;
+              if (duid != null) { p.don_vi_id = duid; p.ten_don_vi = duidToName[duid] || p.ten_don_vi; }
+            }
+            if (normCareStatus(r.trang_thai_cham_soc) !== CSKBH_VALID_STATUS_NORM) continue;
+            const day = normCareDate(r.ngay_cham_soc);
+            if (!day) continue;
+            validRows++;
+            const mm = day.slice(0, 7);
+            if (!p.days[mm]) p.days[mm] = new Set();
+            p.days[mm].add(day);
+          }
+        }
+        // Dat chuan trong ky: DUQ &gt;= 2 ngay khac nhau o it nhat 1 thang; DBL &gt;= 1 ngay
+        const isCared = (p) =&gt; {
+          if (p.type === &quot;DUQ&quot;) return curMonths.some((mk) =&gt; (p.days[mk] ? p.days[mk].size : 0) &gt;= 2);
+          if (p.type === &quot;DBL&quot;) return curMonths.some((mk) =&gt; (p.days[mk] ? p.days[mk].size : 0) &gt;= 1);
+          return false;
+        };
+        const rate1 = (a, b) =&gt; b &gt; 0 ? Math.round(a / b * 1000) / 10 : null;
+        const byUnitMap = new Map();
+        const byNvMap = new Map();
+        let posNoMgr = 0, posUnclassified = 0;
+        for (const p of posMap.values()) {
+          if (!inScope(p.don_vi_id)) continue;
+          if (p.type !== &quot;DUQ&quot; &amp;&amp; p.type !== &quot;DBL&quot;) { posUnclassified++; continue; }
+          const cared = isCared(p);
+          const ukey = p.don_vi_id != null ? &quot;id:&quot; + p.don_vi_id : &quot;ten:&quot; + normU(p.ten_don_vi || &quot;Chưa xác định&quot;);
+          const u = byUnitMap.get(ukey) || { don_vi_id: p.don_vi_id, ten: p.don_vi_id != null ? (duidToName[p.don_vi_id] || p.ten_don_vi || &quot;Đơn vị &quot; + p.don_vi_id) : (p.ten_don_vi || &quot;Chưa xác định&quot;), sl_duq: 0, sl_duq_cs: 0, sl_dbl: 0, sl_dbl_cs: 0 };
+          if (p.type === &quot;DUQ&quot;) { u.sl_duq++; if (cared) u.sl_duq_cs++; } else { u.sl_dbl++; if (cared) u.sl_dbl_cs++; }
+          byUnitMap.set(ukey, u);
+          if (!p.mgr) { posNoMgr++; continue; }
+          const nv = byNvMap.get(p.mgr) || { ma_nv: p.mgr, ten_nv: mgrName.get(p.mgr) || p.mgrTen || p.mgr, don_vi_id: p.don_vi_id, ten_don_vi: u.ten, sl_duq: 0, sl_duq_cs: 0, sl_dbl: 0, sl_dbl_cs: 0, _units: {} };
+          if (p.type === &quot;DUQ&quot;) { nv.sl_duq++; if (cared) nv.sl_duq_cs++; } else { nv.sl_dbl++; if (cared) nv.sl_dbl_cs++; }
+          const uk2 = p.don_vi_id != null ? p.don_vi_id : &quot;x&quot;;
+          nv._units[uk2] = (nv._units[uk2] || 0) + 1;
+          byNvMap.set(p.mgr, nv);
+        }
+        // Don vi cua NV = don vi co nhieu diem quan ly nhat (trong pham vi)
+        for (const nv of byNvMap.values()) {
+          let best = null, bestN = -1;
+          for (const k in nv._units) { if (nv._units[k] &gt; bestN) { bestN = nv._units[k]; best = k; } }
+          if (best !== null &amp;&amp; best !== &quot;x&quot;) { nv.don_vi_id = Number(best); nv.ten_don_vi = duidToName[nv.don_vi_id] || nv.ten_don_vi; }
+          delete nv._units;
+        }
+        const by_unit = [...byUnitMap.values()].map((u) =&gt; ({ ...u, ty_le_duq: rate1(u.sl_duq_cs, u.sl_duq), ty_le_dbl: rate1(u.sl_dbl_cs, u.sl_dbl) }));
+        const by_nv = [...byNvMap.values()].map((nv) =&gt; ({ ...nv, ty_le_duq: rate1(nv.sl_duq_cs, nv.sl_duq), ty_le_dbl: rate1(nv.sl_dbl_cs, nv.sl_dbl) })).sort((a, b) =&gt; String(a.ten_don_vi).localeCompare(String(b.ten_don_vi), &quot;vi&quot;) || String(a.ten_nv).localeCompare(String(b.ten_nv), &quot;vi&quot;));
+        const tong = by_unit.reduce((t, u) =&gt; ({ sl_duq: t.sl_duq + u.sl_duq, sl_duq_cs: t.sl_duq_cs + u.sl_duq_cs, sl_dbl: t.sl_dbl + u.sl_dbl, sl_dbl_cs: t.sl_dbl_cs + u.sl_dbl_cs }), { sl_duq: 0, sl_duq_cs: 0, sl_dbl: 0, sl_dbl_cs: 0 });
+        tong.ty_le_duq = rate1(tong.sl_duq_cs, tong.sl_duq);
+        tong.ty_le_dbl = rate1(tong.sl_dbl_cs, tong.sl_dbl);
+        return json({ ok: true, ky, thang: ky === &quot;thang&quot; ? curMonths[0] : null, nam: ky === &quot;nam&quot; ? nam : null, period_label: periodLabel, has_data: tables.length &gt; 0, tables, care_rows: careRows, valid_rows: validRows, by_unit, by_nv, tong, meta: { pos_no_mgr: posNoMgr, pos_unclassified: posUnclassified } });
+      }
+
       // ---- Dong bo du lieu tu Google Sheet (module 5.10) ----
       // 11 mon: SMCS + TNTTTB (cot lay tu loai_du_lieu, muc 5.6) + 9 loai
       // TTCSKH (cot co dinh nhu module 5.9). Chi dong bo vao bang cua THANG
@@ -4259,6 +4659,7 @@ export default {
         { key: &quot;THBG&quot;, name: &quot;Dữ liệu đầu vào bảng THBG&quot;, kind: &quot;ttcskh&quot; },
         { key: &quot;THHVC&quot;, name: &quot;Dữ liệu đầu vào bảng THHVC&quot;, kind: &quot;ttcskh&quot; },
         { key: &quot;IPCC&quot;, name: &quot;Dữ liệu đầu vào bảng IPCC&quot;, kind: &quot;ttcskh&quot; },
+        { key: &quot;CSKBH&quot;, name: &quot;Kết quả chăm sóc kênh bán hàng&quot;, kind: &quot;cskbh&quot; },
       ];
       // Cot dich + ten bang thang hien tai cua 1 mon. Tra {error} neu loai
       // SMCS/TNTTTB chua duoc cau hinh o muc 5.6.
@@ -4269,6 +4670,9 @@ export default {
         if (item.kind === &quot;ttcskh&quot;) {
           const t = TTCSKH_TYPES.find((x) =&gt; x.code === key);
           return { item, month, prefix: t.prefix, name: t.name, table: monthTableName(t.prefix, month), columns: t.columns.map(([k, ty, lb]) =&gt; ({ key: k, type: ty, label: lb })) };
+        }
+        if (item.kind === &quot;cskbh&quot;) {
+          return { item, month, prefix: CSKBH_PREFIX, name: &quot;Kết quả chăm sóc kênh bán hàng&quot;, table: monthTableName(CSKBH_PREFIX, month), columns: CSKBH_COLUMNS.map(([k, ty, lb]) =&gt; ({ key: k, type: ty, label: lb })) };
         }
         const types = await getDataTypes(env);
         const dt = types.find((t) =&gt; t.code === key);
@@ -7146,8 +7550,8 @@ const MODULE_DEFS = [
 ];
 const PANEL_MODULES = {
   "panel-dashboard": "dashboard", "panel-salesdash": "salesdash", "panel-mobile": "mobiledash", "panel-units": "units", "panel-users": "users", "panel-staff": "staff", "panel-import": "import",
-  "panel-config": "config", "panel-reports": "reports", "panel-salesreport": "salesdash", "panel-carereport": "reports", "panel-packages": "packages",
-  "panel-import-sales": "import", "panel-import-kb": "import", "panel-import-cb": "import", "panel-import-plan": "import", "panel-import-types": "import", "panel-import-loaikenh": "import", "panel-import-ttcskh": "import", "panel-import-ttcskh-data": "import",
+  "panel-config": "config", "panel-reports": "reports", "panel-salesreport": "salesdash", "panel-salescare-nv": "salesdash", "panel-carereport": "reports", "panel-packages": "packages",
+  "panel-import-sales": "import", "panel-import-kb": "import", "panel-import-cb": "import", "panel-import-plan": "import", "panel-import-types": "import", "panel-import-loaikenh": "import", "panel-import-ttcskh": "import", "panel-import-ttcskh-data": "import", "panel-import-cskbh": "import",
   "panel-gsheet": "gsheet",
   "panel-loginstats": "loginstats", "panel-care": "care", "panel-channelmap": "channelmap", "panel-settings": "settings",
   "panel-policy-new": "policy", "panel-policy-existing": "policy",
@@ -7234,7 +7638,7 @@ function refreshAuthUI() {
       const key = PANEL_MODULES[p];
       const isAdm = me.role === "admin", isSub = me.role === "subadmin";
       const ticked = (k) => !!(k && me.modules && me.modules.includes(k));
-      const isImpMain = p === "panel-import" || p === "panel-import-sales" || p === "panel-import-kb" || p === "panel-import-cb" || p === "panel-import-ttcskh-data";
+      const isImpMain = p === "panel-import" || p === "panel-import-sales" || p === "panel-import-kb" || p === "panel-import-cb" || p === "panel-import-ttcskh-data" || p === "panel-import-cskbh";
       const isImpAdmin = p === "panel-import-plan" || p === "panel-import-types" || p === "panel-import-loaikenh" || p === "panel-import-ttcskh" || p === "panel-gsheet";
       let show = true;
       if (isAdm) { show = true; }
@@ -7409,6 +7813,7 @@ function openPanel(panelId, btn) {
   syncMobileNav(panelId);
   if (panelId === "panel-dashboard") { loadDataTypes(); loadDashboard(); }
   if (panelId === "panel-salesdash") { initSalesDash(); loadSalesOverview(); }
+  if (panelId === "panel-salescare-nv") { initCareNv(); loadCareNv(); }
   if (panelId === "panel-mobile") { initMobileDash(); }
   if (panelId === "panel-loginstats") loadLoginStats();
   if (panelId === "panel-packages") { $("pkgAdminBox").classList.toggle("hidden", !(me && (me.role === "admin" || me.role === "subadmin"))); loadPackages(); }
@@ -7423,6 +7828,7 @@ function openPanel(panelId, btn) {
   if (panelId === "panel-import-types") loadDataTypes();
   if (panelId === "panel-import-ttcskh") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); if (!$("ttkhMonth").value) $("ttkhMonth").value = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("ttkhImpYear").value) $("ttkhImpYear").value = pn.getFullYear(); if (!$("ttkhViewYear").value) $("ttkhViewYear").value = pn.getFullYear(); }
   if (panelId === "panel-import-ttcskh-data") { const pn = new Date(); if (!$("ttdMonth").value) $("ttdMonth").value = pn.getMonth() + 1; if (!$("ttdYear").value) $("ttdYear").value = pn.getFullYear(); loadTtdTypes(); loadTtdTables(); }
+  if (panelId === "panel-import-cskbh") { const pn = new Date(); if (!$("cskbhMonth").value) $("cskbhMonth").value = pn.getMonth() + 1; if (!$("cskbhYear").value) $("cskbhYear").value = pn.getFullYear(); loadCskbhTables(); }
   if (panelId === "panel-gsheet") loadGsheet();
   if (panelId === "panel-import-loaikenh") { loadLoaikenh(); const pn = new Date(); if (!$("lkMonth").value) $("lkMonth").value = pn.getMonth() + 1; if (!$("lkYear").value) $("lkYear").value = pn.getFullYear(); }
   if (panelId === "panel-reports") { loadDataTypes(); loadPosList(); }
@@ -8159,9 +8565,11 @@ async function loadSalesOverview() {
     renderOvEval(d);
     renderOvPlan(d);
     renderOvCare(d);
+    renderOvCarePie(d);
     renderOvUnit(d, showRev);
     renderOvPosFilter(d);
     applyOvPosFilter();
+    loadCareNvql(q);
   } catch (e) { setMsg($("salesMsg"), e.message, false); }
 }
 // Thu tu hien thi don vi co dinh theo yeu cau (an VNPT Quang Ninh - don vi cha)
@@ -8461,6 +8869,220 @@ function renderOvCare(d) {
     "<td>" + fmtInt(r.luot) + "</td></tr>"
   ).join("") : "<tr><td colspan='5'>Chưa có dữ liệu chăm sóc trong " + d.period_label + ".</td></tr>";
 }
+// O (cot ty le %) dung chung cho bang NVQL
+function pctCellCare(v, bold) {
+  if (v == null) return "—";
+  const s = Number(v).toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%";
+  const cls = v >= 100 ? "up" : v >= 50 ? "flat" : "down";
+  return "<span class='delta " + cls + "'>" + (bold ? "<b>" + s + "</b>" : s) + "</span>";
+}
+// Bieu do Pie 3D: ty le cham soc DUQ tong (LD VNPT KV) — quet tu 0% den 100% (ban sao hinh hoc cua mobShareChart)
+function ovCarePie(el, cared, total, periodLabel) {
+  if (el._pieRaf) { cancelAnimationFrame(el._pieRaf); el._pieRaf = null; }
+  if (!total || total <= 0) {
+    el.innerHTML = '<div class="muted" style="padding:60px 0;text-align:center">Chưa có dữ liệu chăm sóc ĐUQ.</div>';
+    return;
+  }
+  const rows = [
+    { name: "Đã chăm sóc", color: "#14b8a6", v: cared || 0 },
+    { name: "Chưa chăm sóc", color: "#94a3b8", v: Math.max(0, total - (cared || 0)) },
+  ];
+  const W = 720, H = 340, CX = 360, CY = 148, RX = 180, RY = 96, D = 20;
+  const shade = (hex, f) => {
+    const n = parseInt(hex.slice(1), 16);
+    const c = (v) => Math.max(0, Math.min(255, Math.round(v * f)));
+    return "rgb(" + c((n >> 16) & 255) + "," + c((n >> 8) & 255) + "," + c(n & 255) + ")";
+  };
+  const pt = (a, rx, ry, dy) => { const r = (a * Math.PI) / 180; return { x: CX + rx * Math.cos(r), y: CY + ry * Math.sin(r) + (dy || 0) }; };
+  const fx = (n) => n.toFixed(1);
+  let acc = -90;
+  const slices = rows.map((r) => {
+    const span = (r.v / total) * 360;
+    const s = { ...r, a0: acc, a1: acc + span, span };
+    acc += span;
+    return s;
+  });
+  let s = '<svg viewBox="0 0 ' + W + " " + H + '" class="chart" role="img">';
+  slices.forEach((sl, i) => { s += '<path class="pie-side" data-i="' + i + '" fill="' + shade(sl.color, 0.62) + '"/>'; });
+  slices.forEach((sl, i) => { s += '<path class="pie-top" data-i="' + i + '" fill="' + sl.color + '" stroke="#fff" stroke-width="1.5"/>'; });
+  slices.forEach((sl, i) => {
+    s += '<g class="pie-call" data-i="' + i + '"><polyline fill="none" stroke="' + sl.color + '" stroke-width="1.5"/>' +
+      '<text style="font-size:15px;fill:#334155"><tspan class="pc-code" font-weight="700"></tspan><tspan class="pc-pct" dy="17"></tspan><tspan class="pc-cnt" dy="17"></tspan></text></g>';
+  });
+  s += "</svg>";
+  el.innerHTML = s + '<div class="chart-tip" style="display:none"></div>';
+  const tip = el.querySelector(".chart-tip");
+  const sideEls = [...el.querySelectorAll(".pie-side")];
+  const topEls = [...el.querySelectorAll(".pie-top")];
+  const callEls = [...el.querySelectorAll(".pie-call")];
+  const draw = (p) => {
+    slices.forEach((sl, i) => {
+      const a0 = sl.a0, a1 = sl.a0 + sl.span * p;
+      const span = a1 - a0;
+      if (span <= 0.01) { topEls[i].setAttribute("d", ""); sideEls[i].setAttribute("d", ""); callEls[i].style.opacity = "0"; return; }
+      if (span >= 359.9) {
+        topEls[i].setAttribute("d", "M " + fx(CX - RX) + "," + fx(CY) + " A " + RX + "," + RY + " 0 1,1 " + fx(CX + RX) + "," + fx(CY) + " A " + RX + "," + RY + " 0 1,1 " + fx(CX - RX) + "," + fx(CY) + " Z");
+        sideEls[i].setAttribute("d", "M " + fx(CX + RX) + "," + fx(CY) + " A " + RX + "," + RY + " 0 0,1 " + fx(CX - RX) + "," + fx(CY) + " L " + fx(CX - RX) + "," + fx(CY + D) + " A " + RX + "," + RY + " 0 0,0 " + fx(CX + RX) + "," + fx(CY + D) + " Z");
+      } else {
+        const p0 = pt(a0, RX, RY), p1 = pt(a1, RX, RY);
+        topEls[i].setAttribute("d", "M " + CX + "," + CY + " L " + fx(p0.x) + "," + fx(p0.y) + " A " + RX + "," + RY + " 0 " + (span > 180 ? 1 : 0) + ",1 " + fx(p1.x) + "," + fx(p1.y) + " Z");
+        const f0 = Math.max(a0, 0), f1x = Math.min(a1, 180);
+        if (f1x - f0 > 0.5) {
+          const q0 = pt(f0, RX, RY), q1 = pt(f1x, RX, RY);
+          sideEls[i].setAttribute("d", "M " + fx(q0.x) + "," + fx(q0.y) + " A " + RX + "," + RY + " 0 0,1 " + fx(q1.x) + "," + fx(q1.y) + " L " + fx(q1.x) + "," + fx(q1.y + D) + " A " + RX + "," + RY + " 0 0,0 " + fx(q0.x) + "," + fx(q0.y + D) + " Z");
+        } else sideEls[i].setAttribute("d", "");
+      }
+      const mid = (a0 + a1) / 2, mr = (mid * Math.PI) / 180;
+      const ex = CX + (RX + 26) * Math.cos(mr), ey = CY + (RY + 14) * Math.sin(mr);
+      const dir = Math.cos(mr) >= 0 ? 1 : -1;
+      const tx = ex + dir * 30;
+      const pctNow = (sl.v / total) * 100 * p;
+      const g = callEls[i];
+      g.style.opacity = String(Math.min(1, p * 1.6));
+      const edge = pt(mid, RX, RY);
+      g.querySelector("polyline").setAttribute("points", fx(edge.x) + "," + fx(edge.y) + " " + fx(ex) + "," + fx(ey) + " " + fx(tx) + "," + fx(ey));
+      const t = g.querySelector("text");
+      t.setAttribute("x", tx + (dir > 0 ? 6 : -6));
+      t.setAttribute("y", (ey - 4).toFixed(1));
+      t.setAttribute("text-anchor", dir > 0 ? "start" : "end");
+      g.querySelector(".pc-code").textContent = sl.name;
+      const pctEl = g.querySelector(".pc-pct");
+      pctEl.setAttribute("x", tx + (dir > 0 ? 6 : -6));
+      pctEl.textContent = "(" + pctNow.toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%)";
+      const cntEl = g.querySelector(".pc-cnt");
+      cntEl.setAttribute("x", tx + (dir > 0 ? 6 : -6));
+      cntEl.textContent = fmtInt(sl.v) + " điểm";
+    });
+  };
+  const items = [];
+  topEls.forEach((elm) => {
+    const r = slices[Number(elm.getAttribute("data-i"))];
+    const pct = total > 0 ? (r.v / total) * 100 : 0;
+    items.push({ elm, html: "<div class='tt'>" + esc(r.name) + (periodLabel ? " — " + esc(periodLabel) : "") + "</div><div class='tr'>Số điểm: <b>" + fmtInt(r.v) + " / " + fmtInt(total) + "</b></div><div class='tr'>Tỷ lệ: <b>" + pct.toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%</b></div>" });
+  });
+  bindChartTips(el, tip, items);
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { draw(1); return; }
+  const t0 = performance.now(), DUR = 900;
+  const step = (now) => {
+    const raw = Math.min(1, (now - t0) / DUR);
+    const e = 1 - Math.pow(1 - raw, 3);
+    draw(e);
+    if (raw < 1) el._pieRaf = requestAnimationFrame(step);
+    else el._pieRaf = null;
+  };
+  draw(0.001);
+  el._pieRaf = requestAnimationFrame(step);
+}
+function renderOvCarePie(d) {
+  const el = $("ovCarePieChart"); if (!el) return;
+  const units = (d.care && d.care.by_unit) || [];
+  const totQ = units.reduce((a, r) => a + (r.quy_mo_duq || 0), 0);
+  const totC = units.reduce((a, r) => a + (r.duq_duoc_cs || 0), 0);
+  ovCarePie(el, totC, totQ, d.period_label);
+}
+// Bang + danh gia nhanh ket qua CS cua NVQL kenh (duoi bang LD)
+function renderCareNvql(d) {
+  const head = $("ovCareNvqlHead"), body = $("ovCareNvqlBody");
+  if (!head || !body) return;
+  const pct1 = (n) => Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + "%";
+  const sub = $("ovCareNvqlSub"); if (sub) sub.textContent = d.period_label || "";
+  const per = $("ovCareNvqlEvalPeriod"); if (per) per.textContent = d.period_label ? "— " + d.period_label : "";
+  const ev = $("ovCareNvqlEval");
+  head.innerHTML = "<tr><th>Đơn vị</th><th>SL ĐUQ</th><th>SL ĐUQ đã CS</th><th>Tỷ lệ ĐUQ được CS</th><th>SL ĐBL</th><th>SL ĐBL đã CS</th><th>Tỷ lệ ĐBL được CS</th></tr>";
+  if (!d.has_data) {
+    body.innerHTML = "<tr><td colspan='7'>Chưa có số liệu chăm sóc kênh bán trong kỳ. Import ở mục <b>5.11</b> hoặc đồng bộ ở mục <b>5.10</b>.</td></tr>";
+    if (ev) ev.innerHTML = "<p class='muted'>Chưa có dữ liệu để đánh giá — import hoặc đồng bộ kết quả chăm sóc kênh bán (mục 5.11 / 5.10) rồi bấm lại.</p>";
+    return;
+  }
+  const rows = sortUnitsFixed(d.by_unit || [], (r) => r.ten);
+  body.innerHTML = rows.map((r) => "<tr><td><b>" + esc(r.ten) + "</b></td><td>" + fmtInt(r.sl_duq) + "</td><td>" + fmtInt(r.sl_duq_cs) + "</td><td>" + pctCellCare(r.ty_le_duq) + "</td><td>" + fmtInt(r.sl_dbl) + "</td><td>" + fmtInt(r.sl_dbl_cs) + "</td><td>" + pctCellCare(r.ty_le_dbl) + "</td></tr>").join("") +
+    "<tr style='background:var(--blue-light)'><td><b>Tổng cộng</b></td><td><b>" + fmtInt(d.tong.sl_duq) + "</b></td><td><b>" + fmtInt(d.tong.sl_duq_cs) + "</b></td><td>" + pctCellCare(d.tong.ty_le_duq, true) + "</td><td><b>" + fmtInt(d.tong.sl_dbl) + "</b></td><td><b>" + fmtInt(d.tong.sl_dbl_cs) + "</b></td><td>" + pctCellCare(d.tong.ty_le_dbl, true) + "</td></tr>";
+  if (ev) {
+    let s = "Trong " + esc(d.period_label || "kỳ này") + ", ĐUQ được chăm sóc đạt chuẩn: <b>" + fmtInt(d.tong.sl_duq_cs) + "/" + fmtInt(d.tong.sl_duq) + "</b> (" + pct1(d.tong.ty_le_duq == null ? 0 : d.tong.ty_le_duq) + "); ĐBL đạt: <b>" + fmtInt(d.tong.sl_dbl_cs) + "/" + fmtInt(d.tong.sl_dbl) + "</b> (" + pct1(d.tong.ty_le_dbl == null ? 0 : d.tong.ty_le_dbl) + ").";
+    const rated = rows.map((r) => {
+      const tot = (r.sl_duq || 0) + (r.sl_dbl || 0), cs = (r.sl_duq_cs || 0) + (r.sl_dbl_cs || 0);
+      return { name: r.ten, v: tot > 0 ? Math.round(cs / tot * 1000) / 10 : null };
+    }).filter((x) => x.v != null);
+    if (rated.length >= 2) {
+      const best = rated.reduce((a, b) => b.v > a.v ? b : a);
+      const worst = rated.reduce((a, b) => b.v < a.v ? b : a);
+      s += " Chăm sóc tốt nhất: <b>" + esc(best.name) + "</b> (" + pct1(best.v) + ")";
+      if (worst.name !== best.name) s += "; làm chưa tốt: <b>" + esc(worst.name) + "</b> (" + pct1(worst.v) + ")";
+      s += ".";
+    }
+    const zero = rows.filter((r) => (r.sl_duq || 0) > 0 && (r.sl_duq_cs || 0) === 0).map((r) => r.ten);
+    if (zero.length) s += " Lưu ý: <b>" + esc(zero.join(", ")) + "</b> chưa có điểm ĐUQ nào đạt chuẩn chăm sóc trong kỳ.";
+    ev.innerHTML = "<p>" + s + "</p>";
+  }
+}
+async function loadCareNvql(q) {
+  const body = $("ovCareNvqlBody"); if (!body) return;
+  try {
+    const d = await api("/api/care-nvql?" + q.toString());
+    renderCareNvql(d);
+  } catch (e) {
+    body.innerHTML = "<tr><td colspan='7'>Không tải được số liệu chăm sóc NVQL: " + esc(e.message) + "</td></tr>";
+  }
+}
+// --- Submenu: Tong hop CS KBH theo NV ---
+let careNvData = null;
+function initCareNv() {
+  const el = $("careNvMonth"); if (!el) return;
+  if (!el.value) { const pn = new Date(); el.value = pn.getFullYear() + "-" + String(pn.getMonth() + 1).padStart(2, "0"); }
+}
+async function loadCareNv() {
+  const m = $("careNvMonth").value || "";
+  if (!/^\d{4}-\d{2}$/.test(m)) { setMsg($("careNvMsg"), "Chọn tháng đánh giá (YYYY-MM).", false); return; }
+  setMsg($("careNvMsg"), "Đang tải…");
+  try {
+    const d = await api("/api/care-nvql?ky=thang&thang=" + encodeURIComponent(m));
+    careNvData = d;
+    fillCareNvFilters(d);
+    renderCareNv();
+    setMsg($("careNvMsg"), d.has_data ? "Đã tải số liệu " + (d.period_label || m) + "." : "Kỳ này chưa có số liệu chăm sóc kênh bán (import ở mục 5.11 hoặc đồng bộ ở mục 5.10).", d.has_data);
+  } catch (e) {
+    setMsg($("careNvMsg"), "Lỗi: " + e.message, false);
+  }
+}
+function fillCareNvFilters(d) {
+  const sel = $("careNvUnit"), cur = sel.value;
+  const map = {};
+  (d.by_nv || []).forEach((r) => { if (r.don_vi_id) map[r.don_vi_id] = r.ten_don_vi; });
+  const list = sortUnitsFixed(Object.keys(map).map((id) => ({ id, name: map[id] })), (u) => u.name);
+  sel.innerHTML = '<option value="">— Tất cả đơn vị trong phạm vi của bạn —</option>' + list.map((u) => '<option value="' + u.id + '">' + esc(u.name) + "</option>").join("");
+  sel.value = list.some((u) => String(u.id) === cur) ? cur : "";
+  fillCareNvSel();
+}
+function fillCareNvSel() {
+  const sel = $("careNvSel"), cur = sel.value, unit = $("careNvUnit").value;
+  const rows = (careNvData && careNvData.by_nv) || [];
+  const list = rows.filter((r) => !unit || String(r.don_vi_id) === unit).slice().sort((a, b) => String(a.ten_nv || "").localeCompare(String(b.ten_nv || ""), "vi"));
+  sel.innerHTML = '<option value="">— Tất cả nhân viên —</option>' + list.map((r) => '<option value="' + esc(r.ma_nv) + '">' + esc(r.ten_nv || r.ma_nv) + " (" + esc(r.ma_nv) + ")</option>").join("");
+  sel.value = list.some((r) => String(r.ma_nv) === cur) ? cur : "";
+}
+function renderCareNv() {
+  const head = $("careNvHead"), body = $("careNvBody"); if (!head || !body) return;
+  head.innerHTML = "<tr><th>Đơn vị</th><th>Mã NV</th><th>Tên NV</th><th>SL ĐUQ quản lý</th><th>SL ĐUQ đã CS</th><th>Tỷ lệ ĐUQ được CS</th><th>SL ĐBL quản lý</th><th>SL ĐBL đã CS</th><th>Tỷ lệ ĐBL được CS</th></tr>";
+  const d = careNvData;
+  const sub = $("careNvSub"); if (sub) sub.textContent = d ? (d.period_label || "") : "";
+  if (!d || !d.has_data) { body.innerHTML = "<tr><td colspan='9'>Chưa có số liệu chăm sóc kênh bán trong kỳ.</td></tr>"; return; }
+  const unit = $("careNvUnit").value, nv = $("careNvSel").value;
+  const rows = (d.by_nv || []).filter((r) => (!unit || String(r.don_vi_id) === unit) && (!nv || String(r.ma_nv) === nv))
+    .slice().sort((a, b) => {
+      const ia = UNIT_ORDER.indexOf(normOrd(a.ten_don_vi || "")), ib = UNIT_ORDER.indexOf(normOrd(b.ten_don_vi || ""));
+      if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      return String(a.ten_nv || "").localeCompare(String(b.ten_nv || ""), "vi");
+    });
+  const t = rows.reduce((a, r) => ({ q: a.q + (r.sl_duq || 0), qc: a.qc + (r.sl_duq_cs || 0), b: a.b + (r.sl_dbl || 0), bc: a.bc + (r.sl_dbl_cs || 0) }), { q: 0, qc: 0, b: 0, bc: 0 });
+  const rate = (c, q) => q > 0 ? Math.round(c / q * 1000) / 10 : null;
+  body.innerHTML = rows.map((r) => "<tr><td><b>" + esc(r.ten_don_vi || "—") + "</b></td><td>" + esc(r.ma_nv) + "</td><td>" + esc(r.ten_nv || "—") + "</td><td>" + fmtInt(r.sl_duq) + "</td><td>" + fmtInt(r.sl_duq_cs) + "</td><td>" + pctCellCare(r.ty_le_duq) + "</td><td>" + fmtInt(r.sl_dbl) + "</td><td>" + fmtInt(r.sl_dbl_cs) + "</td><td>" + pctCellCare(r.ty_le_dbl) + "</td></tr>").join("") +
+    "<tr style='background:var(--blue-light)'><td colspan='3'><b>Tổng cộng (" + rows.length + " nhân viên)</b></td><td><b>" + fmtInt(t.q) + "</b></td><td><b>" + fmtInt(t.qc) + "</b></td><td>" + pctCellCare(rate(t.qc, t.q), true) + "</td><td><b>" + fmtInt(t.b) + "</b></td><td><b>" + fmtInt(t.bc) + "</b></td><td>" + pctCellCare(rate(t.bc, t.b), true) + "</td></tr>";
+}
+$("careNvBtn").addEventListener("click", loadCareNv);
+$("careNvUnit").addEventListener("change", () => { fillCareNvSel(); renderCareNv(); });
+$("careNvSel").addEventListener("change", renderCareNv);
+
 function renderOvPosFilter(d) {
   const sel = $("ovPosUnit"), cur = sel.value;
   const units = {};
@@ -9486,6 +10108,12 @@ function tableMonthSortKey(name) {
   const yy = m[2].length === 2 ? "20" + m[2] : m[2];
   return yy + "-" + m[1] + "-" + name;
 }
+// "YYYY-MM-DD HH:MM:SS" (gio Sai Gon, may chu da doi tu UTC) -> "DD/MM/YYYY HH:mm"; rong -> "—"
+function fmtLastImport(s) {
+  if (!s) return "—";
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  return m ? m[3] + "/" + m[2] + "/" + m[1] + " " + m[4] + ":" + m[5] : esc(s);
+}
 // kind: "commission" = loai chi tra + danh sach kenh/CBCNV; "sales" = chi loai co sales_kind
 function isSalesTypeCode(code) {
   const t = dataTypes.find((dt) => dt.code === code);
@@ -9506,9 +10134,9 @@ function renderTablesInto(kind, tbodyId, filterId, msgId, emptyText) {
     const lockCell = me && me.role === "admin"
       ? "<button class='btn sm " + (x.locked ? "gray" : "blue") + "' data-lock-table='" + esc(x.table) + "' data-locked='" + (x.locked ? 1 : 0) + "'>" + (x.locked ? "Mở khóa" : "Khóa") + "</button>"
       : (x.locked ? "<span class='pill bad'>Đã khóa</span>" : "<span class='pill ok'>Mở</span>");
-    return "<tr><td><code class='inl'>" + esc(x.table) + "</code></td><td>" + esc(typeName) + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (x.rows || 0).toLocaleString("vi-VN") + "</td><td>" + lockCell + "</td>" +
+    return "<tr><td><code class='inl'>" + esc(x.table) + "</code></td><td>" + esc(typeName) + "</td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (x.rows || 0).toLocaleString("vi-VN") + "</td><td>" + fmtLastImport(x.last_import_at) + "</td><td>" + lockCell + "</td>" +
       "<td style='white-space:nowrap'>" + (canDelTable ? "<button class='btn sm danger' data-del-table='" + esc(x.table) + "'>Xóa bảng</button>" : "") + "</td></tr>";
-  }).join("") || "<tr><td colspan='6'>" + emptyText + "</td></tr>";
+  }).join("") || "<tr><td colspan='7'>" + emptyText + "</td></tr>";
   $(tbodyId).querySelectorAll("[data-del-table]").forEach((b) => b.addEventListener("click", () => delTable(b.dataset.delTable, msgId)));
   $(tbodyId).querySelectorAll("[data-lock-table]").forEach((b) => b.addEventListener("click", async () => {
     const name = b.dataset.lockTable;
@@ -10422,8 +11050,8 @@ async function loadTtdTables() {
   try {
     const d = await api("/api/ttcskh/tables");
     const rows = d.tables || [];
-    $("ttdTablesBody").innerHTML = rows.length ? rows.map((r) => "<tr><td><b>" + esc(r.table) + "</b></td><td>" + esc(r.name) + "</td><td>" + fmtInt(r.rows) + "</td><td>" + (r.locked ? "🔒 Khóa thay thế" : "🔓 Mở") + "</td><td>" + (me && me.role === "admin" ? "<button class=\"btn gray\" type=\"button\" data-ttd-del=\"" + esc(r.table) + "\">Xóa bảng</button>" : "") + "</td></tr>").join("") : '<tr><td colspan="5">Chưa có bảng dữ liệu TTCSKH nào.</td></tr>';
-  } catch (e) { $("ttdTablesBody").innerHTML = '<tr><td colspan="5">' + esc(e.message) + "</td></tr>"; }
+    $("ttdTablesBody").innerHTML = rows.length ? rows.map((r) => "<tr><td><b>" + esc(r.table) + "</b></td><td>" + esc(r.name) + "</td><td>" + fmtInt(r.rows) + "</td><td>" + fmtLastImport(r.last_import_at) + "</td><td>" + (r.locked ? "🔒 Khóa thay thế" : "🔓 Mở") + "</td><td>" + (me && me.role === "admin" ? "<button class=\"btn gray\" type=\"button\" data-ttd-del=\"" + esc(r.table) + "\">Xóa bảng</button>" : "") + "</td></tr>").join("") : '<tr><td colspan="6">Chưa có bảng dữ liệu TTCSKH nào.</td></tr>';
+  } catch (e) { $("ttdTablesBody").innerHTML = '<tr><td colspan="6">' + esc(e.message) + "</td></tr>"; }
 }
 $("ttdTablesBody").addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-ttd-del]");
@@ -10434,6 +11062,114 @@ $("ttdTablesBody").addEventListener("click", async (e) => {
     setMsg($("ttdMsg"), "Đã xóa bảng " + btn.dataset.ttdDel + ".", true);
     loadTtdTables();
   } catch (e) { setMsg($("ttdMsg"), e.message, false); }
+});
+
+
+// ---------------- Import ket qua cham soc kenh ban (5.11) ----------------
+const CSKBH_FIELDS = [
+  { key: "stt", label: "STT", kws: ["stt"] },
+  { key: "ttkd", label: "TTKD", kws: ["ttkd"] },
+  { key: "phong_bhkv", label: "Phòng BHKV", kws: ["phongbhkv"] },
+  { key: "ten_diem_ban", label: "Tên điểm bán", kws: ["tendiemban"] },
+  { key: "ma_diem_ban", label: "Mã điểm bán", kws: ["madiemban", "makenh", "mkenh"] },
+  { key: "loai_diem_ban", label: "Loại điểm bán", kws: ["loaidiemban"] },
+  { key: "id_chuoi", label: "ID chuỗi", kws: ["idchuoi"] },
+  { key: "nhan_vien_quan_ly", label: "Nhân viên quản lý", kws: ["nhanvienquanly"] },
+  { key: "ma_hrm_nv", label: "Mã HRM của nhân viên quản lý", kws: ["mahrmcuanhanvienquanly", "mahrm"] },
+  { key: "sdt_diem_ban", label: "Số điện thoại điểm bán", kws: ["sodienthoaidieamban", "sodienthoai"] },
+  { key: "ngay_cham_soc", label: "Ngày chăm sóc", kws: ["ngaychamsoc"] },
+  { key: "diem_danh_gia", label: "Điểm đánh giá", kws: ["diemdanhgia"] },
+  { key: "cach_thuc_danh_gia", label: "Cách thức đánh giá", kws: ["cachthucdanhgia"] },
+  { key: "trang_thai_cham_soc", label: "Trạng thái chăm sóc", kws: ["trangthaichamsoc", "trangthai"] },
+  { key: "anh_roi_di", label: "Ảnh rời đi", kws: ["anhroidi"] },
+];
+let cskbhParsed = null;
+function readCskbhFile(file) {
+  return new Promise((resolve, reject) => {
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const wb = XLSX.read(rd.result, { type: "array", cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+        let hi = -1;
+        for (let i = 0; i < Math.min(12, aoa.length); i++) {
+          if ((aoa[i] || []).some((c) => normHdr(c) === "madiemban")) { hi = i; break; }
+        }
+        if (hi < 0) { reject(new Error("Không tìm thấy hàng tiêu đề chứa cột 'Mã điểm bán' trong 12 hàng đầu.")); return; }
+        const headers = (aoa[hi] || []).map((h) => String(h).trim());
+        const rows = aoa.slice(hi + 1).filter((r) => (r || []).some((c) => String(c).trim() !== ""));
+        resolve({ headers, rows, headerRow: hi + 1 });
+      } catch (e) { reject(e); }
+    };
+    rd.onerror = () => reject(new Error("Không đọc được file."));
+    rd.readAsArrayBuffer(file);
+  });
+}
+async function previewCskbh() {
+  const file = $("cskbhFile").files[0];
+  if (!file) { setMsg($("cskbhMsg"), "Chọn file Excel dữ liệu trước.", false); return; }
+  setMsg($("cskbhMsg"), "Đang đọc file…");
+  try {
+    const parsed = await readCskbhFile(file);
+    cskbhParsed = parsed;
+    const { map, dropped } = autoMapColumns(parsed.headers, CSKBH_FIELDS);
+    renderMapPreview($("cskbhPreview"), CSKBH_FIELDS, parsed.headers, map, dropped);
+    const maIdx = parsed.headers.indexOf(map.ma_diem_ban);
+    const emptyMa = maIdx < 0 ? 0 : parsed.rows.filter((r) => String((r || [])[maIdx] || "").trim() === "").length;
+    let extra = "<div class='note' style='margin-top:8px'>Tìm thấy hàng tiêu đề ở <b>hàng " + parsed.headerRow + "</b>; tổng <b>" + parsed.rows.length + "</b> dòng dữ liệu; đã map <b>" + Object.keys(map).length + "/15</b> cột.";
+    if (!map.ma_diem_ban || !map.ngay_cham_soc) extra += "<br><span style='color:#b91c1c'><b>Lỗi:</b> bắt buộc phải map được 2 cột <b>Mã điểm bán</b> và <b>Ngày chăm sóc</b> mới import được.</span>";
+    if (emptyMa > 0) extra += "<br><span style='color:#b45309'>Có <b>" + emptyMa + "</b> dòng thiếu Mã điểm bán (VD: dòng chữ ký cuối file) — sẽ bị bỏ qua khi import.</span>";
+    if (!map.trang_thai_cham_soc) extra += "<br><span style='color:#b45309'>Chưa map được cột <b>Trạng thái chăm sóc</b> — mọi dòng sẽ được tính là chưa rõ trạng thái (không đạt chuẩn 'Đã hoàn thành').</span>";
+    extra += "</div>";
+    const sampleKeys = CSKBH_FIELDS.filter((f) => map[f.key]).slice(0, 6);
+    if (sampleKeys.length) {
+      extra += "<div class='tbl-wrap' style='margin-top:8px'><table class='data'><thead><tr>" + sampleKeys.map((f) => "<th>" + esc(f.label) + "</th>").join("") + "</tr></thead><tbody>" +
+        parsed.rows.slice(0, 3).map((r) => "<tr>" + sampleKeys.map((f) => "<td>" + esc(String((r || [])[parsed.headers.indexOf(map[f.key])] || "")) + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>";
+    }
+    $("cskbhPreview").innerHTML += extra;
+    setMsg($("cskbhMsg"), "Đã đọc " + parsed.rows.length + " dòng. Kiểm tra đối chiếu cột rồi bấm 'Import dữ liệu'.");
+  } catch (e) {
+    setMsg($("cskbhMsg"), "Lỗi: " + e.message, false);
+  }
+}
+async function importCskbh() {
+  const file = $("cskbhFile").files[0];
+  if (!file) { setMsg($("cskbhMsg"), "Chọn file Excel dữ liệu trước.", false); return; }
+  let parsed = cskbhParsed;
+  if (!parsed) { try { parsed = await readCskbhFile(file); cskbhParsed = parsed; } catch (e) { setMsg($("cskbhMsg"), "Lỗi: " + e.message, false); return; } }
+  const thang = Number($("cskbhMonth").value), nam = Number($("cskbhYear").value);
+  if (!thang || thang < 1 || thang > 12 || !nam) { setMsg($("cskbhMsg"), "Chọn tháng/năm hợp lệ.", false); return; }
+  const mode = $("cskbhMode").value;
+  if (mode === "replace" && !confirm("Thay thế sẽ XÓA toàn bộ bảng CSKBH tháng " + thang + "/" + nam + " rồi nạp lại. Tiếp tục?")) return;
+  setMsg($("cskbhMsg"), "Đang import…");
+  try {
+    const d = await api("/api/cskbh/import", { method: "POST", body: JSON.stringify({ thang, nam, mode, headers: parsed.headers, rows: parsed.rows }) });
+    setMsg($("cskbhMsg"), "Đã import " + d.inserted + " dòng vào bảng " + d.table + " (" + d.mode + ", map " + d.mapped_cols + "/" + d.total_cols + " cột" + (d.skipped_empty_ma ? ", bỏ qua " + d.skipped_empty_ma + " dòng thiếu Mã điểm bán" : "") + ").");
+    $("cskbhFile").value = ""; cskbhParsed = null; $("cskbhPreview").innerHTML = "";
+    loadCskbhTables();
+  } catch (e) {
+    setMsg($("cskbhMsg"), "Lỗi: " + e.message, false);
+  }
+}
+async function loadCskbhTables() {
+  const el = $("cskbhTablesBody"); if (!el) return;
+  try {
+    const d = await api("/api/cskbh/tables");
+    const rows = d.tables || [];
+    el.innerHTML = rows.length ? rows.map((r) => "<tr><td><b>" + esc(r.table) + "</b></td><td>" + esc(r.name) + "</td><td>" + fmtInt(r.rows) + "</td><td>" + fmtLastImport(r.last_import_at) + "</td><td>" + (r.locked ? "🔒 Khóa thay thế" : "🔓 Mở") + "</td><td>" + (me && me.role === "admin" ? "<button class=\"btn gray\" type=\"button\" data-cskbh-del=\"" + esc(r.table) + "\">Xóa bảng</button>" : "") + "</td></tr>").join("") : '<tr><td colspan="6">Chưa import bảng nào.</td></tr>';
+  } catch (e) {
+    el.innerHTML = '<tr><td colspan="6">' + esc(e.message) + "</td></tr>";
+  }
+}
+$("cskbhPreviewBtn").addEventListener("click", previewCskbh);
+$("cskbhImpBtn").addEventListener("click", importCskbh);
+$("cskbhTablesBody").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-cskbh-del]"); if (!b) return;
+  const name = b.getAttribute("data-cskbh-del");
+  if (!confirm("Xóa toàn bộ bảng " + name + "?")) return;
+  try { await api("/api/cskbh/tables?name=" + encodeURIComponent(name), { method: "DELETE" }); loadCskbhTables(); }
+  catch (err) { setMsg($("cskbhMsg"), "Lỗi: " + err.message, false); }
 });
 
 /* ---------------- Dong bo Google Sheet (5.10) ---------------- */
@@ -10678,9 +11414,9 @@ async function loadListTables(code, tbodyId, msgId) {
       const lockCell = me && me.role === "admin"
         ? "<button class='btn sm " + (x.locked ? "gray" : "blue") + "' data-lock-table='" + esc(x.table) + "' data-locked='" + (x.locked ? 1 : 0) + "'>" + (x.locked ? "Mở khóa" : "Khóa") + "</button>"
         : (x.locked ? "<span class='pill bad'>Đã khóa</span>" : "<span class='pill ok'>Mở</span>");
-      return "<tr><td><code class='inl'>" + esc(x.table) + "</code></td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (x.rows || 0).toLocaleString("vi-VN") + "</td><td>" + lockCell + "</td>" +
+      return "<tr><td><code class='inl'>" + esc(x.table) + "</code></td><td>" + (mm ? mm[1] + "/" + mm[2] : "") + "</td><td>" + (x.rows || 0).toLocaleString("vi-VN") + "</td><td>" + fmtLastImport(x.last_import_at) + "</td><td>" + lockCell + "</td>" +
         "<td style='white-space:nowrap'>" + (canDelTable ? "<button class='btn sm danger' data-del-table='" + esc(x.table) + "'>Xóa bảng</button>" : "") + "</td></tr>";
-    }).join("") || "<tr><td colspan='5'>Chưa import bảng nào.</td></tr>";
+    }).join("") || "<tr><td colspan='6'>Chưa import bảng nào.</td></tr>";
     $(tbodyId).querySelectorAll("[data-del-table]").forEach((b) => b.addEventListener("click", () => delTable(b.dataset.delTable, msgId, () => loadListTables(code, tbodyId, msgId))));
     $(tbodyId).querySelectorAll("[data-lock-table]").forEach((b) => b.addEventListener("click", async () => {
       const name = b.dataset.lockTable;
@@ -10689,7 +11425,7 @@ async function loadListTables(code, tbodyId, msgId) {
       try { await api("/api/table-locks", { method: "POST", body: JSON.stringify({ table: name, locked: toLocked }) }); loadListTables(code, tbodyId, msgId); }
       catch (e) { setMsg($(msgId), e.message, false); }
     }));
-  } catch (e) { $(tbodyId).innerHTML = '<tr><td colspan="5">' + esc(e.message) + "</td></tr>"; }
+  } catch (e) { $(tbodyId).innerHTML = '<tr><td colspan="6">' + esc(e.message) + "</td></tr>"; }
 }
 // Phan canh bao + so lieu mau cho Xem truoc (5.3/5.4). Ham thuan — de test.
 // (Bang doi chieu cot do renderMapPreview ve, giong nhu hien nay.)

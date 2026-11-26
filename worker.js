@@ -778,6 +778,16 @@ async function listMonthlyTables(env, prefix) {
     .all();
   return (res.results || []).map((r) => r.name);
 }
+// Thoi gian import gan nhat cua 1 bang thang: MAX(imported_at) cua cac dong
+// (cot imported_at do createTableSQL them, DEFAULT CURRENT_TIMESTAMP = gio
+// UTC). Doi sang gio Sai Gon (+7h) de hien thi. Bang cu chua co cot nay
+// (tao truoc khi them cot) thi tra null — giao dien hien "—".
+async function lastImportAt(env, name) {
+  try {
+    const r = await env.DB.prepare('SELECT datetime(MAX(imported_at), \'+7 hours\') AS t FROM "' + name + '"').first();
+    return r && r.t ? r.t : null;
+  } catch (e) { return null; }
+}
 function tableInRange(name, loai, from, to) {
   // from/to: 'YYYY-MM-DD'. Ten bang: HHBG_MMYYYY hoac BCKH_MMYY -> lay thang dau & cuoi.
   const m = name.match(/_(\d{2})(\d{2,4})$/);
@@ -1748,7 +1758,7 @@ export default {
           const tables = await listMonthlyTables(env, t.prefix);
           for (const name of tables) {
             const c = await env.DB.prepare('SELECT COUNT(*) AS n FROM "' + name + '"').first();
-            out.push({ table: name, code: t.code, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
+            out.push({ table: name, code: t.code, rows: c ? c.n : 0, locked: await isTableLocked(env, name), last_import_at: await lastImportAt(env, name) });
           }
         }
         // Bang danh sach kenh ban / CBCNV theo thang
@@ -1756,7 +1766,7 @@ export default {
           const tables = await listMonthlyTables(env, pfx);
           for (const name of tables) {
             const c = await env.DB.prepare('SELECT COUNT(*) AS n FROM "' + name + '"').first();
-            out.push({ table: name, code, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
+            out.push({ table: name, code, rows: c ? c.n : 0, locked: await isTableLocked(env, name), last_import_at: await lastImportAt(env, name) });
           }
         }
         return json({ ok: true, tables: out });
@@ -1927,7 +1937,7 @@ export default {
         for (const t of TTCSKH_TYPES) {
           for (const name of await listMonthlyTables(env, t.prefix)) {
             const c = await env.DB.prepare('SELECT COUNT(*) n FROM "' + name + '"').first();
-            out.push({ table: name, code: t.code, name: t.name, rows: c ? c.n : 0, locked: await isTableLocked(env, name) });
+            out.push({ table: name, code: t.code, name: t.name, rows: c ? c.n : 0, locked: await isTableLocked(env, name), last_import_at: await lastImportAt(env, name) });
           }
         }
         out.sort((a, b) => a.table.localeCompare(b.table));
@@ -2014,6 +2024,342 @@ export default {
         return json({ ok: true, table, type: dtype.code, inserted, mode, mapped_cols: mappedCols, total_cols: colNames.length, skipped_headers: skippedHeaders.slice(0, 10) });
       }
 
+      // ---- Ket qua cham soc kenh ban (module 5.11 "Import ket qua cham soc kenh ban") ----
+      // Dinh dang file: bao cao chi tiet cham soc diem ban (15 cot, hang tieu de
+      // nam sau khoi tieu de — file mau co tieu de o hang 6; frontend tu tim
+      // hang chua "Ma diem ban" trong 12 hang dau). Moi thang 1 bang CSKBH_MMYYYY.
+      // Map cot THEO TEN (15 cot khong trung ten) — khac 5.9 (map theo vi tri).
+      const CSKBH_PREFIX = "CSKBH";
+      const CSKBH_COLUMNS = [
+        ["stt", "TEXT", "STT"],
+        ["ttkd", "TEXT", "TTKD"],
+        ["phong_bhkv", "TEXT", "Phòng BHKV"],
+        ["ten_diem_ban", "TEXT", "Tên điểm bán"],
+        ["ma_diem_ban", "TEXT", "Mã điểm bán"],
+        ["loai_diem_ban", "TEXT", "Loại điểm bán"],
+        ["id_chuoi", "TEXT", "ID chuỗi"],
+        ["nhan_vien_quan_ly", "TEXT", "Nhân viên quản lý"],
+        ["ma_hrm_nv", "TEXT", "Mã HRM của nhân viên quản lý"],
+        ["sdt_diem_ban", "TEXT", "Số điện thoại điểm bán"],
+        ["ngay_cham_soc", "TEXT", "Ngày chăm sóc"],
+        ["diem_danh_gia", "TEXT", "Điểm đánh giá"],
+        ["cach_thuc_danh_gia", "TEXT", "Cách thức đánh giá"],
+        ["trang_thai_cham_soc", "TEXT", "Trạng thái chăm sóc"],
+        ["anh_roi_di", "TEXT", "Ảnh rời đi"],
+      ];
+      // Quy tac ghi nhan ket qua cham soc (anh Tuan chot 26/11/2026):
+      // - Chi dong co "Trang thai cham soc" = "Da hoan thanh" moi tinh la 1 lan
+      //   cham soc. Dong "Khong du thoi gian": NV co ghe tham (co anh roi di)
+      //   nhung o chua du thoi gian chuan nen chua dat. Dong "Khong/Chua hoan
+      //   thanh": khong co anh roi di nen khong co bang chung da ghe tham.
+      // - Cung 1 ngay cham soc nhieu lan chi tinh 1 lan (dem theo ngay khac nhau).
+      // - DUQ: >= 2 ngay khac nhau/thang moi dat; DBL: >= 1 ngay/thang.
+      // Neu anh muon doi sang "tinh tat ca cac dong": chi can doi hang so duoi
+      // thanh "" (bo loc trang thai) — bao truoc khi doi de kiem chung lai so lieu.
+      const CSKBH_VALID_STATUS_NORM = "da hoan thanh";
+      const normCareStatus = (v) => String(v == null ? "" : v).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/\s+/g, " ");
+      // Chuan hoa ngay cham soc ve YYYY-MM-DD: nhan "DD/MM/YYYY" (file Excel/
+      // CSV), "YYYY-MM-DD", ISO datetime (SheetJS cellDates) va serial Excel.
+      const normCareDate = (v) => {
+        if (v == null || v === "") return "";
+        if (typeof v === "number" && Number.isFinite(v)) {
+          const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+          return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+        }
+        const s = String(v).trim();
+        let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) return m[1] + "-" + m[2] + "-" + m[3];
+        m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) return m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0");
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+      };
+      if (path === "/api/cskbh/types" && method === "GET") {
+        if (!isAdminLike && !me.can_import && !hasModuleExplicit(me, "import")) return err("Tai khoan khong co quyen import du lieu", 403);
+        if (!hasModule(me, "import")) return err("Tai khoan khong co quyen su dung module Quan ly du lieu dau vao", 403);
+        return json({ ok: true, types: [{ code: CSKBH_PREFIX, name: "Kết quả chăm sóc kênh bán hàng", prefix: CSKBH_PREFIX, columns: CSKBH_COLUMNS.map(([key, type, label]) => ({ key, type, label })) }] });
+      }
+      if (path === "/api/cskbh/tables" && method === "GET") {
+        if (!isAdminLike && !me.can_import && !hasModuleExplicit(me, "import")) return err("Tai khoan khong co quyen import du lieu", 403);
+        if (!hasModule(me, "import")) return err("Tai khoan khong co quyen su dung module Quan ly du lieu dau vao", 403);
+        const out = [];
+        for (const name of await listMonthlyTables(env, CSKBH_PREFIX)) {
+          const c = await env.DB.prepare('SELECT COUNT(*) n FROM "' + name + '"').first();
+          out.push({ table: name, code: CSKBH_PREFIX, name: "Kết quả chăm sóc kênh bán hàng", rows: c ? c.n : 0, locked: await isTableLocked(env, name), last_import_at: await lastImportAt(env, name) });
+        }
+        out.sort((a, b) => a.table.localeCompare(b.table));
+        return json({ ok: true, tables: out });
+      }
+      if (path === "/api/cskbh/tables" && method === "DELETE") {
+        if (!isAdmin) return err("Chi admin moi duoc xoa bang du lieu cham soc kenh ban", 403);
+        const name = String(url.searchParams.get("name") || "").trim();
+        if (!/^CSKBH_\d{6}$/.test(name)) return err("Ten bang khong hop le", 422);
+        await env.DB.prepare('DROP TABLE IF EXISTS "' + name + '"').run();
+        return json({ ok: true, table: name });
+      }
+      if (path === "/api/cskbh/import" && method === "POST") {
+        if (!isAdminLike && !me.can_import && !hasModuleExplicit(me, "import")) return err("Tai khoan khong co quyen import du lieu", 403);
+        if (!hasModule(me, "import")) return err("Tai khoan khong co quyen su dung module Quan ly du lieu dau vao", 403);
+        const b = await readBody(request);
+        const mode = b.mode === "replace" ? "replace" : b.mode === "create" ? "create" : "update";
+        const thang = Number(b.thang);
+        const nam = Number(b.nam);
+        if (!thang || thang < 1 || thang > 12 || !nam || nam < 2000 || nam > 2100) return err("Thang/nam import khong hop le", 422);
+        const columns = CSKBH_COLUMNS.map(([n, t]) => [n, t]);
+        const colNames = columns.map(([n]) => n);
+        // Map cot THEO TEN: chuan hoa tieu de file (bo dau, bo khoang trang, bo
+        // phan trong ngoac) roi khop voi nhan cot he thong. Cot khong khop thi
+        // bo qua; cot DB khong co trong file thi de trong. 0 cot khop -> loi.
+        const normHdr = (x) => String(x == null ? "" : x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/\([^)]*\)/g, "").replace(/[^a-z0-9]/g, "");
+        const labelToIdx = new Map();
+        CSKBH_COLUMNS.forEach(([, , label], idx) => { const nk = normHdr(label); if (!labelToIdx.has(nk)) labelToIdx.set(nk, idx); });
+        const colIndex = colNames.map(() => -1);
+        const fileHeaders = Array.isArray(b.headers) ? b.headers.map((h) => String(h == null ? "" : h)) : [];
+        const skippedHeaders = [];
+        fileHeaders.forEach((h, i) => {
+          const ci = labelToIdx.get(normHdr(h));
+          if (ci === undefined) { if (String(h).trim() !== "") skippedHeaders.push(h); return; }
+          if (colIndex[ci] === -1) colIndex[ci] = i;
+        });
+        const mappedCols = colIndex.filter((i) => i >= 0).length;
+        if (!mappedCols) return err("Khong co cot nao trong file khop voi dinh nghia bang cham soc kenh ban. Hay kiem tra lai hang tieu de cua file.", 422);
+        if (colIndex[colNames.indexOf("ma_diem_ban")] < 0 || colIndex[colNames.indexOf("ngay_cham_soc")] < 0) return err("File thieu cot bat buoc 'Ma diem ban' hoac 'Ngay cham soc'. Hay kiem tra lai hang tieu de cua file.", 422);
+        const rawRows = Array.isArray(b.rows) ? b.rows : [];
+        const rows = [];
+        let skippedEmptyMa = 0;
+        for (const row of rawRows) {
+          if (!Array.isArray(row) || !row.some((v) => v !== null && v !== undefined && String(v).trim() !== "")) continue;
+          const maIdx = colIndex[colNames.indexOf("ma_diem_ban")];
+          if (!String(row[maIdx] ?? "").trim()) { skippedEmptyMa++; continue; }
+          rows.push(row);
+        }
+        if (!rows.length) return err("Khong co dong du lieu nao de import (cac dong deu thieu Ma diem ban).", 422);
+        const table = monthTableName(CSKBH_PREFIX, nam + "-" + String(thang).padStart(2, "0"));
+        if (mode === "replace" && !isAdmin) {
+          const locked = await isTableLocked(env, table);
+          if (locked) return err("Bang du lieu " + table + " dang bi khoa thay the. Chi admin moi duoc thay the du lieu cua bang nay. Lien he admin de mo khoa neu can.", 403);
+        }
+        if (mode === "create") {
+          const ex = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").bind(table).first();
+          if (ex) return err("Bang du lieu " + table + " da ton tai. Hay dung che do 'Cap nhat' de nap them du lieu, hoac 'Thay the' de xoa du lieu cu va nap lai tu dau.", 409);
+        }
+        if (mode === "replace") {
+          await env.DB.prepare('DROP TABLE IF EXISTS "' + table + '"').run();
+        }
+        await env.DB.prepare(createTableSQL(table, columns)).run();
+        await ensureListColumns(env, table, columns);
+        const sql =
+          'INSERT INTO "' + table + '" (' + colNames.map((n) => '"' + n + '"').join(", ") +
+          ", imported_by) VALUES (" + colNames.map(() => "?").join(", ") + ", ?)";
+        let inserted = 0;
+        const CHUNK = 100;
+        for (let i = 0; i < rows.length; i += CHUNK) {
+          const batch = rows.slice(i, i + CHUNK).map((row) => {
+            const vals = colNames.map((n, idx) => {
+              const v = colIndex[idx] >= 0 ? row[colIndex[idx]] : undefined;
+              return toText(v);
+            });
+            vals.push(me.username);
+            return env.DB.prepare(sql).bind(...vals);
+          });
+          await env.DB.batch(batch);
+          inserted += batch.length;
+        }
+        return json({ ok: true, table, type: CSKBH_PREFIX, inserted, skipped_empty_ma: skippedEmptyMa, mode, mapped_cols: mappedCols, total_cols: colNames.length, skipped_headers: skippedHeaders.slice(0, 10) });
+      }
+
+      // ---- Tong hop cham soc kenh ban cua NVQL kenh ----
+      // Dung cho: bang diem tin NVQL tren Dashboard KBH + muc "Tong hop CS KBH
+      // theo NV". Nguon: bang CSKBH_MMYYYY (5.11/5.10) + tai khoan diem ban +
+      // bang kenh_ban thang do (ma NV quan ly) + bang cbcnv (ten NV).
+      // Mau so: hop nhat tai khoan diem ban + danh sach kenh ban thang + diem
+      // chi co trong file cham soc (de diem da CS luon nam trong mau so).
+      // Tu so: diem dat chuan thang (DUQ >= 2 ngay khac nhau, DBL >= 1 ngay)
+      // trong ky; ky nam thi dat neu dat chuan o it nhat 1 thang trong nam.
+      if (path === "/api/care-nvql" && method === "GET") {
+        if (!hasModule(me, "salesdash")) return err("Tai khoan khong co quyen xem Dashboard ban hang", 403);
+        const ky = url.searchParams.get("ky") === "nam" ? "nam" : "thang";
+        const nowS = saigonNow();
+        let thang = String(url.searchParams.get("thang") || "").trim();
+        if (!/^\d{4}-\d{2}$/.test(thang)) thang = nowS.slice(0, 7);
+        let nam = parseInt(url.searchParams.get("nam"), 10);
+        if (!nam || nam < 2000 || nam > 2100) nam = Number(nowS.slice(0, 4));
+        const curMonths = ky === "nam"
+          ? Array.from({ length: 12 }, (_, i) => nam + "-" + String(i + 1).padStart(2, "0"))
+          : [thang];
+        const periodLabel = ky === "nam" ? "năm " + nam : "tháng " + Number(thang.slice(5, 7)) + "/" + thang.slice(0, 4);
+        const normU = (s) => String(s == null ? "" : s).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[–—−‐‒]/g, "-").replace(/\s+/g, " ").replace(/\s*-\s*/g, "-");
+        const allUnits = (await env.DB.prepare("SELECT id, ten_don_vi FROM don_vi").all()).results || [];
+        const unitNameToId = {};
+        const duidToName = {};
+        for (const u of allUnits) { unitNameToId[normU(u.ten_don_vi)] = u.id; duidToName[u.id] = u.ten_don_vi; }
+        let scopeUnitIds = null;
+        const leaderScoped = isLeaderLike && me.don_vi_id;
+        if (leaderScoped) {
+          const urs = (await env.DB.prepare(unitSubtreeCTE() + " SELECT d.id, d.ten_don_vi FROM don_vi d WHERE d.id IN (SELECT id FROM subtree)").bind(me.don_vi_id).all()).results || [];
+          scopeUnitIds = urs.map((u) => u.id);
+        } else if (!isPrivileged) {
+          scopeUnitIds = me.don_vi_id ? [me.don_vi_id] : [];
+        }
+        const inScope = (duid) => scopeUnitIds === null || (duid != null && scopeUnitIds.includes(duid));
+        const normE2 = (s) => String(s == null ? "" : s).trim().toUpperCase().replace(/\s+/g, "");
+        const resolveType = (hang, loai) => {
+          const h = normLoaiKenh(hang);
+          if (h === "DUQ" || h === "DBL") return h;
+          return normLoaiKenh(loai);
+        };
+        // Vu tru diem ban: tai khoan + kenh_ban + diem chi co trong file CS.
+        // Join theo so Eload truoc (on dinh nhat), roi ma kenh; ma kenh khac
+        // nhau cho cung 1 diem thi luu alias de dong CS sau van map dung.
+        const posMap = new Map();
+        const eloadToKey = new Map();
+        const codeAlias = new Map();
+        const registerKeys = (key, code, el) => {
+          if (code) codeAlias.set("mk:" + code, key);
+          if (el) eloadToKey.set(el, key);
+        };
+        const resolveKey = (code, el) => {
+          if (code && codeAlias.has("mk:" + code)) return codeAlias.get("mk:" + code);
+          if (el && eloadToKey.has(el)) return eloadToKey.get(el);
+          if (code && posMap.has("mk:" + code)) return "mk:" + code;
+          return null;
+        };
+        const newPos = (key, p) => {
+          const o = { code: "", eload: "", don_vi_id: null, ten_don_vi: "", type: "", mgr: "", mgrTen: "", days: {}, ...p };
+          posMap.set(key, o);
+          registerKeys(key, o.code, o.eload);
+          return o;
+        };
+        // (1) Tai khoan diem ban
+        const accRows = (await env.DB.prepare("SELECT u.ma_kenh, u.so_eload, u.don_vi_id, u.loai_kenh, d.ten_don_vi AS don_vi_ten FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id WHERE u.role = 'user'").all()).results || [];
+        for (const r of accRows) {
+          const code = normE2(r.ma_kenh);
+          const el = normE2(r.so_eload);
+          const key = code ? "mk:" + code : (el ? "el:" + el : null);
+          if (!key || posMap.has(key)) continue;
+          newPos(key, { code, eload: el, don_vi_id: r.don_vi_id, ten_don_vi: r.don_vi_ten || "", type: normLoaiKenh(r.loai_kenh) });
+        }
+        // (2) Bang kenh_ban thang gan nhat trong ky: bo sung diem chua co tai
+        // khoan + ma NV quan ly + ten NV (ten_nv_bh).
+        for (const mk of [...curMonths].reverse()) {
+          const t = await monthTableExists(env, KENH_BAN_PREFIX, mk);
+          if (!t) continue;
+          const kbRows = (await env.DB.prepare('SELECT * FROM "' + t + '"').all()).results || [];
+          for (const r of kbRows) {
+            const code = normE2(r.ma_kenh);
+            const el = normE2(r.so_eload);
+            let key = resolveKey(code, el);
+            const duid = r.don_vi_id != null && String(r.don_vi_id).trim() !== "" ? Number(r.don_vi_id) : (unitNameToId[normU(r.don_vi)] || null);
+            const tp = resolveType(r.hang_kenh, r.loai_kenh);
+            if (!key) {
+              key = code ? "mk:" + code : (el ? "el:" + el : null);
+              if (!key) continue;
+              newPos(key, { code, eload: el, don_vi_id: duid, ten_don_vi: duid != null ? (duidToName[duid] || "") : (r.don_vi || ""), type: tp, mgr: normE2(r.ma_nv_quan_ly), mgrTen: r.ten_nv_bh ? String(r.ten_nv_bh).trim() : "" });
+            } else {
+              const p = posMap.get(key);
+              registerKeys(key, code, el);
+              if (!p.type && tp) p.type = tp;
+              if (p.don_vi_id == null && duid != null) { p.don_vi_id = duid; p.ten_don_vi = duidToName[duid] || r.don_vi || p.ten_don_vi; }
+              if (!p.mgr && normE2(r.ma_nv_quan_ly)) p.mgr = normE2(r.ma_nv_quan_ly);
+              if (!p.mgrTen && r.ten_nv_bh) p.mgrTen = String(r.ten_nv_bh).trim();
+            }
+          }
+          break;
+        }
+        // (3) Ten NV quan ly tu bang cbcnv thang gan nhat trong ky
+        const mgrName = new Map();
+        for (const mk of [...curMonths].reverse()) {
+          const t = await monthTableExists(env, CBCNV_PREFIX, mk);
+          if (!t) continue;
+          const mrs = (await env.DB.prepare('SELECT * FROM "' + t + '"').all()).results || [];
+          for (const m of mrs) {
+            const nm = String(m.ho_ten || "").trim();
+            if (!nm) continue;
+            for (const col of ["ma_smcs", "ma_hrm", "user_ccbs"]) {
+              const k = normE2(m[col]);
+              if (k && !mgrName.has(k)) mgrName.set(k, nm);
+            }
+          }
+          break;
+        }
+        // (4) Dong cham soc: chi tinh dong "Da hoan thanh", dem theo ngay khac nhau
+        let tables = [];
+        let careRows = 0, validRows = 0;
+        for (const mk of curMonths) {
+          const t = await monthTableExists(env, CSKBH_PREFIX, mk);
+          if (!t) continue;
+          tables.push(t);
+          const rows = (await env.DB.prepare('SELECT * FROM "' + t + '"').all()).results || [];
+          for (const r of rows) {
+            careRows++;
+            const code = normE2(r.ma_diem_ban);
+            const el = normE2(r.sdt_diem_ban);
+            const nvCode = normE2(r.ma_hrm_nv);
+            if (!code && !el) continue;
+            let key = resolveKey(code, el);
+            let p = key ? posMap.get(key) : null;
+            if (!p) {
+              key = code ? "mk:" + code : "el:" + el;
+              const duid = unitNameToId[normU(r.phong_bhkv)] || null;
+              p = newPos(key, { code, eload: el, don_vi_id: duid, ten_don_vi: duid != null ? (duidToName[duid] || "") : (r.phong_bhkv || ""), type: normLoaiKenh(r.loai_diem_ban), mgr: nvCode, mgrTen: r.nhan_vien_quan_ly ? String(r.nhan_vien_quan_ly).trim() : "" });
+            } else {
+              registerKeys(key, code, el);
+            }
+            if (!p.mgr && nvCode) { p.mgr = nvCode; p.mgrTen = r.nhan_vien_quan_ly ? String(r.nhan_vien_quan_ly).trim() : p.mgrTen; }
+            if (!p.type) p.type = normLoaiKenh(r.loai_diem_ban);
+            if (p.don_vi_id == null) {
+              const duid = unitNameToId[normU(r.phong_bhkv)] || null;
+              if (duid != null) { p.don_vi_id = duid; p.ten_don_vi = duidToName[duid] || p.ten_don_vi; }
+            }
+            if (normCareStatus(r.trang_thai_cham_soc) !== CSKBH_VALID_STATUS_NORM) continue;
+            const day = normCareDate(r.ngay_cham_soc);
+            if (!day) continue;
+            validRows++;
+            const mm = day.slice(0, 7);
+            if (!p.days[mm]) p.days[mm] = new Set();
+            p.days[mm].add(day);
+          }
+        }
+        // Dat chuan trong ky: DUQ >= 2 ngay khac nhau o it nhat 1 thang; DBL >= 1 ngay
+        const isCared = (p) => {
+          if (p.type === "DUQ") return curMonths.some((mk) => (p.days[mk] ? p.days[mk].size : 0) >= 2);
+          if (p.type === "DBL") return curMonths.some((mk) => (p.days[mk] ? p.days[mk].size : 0) >= 1);
+          return false;
+        };
+        const rate1 = (a, b) => b > 0 ? Math.round(a / b * 1000) / 10 : null;
+        const byUnitMap = new Map();
+        const byNvMap = new Map();
+        let posNoMgr = 0, posUnclassified = 0;
+        for (const p of posMap.values()) {
+          if (!inScope(p.don_vi_id)) continue;
+          if (p.type !== "DUQ" && p.type !== "DBL") { posUnclassified++; continue; }
+          const cared = isCared(p);
+          const ukey = p.don_vi_id != null ? "id:" + p.don_vi_id : "ten:" + normU(p.ten_don_vi || "Chưa xác định");
+          const u = byUnitMap.get(ukey) || { don_vi_id: p.don_vi_id, ten: p.don_vi_id != null ? (duidToName[p.don_vi_id] || p.ten_don_vi || "Đơn vị " + p.don_vi_id) : (p.ten_don_vi || "Chưa xác định"), sl_duq: 0, sl_duq_cs: 0, sl_dbl: 0, sl_dbl_cs: 0 };
+          if (p.type === "DUQ") { u.sl_duq++; if (cared) u.sl_duq_cs++; } else { u.sl_dbl++; if (cared) u.sl_dbl_cs++; }
+          byUnitMap.set(ukey, u);
+          if (!p.mgr) { posNoMgr++; continue; }
+          const nv = byNvMap.get(p.mgr) || { ma_nv: p.mgr, ten_nv: mgrName.get(p.mgr) || p.mgrTen || p.mgr, don_vi_id: p.don_vi_id, ten_don_vi: u.ten, sl_duq: 0, sl_duq_cs: 0, sl_dbl: 0, sl_dbl_cs: 0, _units: {} };
+          if (p.type === "DUQ") { nv.sl_duq++; if (cared) nv.sl_duq_cs++; } else { nv.sl_dbl++; if (cared) nv.sl_dbl_cs++; }
+          const uk2 = p.don_vi_id != null ? p.don_vi_id : "x";
+          nv._units[uk2] = (nv._units[uk2] || 0) + 1;
+          byNvMap.set(p.mgr, nv);
+        }
+        // Don vi cua NV = don vi co nhieu diem quan ly nhat (trong pham vi)
+        for (const nv of byNvMap.values()) {
+          let best = null, bestN = -1;
+          for (const k in nv._units) { if (nv._units[k] > bestN) { bestN = nv._units[k]; best = k; } }
+          if (best !== null && best !== "x") { nv.don_vi_id = Number(best); nv.ten_don_vi = duidToName[nv.don_vi_id] || nv.ten_don_vi; }
+          delete nv._units;
+        }
+        const by_unit = [...byUnitMap.values()].map((u) => ({ ...u, ty_le_duq: rate1(u.sl_duq_cs, u.sl_duq), ty_le_dbl: rate1(u.sl_dbl_cs, u.sl_dbl) }));
+        const by_nv = [...byNvMap.values()].map((nv) => ({ ...nv, ty_le_duq: rate1(nv.sl_duq_cs, nv.sl_duq), ty_le_dbl: rate1(nv.sl_dbl_cs, nv.sl_dbl) })).sort((a, b) => String(a.ten_don_vi).localeCompare(String(b.ten_don_vi), "vi") || String(a.ten_nv).localeCompare(String(b.ten_nv), "vi"));
+        const tong = by_unit.reduce((t, u) => ({ sl_duq: t.sl_duq + u.sl_duq, sl_duq_cs: t.sl_duq_cs + u.sl_duq_cs, sl_dbl: t.sl_dbl + u.sl_dbl, sl_dbl_cs: t.sl_dbl_cs + u.sl_dbl_cs }), { sl_duq: 0, sl_duq_cs: 0, sl_dbl: 0, sl_dbl_cs: 0 });
+        tong.ty_le_duq = rate1(tong.sl_duq_cs, tong.sl_duq);
+        tong.ty_le_dbl = rate1(tong.sl_dbl_cs, tong.sl_dbl);
+        return json({ ok: true, ky, thang: ky === "thang" ? curMonths[0] : null, nam: ky === "nam" ? nam : null, period_label: periodLabel, has_data: tables.length > 0, tables, care_rows: careRows, valid_rows: validRows, by_unit, by_nv, tong, meta: { pos_no_mgr: posNoMgr, pos_unclassified: posUnclassified } });
+      }
+
       // ---- Dong bo du lieu tu Google Sheet (module 5.10) ----
       // 11 mon: SMCS + TNTTTB (cot lay tu loai_du_lieu, muc 5.6) + 9 loai
       // TTCSKH (cot co dinh nhu module 5.9). Chi dong bo vao bang cua THANG
@@ -2030,6 +2376,7 @@ export default {
         { key: "THBG", name: "Dữ liệu đầu vào bảng THBG", kind: "ttcskh" },
         { key: "THHVC", name: "Dữ liệu đầu vào bảng THHVC", kind: "ttcskh" },
         { key: "IPCC", name: "Dữ liệu đầu vào bảng IPCC", kind: "ttcskh" },
+        { key: "CSKBH", name: "Kết quả chăm sóc kênh bán hàng", kind: "cskbh" },
       ];
       // Cot dich + ten bang thang hien tai cua 1 mon. Tra {error} neu loai
       // SMCS/TNTTTB chua duoc cau hinh o muc 5.6.
@@ -2040,6 +2387,9 @@ export default {
         if (item.kind === "ttcskh") {
           const t = TTCSKH_TYPES.find((x) => x.code === key);
           return { item, month, prefix: t.prefix, name: t.name, table: monthTableName(t.prefix, month), columns: t.columns.map(([k, ty, lb]) => ({ key: k, type: ty, label: lb })) };
+        }
+        if (item.kind === "cskbh") {
+          return { item, month, prefix: CSKBH_PREFIX, name: "Kết quả chăm sóc kênh bán hàng", table: monthTableName(CSKBH_PREFIX, month), columns: CSKBH_COLUMNS.map(([k, ty, lb]) => ({ key: k, type: ty, label: lb })) };
         }
         const types = await getDataTypes(env);
         const dt = types.find((t) => t.code === key);
