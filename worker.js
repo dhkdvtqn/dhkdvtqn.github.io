@@ -4603,15 +4603,21 @@ function normKbKey(s) {
         return json({ ok: true, records: res.results || [] });
       }
       // Xem anh cham soc (xac thuc + dung pham vi; anh khong phuc vu cong khai nhu anh goi cuoc)
+      // 26/11/2026, anh Tuan: ai xem duoc bao cao cham soc thi xem duoc anh —
+      // pham vi anh = pham vi bao cao (admin/subadmin: toan tinh; lanh dao don
+      // vi + Chuyen vien: don vi minh + cay don vi con). Truoc day chi cho
+      // nguoi truc tiep cham soc + lanh dao don vi, nen Chuyen vien xem duoc
+      // bao cao van bi chan anh (403).
       const careImgMatch = path.match(/^\/api\/care\/records\/(\d+)\/image$/);
       if (careImgMatch && method === "GET") {
         if (!hasModule(me, "care") && !hasModule(me, "reports")) return err("Tai khoan khong co quyen xem anh cham soc", 403);
+        if (!isPrivileged && !isLeaderLike) return err("Chi admin/subadmin va Lanh dao don vi moi xem duoc anh cham soc", 403);
         await ensureCareTables(env);
         const rec = await env.DB.prepare("SELECT c.*, p.don_vi_id AS pos_don_vi FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id WHERE c.id = ?").bind(Number(careImgMatch[1])).first();
         if (!rec || !rec.anh_key) return err("Khong tim thay anh", 404);
         if (!isPrivileged) {
           let allowed = rec.caregiver_id === me.id;
-          if (!allowed && isLeader && me.don_vi_id) {
+          if (!allowed && me.don_vi_id) {
             const ok = await env.DB.prepare(unitSubtreeCTE() + " SELECT 1 FROM nguoi_dung WHERE id = ? AND don_vi_id IN (SELECT id FROM subtree)").bind(me.don_vi_id, rec.pos_user_id).first();
             allowed = !!ok;
           }

@@ -7066,15 +7066,21 @@ function normKbKey(s) {
         return json({ ok: true, records: res.results || [] });
       }
       // Xem anh cham soc (xac thuc + dung pham vi; anh khong phuc vu cong khai nhu anh goi cuoc)
+      // 26/11/2026, anh Tuan: ai xem duoc bao cao cham soc thi xem duoc anh —
+      // pham vi anh = pham vi bao cao (admin/subadmin: toan tinh; lanh dao don
+      // vi + Chuyen vien: don vi minh + cay don vi con). Truoc day chi cho
+      // nguoi truc tiep cham soc + lanh dao don vi, nen Chuyen vien xem duoc
+      // bao cao van bi chan anh (403).
       const careImgMatch = path.match(/^\/api\/care\/records\/(\d+)\/image$/);
       if (careImgMatch &amp;&amp; method === &quot;GET&quot;) {
         if (!hasModule(me, &quot;care&quot;) &amp;&amp; !hasModule(me, &quot;reports&quot;)) return err(&quot;Tai khoan khong co quyen xem anh cham soc&quot;, 403);
+        if (!isPrivileged &amp;&amp; !isLeaderLike) return err(&quot;Chi admin/subadmin va Lanh dao don vi moi xem duoc anh cham soc&quot;, 403);
         await ensureCareTables(env);
         const rec = await env.DB.prepare(&quot;SELECT c.*, p.don_vi_id AS pos_don_vi FROM cham_soc c JOIN nguoi_dung p ON p.id = c.pos_user_id WHERE c.id = ?&quot;).bind(Number(careImgMatch[1])).first();
         if (!rec || !rec.anh_key) return err(&quot;Khong tim thay anh&quot;, 404);
         if (!isPrivileged) {
           let allowed = rec.caregiver_id === me.id;
-          if (!allowed &amp;&amp; isLeader &amp;&amp; me.don_vi_id) {
+          if (!allowed &amp;&amp; me.don_vi_id) {
             const ok = await env.DB.prepare(unitSubtreeCTE() + &quot; SELECT 1 FROM nguoi_dung WHERE id = ? AND don_vi_id IN (SELECT id FROM subtree)&quot;).bind(me.don_vi_id, rec.pos_user_id).first();
             allowed = !!ok;
           }
@@ -12389,7 +12395,11 @@ $("careSaveBtn").addEventListener("click", async () => {
 async function viewCarePhoto(recordId) {
   try {
     const res = await fetch(apiBase + "/api/care/records/" + recordId + "/image", { headers: token ? { Authorization: "Bearer " + token } : {} });
-    if (!res.ok) throw new Error("Không tải được ảnh");
+    if (!res.ok) {
+      let msg = "Không tải được ảnh";
+      try { const j = await res.json(); if (j && j.error) msg = j.error; } catch (e) { /* giữ msg mặc định khi lỗi không phải JSON */ }
+      throw new Error(msg);
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const w = window.open(url, "_blank");
