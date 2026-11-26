@@ -1588,7 +1588,6 @@ html.is-mobile #mobileNav button span{font-size:6.6px}
           <div class="card" id="ovCareNvqlEvalCard">
             <h3>📋 Đánh giá nhanh chăm sóc kênh bán <span class="sec-sub" id="ovCareNvqlEvalPeriod"></span></h3>
             <div id="ovCareNvqlEval"><p class="muted">Chưa có dữ liệu chăm sóc NVQL.</p></div>
-            <div id="ovCareNvqlDiag" class="muted" style="margin-top:6px"></div>
           </div>
           <div class="tbl-wrap"><table class="data"><thead id="ovCareNvqlHead"></thead><tbody id="ovCareNvqlBody"><tr><td>—</td></tr></tbody></table></div>
 
@@ -1619,7 +1618,6 @@ html.is-mobile #mobileNav button span{font-size:6.6px}
           <div id="careNvMsg" style="margin-top:8px"></div>
           <h3 class="sec-title">👥 Kết quả chăm sóc theo nhân viên <span class="sec-sub" id="careNvSub"></span></h3>
           <div class="tbl-wrap"><table class="data"><thead id="careNvHead"></thead><tbody id="careNvBody"><tr><td>—</td></tr></tbody></table></div>
-          <div id="careNvDiag" class="muted" style="margin-top:6px"></div>
         </section>
 
         <!-- QUAN LY DON VI -->
@@ -9199,12 +9197,6 @@ function renderOvCarePie(d) {
     note.classList.toggle("hidden", !s);
   }
 }
-// Bang + danh gia nhanh ket qua CS cua NVQL kenh (duoi bang LD)
-function diagHtml(d) {
-  const g = d && d.diag; if (!g) return "";
-  const st = (g.status_top || []).map((x) => esc(String(x[0])) + ": " + fmtInt(x[1])).join(" · ");
-  return "Nguồn: bảng <b>" + esc((g.tables || []).join(", ") || "—") + "</b> — " + fmtInt(g.care_rows) + " dòng, " + fmtInt(g.valid_rows) + " dòng hợp lệ (mọi dòng đã import đều tính). Khớp mã kênh bán: <b>" + fmtInt(g.matched_kb_code) + "</b> · khớp SĐT: " + fmtInt(g.matched_phone) + " · chỉ có trong file CS: " + fmtInt(g.matched_new) + (g.rows_no_key ? " · thiếu cả mã lẫn SĐT: " + fmtInt(g.rows_no_key) : "") + (g.date_bad ? " · ngày không đọc được: " + fmtInt(g.date_bad) : "") + (st ? "<br>Trạng thái trong bảng: " + st + "." : "");
-}
 function renderCareNvql(d) {
   const head = $("ovCareNvqlHead"), body = $("ovCareNvqlBody");
   if (!head || !body) return;
@@ -9216,7 +9208,6 @@ function renderCareNvql(d) {
   if (!d.has_data) {
     body.innerHTML = "<tr><td colspan='7'>Chưa có số liệu chăm sóc kênh bán trong kỳ. Import ở mục <b>5.11</b> hoặc đồng bộ ở mục <b>5.10</b>.</td></tr>";
     if (ev) ev.innerHTML = "<p class='muted'>Chưa có dữ liệu để đánh giá — import hoặc đồng bộ kết quả chăm sóc kênh bán (mục 5.11 / 5.10) rồi bấm lại.</p>";
-    const dg0 = $("ovCareNvqlDiag"); if (dg0) dg0.innerHTML = diagHtml(d);
     return;
   }
   const rows = sortUnitsFixed(d.by_unit || [], (r) => r.ten);
@@ -9239,7 +9230,6 @@ function renderCareNvql(d) {
     if (zero.length) s += " Lưu ý: <b>" + esc(zero.join(", ")) + "</b> chưa có điểm ĐUQ nào đạt chuẩn chăm sóc trong kỳ.";
     ev.innerHTML = "<p>" + s + "</p>";
   }
-  const dg = $("ovCareNvqlDiag"); if (dg) dg.innerHTML = diagHtml(d);
 }
 async function loadCareNvql(q) {
   const body = $("ovCareNvqlBody"); if (!body) return;
@@ -9291,7 +9281,6 @@ function renderCareNv() {
   head.innerHTML = "<tr><th>Đơn vị</th><th>Mã NV</th><th>Tên NV</th><th>SL ĐUQ quản lý</th><th>SL ĐUQ đã CS</th><th>Tỷ lệ ĐUQ được CS</th><th>SL ĐBL quản lý</th><th>SL ĐBL đã CS</th><th>Tỷ lệ ĐBL được CS</th></tr>";
   const d = careNvData;
   const sub = $("careNvSub"); if (sub) sub.textContent = d ? (d.period_label || "") : "";
-  const dg2 = $("careNvDiag"); if (dg2) dg2.innerHTML = diagHtml(d);
   if (!d || !d.has_data) { body.innerHTML = "<tr><td colspan='9'>Chưa có số liệu chăm sóc kênh bán trong kỳ.</td></tr>"; return; }
   const unit = $("careNvUnit").value, nv = $("careNvSel").value;
   const rows = (d.by_nv || []).filter((r) => ((r.sl_duq || 0) + (r.sl_dbl || 0)) > 0 && (!unit || String(r.don_vi_id) === unit) && (!nv || String(r.ma_nv) === nv))
