@@ -3346,7 +3346,7 @@ async function ensureCareTables(env) {
 // chi luu key trong bang; khac_keys/loi_keys la JSON array cac key.
 async function ensureKhSimTable(env) {
   await env.DB.prepare(
-    &quot;CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT, updated_at TEXT, seri_sim_cu TEXT, seri_sim_moi TEXT, phoi_cu_key TEXT, phoi_moi_key TEXT, xac_nhan INTEGER NOT NULL DEFAULT 0, needs_update INTEGER NOT NULL DEFAULT 0)&quot;
+    &quot;CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT, updated_at TEXT, seri_sim_cu TEXT, seri_sim_moi TEXT, phoi_cu_key TEXT, phoi_moi_key TEXT, xac_nhan INTEGER NOT NULL DEFAULT 0, needs_update INTEGER NOT NULL DEFAULT 0, esim INTEGER NOT NULL DEFAULT 0)&quot;
   ).run();
   // Migration: bang cu (truoc 28/11/2026) chua co cot seri/phoi/xac nhan
   const cols = await env.DB.prepare(&quot;PRAGMA table_info(kh_sim_requests)&quot;).all();
@@ -3357,6 +3357,7 @@ async function ensureKhSimTable(env) {
   if (!names.has(&quot;phoi_moi_key&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN phoi_moi_key TEXT&quot;).run();
   if (!names.has(&quot;xac_nhan&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN xac_nhan INTEGER NOT NULL DEFAULT 0&quot;).run();
   if (!names.has(&quot;needs_update&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN needs_update INTEGER NOT NULL DEFAULT 0&quot;).run();
+  if (!names.has(&quot;esim&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN esim INTEGER NOT NULL DEFAULT 0&quot;).run();
   if (!names.has(&quot;updated_at&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN updated_at TEXT&quot;).run();
 }
 async function putKhSimFile(env, slot, file, allowPdf) {
@@ -7197,6 +7198,7 @@ function normKbKey(s) {
         const seriSimCu = toText(fd.get(&quot;seri_sim_cu&quot;)).replace(/\D/g, &quot;&quot;);
         const seriSimMoi = toText(fd.get(&quot;seri_sim_moi&quot;)).replace(/\D/g, &quot;&quot;);
         const xacNhan = fd.get(&quot;xac_nhan&quot;);
+        const esim = fd.get(&quot;esim&quot;) === &quot;1&quot; ? 1 : 0;
         const latRaw = fd.get(&quot;lat&quot;);
         const lngRaw = fd.get(&quot;lng&quot;);
         const lat = (latRaw === null || latRaw === &quot;&quot;) ? NaN : Number(latRaw);
@@ -7223,7 +7225,7 @@ function normKbKey(s) {
         if (!fTruoc || !fTruoc.size) return err(&quot;Chua co anh mat truoc giay to&quot;, 422);
         if (loaiGiayTo === &quot;CCCD&quot; &amp;&amp; (!fSau || !fSau.size)) return err(&quot;CCCD/CC gan chip can du anh mat truoc va mat sau&quot;, 422);
         if (!fChanDung || !fChanDung.size) return err(&quot;Chua co anh chan dung&quot;, 422);
-        if (!fPhoiMoi || !fPhoiMoi.size) return err(&quot;Chua co anh phoi SIM moi&quot;, 422);
+        if (!esim &amp;&amp; (!fPhoiMoi || !fPhoiMoi.size)) return err(&quot;Chua co anh phoi SIM moi&quot;, 422);
         if (fLoi.length === 0) return err(&quot;Chua co anh chup loi he thong&quot;, 422);
         if (fLoi.length &gt; 5) return err(&quot;Anh chup loi he thong toi da 5 anh&quot;, 422);
         // Kiem tra dinh dang/kich thuoc tat ca file TRUOC khi upload (422),
@@ -7245,14 +7247,14 @@ function normKbKey(s) {
         const chanDungKey = (fChanDung &amp;&amp; fChanDung.size) ? await putKhSimFile(env, &quot;chandung&quot;, fChanDung, false) : null;
         const camKetKey = (fCamKet &amp;&amp; fCamKet.size) ? await putKhSimFile(env, &quot;camket&quot;, fCamKet, false) : null;
         const phoiCuKey = (fPhoiCu &amp;&amp; fPhoiCu.size) ? await putKhSimFile(env, &quot;phoicu&quot;, fPhoiCu, false) : null;
-        const phoiMoiKey = await putKhSimFile(env, &quot;phoimoi&quot;, fPhoiMoi, false);
+        const phoiMoiKey = (fPhoiMoi &amp;&amp; fPhoiMoi.size) ? await putKhSimFile(env, &quot;phoimoi&quot;, fPhoiMoi, false) : null;
         const khacKeys = [];
         for (let i = 0; i &lt; fKhac.length; i++) khacKeys.push(await putKhSimFile(env, &quot;khac&quot; + i, fKhac[i], true));
         const loiKeys = [];
         for (let i = 0; i &lt; fLoi.length; i++) loiKeys.push(await putKhSimFile(env, &quot;loi&quot; + i, fLoi[i], false));
         const r = await env.DB.prepare(
-          &quot;INSERT INTO kh_sim_requests (so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, phieu_key, cccd_truoc_key, cccd_sau_key, chan_dung_key, cam_ket_key, khac_keys, loi_keys, ocr_trang_thai, ocr_so_doc, lat, lng, created_by, created_by_ten, don_vi_id, created_at, updated_at, seri_sim_cu, seri_sim_moi, phoi_cu_key, phoi_moi_key, xac_nhan) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)&quot;
-        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : null, isFinite(lng) ? lng : null, me.id, me.ho_ten, me.don_vi_id || null, saigonNow(), saigonNow(), seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, 1).run();
+          &quot;INSERT INTO kh_sim_requests (so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, phieu_key, cccd_truoc_key, cccd_sau_key, chan_dung_key, cam_ket_key, khac_keys, loi_keys, ocr_trang_thai, ocr_so_doc, lat, lng, created_by, created_by_ten, don_vi_id, created_at, updated_at, seri_sim_cu, seri_sim_moi, phoi_cu_key, phoi_moi_key, xac_nhan, esim) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)&quot;
+        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : null, isFinite(lng) ? lng : null, me.id, me.ho_ten, me.don_vi_id || null, saigonNow(), saigonNow(), seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, 1, esim).run();
         return json({ ok: true, id: r.meta.last_row_id });
       }
       if (path === &quot;/api/kh-sim&quot; &amp;&amp; method === &quot;GET&quot;) {
@@ -7334,6 +7336,7 @@ function normKbKey(s) {
         const seriSimCu = toText(fd.get(&quot;seri_sim_cu&quot;)).replace(/\D/g, &quot;&quot;);
         const seriSimMoi = toText(fd.get(&quot;seri_sim_moi&quot;)).replace(/\D/g, &quot;&quot;);
         const xacNhan = fd.get(&quot;xac_nhan&quot;);
+        const esim = fd.get(&quot;esim&quot;) === &quot;1&quot; ? 1 : 0;
         const latRaw = fd.get(&quot;lat&quot;);
         const lngRaw = fd.get(&quot;lng&quot;);
         const lat = (latRaw === null || latRaw === &quot;&quot;) ? NaN : Number(latRaw);
@@ -7363,7 +7366,7 @@ function normKbKey(s) {
         if (!hasNew(fTruoc) &amp;&amp; !rec.cccd_truoc_key) return err(&quot;Chua co anh mat truoc giay to&quot;, 422);
         if (loaiGiayTo === &quot;CCCD&quot; &amp;&amp; !hasNew(fSau) &amp;&amp; !rec.cccd_sau_key) return err(&quot;CCCD/CC gan chip can du anh mat truoc va mat sau&quot;, 422);
         if (!hasNew(fChanDung) &amp;&amp; !rec.chan_dung_key) return err(&quot;Chua co anh chan dung&quot;, 422);
-        if (!hasNew(fPhoiMoi) &amp;&amp; !rec.phoi_moi_key) return err(&quot;Chua co anh phoi SIM moi&quot;, 422);
+        if (!esim &amp;&amp; !hasNew(fPhoiMoi) &amp;&amp; !rec.phoi_moi_key) return err(&quot;Chua co anh phoi SIM moi&quot;, 422);
         if ((fLoi.length ? fLoi.length : oldLoi.length) === 0) return err(&quot;Chua co anh chup loi he thong&quot;, 422);
         if (fLoi.length &gt; 5) return err(&quot;Anh chup loi he thong toi da 5 anh&quot;, 422);
         const fileChecks = [
@@ -7392,13 +7395,15 @@ function normKbKey(s) {
         const chanDungKey = await replaceKey(&quot;chandung&quot;, fChanDung, false, rec.chan_dung_key);
         const camKetKey = await replaceKey(&quot;camket&quot;, fCamKet, false, rec.cam_ket_key);
         const phoiCuKey = await replaceKey(&quot;phoicu&quot;, fPhoiCu, false, rec.phoi_cu_key);
-        const phoiMoiKey = await replaceKey(&quot;phoimoi&quot;, fPhoiMoi, false, rec.phoi_moi_key);
+        let phoiMoiKey = rec.phoi_moi_key;
+        if (esim) { phoiMoiKey = null; await delOld(rec.phoi_moi_key); }
+        else phoiMoiKey = await replaceKey(&quot;phoimoi&quot;, fPhoiMoi, false, rec.phoi_moi_key);
         let khacKeys = oldKhac, loiKeys = oldLoi;
         if (fKhac.length) { for (const k of oldKhac) await delOld(k); khacKeys = []; for (let i = 0; i &lt; fKhac.length; i++) khacKeys.push(await putKhSimFile(env, &quot;khac&quot; + i, fKhac[i], true)); }
         if (fLoi.length) { for (const k of oldLoi) await delOld(k); loiKeys = []; for (let i = 0; i &lt; fLoi.length; i++) loiKeys.push(await putKhSimFile(env, &quot;loi&quot; + i, fLoi[i], false)); }
         await env.DB.prepare(
-          &quot;UPDATE kh_sim_requests SET so_thue_bao = ?, ten_thue_bao = ?, loai_giay_to = ?, so_giay_to = ?, ghi_chu = ?, phieu_key = ?, cccd_truoc_key = ?, cccd_sau_key = ?, chan_dung_key = ?, cam_ket_key = ?, khac_keys = ?, loi_keys = ?, ocr_trang_thai = ?, ocr_so_doc = ?, lat = ?, lng = ?, seri_sim_cu = ?, seri_sim_moi = ?, phoi_cu_key = ?, phoi_moi_key = ?, updated_at = ?, xac_nhan = 1, needs_update = 0 WHERE id = ?&quot;
-        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : rec.lat, isFinite(lng) ? lng : rec.lng, seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, saigonNow(), rec.id).run();
+          &quot;UPDATE kh_sim_requests SET so_thue_bao = ?, ten_thue_bao = ?, loai_giay_to = ?, so_giay_to = ?, ghi_chu = ?, phieu_key = ?, cccd_truoc_key = ?, cccd_sau_key = ?, chan_dung_key = ?, cam_ket_key = ?, khac_keys = ?, loi_keys = ?, ocr_trang_thai = ?, ocr_so_doc = ?, lat = ?, lng = ?, seri_sim_cu = ?, seri_sim_moi = ?, phoi_cu_key = ?, phoi_moi_key = ?, updated_at = ?, xac_nhan = 1, needs_update = 0, esim = ? WHERE id = ?&quot;
+        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : rec.lat, isFinite(lng) ? lng : rec.lng, seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, saigonNow(), esim, rec.id).run();
         return json({ ok: true, id: rec.id });
       }
       // Xem file dinh kem cua ho so (anh/PDF) theo slot, dung pham vi xem chi tiet.
@@ -7693,9 +7698,9 @@ function normKbKey(s) {
             <div><label>Loại giấy tờ tùy thân (*)</label><select id="khDocType"><option value="CCCD">CCCD/CC gắn chíp</option><option value="HO_CHIEU">Hộ chiếu</option><option value="VNEID">VNeID mức 2</option></select></div>
             <div><label>Số CCCD/CC/hộ chiếu (*)</label><input id="khDocNo" placeholder="Nhập số giấy tờ" required /></div>
             <div><label>Số seri SIM cũ (*)</label><input id="khSeriCu" inputmode="numeric" maxlength="10" placeholder="10 số seri SIM cũ" required /></div>
-            <div><label>Số seri SIM mới (*)</label><input id="khSeriMoi" inputmode="numeric" maxlength="10" placeholder="10 số seri SIM mới" required /></div>
+            <div><label>Số seri SIM mới (*)</label><div style="display:flex;gap:10px;align-items:center"><input id="khSeriMoi" inputmode="numeric" maxlength="10" placeholder="10 số seri SIM mới" required style="flex:1;min-width:0" /><label class="checkline" style="flex:none;white-space:nowrap"><input type="checkbox" id="khEsim" /> <span style="flex:1;min-width:0">Là ESIM</span></label></div></div>
             <div><label>Ảnh phôi SIM gốc</label><input type="file" id="khPhoiCu" accept="image/*" capture="environment" /><div class="desc" id="khPhoiCuInfo">Nếu KH dùng ESIM thì chụp màn hình ESIM trên điện thoại.</div></div>
-            <div><label>Ảnh phôi SIM mới (*)</label><input type="file" id="khPhoiMoi" accept="image/*" capture="environment" required /><div class="desc" id="khPhoiMoiInfo">Chưa chọn ảnh.</div></div>
+            <div><label id="khPhoiMoiLabel">Ảnh phôi SIM mới (*)</label><input type="file" id="khPhoiMoi" accept="image/*" capture="environment" required /><div class="desc" id="khPhoiMoiInfo">Chưa chọn ảnh.</div></div>
             <div><label>Phiếu yêu cầu thay SIM (*)</label><input type="file" id="khPhieu" accept="image/*" capture="environment" required /><div class="desc" id="khPhieuInfo">Chưa chọn ảnh.</div></div>
             <div><label>Ảnh mặt trước giấy tờ (*)</label><input type="file" id="khDocFront" accept="image/*" capture="environment" required /><div class="desc" id="khDocFrontInfo">Chưa chọn ảnh. Sau khi tải lên, hệ thống tự đóng dấu tọa độ + thời gian và đọc OCR để đối chiếu số giấy tờ.</div></div>
             <div id="khDocBackBox"><label>Ảnh mặt sau giấy tờ (*)</label><input type="file" id="khDocBack" accept="image/*" capture="environment" /><div class="desc" id="khDocBackInfo">Chưa chọn ảnh. Chỉ bắt buộc khi loại giấy tờ là CCCD/CC gắn chíp.</div></div>
@@ -13097,7 +13102,7 @@ function khMissingItems() {
   if (!$("khNote").value.trim()) items.push("Ghi chú lý do");
   if (!/^\d{10}$/.test($("khSeriCu").value.replace(/\D/g, ""))) items.push("Số seri SIM cũ (10 số)");
   if (!/^\d{10}$/.test($("khSeriMoi").value.replace(/\D/g, ""))) items.push("Số seri SIM mới (10 số)");
-  if (!khHasPhoiMoi()) items.push("Ảnh phôi SIM mới");
+  if (!$("khEsim").checked && !khHasPhoiMoi()) items.push("Ảnh phôi SIM mới");
   if (!khHasErr()) items.push("Ảnh chụp lỗi hệ thống (ít nhất 1 ảnh)");
   if (!$("khConfirm").checked) items.push("Tích xác nhận thông tin chính xác");
   if (!khHasPhieu()) items.push("Phiếu yêu cầu thay SIM");
@@ -13115,6 +13120,18 @@ function khHasFront() { return !!khFront || !!(khEditKeys && khEditKeys.truoc); 
 function khHasBack() { return !!khBack || !!(khEditKeys && khEditKeys.sau); }
 function khHasPortrait() { return !!khPortrait || !!(khEditKeys && khEditKeys.chandung); }
 function khHasPhoiMoi() { return !!khPhoiMoi || !!(khEditKeys && khEditKeys.phoimoi); }
+// O tich "La ESIM" (canh o seri SIM moi): ESIM khong co phoi SIM vat ly
+// nen khong can anh phoi SIM moi — an (*) do, bo required, bo khoi danh sach thieu.
+function khSyncEsim() {
+  const esim = $("khEsim").checked;
+  $("khPhoiMoi").required = !esim;
+  const sp = document.querySelector("#khPhoiMoiLabel span");
+  if (sp) sp.hidden = esim;
+  if (esim) { $("khPhoiMoiInfo").textContent = "Không cần ảnh phôi (ESIM)."; }
+  else if (!khPhoiMoi && !(khEditKeys && khEditKeys.phoimoi)) { $("khPhoiMoiInfo").textContent = "Chưa chọn ảnh."; }
+  else if (khEditKeys && khEditKeys.phoimoi) { $("khPhoiMoiInfo").textContent = "Đã có ảnh — chọn lại để thay."; }
+  khUpdateMissing();
+}
 function khHasErr() { return khErr.length > 0 || !!((khEditKeys && khEditKeys.loi || []).length); }
 function khUpdateMissing() {
   const box = $("khMissing");
@@ -13303,6 +13320,7 @@ $("khCommit").addEventListener("change", async () => { khCommit = await khPickSt
 // Anh phoi SIM gui nguyen nhu anh phieu (khong dong dau toa do/gio).
 $("khPhoiCu").addEventListener("change", async () => { khPhoiCu = await khPickPlain($("khPhoiCu"), $("khPhoiCuInfo")); khUpdateMissing(); });
 $("khPhoiMoi").addEventListener("change", async () => { khPhoiMoi = await khPickPlain($("khPhoiMoi"), $("khPhoiMoiInfo")); khUpdateMissing(); });
+$("khEsim").addEventListener("change", () => khSyncEsim());
 $("khOther").addEventListener("change", async () => { khOther = await khPickMulti($("khOther"), $("khOtherInfo"), { stampImages: true, allowPdf: true }); });
 $("khErr").addEventListener("change", async () => { khErr = await khPickMulti($("khErr"), $("khErrInfo"), { stampImages: false, allowPdf: false, max: 5 }); khUpdateMissing(); });
 $("khOcrBtn").addEventListener("click", () => khRunOcr());
@@ -13310,6 +13328,7 @@ function khResetForm() {
   ["khPhone", "khName", "khDocNo", "khNote", "khSeriCu", "khSeriMoi"].forEach((id) => { $(id).value = ""; });
   ["khPhieu", "khDocFront", "khDocBack", "khPortrait", "khCommit", "khOther", "khErr", "khPhoiCu", "khPhoiMoi"].forEach((id) => { $(id).value = ""; });
   $("khConfirm").checked = false;
+  $("khEsim").checked = false;
   $("khDocType").value = "CCCD";
   $("khDocBackBox").classList.remove("hidden");
   $("khPhieuInfo").textContent = "Chưa chọn ảnh.";
@@ -13329,6 +13348,7 @@ function khResetForm() {
   khEditId = null; khEditKeys = null; khEditOcrDoc = ""; khEditFrontBlob = null;
   $("khSubmitBtn").textContent = "📤 Gửi hồ sơ";
   $("khCancelEdit").classList.add("hidden");
+  khSyncEsim();
 }
 $("khSubmitBtn").addEventListener("click", async () => {
   const phone = $("khPhone").value.replace(/\D/g, "");
@@ -13348,7 +13368,7 @@ $("khSubmitBtn").addEventListener("click", async () => {
   if (!khHasFront()) { setMsg($("khSimMsg"), "Hãy tải ảnh mặt trước giấy tờ.", false); return; }
   if (docType === "CCCD" && !khHasBack()) { setMsg($("khSimMsg"), "CCCD/CC gắn chíp cần đủ ảnh mặt trước và mặt sau.", false); return; }
   if (!khHasPortrait()) { setMsg($("khSimMsg"), "Hãy tải ảnh chân dung khách hàng.", false); return; }
-  if (!khHasPhoiMoi()) { setMsg($("khSimMsg"), "Hãy tải ảnh phôi SIM mới.", false); return; }
+  if (!$("khEsim").checked && !khHasPhoiMoi()) { setMsg($("khSimMsg"), "Hãy tải ảnh phôi SIM mới.", false); return; }
   if (!khHasErr()) { setMsg($("khSimMsg"), "Hãy tải ít nhất 1 ảnh chụp lỗi hệ thống.", false); return; }
   if (!$("khConfirm").checked) { setMsg($("khSimMsg"), "Hãy tích xác nhận thông tin khai báo chính xác trước khi gửi hồ sơ.", false); return; }
   if (khOcrStatus !== "OK") { setMsg($("khSimMsg"), "Chưa kiểm tra OCR khớp số giấy tờ — hãy chạy OCR và đảm bảo kết quả khớp rồi gửi lại.", false); return; }
@@ -13365,6 +13385,7 @@ $("khSubmitBtn").addEventListener("click", async () => {
     fd.append("seri_sim_cu", seriCu);
     fd.append("seri_sim_moi", seriMoi);
     fd.append("xac_nhan", "1");
+    fd.append("esim", $("khEsim").checked ? "1" : "0");
     if (khLat !== null && khLng !== null) { fd.append("lat", khLat); fd.append("lng", khLng); }
     if (khPhieu) fd.append("phieu", khPhieu.blob, "phieu.jpg");
     if (khFront) fd.append("cccd_truoc", khFront.blob, "truoc.jpg");
@@ -13426,6 +13447,7 @@ async function khOpenDetail(id) {
       "<tr><td><b>Số giấy tờ</b></td><td>" + esc(r.so_giay_to) + "</td></tr>" +
       "<tr><td><b>Số seri SIM cũ</b></td><td>" + esc(r.seri_sim_cu || "") + "</td></tr>" +
       "<tr><td><b>Số seri SIM mới</b></td><td>" + esc(r.seri_sim_moi || "") + "</td></tr>" +
+      "<tr><td><b>Loại SIM</b></td><td>" + (r.esim ? "ESIM" : "SIM vật lý") + "</td></tr>" +
       "<tr><td><b>Xác nhận</b></td><td>" + (r.xac_nhan ? "✓ Đã xác nhận thông tin chính xác" : "—") + "</td></tr>" +
       "<tr><td><b>OCR</b></td><td>" + (r.ocr_trang_thai === "OK" ? "<span class='pill ok'>✓ OK</span>" : esc(r.ocr_trang_thai || "")) + (r.ocr_so_doc ? " — đã đọc: " + esc(r.ocr_so_doc) : "") + "</td></tr>" +
       "<tr><td><b>Ghi chú</b></td><td>" + esc(r.ghi_chu || "") + "</td></tr>" +
@@ -13435,7 +13457,7 @@ async function khOpenDetail(id) {
       "<tr><td><b>Ảnh chân dung</b></td><td>" + (r.chan_dung_key ? slotBtn("chandung", "Xem ảnh") : "—") + "</td></tr>" +
       "<tr><td><b>Bản cam kết</b></td><td>" + (r.cam_ket_key ? slotBtn("camket", "Xem ảnh") : "—") + "</td></tr>" +
       "<tr><td><b>Phôi SIM gốc</b></td><td>" + (r.phoi_cu_key ? slotBtn("phoi_cu", "Xem ảnh") : "—") + "</td></tr>" +
-      "<tr><td><b>Phôi SIM mới</b></td><td>" + (r.phoi_moi_key ? slotBtn("phoi_moi", "Xem ảnh") : "—") + "</td></tr>" +
+      "<tr><td><b>Phôi SIM mới</b></td><td>" + (r.phoi_moi_key ? slotBtn("phoi_moi", "Xem ảnh") : (r.esim ? "— (ESIM)" : "—")) + "</td></tr>" +
       "<tr><td><b>Hồ sơ khác</b></td><td>" + khacHtml + "</td></tr>" +
       "<tr><td><b>Ảnh lỗi hệ thống</b></td><td>" + loiHtml + "</td></tr>" +
       "</tbody></table>" +
@@ -13526,6 +13548,7 @@ async function khOpenEdit(id) {
     $("khNote").value = r.ghi_chu || "";
     $("khSeriCu").value = r.seri_sim_cu || "";
     $("khSeriMoi").value = r.seri_sim_moi || "";
+    $("khEsim").checked = !!r.esim;
     const isCccd = $("khDocType").value === "CCCD";
     $("khDocBack").required = isCccd;
     $("khDocBackBox").classList.toggle("hidden", !isCccd);
@@ -13543,7 +13566,7 @@ async function khOpenEdit(id) {
     else khSetOcr("CHUA_KIEM_TRA", "Hồ sơ cũ chưa có OCR khớp — hãy tải ảnh mặt trước rồi chạy lại OCR.");
     $("khSubmitBtn").textContent = "💾 Lưu thay đổi";
     $("khCancelEdit").classList.remove("hidden");
-    khUpdateMissing();
+    khSyncEsim();
     setMsg($("khSimMsg"), "Đang sửa hồ sơ #" + r.id + " (đã được yêu cầu cập nhật lại). Ảnh nào không chọn lại sẽ được giữ nguyên.", true);
     $("khSimForm").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { setMsg($("khSimMsg"), "Không mở được hồ sơ để sửa: " + e.message, false); }

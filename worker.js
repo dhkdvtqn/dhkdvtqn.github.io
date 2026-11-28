@@ -859,7 +859,7 @@ async function ensureCareTables(env) {
 // chi luu key trong bang; khac_keys/loi_keys la JSON array cac key.
 async function ensureKhSimTable(env) {
   await env.DB.prepare(
-    "CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT, updated_at TEXT, seri_sim_cu TEXT, seri_sim_moi TEXT, phoi_cu_key TEXT, phoi_moi_key TEXT, xac_nhan INTEGER NOT NULL DEFAULT 0, needs_update INTEGER NOT NULL DEFAULT 0)"
+    "CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT, updated_at TEXT, seri_sim_cu TEXT, seri_sim_moi TEXT, phoi_cu_key TEXT, phoi_moi_key TEXT, xac_nhan INTEGER NOT NULL DEFAULT 0, needs_update INTEGER NOT NULL DEFAULT 0, esim INTEGER NOT NULL DEFAULT 0)"
   ).run();
   // Migration: bang cu (truoc 28/11/2026) chua co cot seri/phoi/xac nhan
   const cols = await env.DB.prepare("PRAGMA table_info(kh_sim_requests)").all();
@@ -870,6 +870,7 @@ async function ensureKhSimTable(env) {
   if (!names.has("phoi_moi_key")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN phoi_moi_key TEXT").run();
   if (!names.has("xac_nhan")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN xac_nhan INTEGER NOT NULL DEFAULT 0").run();
   if (!names.has("needs_update")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN needs_update INTEGER NOT NULL DEFAULT 0").run();
+  if (!names.has("esim")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN esim INTEGER NOT NULL DEFAULT 0").run();
   if (!names.has("updated_at")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN updated_at TEXT").run();
 }
 async function putKhSimFile(env, slot, file, allowPdf) {
@@ -4710,6 +4711,7 @@ function normKbKey(s) {
         const seriSimCu = toText(fd.get("seri_sim_cu")).replace(/\D/g, "");
         const seriSimMoi = toText(fd.get("seri_sim_moi")).replace(/\D/g, "");
         const xacNhan = fd.get("xac_nhan");
+        const esim = fd.get("esim") === "1" ? 1 : 0;
         const latRaw = fd.get("lat");
         const lngRaw = fd.get("lng");
         const lat = (latRaw === null || latRaw === "") ? NaN : Number(latRaw);
@@ -4736,7 +4738,7 @@ function normKbKey(s) {
         if (!fTruoc || !fTruoc.size) return err("Chua co anh mat truoc giay to", 422);
         if (loaiGiayTo === "CCCD" && (!fSau || !fSau.size)) return err("CCCD/CC gan chip can du anh mat truoc va mat sau", 422);
         if (!fChanDung || !fChanDung.size) return err("Chua co anh chan dung", 422);
-        if (!fPhoiMoi || !fPhoiMoi.size) return err("Chua co anh phoi SIM moi", 422);
+        if (!esim && (!fPhoiMoi || !fPhoiMoi.size)) return err("Chua co anh phoi SIM moi", 422);
         if (fLoi.length === 0) return err("Chua co anh chup loi he thong", 422);
         if (fLoi.length > 5) return err("Anh chup loi he thong toi da 5 anh", 422);
         // Kiem tra dinh dang/kich thuoc tat ca file TRUOC khi upload (422),
@@ -4758,14 +4760,14 @@ function normKbKey(s) {
         const chanDungKey = (fChanDung && fChanDung.size) ? await putKhSimFile(env, "chandung", fChanDung, false) : null;
         const camKetKey = (fCamKet && fCamKet.size) ? await putKhSimFile(env, "camket", fCamKet, false) : null;
         const phoiCuKey = (fPhoiCu && fPhoiCu.size) ? await putKhSimFile(env, "phoicu", fPhoiCu, false) : null;
-        const phoiMoiKey = await putKhSimFile(env, "phoimoi", fPhoiMoi, false);
+        const phoiMoiKey = (fPhoiMoi && fPhoiMoi.size) ? await putKhSimFile(env, "phoimoi", fPhoiMoi, false) : null;
         const khacKeys = [];
         for (let i = 0; i < fKhac.length; i++) khacKeys.push(await putKhSimFile(env, "khac" + i, fKhac[i], true));
         const loiKeys = [];
         for (let i = 0; i < fLoi.length; i++) loiKeys.push(await putKhSimFile(env, "loi" + i, fLoi[i], false));
         const r = await env.DB.prepare(
-          "INSERT INTO kh_sim_requests (so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, phieu_key, cccd_truoc_key, cccd_sau_key, chan_dung_key, cam_ket_key, khac_keys, loi_keys, ocr_trang_thai, ocr_so_doc, lat, lng, created_by, created_by_ten, don_vi_id, created_at, updated_at, seri_sim_cu, seri_sim_moi, phoi_cu_key, phoi_moi_key, xac_nhan) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : null, isFinite(lng) ? lng : null, me.id, me.ho_ten, me.don_vi_id || null, saigonNow(), saigonNow(), seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, 1).run();
+          "INSERT INTO kh_sim_requests (so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, phieu_key, cccd_truoc_key, cccd_sau_key, chan_dung_key, cam_ket_key, khac_keys, loi_keys, ocr_trang_thai, ocr_so_doc, lat, lng, created_by, created_by_ten, don_vi_id, created_at, updated_at, seri_sim_cu, seri_sim_moi, phoi_cu_key, phoi_moi_key, xac_nhan, esim) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : null, isFinite(lng) ? lng : null, me.id, me.ho_ten, me.don_vi_id || null, saigonNow(), saigonNow(), seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, 1, esim).run();
         return json({ ok: true, id: r.meta.last_row_id });
       }
       if (path === "/api/kh-sim" && method === "GET") {
@@ -4847,6 +4849,7 @@ function normKbKey(s) {
         const seriSimCu = toText(fd.get("seri_sim_cu")).replace(/\D/g, "");
         const seriSimMoi = toText(fd.get("seri_sim_moi")).replace(/\D/g, "");
         const xacNhan = fd.get("xac_nhan");
+        const esim = fd.get("esim") === "1" ? 1 : 0;
         const latRaw = fd.get("lat");
         const lngRaw = fd.get("lng");
         const lat = (latRaw === null || latRaw === "") ? NaN : Number(latRaw);
@@ -4876,7 +4879,7 @@ function normKbKey(s) {
         if (!hasNew(fTruoc) && !rec.cccd_truoc_key) return err("Chua co anh mat truoc giay to", 422);
         if (loaiGiayTo === "CCCD" && !hasNew(fSau) && !rec.cccd_sau_key) return err("CCCD/CC gan chip can du anh mat truoc va mat sau", 422);
         if (!hasNew(fChanDung) && !rec.chan_dung_key) return err("Chua co anh chan dung", 422);
-        if (!hasNew(fPhoiMoi) && !rec.phoi_moi_key) return err("Chua co anh phoi SIM moi", 422);
+        if (!esim && !hasNew(fPhoiMoi) && !rec.phoi_moi_key) return err("Chua co anh phoi SIM moi", 422);
         if ((fLoi.length ? fLoi.length : oldLoi.length) === 0) return err("Chua co anh chup loi he thong", 422);
         if (fLoi.length > 5) return err("Anh chup loi he thong toi da 5 anh", 422);
         const fileChecks = [
@@ -4905,13 +4908,15 @@ function normKbKey(s) {
         const chanDungKey = await replaceKey("chandung", fChanDung, false, rec.chan_dung_key);
         const camKetKey = await replaceKey("camket", fCamKet, false, rec.cam_ket_key);
         const phoiCuKey = await replaceKey("phoicu", fPhoiCu, false, rec.phoi_cu_key);
-        const phoiMoiKey = await replaceKey("phoimoi", fPhoiMoi, false, rec.phoi_moi_key);
+        let phoiMoiKey = rec.phoi_moi_key;
+        if (esim) { phoiMoiKey = null; await delOld(rec.phoi_moi_key); }
+        else phoiMoiKey = await replaceKey("phoimoi", fPhoiMoi, false, rec.phoi_moi_key);
         let khacKeys = oldKhac, loiKeys = oldLoi;
         if (fKhac.length) { for (const k of oldKhac) await delOld(k); khacKeys = []; for (let i = 0; i < fKhac.length; i++) khacKeys.push(await putKhSimFile(env, "khac" + i, fKhac[i], true)); }
         if (fLoi.length) { for (const k of oldLoi) await delOld(k); loiKeys = []; for (let i = 0; i < fLoi.length; i++) loiKeys.push(await putKhSimFile(env, "loi" + i, fLoi[i], false)); }
         await env.DB.prepare(
-          "UPDATE kh_sim_requests SET so_thue_bao = ?, ten_thue_bao = ?, loai_giay_to = ?, so_giay_to = ?, ghi_chu = ?, phieu_key = ?, cccd_truoc_key = ?, cccd_sau_key = ?, chan_dung_key = ?, cam_ket_key = ?, khac_keys = ?, loi_keys = ?, ocr_trang_thai = ?, ocr_so_doc = ?, lat = ?, lng = ?, seri_sim_cu = ?, seri_sim_moi = ?, phoi_cu_key = ?, phoi_moi_key = ?, updated_at = ?, xac_nhan = 1, needs_update = 0 WHERE id = ?"
-        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : rec.lat, isFinite(lng) ? lng : rec.lng, seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, saigonNow(), rec.id).run();
+          "UPDATE kh_sim_requests SET so_thue_bao = ?, ten_thue_bao = ?, loai_giay_to = ?, so_giay_to = ?, ghi_chu = ?, phieu_key = ?, cccd_truoc_key = ?, cccd_sau_key = ?, chan_dung_key = ?, cam_ket_key = ?, khac_keys = ?, loi_keys = ?, ocr_trang_thai = ?, ocr_so_doc = ?, lat = ?, lng = ?, seri_sim_cu = ?, seri_sim_moi = ?, phoi_cu_key = ?, phoi_moi_key = ?, updated_at = ?, xac_nhan = 1, needs_update = 0, esim = ? WHERE id = ?"
+        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : rec.lat, isFinite(lng) ? lng : rec.lng, seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, saigonNow(), esim, rec.id).run();
         return json({ ok: true, id: rec.id });
       }
       // Xem file dinh kem cua ho so (anh/PDF) theo slot, dung pham vi xem chi tiet.
