@@ -12535,9 +12535,21 @@ const CHANNEL_TYPES = {
   DBL: { label: "Điểm bán lẻ (ĐBL)", color: "#9333ea", icon: "🏬" },
   GARA: { label: "Gara ô tô (GARA)", color: "#16a34a", icon: "🚗" },
   DDV: { label: "Điểm ủy quyền bán đa dịch vụ (ĐDV)", color: "#dc2626", icon: "🏢" },
+  CHUOI: { label: "Chuỗi", color: "#ea580c", icon: "🔗" },
+  DGD: { label: "Điểm giao dịch (ĐGD)", color: "#0891b2", icon: "🏦" },
 };
 const CHANNEL_UNKNOWN = { label: "Chưa phân loại", color: "#64748b", icon: "📍" };
-const channelTypeOf = (p) => CHANNEL_TYPES[p.loai_kenh] || CHANNEL_UNKNOWN;
+const channelCodeOf = (p) => {
+  // loai_kenh tra ve tu /api/channel-map la gia tri goc tren nguoi_dung: co the la
+  // ma (DUQ/DBL/...) hoac ten tho nhu "Chuỗi", "ĐGD", "Điểm giao dịch" (dong bo
+  // tu kenh_ban giu nguyen gia tri khi normLoaiKenh khong nhan ra) — chuan hoa
+  // ve ma truoc khi doi chieu, de Chuoi/DGD khong roi ve "Chua phan loai".
+  const c = normSearch(p.loai_kenh).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (c.indexOf("CHUOI") === 0) return "CHUOI";
+  if (c === "DGD" || c.indexOf("DIEMGIAODICH") === 0) return "DGD";
+  return CHANNEL_TYPES[c] ? c : "";
+};
+const channelTypeOf = (p) => CHANNEL_TYPES[channelCodeOf(p)] || CHANNEL_UNKNOWN;
 // Nap lua chon loc theo loai diem ban (co dinh, 1 lan)
 $("chMapType").innerHTML = '<option value="">Tất cả loại điểm bán</option>' +
   Object.entries(CHANNEL_TYPES).map(([code, t]) => '<option value="' + code + '">' + esc(t.label) + "</option>").join("") +
@@ -12567,8 +12579,8 @@ function chMapFiltered() {
   return (chMapCache || []).filter((p) => {
     if (unitSet && !unitSet.has(p.don_vi_id)) return false;
     if (mgr && (p.ten_nhan_vien || "") !== mgr) return false;
-    if (type === "__none") { if (p.loai_kenh) return false; }
-    else if (type && p.loai_kenh !== type) return false;
+    if (type === "__none") { if (channelCodeOf(p)) return false; }
+    else if (type && channelCodeOf(p) !== type) return false;
     if (q) {
       const hay = normSearch([p.ho_ten, p.ma_kenh, p.so_eload, p.so_vi, p.ten_nhan_vien, p.don_vi_ten].join(" "));
       if (!hay.includes(q)) return false;
