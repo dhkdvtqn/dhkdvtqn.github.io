@@ -109,7 +109,7 @@ async function requireAuth(request, env) {
   if (!payload) return null;
   if (payload.pwchange === 1) return null; // token doi mat khau chi dung cho /api/change-password, khong vao he thong
   const user = await env.DB.prepare(
-    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, chuc_danh, don_vi_id, loai_kenh, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?"
+    "SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, chuc_danh, don_vi_id, loai_kenh, can_import, can_duyet_khoso, modules, lat, lng, active FROM nguoi_dung WHERE id = ?"
   )
     .bind(payload.sub)
     .first();
@@ -137,6 +137,7 @@ function publicUser(u) {
     loai_kenh: u.loai_kenh || "",
     mien_cham_soc: !!u.mien_cham_soc,
     can_import: !!u.can_import,
+    can_duyet_khoso: !!u.can_duyet_khoso,
     modules: parseModules(u.modules),
     lat: u.lat ?? null,
     lng: u.lng ?? null,
@@ -169,6 +170,7 @@ async function ensureUserColumns(env) {
     if (!cols.has("ma_nhan_vien")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN ma_nhan_vien TEXT").run();
     if (!cols.has("chuc_danh")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN chuc_danh TEXT").run();
     if (!cols.has("mien_cham_soc")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN mien_cham_soc INTEGER NOT NULL DEFAULT 0").run();
+    if (!cols.has("can_duyet_khoso")) await env.DB.prepare("ALTER TABLE nguoi_dung ADD COLUMN can_duyet_khoso INTEGER NOT NULL DEFAULT 0").run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -857,7 +859,7 @@ async function ensureCareTables(env) {
 // chi luu key trong bang; khac_keys/loi_keys la JSON array cac key.
 async function ensureKhSimTable(env) {
   await env.DB.prepare(
-    "CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT, seri_sim_cu TEXT, seri_sim_moi TEXT, phoi_cu_key TEXT, phoi_moi_key TEXT, xac_nhan INTEGER NOT NULL DEFAULT 0)"
+    "CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT, seri_sim_cu TEXT, seri_sim_moi TEXT, phoi_cu_key TEXT, phoi_moi_key TEXT, xac_nhan INTEGER NOT NULL DEFAULT 0, needs_update INTEGER NOT NULL DEFAULT 0)"
   ).run();
   // Migration: bang cu (truoc 28/11/2026) chua co cot seri/phoi/xac nhan
   const cols = await env.DB.prepare("PRAGMA table_info(kh_sim_requests)").all();
@@ -867,6 +869,7 @@ async function ensureKhSimTable(env) {
   if (!names.has("phoi_cu_key")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN phoi_cu_key TEXT").run();
   if (!names.has("phoi_moi_key")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN phoi_moi_key TEXT").run();
   if (!names.has("xac_nhan")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN xac_nhan INTEGER NOT NULL DEFAULT 0").run();
+  if (!names.has("needs_update")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN needs_update INTEGER NOT NULL DEFAULT 0").run();
 }
 async function putKhSimFile(env, slot, file, allowPdf) {
   if (!env.ANH) throw new Error("Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker)");
@@ -1296,7 +1299,7 @@ export default {
           return err("Tai khoan khong co quyen su dung module nay", 403);
         const where = kind === "channel" ? " WHERE u.role = 'user'" : kind === "staff" ? " WHERE u.role != 'user'" : "";
         const res = await env.DB.prepare(
-          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.ma_nhan_vien, u.chuc_danh, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.mien_cham_soc, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id" + where + " ORDER BY u.ho_ten"
+          "SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.ma_nhan_vien, u.chuc_danh, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.mien_cham_soc, u.can_import, u.can_duyet_khoso, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id" + where + " ORDER BY u.ho_ten"
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -1326,7 +1329,7 @@ export default {
         const salt = randomSalt();
         const password = String(b.password || "Vnpt@2026");
         const hash = await hashPassword(password, salt);
-        let newRole, newCanImport, newModules, newMaNv = "", newChucDanh = "";
+        let newRole, newCanImport, newCanDuyetKhoso = 0, newModules, newMaNv = "", newChucDanh = "";
         if (kind === "channel") {
           // Kenh ban: luon la user, khong co quyen import; mac dinh 4 module
           // (Dashboard, Bao cao thong ke, Danh muc goi cuoc, Cai dat).
@@ -1347,6 +1350,7 @@ export default {
           // Quyen import: chi admin/subadmin duoc cap khi tao (user co tick
           // module Quan ly nguoi dung thi khong — tranh tu cap quyen).
           newCanImport = isAdminLike && b.can_import ? 1 : 0;
+          newCanDuyetKhoso = isAdminLike && b.can_duyet_khoso ? 1 : 0;
           if (isAdminLike && Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) => MODULE_KEYS.includes(k)));
           else newModules = defaultModulesForRole(newRole);
         }
@@ -1365,14 +1369,14 @@ export default {
         const newLoaiKenh = normLoaiKenh(b.loai_kenh);
         if (toText(b.loai_kenh) && !newLoaiKenh) return err("Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)", 422);
         const r = await env.DB.prepare(
-          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, ma_nhan_vien, chuc_danh, don_vi_id, leader_id, loai_kenh, mien_cham_soc, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, ma_nhan_vien, chuc_danh, don_vi_id, leader_id, loai_kenh, mien_cham_soc, can_import, can_duyet_khoso, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm),
             newMaNv, newChucDanh,
-            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newLoaiKenh, kind === "channel" && b.mien_cham_soc ? 1 : 0, newCanImport, newModules, latP.val, lngP.val
+            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newLoaiKenh, kind === "channel" && b.mien_cham_soc ? 1 : 0, newCanImport, newCanDuyetKhoso, newModules, latP.val, lngP.val
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -1544,13 +1548,13 @@ export default {
         if (!canManageUsers && !hasModuleExplicit(me, needKey)) return err("Chi admin/subadmin hoac tai khoan duoc cap module nay moi co quyen sua nguoi dung", 403);
         if (!hasModule(me, needKey)) return err("Tai khoan khong co quyen su dung module nay", 403);
         const uid = Number(userMatch[1]);
-        const cur = await env.DB.prepare("SELECT role, can_import, modules, chuc_danh FROM nguoi_dung WHERE id = ?").bind(uid).first();
+        const cur = await env.DB.prepare("SELECT role, can_import, can_duyet_khoso, modules, chuc_danh FROM nguoi_dung WHERE id = ?").bind(uid).first();
         if (!cur) return err("Khong tim thay nguoi dung", 404);
         // Khong cho sua tai khoan khac module (kenh ban <-> nhan su)
         if (kind === "channel" && cur.role !== "user") return err("Tai khoan nay thuoc module Quan ly nguoi dung", 422);
         if (kind === "staff" && cur.role === "user") return err("Tai khoan nay thuoc module Quan ly kenh ban", 422);
         if (!toText(b.ho_ten)) return err("Thieu ho ten", 422);
-        let newRole = cur.role, newCanImport = cur.can_import, newModules = cur.modules;
+        let newRole = cur.role, newCanImport = cur.can_import, newCanDuyetKhoso = cur.can_duyet_khoso, newModules = cur.modules;
         let newMaNv = null, newChucDanh = null; // null = khong doi cot nay
         if (kind === "staff") {
           newMaNv = toText(b.ma_nhan_vien);
@@ -1570,6 +1574,7 @@ export default {
           // module Quan ly nguoi dung thi KHONG (tranh tu cap quyen cho minh).
           if (isAdminLike) {
             newCanImport = b.can_import ? 1 : 0;
+            newCanDuyetKhoso = b.can_duyet_khoso ? 1 : 0;
             if (Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) => MODULE_KEYS.includes(k)));
           }
           if (uid === me.id && newRole !== me.role) return err("Khong the tu doi loai tai khoan cua chinh minh", 422);
@@ -1589,8 +1594,8 @@ export default {
         }
         const newLoaiKenh = normLoaiKenh(b.loai_kenh);
         if (toText(b.loai_kenh) && !newLoaiKenh) return err("Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)", 422);
-        const sets = ["ho_ten = ?", "don_vi_id = ?", "active = ?", "role = ?", "can_import = ?", "modules = ?"];
-        const binds = [toText(b.ho_ten), b.don_vi_id ? Number(b.don_vi_id) : null, b.active === false ? 0 : 1, newRole, newCanImport, newModules];
+        const sets = ["ho_ten = ?", "don_vi_id = ?", "active = ?", "role = ?", "can_import = ?", "can_duyet_khoso = ?", "modules = ?"];
+        const binds = [toText(b.ho_ten), b.don_vi_id ? Number(b.don_vi_id) : null, b.active === false ? 0 : 1, newRole, newCanImport, newCanDuyetKhoso, newModules];
         if (kind === "staff") {
           sets.push("ma_nhan_vien = ?", "chuc_danh = ?"); binds.push(newMaNv, newChucDanh);
         } else {
@@ -4766,7 +4771,7 @@ function normKbKey(s) {
         if (!hasModule(me, "khoso")) return err("Tai khoan khong co quyen xem ho so KH", 403);
         await ensureKhSimTable(env);
         const limit = Math.min(200, Number(url.searchParams.get("limit")) || 100);
-        let sql = "SELECT id, so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, ocr_trang_thai, ocr_so_doc, seri_sim_cu, seri_sim_moi, xac_nhan, created_by_ten, don_vi_id, created_at FROM kh_sim_requests";
+        let sql = "SELECT id, so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, ocr_trang_thai, ocr_so_doc, seri_sim_cu, seri_sim_moi, xac_nhan, created_by, created_by_ten, don_vi_id, created_at, needs_update FROM kh_sim_requests";
         let binds = [];
         if (!isPrivileged && !isLeaderLike) {
           sql += " WHERE created_by = ?";
@@ -4797,6 +4802,116 @@ function normKbKey(s) {
           if (!allowed) return err("Ho so khong thuoc pham vi cua ban", 403);
         }
         return json({ ok: true, row: rec });
+      }
+      // Yeu cau nguoi gui cap nhat lai ho so: admin/subadmin hoac tai khoan
+      // duoc tick "Duyet muc Quan ly ho so KH"; pham vi xem nhu chi tiet.
+      const khSimReqMatch = path.match(/^\/api\/kh-sim\/(\d+)\/yeu-cau-cap-nhat$/);
+      if (khSimReqMatch && method === "POST") {
+        if (!hasModule(me, "khoso")) return err("Tai khoan khong co quyen dung module Quan ly ho so KH", 403);
+        if (!isAdminLike && !me.can_duyet_khoso) return err("Chi admin hoac tai khoan duoc duyet moi duoc yeu cau cap nhat ho so", 403);
+        await ensureKhSimTable(env);
+        const rec = await env.DB.prepare("SELECT * FROM kh_sim_requests WHERE id = ?").bind(Number(khSimReqMatch[1])).first();
+        if (!rec) return err("Khong tim thay ho so", 404);
+        if (!isPrivileged) {
+          let allowed = rec.created_by === me.id;
+          if (!allowed && isLeaderLike && me.don_vi_id) {
+            const ok = await env.DB.prepare(unitSubtreeCTE() + " SELECT 1 FROM kh_sim_requests WHERE id = ? AND (don_vi_id IS NULL OR don_vi_id IN (SELECT id FROM subtree))").bind(me.don_vi_id, rec.id).first();
+            allowed = !!ok;
+          }
+          if (!allowed) return err("Ho so khong thuoc pham vi cua ban", 403);
+        }
+        await env.DB.prepare("UPDATE kh_sim_requests SET needs_update = 1 WHERE id = ?").bind(rec.id).run();
+        return json({ ok: true });
+      }
+      // Sua ho so da duoc yeu cau cap nhat lai: chi nguoi gui hoac admin/
+      // subadmin; file nao gui lai thi thay file cu (xoa file cu tren R2),
+      // khong gui lai thi giu nguyen; sua xong thi het yeu cau cap nhat.
+      if (khSimMatch && method === "PUT") {
+        if (!hasModule(me, "khoso")) return err("Tai khoan khong co quyen dung module Quan ly ho so KH", 403);
+        await ensureKhSimTable(env);
+        const rec = await env.DB.prepare("SELECT * FROM kh_sim_requests WHERE id = ?").bind(Number(khSimMatch[1])).first();
+        if (!rec) return err("Khong tim thay ho so", 404);
+        if (!isAdminLike && rec.created_by !== me.id) return err("Chi nguoi gui ho so hoac admin moi duoc sua", 403);
+        if (!rec.needs_update) return err("Ho so chua duoc yeu cau cap nhat lai", 422);
+        const ct2 = request.headers.get("content-type") || "";
+        if (!ct2.includes("multipart/form-data")) return err("Du lieu gui len phai la multipart", 422);
+        const fd = await request.formData();
+        const soThueBao = toText(fd.get("so_thue_bao")).replace(/\D/g, "");
+        const tenThueBao = toText(fd.get("ten_thue_bao"));
+        const loaiGiayTo = toText(fd.get("loai_giay_to"));
+        const soGiayTo = toText(fd.get("so_giay_to"));
+        const ghiChu = toText(fd.get("ghi_chu"));
+        const ocrTrangThai = toText(fd.get("ocr_trang_thai"));
+        const ocrSoDoc = toText(fd.get("ocr_so_doc"));
+        const seriSimCu = toText(fd.get("seri_sim_cu")).replace(/\D/g, "");
+        const seriSimMoi = toText(fd.get("seri_sim_moi")).replace(/\D/g, "");
+        const xacNhan = fd.get("xac_nhan");
+        const latRaw = fd.get("lat");
+        const lngRaw = fd.get("lng");
+        const lat = (latRaw === null || latRaw === "") ? NaN : Number(latRaw);
+        const lng = (lngRaw === null || lngRaw === "") ? NaN : Number(lngRaw);
+        if (!/^\d{10}$/.test(soThueBao)) return err("So thue bao phai la 10 chu so", 422);
+        if (!tenThueBao) return err("Thieu ten thue bao", 422);
+        if (!["CCCD", "HO_CHIEU", "VNEID"].includes(loaiGiayTo)) return err("Loai giay to khong hop le", 422);
+        if (!soGiayTo) return err("Thieu so giay to", 422);
+        if (!ghiChu) return err("Thieu ghi chu ly do de nghi", 422);
+        if (!/^\d{10}$/.test(seriSimCu)) return err("So seri SIM cu phai la 10 chu so", 422);
+        if (!/^\d{10}$/.test(seriSimMoi)) return err("So seri SIM moi phai la 10 chu so", 422);
+        if (xacNhan !== "1" && xacNhan !== 1 && xacNhan !== true) return err("Can tich xac nhan thong tin khai bao chinh xac truoc khi gui ho so", 422);
+        if (ocrTrangThai !== "OK") return err("Chua kiem tra OCR khop so giay to (can chay OCR tren anh mat truoc giay to truoc khi gui)", 422);
+        const fPhieu = fd.get("phieu");
+        const fTruoc = fd.get("cccd_truoc");
+        const fSau = fd.get("cccd_sau");
+        const fChanDung = fd.get("chan_dung");
+        const fCamKet = fd.get("cam_ket");
+        const fPhoiCu = fd.get("phoi_cu");
+        const fPhoiMoi = fd.get("phoi_moi");
+        const fKhac = fd.getAll("khac").filter((f) => f && f.size > 0);
+        const fLoi = fd.getAll("loi").filter((f) => f && f.size > 0);
+        const hasNew = (f) => !!(f && f.size);
+        const oldKhac = (() => { try { return JSON.parse(rec.khac_keys || "[]"); } catch (e) { return []; } })();
+        const oldLoi = (() => { try { return JSON.parse(rec.loi_keys || "[]"); } catch (e) { return []; } })();
+        if (!hasNew(fPhieu) && !rec.phieu_key) return err("Chua co anh phieu yeu cau thay SIM", 422);
+        if (!hasNew(fTruoc) && !rec.cccd_truoc_key) return err("Chua co anh mat truoc giay to", 422);
+        if (loaiGiayTo === "CCCD" && !hasNew(fSau) && !rec.cccd_sau_key) return err("CCCD/CC gan chip can du anh mat truoc va mat sau", 422);
+        if (!hasNew(fChanDung) && !rec.chan_dung_key) return err("Chua co anh chan dung", 422);
+        if (!hasNew(fPhoiMoi) && !rec.phoi_moi_key) return err("Chua co anh phoi SIM moi", 422);
+        if ((fLoi.length ? fLoi.length : oldLoi.length) === 0) return err("Chua co anh chup loi he thong", 422);
+        if (fLoi.length > 5) return err("Anh chup loi he thong toi da 5 anh", 422);
+        const fileChecks = [
+          ["phieu", fPhieu, false], ["mat truoc giay to", fTruoc, false],
+          ["mat sau giay to", fSau, false], ["chan dung", fChanDung, false], ["cam ket", fCamKet, false],
+          ["phoi SIM goc", fPhoiCu, false], ["phoi SIM moi", fPhoiMoi, false],
+          ...fKhac.map((f, i) => ["ho so khac " + (i + 1), f, true]),
+          ...fLoi.map((f, i) => ["anh loi " + (i + 1), f, false]),
+        ];
+        for (const [slot, f, allowPdf] of fileChecks) {
+          const fe = khSimFileError(slot, f, allowPdf);
+          if (fe) return err(fe, 422);
+        }
+        const delOld = async (k) => { if (k && env.ANH) { try { await env.ANH.delete(k); } catch (e) { /* bo qua */ } } };
+        const replaceKey = async (slot, f, allowPdf, oldKey) => {
+          if (!hasNew(f)) return oldKey;
+          const k = await putKhSimFile(env, slot, f, allowPdf);
+          await delOld(oldKey);
+          return k;
+        };
+        const phieuKey = await replaceKey("phieu", fPhieu, false, rec.phieu_key);
+        const truocKey = await replaceKey("truoc", fTruoc, false, rec.cccd_truoc_key);
+        let sauKey = rec.cccd_sau_key;
+        if (loaiGiayTo !== "CCCD") { sauKey = null; await delOld(rec.cccd_sau_key); }
+        else sauKey = await replaceKey("sau", fSau, false, rec.cccd_sau_key);
+        const chanDungKey = await replaceKey("chandung", fChanDung, false, rec.chan_dung_key);
+        const camKetKey = await replaceKey("camket", fCamKet, false, rec.cam_ket_key);
+        const phoiCuKey = await replaceKey("phoicu", fPhoiCu, false, rec.phoi_cu_key);
+        const phoiMoiKey = await replaceKey("phoimoi", fPhoiMoi, false, rec.phoi_moi_key);
+        let khacKeys = oldKhac, loiKeys = oldLoi;
+        if (fKhac.length) { for (const k of oldKhac) await delOld(k); khacKeys = []; for (let i = 0; i < fKhac.length; i++) khacKeys.push(await putKhSimFile(env, "khac" + i, fKhac[i], true)); }
+        if (fLoi.length) { for (const k of oldLoi) await delOld(k); loiKeys = []; for (let i = 0; i < fLoi.length; i++) loiKeys.push(await putKhSimFile(env, "loi" + i, fLoi[i], false)); }
+        await env.DB.prepare(
+          "UPDATE kh_sim_requests SET so_thue_bao = ?, ten_thue_bao = ?, loai_giay_to = ?, so_giay_to = ?, ghi_chu = ?, phieu_key = ?, cccd_truoc_key = ?, cccd_sau_key = ?, chan_dung_key = ?, cam_ket_key = ?, khac_keys = ?, loi_keys = ?, ocr_trang_thai = ?, ocr_so_doc = ?, lat = ?, lng = ?, seri_sim_cu = ?, seri_sim_moi = ?, phoi_cu_key = ?, phoi_moi_key = ?, xac_nhan = 1, needs_update = 0 WHERE id = ?"
+        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : rec.lat, isFinite(lng) ? lng : rec.lng, seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, rec.id).run();
+        return json({ ok: true, id: rec.id });
       }
       // Xem file dinh kem cua ho so (anh/PDF) theo slot, dung pham vi xem chi tiet.
       const khSimFileMatch = path.match(/^\/api\/kh-sim\/(\d+)\/file$/);

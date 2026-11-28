@@ -2029,6 +2029,7 @@ html.is-mobile #appRoot #careNvBody td:nth-child(3),html.is-mobile #appRoot #ovP
             <div><label>Chức danh</label><select id="sChucDanh"><option>Lãnh đạo đơn vị</option><option>Chuyên viên</option><option>Nhân viên kinh doanh</option><option>Quản trị viên</option></select></div>
             <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="sSubAdmin" /> Cấp quyền SubAdmin</label></div>
             <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="sCanImport" /> Được quyền import dữ liệu</label></div>
+            <div style="display:flex;align-items:flex-end"><label class="checkline"><input type="checkbox" id="sCanDuyetKhoso" /> Duyệt mục Quản lý hồ sơ KH</label></div>
             <div class="full" id="sModulesBox">
               <label>Quyền sử dụng module <span style="font-weight:500;color:var(--muted)">(chỉ admin/subadmin thiết lập)</span></label>
               <div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px" id="sModulesList"></div>
@@ -2050,7 +2051,7 @@ html.is-mobile #appRoot #careNvBody td:nth-child(3),html.is-mobile #appRoot #ovP
             </div>
             <div style="margin-left:auto"><button class="btn danger" type="button" id="staffDelSel" title="Xóa các người dùng đã đánh dấu">Xóa</button></div>
           </div>
-          <div class="tbl-wrap"><table class="data stacked"><thead><tr><th><input type="checkbox" id="staffSelAll" title="Đánh dấu tất cả" /></th><th data-sort="ma_nhan_vien">Mã NV</th><th data-sort="ho_ten">Họ tên</th><th data-sort="username">User</th><th data-sort="chuc_danh">Chức danh</th><th data-sort="don_vi">Đơn vị</th><th data-sort="subadmin">SubAdmin</th><th data-sort="can_import">Import</th><th>Module</th><th></th></tr></thead><tbody id="staffBody"><tr><td colspan="10">Đang tải…</td></tr></tbody></table></div>
+          <div class="tbl-wrap"><table class="data stacked"><thead><tr><th><input type="checkbox" id="staffSelAll" title="Đánh dấu tất cả" /></th><th data-sort="ma_nhan_vien">Mã NV</th><th data-sort="ho_ten">Họ tên</th><th data-sort="username">User</th><th data-sort="chuc_danh">Chức danh</th><th data-sort="don_vi">Đơn vị</th><th data-sort="subadmin">SubAdmin</th><th data-sort="can_import">Import</th><th data-sort="can_duyet_khoso">Duyệt HS</th><th>Module</th><th></th></tr></thead><tbody id="staffBody"><tr><td colspan="11">Đang tải…</td></tr></tbody></table></div>
           <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Import người dùng từ Excel</h3>
           <div style="margin-bottom:10px;max-width:520px"><label>Chế độ import</label><select id="sImpMode"><option value="create">Tạo mới — chỉ thêm user chưa có, user đã tồn tại thì bỏ qua</option><option value="update">Cập nhật — user đã có thì cập nhật các trường có dữ liệu mới (trường trống giữ nguyên), chưa có thì tạo mới</option><option value="replace">Thay thế — user đã có thì ghi đè toàn bộ theo file (trường trống thì xóa), chưa có thì tạo mới</option></select></div>
           <div class="desc">Import không thay đổi loại tài khoản, quyền import và quyền module của user đã có (đổi các quyền này trong form Sửa). Mật khẩu để trống thì giữ nguyên (tạo mới dùng Vnpt@2026).</div>
@@ -2361,6 +2362,7 @@ CREATE TABLE IF NOT EXISTS nguoi_dung (
   ma_hrm TEXT,                              -- Ma HRM cua nhan vien quan ly (co the de trong)
   don_vi_id INTEGER,                        -- Don vi truc thuoc (lien ket bang don_vi, co the de trong)
   can_import INTEGER NOT NULL DEFAULT 0,    -- 1 = duoc quyen import du lieu
+  can_duyet_khoso INTEGER NOT NULL DEFAULT 0, -- 1 = duoc duyet muc Quan ly ho so KH (yeu cau cap nhat lai ho so thay SIM)
   modules TEXT,                             -- JSON cac module duoc dung (NULL = chua thiet lap rieng, giu quyen theo vai tro)
   lat REAL,                                 -- Vi do diem ban (WGS84, khai bao o module Quan ly nguoi dung)
   lng REAL,                                 -- Kinh do diem ban (WGS84)
@@ -2594,7 +2596,7 @@ async function requireAuth(request, env) {
   if (!payload) return null;
   if (payload.pwchange === 1) return null; // token doi mat khau chi dung cho /api/change-password, khong vao he thong
   const user = await env.DB.prepare(
-    &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, chuc_danh, don_vi_id, loai_kenh, can_import, modules, lat, lng, active FROM nguoi_dung WHERE id = ?&quot;
+    &quot;SELECT id, ma_kenh, ho_ten, username, role, so_eload, so_vi, ma_hrm, ten_nhan_vien, sdt_nhan_vien, chuc_danh, don_vi_id, loai_kenh, can_import, can_duyet_khoso, modules, lat, lng, active FROM nguoi_dung WHERE id = ?&quot;
   )
     .bind(payload.sub)
     .first();
@@ -2622,6 +2624,7 @@ function publicUser(u) {
     loai_kenh: u.loai_kenh || &quot;&quot;,
     mien_cham_soc: !!u.mien_cham_soc,
     can_import: !!u.can_import,
+    can_duyet_khoso: !!u.can_duyet_khoso,
     modules: parseModules(u.modules),
     lat: u.lat ?? null,
     lng: u.lng ?? null,
@@ -2654,6 +2657,7 @@ async function ensureUserColumns(env) {
     if (!cols.has(&quot;ma_nhan_vien&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN ma_nhan_vien TEXT&quot;).run();
     if (!cols.has(&quot;chuc_danh&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN chuc_danh TEXT&quot;).run();
     if (!cols.has(&quot;mien_cham_soc&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN mien_cham_soc INTEGER NOT NULL DEFAULT 0&quot;).run();
+    if (!cols.has(&quot;can_duyet_khoso&quot;)) await env.DB.prepare(&quot;ALTER TABLE nguoi_dung ADD COLUMN can_duyet_khoso INTEGER NOT NULL DEFAULT 0&quot;).run();
   } catch (e) { /* bo qua neu bang chua ton tai */ }
 }
 function saigonNow() {
@@ -3342,7 +3346,7 @@ async function ensureCareTables(env) {
 // chi luu key trong bang; khac_keys/loi_keys la JSON array cac key.
 async function ensureKhSimTable(env) {
   await env.DB.prepare(
-    &quot;CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT, seri_sim_cu TEXT, seri_sim_moi TEXT, phoi_cu_key TEXT, phoi_moi_key TEXT, xac_nhan INTEGER NOT NULL DEFAULT 0)&quot;
+    &quot;CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT, seri_sim_cu TEXT, seri_sim_moi TEXT, phoi_cu_key TEXT, phoi_moi_key TEXT, xac_nhan INTEGER NOT NULL DEFAULT 0, needs_update INTEGER NOT NULL DEFAULT 0)&quot;
   ).run();
   // Migration: bang cu (truoc 28/11/2026) chua co cot seri/phoi/xac nhan
   const cols = await env.DB.prepare(&quot;PRAGMA table_info(kh_sim_requests)&quot;).all();
@@ -3352,6 +3356,7 @@ async function ensureKhSimTable(env) {
   if (!names.has(&quot;phoi_cu_key&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN phoi_cu_key TEXT&quot;).run();
   if (!names.has(&quot;phoi_moi_key&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN phoi_moi_key TEXT&quot;).run();
   if (!names.has(&quot;xac_nhan&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN xac_nhan INTEGER NOT NULL DEFAULT 0&quot;).run();
+  if (!names.has(&quot;needs_update&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN needs_update INTEGER NOT NULL DEFAULT 0&quot;).run();
 }
 async function putKhSimFile(env, slot, file, allowPdf) {
   if (!env.ANH) throw new Error(&quot;Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker)&quot;);
@@ -3781,7 +3786,7 @@ export default {
           return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
         const where = kind === &quot;channel&quot; ? &quot; WHERE u.role = &#x27;user&#x27;&quot; : kind === &quot;staff&quot; ? &quot; WHERE u.role != &#x27;user&#x27;&quot; : &quot;&quot;;
         const res = await env.DB.prepare(
-          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.ma_nhan_vien, u.chuc_danh, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.mien_cham_soc, u.can_import, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id&quot; + where + &quot; ORDER BY u.ho_ten&quot;
+          &quot;SELECT u.id, u.ma_kenh, u.ho_ten, u.username, u.role, u.so_eload, u.so_vi, u.ten_nhan_vien, u.sdt_nhan_vien, u.ma_hrm, u.ma_nhan_vien, u.chuc_danh, u.don_vi_id, d.ten_don_vi AS don_vi_ten, u.leader_id, l.ho_ten AS leader_ten, u.loai_kenh, u.mien_cham_soc, u.can_import, u.can_duyet_khoso, u.modules, u.lat, u.lng, u.active FROM nguoi_dung u LEFT JOIN don_vi d ON d.id = u.don_vi_id LEFT JOIN nguoi_dung l ON l.id = u.leader_id&quot; + where + &quot; ORDER BY u.ho_ten&quot;
         ).all();
         return json({ ok: true, users: (res.results || []).map(publicUser) });
       }
@@ -3811,7 +3816,7 @@ export default {
         const salt = randomSalt();
         const password = String(b.password || &quot;Vnpt@2026&quot;);
         const hash = await hashPassword(password, salt);
-        let newRole, newCanImport, newModules, newMaNv = &quot;&quot;, newChucDanh = &quot;&quot;;
+        let newRole, newCanImport, newCanDuyetKhoso = 0, newModules, newMaNv = &quot;&quot;, newChucDanh = &quot;&quot;;
         if (kind === &quot;channel&quot;) {
           // Kenh ban: luon la user, khong co quyen import; mac dinh 4 module
           // (Dashboard, Bao cao thong ke, Danh muc goi cuoc, Cai dat).
@@ -3832,6 +3837,7 @@ export default {
           // Quyen import: chi admin/subadmin duoc cap khi tao (user co tick
           // module Quan ly nguoi dung thi khong — tranh tu cap quyen).
           newCanImport = isAdminLike &amp;&amp; b.can_import ? 1 : 0;
+          newCanDuyetKhoso = isAdminLike &amp;&amp; b.can_duyet_khoso ? 1 : 0;
           if (isAdminLike &amp;&amp; Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
           else newModules = defaultModulesForRole(newRole);
         }
@@ -3850,14 +3856,14 @@ export default {
         const newLoaiKenh = normLoaiKenh(b.loai_kenh);
         if (toText(b.loai_kenh) &amp;&amp; !newLoaiKenh) return err(&quot;Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)&quot;, 422);
         const r = await env.DB.prepare(
-          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, ma_nhan_vien, chuc_danh, don_vi_id, leader_id, loai_kenh, mien_cham_soc, can_import, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
+          &quot;INSERT INTO nguoi_dung (ma_kenh, ho_ten, username, password_hash, salt, role, so_eload, so_vi, ten_nhan_vien, sdt_nhan_vien, ma_hrm, ma_nhan_vien, chuc_danh, don_vi_id, leader_id, loai_kenh, mien_cham_soc, can_import, can_duyet_khoso, modules, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;
         )
           .bind(
             toText(b.ma_kenh), toText(b.ho_ten), toText(b.username), hash, salt,
             newRole,
             toText(b.so_eload), toText(b.so_vi), toText(b.ten_nhan_vien), toText(b.sdt_nhan_vien), toText(b.ma_hrm),
             newMaNv, newChucDanh,
-            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newLoaiKenh, kind === &quot;channel&quot; &amp;&amp; b.mien_cham_soc ? 1 : 0, newCanImport, newModules, latP.val, lngP.val
+            b.don_vi_id ? Number(b.don_vi_id) : null, newLeaderId, newLoaiKenh, kind === &quot;channel&quot; &amp;&amp; b.mien_cham_soc ? 1 : 0, newCanImport, newCanDuyetKhoso, newModules, latP.val, lngP.val
           )
           .run();
         return json({ ok: true, id: r.meta.last_row_id });
@@ -4029,13 +4035,13 @@ export default {
         if (!canManageUsers &amp;&amp; !hasModuleExplicit(me, needKey)) return err(&quot;Chi admin/subadmin hoac tai khoan duoc cap module nay moi co quyen sua nguoi dung&quot;, 403);
         if (!hasModule(me, needKey)) return err(&quot;Tai khoan khong co quyen su dung module nay&quot;, 403);
         const uid = Number(userMatch[1]);
-        const cur = await env.DB.prepare(&quot;SELECT role, can_import, modules, chuc_danh FROM nguoi_dung WHERE id = ?&quot;).bind(uid).first();
+        const cur = await env.DB.prepare(&quot;SELECT role, can_import, can_duyet_khoso, modules, chuc_danh FROM nguoi_dung WHERE id = ?&quot;).bind(uid).first();
         if (!cur) return err(&quot;Khong tim thay nguoi dung&quot;, 404);
         // Khong cho sua tai khoan khac module (kenh ban &lt;-&gt; nhan su)
         if (kind === &quot;channel&quot; &amp;&amp; cur.role !== &quot;user&quot;) return err(&quot;Tai khoan nay thuoc module Quan ly nguoi dung&quot;, 422);
         if (kind === &quot;staff&quot; &amp;&amp; cur.role === &quot;user&quot;) return err(&quot;Tai khoan nay thuoc module Quan ly kenh ban&quot;, 422);
         if (!toText(b.ho_ten)) return err(&quot;Thieu ho ten&quot;, 422);
-        let newRole = cur.role, newCanImport = cur.can_import, newModules = cur.modules;
+        let newRole = cur.role, newCanImport = cur.can_import, newCanDuyetKhoso = cur.can_duyet_khoso, newModules = cur.modules;
         let newMaNv = null, newChucDanh = null; // null = khong doi cot nay
         if (kind === &quot;staff&quot;) {
           newMaNv = toText(b.ma_nhan_vien);
@@ -4055,6 +4061,7 @@ export default {
           // module Quan ly nguoi dung thi KHONG (tranh tu cap quyen cho minh).
           if (isAdminLike) {
             newCanImport = b.can_import ? 1 : 0;
+            newCanDuyetKhoso = b.can_duyet_khoso ? 1 : 0;
             if (Array.isArray(b.modules)) newModules = JSON.stringify(b.modules.filter((k) =&gt; MODULE_KEYS.includes(k)));
           }
           if (uid === me.id &amp;&amp; newRole !== me.role) return err(&quot;Khong the tu doi loai tai khoan cua chinh minh&quot;, 422);
@@ -4074,8 +4081,8 @@ export default {
         }
         const newLoaiKenh = normLoaiKenh(b.loai_kenh);
         if (toText(b.loai_kenh) &amp;&amp; !newLoaiKenh) return err(&quot;Loai kenh ban khong hop le (DUQ/DBL/GARA/DDV)&quot;, 422);
-        const sets = [&quot;ho_ten = ?&quot;, &quot;don_vi_id = ?&quot;, &quot;active = ?&quot;, &quot;role = ?&quot;, &quot;can_import = ?&quot;, &quot;modules = ?&quot;];
-        const binds = [toText(b.ho_ten), b.don_vi_id ? Number(b.don_vi_id) : null, b.active === false ? 0 : 1, newRole, newCanImport, newModules];
+        const sets = [&quot;ho_ten = ?&quot;, &quot;don_vi_id = ?&quot;, &quot;active = ?&quot;, &quot;role = ?&quot;, &quot;can_import = ?&quot;, &quot;can_duyet_khoso = ?&quot;, &quot;modules = ?&quot;];
+        const binds = [toText(b.ho_ten), b.don_vi_id ? Number(b.don_vi_id) : null, b.active === false ? 0 : 1, newRole, newCanImport, newCanDuyetKhoso, newModules];
         if (kind === &quot;staff&quot;) {
           sets.push(&quot;ma_nhan_vien = ?&quot;, &quot;chuc_danh = ?&quot;); binds.push(newMaNv, newChucDanh);
         } else {
@@ -7251,7 +7258,7 @@ function normKbKey(s) {
         if (!hasModule(me, &quot;khoso&quot;)) return err(&quot;Tai khoan khong co quyen xem ho so KH&quot;, 403);
         await ensureKhSimTable(env);
         const limit = Math.min(200, Number(url.searchParams.get(&quot;limit&quot;)) || 100);
-        let sql = &quot;SELECT id, so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, ocr_trang_thai, ocr_so_doc, seri_sim_cu, seri_sim_moi, xac_nhan, created_by_ten, don_vi_id, created_at FROM kh_sim_requests&quot;;
+        let sql = &quot;SELECT id, so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, ocr_trang_thai, ocr_so_doc, seri_sim_cu, seri_sim_moi, xac_nhan, created_by, created_by_ten, don_vi_id, created_at, needs_update FROM kh_sim_requests&quot;;
         let binds = [];
         if (!isPrivileged &amp;&amp; !isLeaderLike) {
           sql += &quot; WHERE created_by = ?&quot;;
@@ -7282,6 +7289,116 @@ function normKbKey(s) {
           if (!allowed) return err(&quot;Ho so khong thuoc pham vi cua ban&quot;, 403);
         }
         return json({ ok: true, row: rec });
+      }
+      // Yeu cau nguoi gui cap nhat lai ho so: admin/subadmin hoac tai khoan
+      // duoc tick &quot;Duyet muc Quan ly ho so KH&quot;; pham vi xem nhu chi tiet.
+      const khSimReqMatch = path.match(/^\/api\/kh-sim\/(\d+)\/yeu-cau-cap-nhat$/);
+      if (khSimReqMatch &amp;&amp; method === &quot;POST&quot;) {
+        if (!hasModule(me, &quot;khoso&quot;)) return err(&quot;Tai khoan khong co quyen dung module Quan ly ho so KH&quot;, 403);
+        if (!isAdminLike &amp;&amp; !me.can_duyet_khoso) return err(&quot;Chi admin hoac tai khoan duoc duyet moi duoc yeu cau cap nhat ho so&quot;, 403);
+        await ensureKhSimTable(env);
+        const rec = await env.DB.prepare(&quot;SELECT * FROM kh_sim_requests WHERE id = ?&quot;).bind(Number(khSimReqMatch[1])).first();
+        if (!rec) return err(&quot;Khong tim thay ho so&quot;, 404);
+        if (!isPrivileged) {
+          let allowed = rec.created_by === me.id;
+          if (!allowed &amp;&amp; isLeaderLike &amp;&amp; me.don_vi_id) {
+            const ok = await env.DB.prepare(unitSubtreeCTE() + &quot; SELECT 1 FROM kh_sim_requests WHERE id = ? AND (don_vi_id IS NULL OR don_vi_id IN (SELECT id FROM subtree))&quot;).bind(me.don_vi_id, rec.id).first();
+            allowed = !!ok;
+          }
+          if (!allowed) return err(&quot;Ho so khong thuoc pham vi cua ban&quot;, 403);
+        }
+        await env.DB.prepare(&quot;UPDATE kh_sim_requests SET needs_update = 1 WHERE id = ?&quot;).bind(rec.id).run();
+        return json({ ok: true });
+      }
+      // Sua ho so da duoc yeu cau cap nhat lai: chi nguoi gui hoac admin/
+      // subadmin; file nao gui lai thi thay file cu (xoa file cu tren R2),
+      // khong gui lai thi giu nguyen; sua xong thi het yeu cau cap nhat.
+      if (khSimMatch &amp;&amp; method === &quot;PUT&quot;) {
+        if (!hasModule(me, &quot;khoso&quot;)) return err(&quot;Tai khoan khong co quyen dung module Quan ly ho so KH&quot;, 403);
+        await ensureKhSimTable(env);
+        const rec = await env.DB.prepare(&quot;SELECT * FROM kh_sim_requests WHERE id = ?&quot;).bind(Number(khSimMatch[1])).first();
+        if (!rec) return err(&quot;Khong tim thay ho so&quot;, 404);
+        if (!isAdminLike &amp;&amp; rec.created_by !== me.id) return err(&quot;Chi nguoi gui ho so hoac admin moi duoc sua&quot;, 403);
+        if (!rec.needs_update) return err(&quot;Ho so chua duoc yeu cau cap nhat lai&quot;, 422);
+        const ct2 = request.headers.get(&quot;content-type&quot;) || &quot;&quot;;
+        if (!ct2.includes(&quot;multipart/form-data&quot;)) return err(&quot;Du lieu gui len phai la multipart&quot;, 422);
+        const fd = await request.formData();
+        const soThueBao = toText(fd.get(&quot;so_thue_bao&quot;)).replace(/\D/g, &quot;&quot;);
+        const tenThueBao = toText(fd.get(&quot;ten_thue_bao&quot;));
+        const loaiGiayTo = toText(fd.get(&quot;loai_giay_to&quot;));
+        const soGiayTo = toText(fd.get(&quot;so_giay_to&quot;));
+        const ghiChu = toText(fd.get(&quot;ghi_chu&quot;));
+        const ocrTrangThai = toText(fd.get(&quot;ocr_trang_thai&quot;));
+        const ocrSoDoc = toText(fd.get(&quot;ocr_so_doc&quot;));
+        const seriSimCu = toText(fd.get(&quot;seri_sim_cu&quot;)).replace(/\D/g, &quot;&quot;);
+        const seriSimMoi = toText(fd.get(&quot;seri_sim_moi&quot;)).replace(/\D/g, &quot;&quot;);
+        const xacNhan = fd.get(&quot;xac_nhan&quot;);
+        const latRaw = fd.get(&quot;lat&quot;);
+        const lngRaw = fd.get(&quot;lng&quot;);
+        const lat = (latRaw === null || latRaw === &quot;&quot;) ? NaN : Number(latRaw);
+        const lng = (lngRaw === null || lngRaw === &quot;&quot;) ? NaN : Number(lngRaw);
+        if (!/^\d{10}$/.test(soThueBao)) return err(&quot;So thue bao phai la 10 chu so&quot;, 422);
+        if (!tenThueBao) return err(&quot;Thieu ten thue bao&quot;, 422);
+        if (![&quot;CCCD&quot;, &quot;HO_CHIEU&quot;, &quot;VNEID&quot;].includes(loaiGiayTo)) return err(&quot;Loai giay to khong hop le&quot;, 422);
+        if (!soGiayTo) return err(&quot;Thieu so giay to&quot;, 422);
+        if (!ghiChu) return err(&quot;Thieu ghi chu ly do de nghi&quot;, 422);
+        if (!/^\d{10}$/.test(seriSimCu)) return err(&quot;So seri SIM cu phai la 10 chu so&quot;, 422);
+        if (!/^\d{10}$/.test(seriSimMoi)) return err(&quot;So seri SIM moi phai la 10 chu so&quot;, 422);
+        if (xacNhan !== &quot;1&quot; &amp;&amp; xacNhan !== 1 &amp;&amp; xacNhan !== true) return err(&quot;Can tich xac nhan thong tin khai bao chinh xac truoc khi gui ho so&quot;, 422);
+        if (ocrTrangThai !== &quot;OK&quot;) return err(&quot;Chua kiem tra OCR khop so giay to (can chay OCR tren anh mat truoc giay to truoc khi gui)&quot;, 422);
+        const fPhieu = fd.get(&quot;phieu&quot;);
+        const fTruoc = fd.get(&quot;cccd_truoc&quot;);
+        const fSau = fd.get(&quot;cccd_sau&quot;);
+        const fChanDung = fd.get(&quot;chan_dung&quot;);
+        const fCamKet = fd.get(&quot;cam_ket&quot;);
+        const fPhoiCu = fd.get(&quot;phoi_cu&quot;);
+        const fPhoiMoi = fd.get(&quot;phoi_moi&quot;);
+        const fKhac = fd.getAll(&quot;khac&quot;).filter((f) =&gt; f &amp;&amp; f.size &gt; 0);
+        const fLoi = fd.getAll(&quot;loi&quot;).filter((f) =&gt; f &amp;&amp; f.size &gt; 0);
+        const hasNew = (f) =&gt; !!(f &amp;&amp; f.size);
+        const oldKhac = (() =&gt; { try { return JSON.parse(rec.khac_keys || &quot;[]&quot;); } catch (e) { return []; } })();
+        const oldLoi = (() =&gt; { try { return JSON.parse(rec.loi_keys || &quot;[]&quot;); } catch (e) { return []; } })();
+        if (!hasNew(fPhieu) &amp;&amp; !rec.phieu_key) return err(&quot;Chua co anh phieu yeu cau thay SIM&quot;, 422);
+        if (!hasNew(fTruoc) &amp;&amp; !rec.cccd_truoc_key) return err(&quot;Chua co anh mat truoc giay to&quot;, 422);
+        if (loaiGiayTo === &quot;CCCD&quot; &amp;&amp; !hasNew(fSau) &amp;&amp; !rec.cccd_sau_key) return err(&quot;CCCD/CC gan chip can du anh mat truoc va mat sau&quot;, 422);
+        if (!hasNew(fChanDung) &amp;&amp; !rec.chan_dung_key) return err(&quot;Chua co anh chan dung&quot;, 422);
+        if (!hasNew(fPhoiMoi) &amp;&amp; !rec.phoi_moi_key) return err(&quot;Chua co anh phoi SIM moi&quot;, 422);
+        if ((fLoi.length ? fLoi.length : oldLoi.length) === 0) return err(&quot;Chua co anh chup loi he thong&quot;, 422);
+        if (fLoi.length &gt; 5) return err(&quot;Anh chup loi he thong toi da 5 anh&quot;, 422);
+        const fileChecks = [
+          [&quot;phieu&quot;, fPhieu, false], [&quot;mat truoc giay to&quot;, fTruoc, false],
+          [&quot;mat sau giay to&quot;, fSau, false], [&quot;chan dung&quot;, fChanDung, false], [&quot;cam ket&quot;, fCamKet, false],
+          [&quot;phoi SIM goc&quot;, fPhoiCu, false], [&quot;phoi SIM moi&quot;, fPhoiMoi, false],
+          ...fKhac.map((f, i) =&gt; [&quot;ho so khac &quot; + (i + 1), f, true]),
+          ...fLoi.map((f, i) =&gt; [&quot;anh loi &quot; + (i + 1), f, false]),
+        ];
+        for (const [slot, f, allowPdf] of fileChecks) {
+          const fe = khSimFileError(slot, f, allowPdf);
+          if (fe) return err(fe, 422);
+        }
+        const delOld = async (k) =&gt; { if (k &amp;&amp; env.ANH) { try { await env.ANH.delete(k); } catch (e) { /* bo qua */ } } };
+        const replaceKey = async (slot, f, allowPdf, oldKey) =&gt; {
+          if (!hasNew(f)) return oldKey;
+          const k = await putKhSimFile(env, slot, f, allowPdf);
+          await delOld(oldKey);
+          return k;
+        };
+        const phieuKey = await replaceKey(&quot;phieu&quot;, fPhieu, false, rec.phieu_key);
+        const truocKey = await replaceKey(&quot;truoc&quot;, fTruoc, false, rec.cccd_truoc_key);
+        let sauKey = rec.cccd_sau_key;
+        if (loaiGiayTo !== &quot;CCCD&quot;) { sauKey = null; await delOld(rec.cccd_sau_key); }
+        else sauKey = await replaceKey(&quot;sau&quot;, fSau, false, rec.cccd_sau_key);
+        const chanDungKey = await replaceKey(&quot;chandung&quot;, fChanDung, false, rec.chan_dung_key);
+        const camKetKey = await replaceKey(&quot;camket&quot;, fCamKet, false, rec.cam_ket_key);
+        const phoiCuKey = await replaceKey(&quot;phoicu&quot;, fPhoiCu, false, rec.phoi_cu_key);
+        const phoiMoiKey = await replaceKey(&quot;phoimoi&quot;, fPhoiMoi, false, rec.phoi_moi_key);
+        let khacKeys = oldKhac, loiKeys = oldLoi;
+        if (fKhac.length) { for (const k of oldKhac) await delOld(k); khacKeys = []; for (let i = 0; i &lt; fKhac.length; i++) khacKeys.push(await putKhSimFile(env, &quot;khac&quot; + i, fKhac[i], true)); }
+        if (fLoi.length) { for (const k of oldLoi) await delOld(k); loiKeys = []; for (let i = 0; i &lt; fLoi.length; i++) loiKeys.push(await putKhSimFile(env, &quot;loi&quot; + i, fLoi[i], false)); }
+        await env.DB.prepare(
+          &quot;UPDATE kh_sim_requests SET so_thue_bao = ?, ten_thue_bao = ?, loai_giay_to = ?, so_giay_to = ?, ghi_chu = ?, phieu_key = ?, cccd_truoc_key = ?, cccd_sau_key = ?, chan_dung_key = ?, cam_ket_key = ?, khac_keys = ?, loi_keys = ?, ocr_trang_thai = ?, ocr_so_doc = ?, lat = ?, lng = ?, seri_sim_cu = ?, seri_sim_moi = ?, phoi_cu_key = ?, phoi_moi_key = ?, xac_nhan = 1, needs_update = 0 WHERE id = ?&quot;
+        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : rec.lat, isFinite(lng) ? lng : rec.lng, seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, rec.id).run();
+        return json({ ok: true, id: rec.id });
       }
       // Xem file dinh kem cua ho so (anh/PDF) theo slot, dung pham vi xem chi tiet.
       const khSimFileMatch = path.match(/^\/api\/kh-sim\/(\d+)\/file$/);
@@ -7593,6 +7710,7 @@ function normKbKey(s) {
               <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
                 <button class="btn gray" type="button" id="khOcrBtn">🔍 Chạy lại OCR</button>
                 <button class="btn blue" type="button" id="khSubmitBtn">📤 Gửi hồ sơ</button>
+                <button class="btn gray hidden" type="button" id="khCancelEdit">Hủy sửa</button>
               </div>
             </div>
           </form>
@@ -7726,7 +7844,8 @@ function normKbKey(s) {
     <h2>Hồ sơ thay SIM</h2>
     <p class="sub" id="khDetailSub"></p>
     <div id="khDetailBody"></div>
-    <div style="display:flex;gap:10px;margin-top:14px"><button class="btn gray" type="button" id="khDetailCloseBtn">Đóng</button></div>
+    <div id="khDetailReqMsg" style="margin-top:10px"></div>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn danger hidden" type="button" id="khDetailRequestBtn">⚠ Yêu cầu cập nhật lại</button><button class="btn gray" type="button" id="khDetailCloseBtn">Đóng</button></div>
   </div>
 </div>
 </div>
@@ -10235,6 +10354,7 @@ function applyStaffFormPerms() {
   const bm = $("staffBulkModuleBox");
   if (bm) bm.classList.toggle("hidden", !isAdminLike);
   $("sCanImport").disabled = !isAdminLike;
+  $("sCanDuyetKhoso").disabled = !isAdminLike;
   // Cap SubAdmin + chuc danh Quan tri vien: CHI admin (chong nang quyen).
   $("sSubAdmin").disabled = !isAdmin;
   const cd = $("sChucDanh");
@@ -10273,6 +10393,7 @@ function staffSortVal(u, k) {
     case "don_vi": return u.don_vi_ten || "";
     case "subadmin": return u.role === "subadmin" ? "Có" : "";
     case "can_import": return u.can_import ? "Có" : "";
+    case "can_duyet_khoso": return u.can_duyet_khoso ? "Có" : "";
     default: return "";
   }
 }
@@ -10323,6 +10444,7 @@ function renderStaff() {
       "<td data-label='Đơn vị'>" + esc(u.don_vi_ten) + "</td>" +
       "<td data-label='SubAdmin'>" + (u.role === "subadmin" ? "<span class='pill sub'>Có</span>" : "—") + "</td>" +
       "<td data-label='Import'>" + (u.can_import ? "<span class='pill ok'>Có</span>" : "—") + "</td>" +
+      "<td data-label='Duyệt HS'>" + (u.can_duyet_khoso ? "<span class='pill ok'>Có</span>" : "—") + "</td>" +
       "<td data-label='Module'><small>" + esc(staffModulesLabel(u)) + "</small></td>" +
       "<td data-label='Thao tác'><button class='btn sm gray' data-edit-staff='" + u.id + "'>Sửa</button> " +
       "<button class='btn sm gray' data-reset-staff='" + u.id + "' title='Đặt lại mật khẩu về Vnpt@2026'>Reset Pass</button> " +
@@ -10330,7 +10452,7 @@ function renderStaff() {
         ? "<button class='btn sm gray' disabled title='Không thể tự xóa tài khoản đang đăng nhập'>Xóa</button>"
         : "<button class='btn sm danger' data-del-staff='" + u.id + "'>Xóa</button>") +
       "</td></tr>").join("") ||
-      "<tr><td colspan='10'>" + (staffCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
+      "<tr><td colspan='11'>" + (staffCache.length ? "Không có người dùng nào thuộc đơn vị đã chọn." : "Chưa có người dùng nào.") + "</td></tr>";
   $("staffBody").querySelectorAll("[data-edit-staff]").forEach((b) => b.addEventListener("click", () => editStaff(Number(b.dataset.editStaff))));
   $("staffBody").querySelectorAll("[data-reset-staff]").forEach((b) => b.addEventListener("click", () => resetStaffPass(Number(b.dataset.resetStaff))));
   $("staffBody").querySelectorAll("[data-del-staff]").forEach((b) => b.addEventListener("click", () => delStaff(Number(b.dataset.delStaff))));
@@ -10353,6 +10475,7 @@ function editStaff(id) {
   $("sChucDanh").value = u.chuc_danh || STAFF_CD_FALLBACK[u.role] || "Nhân viên kinh doanh";
   $("sSubAdmin").checked = u.role === "subadmin";
   $("sCanImport").checked = !!u.can_import;
+  $("sCanDuyetKhoso").checked = !!u.can_duyet_khoso;
   setModulesBoxes("sModule", u.modules || MODULE_DEFS.map((m) => m[0]));
   applyStaffFormPerms();
   $("staffSubmit").textContent = "Lưu thay đổi";
@@ -10393,7 +10516,7 @@ $("staffForm").addEventListener("submit", async (e) => {
     password: $("sPassword").value,
     don_vi_id: $("sUnit").value ? Number($("sUnit").value) : null,
     chuc_danh: $("sChucDanh").value,
-    subadmin: $("sSubAdmin").checked, can_import: $("sCanImport").checked,
+    subadmin: $("sSubAdmin").checked, can_import: $("sCanImport").checked, can_duyet_khoso: $("sCanDuyetKhoso").checked,
     active: true,
     ...(me && (me.role === "admin" || me.role === "subadmin") ? { modules: getModulesFromForm("sModule") } : {}),
   };
@@ -12954,6 +13077,9 @@ $("chMapNamesBtn").addEventListener("click", () => {
 let khFront = null, khBack = null, khPhieu = null, khPortrait = null, khCommit = null;
 let khPhoiCu = null, khPhoiMoi = null;
 let khOther = [], khErr = [];
+// Che do sua ho so (sau khi duoc yeu cau cap nhat lai): khEditId != null;
+// khEditKeys giu key file cu de giu nguyen neu khong chon lai.
+let khEditId = null, khEditKeys = null, khEditOcrDoc = "", khEditFrontBlob = null;
 let khOcrStatus = "CHUA_KIEM_TRA", khOcrText = "", khLat = null, khLng = null;
 let khTessReady = null;
 const KH_DOC_LABELS = { CCCD: "CCCD/CC gắn chíp", HO_CHIEU: "Hộ chiếu", VNEID: "VNeID mức 2" };
@@ -12970,16 +13096,25 @@ function khMissingItems() {
   if (!$("khNote").value.trim()) items.push("Ghi chú lý do");
   if (!/^\d{10}$/.test($("khSeriCu").value.replace(/\D/g, ""))) items.push("Số seri SIM cũ (10 số)");
   if (!/^\d{10}$/.test($("khSeriMoi").value.replace(/\D/g, ""))) items.push("Số seri SIM mới (10 số)");
-  if (!khPhoiMoi) items.push("Ảnh phôi SIM mới");
-  if (khErr.length === 0) items.push("Ảnh chụp lỗi hệ thống (ít nhất 1 ảnh)");
+  if (!khHasPhoiMoi()) items.push("Ảnh phôi SIM mới");
+  if (!khHasErr()) items.push("Ảnh chụp lỗi hệ thống (ít nhất 1 ảnh)");
   if (!$("khConfirm").checked) items.push("Tích xác nhận thông tin chính xác");
-  if (!khPhieu) items.push("Phiếu yêu cầu thay SIM");
-  if (!khFront) items.push("Ảnh mặt trước giấy tờ");
-  if ($("khDocType").value === "CCCD" && !khBack) items.push("Ảnh mặt sau giấy tờ");
-  if (!khPortrait) items.push("Ảnh chân dung");
+  if (!khHasPhieu()) items.push("Phiếu yêu cầu thay SIM");
+  if (!khHasFront()) items.push("Ảnh mặt trước giấy tờ");
+  if ($("khDocType").value === "CCCD" && !khHasBack()) items.push("Ảnh mặt sau giấy tờ");
+  if (!khHasPortrait()) items.push("Ảnh chân dung");
   if (khOcrStatus !== "OK") items.push("Kiểm tra OCR khớp số giấy tờ");
   return items;
 }
+function khIsAdminLike() { return !!(me && (me.role === "admin" || me.role === "subadmin")); }
+function khCanDuyet() { return khIsAdminLike() || !!(me && me.can_duyet_khoso); }
+// Anh/file "da co" o che do sua: anh moi chon HOAC key cu van con tren R2.
+function khHasPhieu() { return !!khPhieu || !!(khEditKeys && khEditKeys.phieu); }
+function khHasFront() { return !!khFront || !!(khEditKeys && khEditKeys.truoc); }
+function khHasBack() { return !!khBack || !!(khEditKeys && khEditKeys.sau); }
+function khHasPortrait() { return !!khPortrait || !!(khEditKeys && khEditKeys.chandung); }
+function khHasPhoiMoi() { return !!khPhoiMoi || !!(khEditKeys && khEditKeys.phoimoi); }
+function khHasErr() { return khErr.length > 0 || !!((khEditKeys && khEditKeys.loi || []).length); }
 function khUpdateMissing() {
   const box = $("khMissing");
   if (!box) return;
@@ -13105,14 +13240,29 @@ function khLoadTesseract() {
   });
   return khTessReady;
 }
+// Anh mat truoc de chay OCR: anh moi chon, neu khong thi anh cu da gui
+// (tai tu R2 khi sua ho so).
+async function khFrontBlobForOcr() {
+  if (khFront) return khFront.blob;
+  if (khEditId && khEditKeys && khEditKeys.truoc) {
+    if (!khEditFrontBlob) {
+      const res = await fetch(apiBase + "/api/kh-sim/" + khEditId + "/file?slot=truoc", { headers: token ? { Authorization: "Bearer " + token } : {} });
+      if (!res.ok) throw new Error("Không tải được ảnh mặt trước đã gửi");
+      khEditFrontBlob = await res.blob();
+    }
+    return khEditFrontBlob;
+  }
+  return null;
+}
 async function khRunOcr() {
   const docNo = khNormDoc($("khDocNo").value);
-  if (!khFront) { khSetOcr("CHUA_KIEM_TRA", "Chưa có ảnh mặt trước giấy tờ để đọc OCR."); return; }
   if (!docNo) { khSetOcr("CHUA_KIEM_TRA", "Hãy nhập số giấy tờ trước khi chạy OCR."); return; }
   khSetOcr("DANG_KIEM_TRA", "Đang đọc OCR ảnh mặt trước giấy tờ…");
   try {
+    const fb = await khFrontBlobForOcr();
+    if (!fb) { khSetOcr("CHUA_KIEM_TRA", "Chưa có ảnh mặt trước giấy tờ để đọc OCR."); return; }
     const T = await khLoadTesseract();
-    const res = await T.recognize(khFront.blob, "eng");
+    const res = await T.recognize(fb, "eng");
     const text = (res && res.data && res.data.text) || "";
     khOcrText = text;
     const flat = khNormDoc(text);
@@ -13134,7 +13284,11 @@ $("khDocType").addEventListener("change", () => {
   if (!isCccd) { khBack = null; $("khDocBack").value = ""; $("khDocBackInfo").textContent = "Không cần với Hộ chiếu / VNeID mức 2."; }
   khSetOcr("CHUA_KIEM_TRA", "Đã đổi loại giấy tờ — hãy chạy lại OCR sau khi tải ảnh mặt trước.");
 });
-$("khDocNo").addEventListener("change", () => { khUpdateMissing(); if (khFront) khRunOcr(); });
+$("khDocNo").addEventListener("change", () => {
+  khUpdateMissing();
+  if (khFront) khRunOcr();
+  else if (khEditId && khNormDoc($("khDocNo").value) !== khNormDoc(khEditOcrDoc)) khSetOcr("CHUA_KIEM_TRA", "Đã đổi số giấy tờ — hãy bấm “Chạy lại OCR” để đọc lại từ ảnh mặt trước đã gửi.");
+});
 $("khPhieu").addEventListener("change", async () => { khPhieu = await khPickPlain($("khPhieu"), $("khPhieuInfo")); khUpdateMissing(); });
 $("khDocFront").addEventListener("change", async () => {
   khFront = await khPickStamped($("khDocFront"), $("khDocFrontInfo"));
@@ -13171,6 +13325,9 @@ function khResetForm() {
   khOther = []; khErr = [];
   khLat = khLng = null; khOcrText = "";
   khSetOcr("CHUA_KIEM_TRA", "Chưa kiểm tra OCR. Hãy tải ảnh mặt trước giấy tờ để hệ thống đọc số và đối chiếu.");
+  khEditId = null; khEditKeys = null; khEditOcrDoc = ""; khEditFrontBlob = null;
+  $("khSubmitBtn").textContent = "📤 Gửi hồ sơ";
+  $("khCancelEdit").classList.add("hidden");
 }
 $("khSubmitBtn").addEventListener("click", async () => {
   const phone = $("khPhone").value.replace(/\D/g, "");
@@ -13186,12 +13343,12 @@ $("khSubmitBtn").addEventListener("click", async () => {
   if (!/^\d{10}$/.test(seriCu)) { setMsg($("khSimMsg"), "Số seri SIM cũ phải là 10 chữ số.", false); return; }
   if (!/^\d{10}$/.test(seriMoi)) { setMsg($("khSimMsg"), "Số seri SIM mới phải là 10 chữ số.", false); return; }
   if (!note) { setMsg($("khSimMsg"), "Hãy nhập ghi chú lý do đề nghị thay SIM.", false); return; }
-  if (!khPhieu) { setMsg($("khSimMsg"), "Hãy tải ảnh phiếu yêu cầu thay SIM.", false); return; }
-  if (!khFront) { setMsg($("khSimMsg"), "Hãy tải ảnh mặt trước giấy tờ.", false); return; }
-  if (docType === "CCCD" && !khBack) { setMsg($("khSimMsg"), "CCCD/CC gắn chíp cần đủ ảnh mặt trước và mặt sau.", false); return; }
-  if (!khPortrait) { setMsg($("khSimMsg"), "Hãy tải ảnh chân dung khách hàng.", false); return; }
-  if (!khPhoiMoi) { setMsg($("khSimMsg"), "Hãy tải ảnh phôi SIM mới.", false); return; }
-  if (khErr.length === 0) { setMsg($("khSimMsg"), "Hãy tải ít nhất 1 ảnh chụp lỗi hệ thống.", false); return; }
+  if (!khHasPhieu()) { setMsg($("khSimMsg"), "Hãy tải ảnh phiếu yêu cầu thay SIM.", false); return; }
+  if (!khHasFront()) { setMsg($("khSimMsg"), "Hãy tải ảnh mặt trước giấy tờ.", false); return; }
+  if (docType === "CCCD" && !khHasBack()) { setMsg($("khSimMsg"), "CCCD/CC gắn chíp cần đủ ảnh mặt trước và mặt sau.", false); return; }
+  if (!khHasPortrait()) { setMsg($("khSimMsg"), "Hãy tải ảnh chân dung khách hàng.", false); return; }
+  if (!khHasPhoiMoi()) { setMsg($("khSimMsg"), "Hãy tải ảnh phôi SIM mới.", false); return; }
+  if (!khHasErr()) { setMsg($("khSimMsg"), "Hãy tải ít nhất 1 ảnh chụp lỗi hệ thống.", false); return; }
   if (!$("khConfirm").checked) { setMsg($("khSimMsg"), "Hãy tích xác nhận thông tin khai báo chính xác trước khi gửi hồ sơ.", false); return; }
   if (khOcrStatus !== "OK") { setMsg($("khSimMsg"), "Chưa kiểm tra OCR khớp số giấy tờ — hãy chạy OCR và đảm bảo kết quả khớp rồi gửi lại.", false); return; }
   $("khSubmitBtn").disabled = true;
@@ -13208,20 +13365,20 @@ $("khSubmitBtn").addEventListener("click", async () => {
     fd.append("seri_sim_moi", seriMoi);
     fd.append("xac_nhan", "1");
     if (khLat !== null && khLng !== null) { fd.append("lat", khLat); fd.append("lng", khLng); }
-    fd.append("phieu", khPhieu.blob, "phieu.jpg");
-    fd.append("cccd_truoc", khFront.blob, "truoc.jpg");
+    if (khPhieu) fd.append("phieu", khPhieu.blob, "phieu.jpg");
+    if (khFront) fd.append("cccd_truoc", khFront.blob, "truoc.jpg");
     if (khBack) fd.append("cccd_sau", khBack.blob, "sau.jpg");
-    fd.append("chan_dung", khPortrait.blob, "chandung.jpg");
+    if (khPortrait) fd.append("chan_dung", khPortrait.blob, "chandung.jpg");
     if (khCommit) fd.append("cam_ket", khCommit.blob, "camket.jpg");
     if (khPhoiCu) fd.append("phoi_cu", khPhoiCu.blob, "phoicu.jpg");
-    fd.append("phoi_moi", khPhoiMoi.blob, "phoimoi.jpg");
+    if (khPhoiMoi) fd.append("phoi_moi", khPhoiMoi.blob, "phoimoi.jpg");
     khOther.forEach((o) => fd.append("khac", o.blob, o.isPdf ? o.name : "khac.jpg"));
     khErr.forEach((o) => fd.append("loi", o.blob, o.name));
-    const res = await fetch(apiBase + "/api/kh-sim", { method: "POST", headers: token ? { Authorization: "Bearer " + token } : {}, body: fd });
+    const res = await fetch(apiBase + (khEditId ? "/api/kh-sim/" + khEditId : "/api/kh-sim"), { method: khEditId ? "PUT" : "POST", headers: token ? { Authorization: "Bearer " + token } : {}, body: fd });
     let data = {};
     try { data = await res.json(); } catch (e) { /* bo qua */ }
     if (!res.ok) throw new Error((data && data.error) || ("Gửi hồ sơ thất bại (" + res.status + ")"));
-    setMsg($("khSimMsg"), "Đã gửi hồ sơ thay SIM cho " + phone + " (mã hồ sơ #" + data.id + ").", true);
+    setMsg($("khSimMsg"), khEditId ? ("Đã lưu thay đổi hồ sơ #" + data.id + ". Hồ sơ không còn ở trạng thái cần cập nhật.") : ("Đã gửi hồ sơ thay SIM cho " + phone + " (mã hồ sơ #" + data.id + ")."), true);
     khResetForm();
     loadKhSimList();
   } catch (e) {
@@ -13236,9 +13393,10 @@ function khRenderSimList() {
   const rows = khSimRows.filter((r) => !q || khNormSearch(r.so_thue_bao).includes(q) || khNormSearch(r.so_giay_to).includes(q) || khNormSearch(r.ten_thue_bao).includes(q));
   const shown = rows.slice(0, 10);
   $("khSimListBody").innerHTML = shown.map((r) =>
-    "<tr><td><b>" + esc(r.so_thue_bao) + "</b></td><td>" + esc(r.ten_thue_bao) + "</td><td>" + esc(KH_DOC_LABELS[r.loai_giay_to] || r.loai_giay_to) + "</td><td>" + esc(r.so_giay_to) + "</td><td>" + (r.ocr_trang_thai === "OK" ? "<span class='pill ok'>✓ OK</span>" : esc(r.ocr_trang_thai || "")) + "</td><td>" + esc(r.created_by_ten || "") + "</td><td>" + esc(r.created_at || "") + "</td><td><button class='btn sm blue' data-kh-view='" + r.id + "'>Xem</button></td></tr>").join("") ||
+    "<tr><td><b>" + esc(r.so_thue_bao) + "</b></td><td>" + esc(r.ten_thue_bao) + "</td><td>" + esc(KH_DOC_LABELS[r.loai_giay_to] || r.loai_giay_to) + "</td><td>" + esc(r.so_giay_to) + "</td><td>" + (r.ocr_trang_thai === "OK" ? "<span class='pill ok'>✓ OK</span>" : esc(r.ocr_trang_thai || "")) + "</td><td>" + esc(r.created_by_ten || "") + "</td><td>" + esc(r.created_at || "") + "</td><td>" + (r.needs_update ? "<span class='pill bad'>⚠ Cần cập nhật</span> " : "") + "<button class='btn sm blue' data-kh-view='" + r.id + "'>Xem</button>" + ((r.needs_update && (r.created_by === me.id || khIsAdminLike())) ? " <button class='btn sm blue' data-kh-edit='" + r.id + "'>Sửa</button>" : "") + "</td></tr>").join("") ||
     (khSimRows.length ? "<tr><td colspan='8'>Không tìm thấy hồ sơ phù hợp.</td></tr>" : "<tr><td colspan='8'>Chưa có hồ sơ.</td></tr>");
   $("khSimListBody").querySelectorAll("[data-kh-view]").forEach((b) => b.addEventListener("click", () => khOpenDetail(Number(b.dataset.khView))));
+  $("khSimListBody").querySelectorAll("[data-kh-edit]").forEach((b) => b.addEventListener("click", () => khOpenEdit(Number(b.dataset.khEdit))));
   $("khSimListCount").textContent = q ? ("Tìm thấy " + rows.length + " hồ sơ — hiển thị " + shown.length + " hồ sơ gần nhất.") : ("Hiển thị " + shown.length + " / " + khSimRows.length + " hồ sơ gần nhất.");
 }
 async function loadKhSimList() {
@@ -13285,6 +13443,7 @@ async function khOpenDetail(id) {
       const parts = b.dataset.khfile.split(":");
       khOpenFile(id, parts[0], parts[1] != null ? Number(parts[1]) : null);
     }));
+    khDetailReqState(r);
     $("khDetailBack").classList.remove("hidden");
   } catch (e) { setMsg($("khSimMsg"), "Không mở được hồ sơ: " + e.message, false); }
 }
@@ -13309,6 +13468,76 @@ async function khOpenFile(id, slot, idx) {
   } catch (e) { setMsg($("khSimMsg"), e.message, false); }
 }
 $("khDetailCloseBtn").addEventListener("click", () => $("khDetailBack").classList.add("hidden"));
+// Trang thai nut "Yeu cau cap nhat lai" trong popup chi tiet: chi hien
+// khi ho so chua bi yeu cau va nguoi xem co quyen duyet (admin/subadmin
+// hoac duoc tick "Duyet muc Quan ly ho so KH").
+function khDetailReqState(r) {
+  const btn = $("khDetailRequestBtn"), msg = $("khDetailReqMsg");
+  if (!btn || !msg) return;
+  btn.dataset.khReqId = r.id;
+  if (r.needs_update) {
+    btn.classList.add("hidden");
+    msg.innerHTML = "<span class='pill bad'>⚠ Đã yêu cầu người gửi cập nhật lại hồ sơ này.</span>";
+  } else if (khCanDuyet()) {
+    btn.classList.remove("hidden");
+    msg.innerHTML = "";
+  } else {
+    btn.classList.add("hidden");
+    msg.innerHTML = "";
+  }
+}
+$("khDetailRequestBtn").addEventListener("click", async () => {
+  const id = Number($("khDetailRequestBtn").dataset.khReqId || 0);
+  if (!id) return;
+  if (!confirm("Yêu cầu người gửi cập nhật lại hồ sơ này? Người gửi sẽ thấy nút “Sửa” bên cạnh nút “Xem”.")) return;
+  try {
+    await api("/api/kh-sim/" + id + "/yeu-cau-cap-nhat", { method: "POST" });
+    $("khDetailReqMsg").innerHTML = "<span class='pill bad'>⚠ Đã yêu cầu người gửi cập nhật lại hồ sơ này.</span>";
+    $("khDetailRequestBtn").classList.add("hidden");
+    loadKhSimList();
+  } catch (e) { setMsg($("khSimMsg"), e.message, false); }
+});
+// Mo form sua ho so da duoc yeu cau cap nhat lai: dien san du lieu cu;
+// anh nao khong chon lai thi giu nguyen; OCR giu ket qua cu neu khong
+// doi so giay to / anh mat truoc.
+async function khOpenEdit(id) {
+  try {
+    const d = await api("/api/kh-sim/" + id);
+    const r = d.row;
+    khResetForm();
+    khEditId = r.id;
+    khEditKeys = { phieu: r.phieu_key || null, truoc: r.cccd_truoc_key || null, sau: r.cccd_sau_key || null, chandung: r.chan_dung_key || null, camket: r.cam_ket_key || null, phoicu: r.phoi_cu_key || null, phoimoi: r.phoi_moi_key || null, khac: (() => { try { return JSON.parse(r.khac_keys || "[]"); } catch (e) { return []; } })(), loi: (() => { try { return JSON.parse(r.loi_keys || "[]"); } catch (e) { return []; } })() };
+    khEditOcrDoc = r.so_giay_to || "";
+    $("khPhone").value = r.so_thue_bao || "";
+    $("khName").value = r.ten_thue_bao || "";
+    $("khDocType").value = r.loai_giay_to || "CCCD";
+    $("khDocNo").value = r.so_giay_to || "";
+    $("khNote").value = r.ghi_chu || "";
+    $("khSeriCu").value = r.seri_sim_cu || "";
+    $("khSeriMoi").value = r.seri_sim_moi || "";
+    const isCccd = $("khDocType").value === "CCCD";
+    $("khDocBack").required = isCccd;
+    $("khDocBackBox").classList.toggle("hidden", !isCccd);
+    const kept = (key) => key ? "Đã có ảnh — chọn lại để thay." : "Chưa chọn ảnh.";
+    $("khPhieuInfo").textContent = kept(khEditKeys.phieu);
+    $("khDocFrontInfo").textContent = khEditKeys.truoc ? "Đã có ảnh — chọn lại để thay. Hệ thống sẽ đọc lại OCR nếu đổi ảnh." : "Chưa chọn ảnh.";
+    $("khDocBackInfo").textContent = khEditKeys.sau ? "Đã có ảnh — chọn lại để thay." : (isCccd ? "Chưa chọn ảnh. Chỉ bắt buộc khi loại giấy tờ là CCCD/CC gắn chíp." : "Không cần với Hộ chiếu / VNeID mức 2.");
+    $("khPortraitInfo").textContent = kept(khEditKeys.chandung);
+    $("khCommitInfo").textContent = khEditKeys.camket ? "Đã có ảnh — chọn lại để thay." : "Không bắt buộc. Ảnh sẽ được đóng dấu tọa độ + thời gian.";
+    $("khOtherInfo").textContent = khEditKeys.khac.length ? ("Đã có " + khEditKeys.khac.length + " file — chọn lại để thay toàn bộ.") : "Không bắt buộc. Cho phép ảnh hoặc file PDF; ảnh sẽ được đóng dấu tọa độ + thời gian.";
+    $("khErrInfo").textContent = khEditKeys.loi.length ? ("Đã có " + khEditKeys.loi.length + " ảnh — chọn lại để thay toàn bộ.") : "Bắt buộc ít nhất 1 ảnh. Tối đa 5 ảnh.";
+    $("khPhoiCuInfo").textContent = khEditKeys.phoicu ? "Đã có ảnh — chọn lại để thay." : "Nếu KH dùng ESIM thì chụp màn hình ESIM trên điện thoại.";
+    $("khPhoiMoiInfo").textContent = kept(khEditKeys.phoimoi);
+    if (r.ocr_trang_thai === "OK") khSetOcr("OK", "✓ OCR khớp (theo hồ sơ đã gửi): đã đọc “" + khNormDoc(r.ocr_so_doc || r.so_giay_to) + "”.");
+    else khSetOcr("CHUA_KIEM_TRA", "Hồ sơ cũ chưa có OCR khớp — hãy tải ảnh mặt trước rồi chạy lại OCR.");
+    $("khSubmitBtn").textContent = "💾 Lưu thay đổi";
+    $("khCancelEdit").classList.remove("hidden");
+    khUpdateMissing();
+    setMsg($("khSimMsg"), "Đang sửa hồ sơ #" + r.id + " (đã được yêu cầu cập nhật lại). Ảnh nào không chọn lại sẽ được giữ nguyên.", true);
+    $("khSimForm").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { setMsg($("khSimMsg"), "Không mở được hồ sơ để sửa: " + e.message, false); }
+}
+$("khCancelEdit").addEventListener("click", () => { khResetForm(); setMsg($("khSimMsg"), "Đã hủy sửa — form trở về chế độ gửi hồ sơ mới.", true); });
 // Dau (*) do cho cac muc bat buoc + dong "Con thieu ..." cap nhat theo tung
 // lan go/chon (khong doi den luc bam Gui moi bao thieu).
 document.querySelectorAll("#khSimForm label").forEach((l) => {
