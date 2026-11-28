@@ -7165,9 +7165,9 @@ function normKbKey(s) {
       // ---- Quan ly ho so KH - yeu cau thay SIM (28/11/2026) ----
       // Gui ho so: multipart (form + anh). Bat buoc: SDT 09xxxxxxxx, ten TB,
       // loai giay to (CCCD/HO_CHIEU/VNEID), so giay to, ghi chu ly do, anh
-      // phieu + anh mat truoc giay to; CCCD can them mat sau; anh cam ket khong bat buoc;
+      // phieu + anh mat truoc giay to + anh chan dung; CCCD can them mat sau; anh cam ket khong bat buoc;
       // OCR phai OK (client chay Tesseract tren anh mat truoc truoc khi gui).
-      // Anh chan dung / ho so khac khong bat buoc; anh loi he thong (toi da 5) bat buoc it nhat 1 anh.
+      // Anh ho so khac khong bat buoc; anh loi he thong (toi da 5) bat buoc it nhat 1 anh.
       // Xem danh sach: admin/subadmin toan tinh; lanh dao/Chuyen vien thay cay
       // don vi minh; nhan su khac chi thay ho so do chinh minh gui.
       if (path === &quot;/api/kh-sim&quot; &amp;&amp; method === &quot;POST&quot;) {
@@ -7213,6 +7213,7 @@ function normKbKey(s) {
         if (!fPhieu || !fPhieu.size) return err(&quot;Chua co anh phieu yeu cau thay SIM&quot;, 422);
         if (!fTruoc || !fTruoc.size) return err(&quot;Chua co anh mat truoc giay to&quot;, 422);
         if (loaiGiayTo === &quot;CCCD&quot; &amp;&amp; (!fSau || !fSau.size)) return err(&quot;CCCD/CC gan chip can du anh mat truoc va mat sau&quot;, 422);
+        if (!fChanDung || !fChanDung.size) return err(&quot;Chua co anh chan dung&quot;, 422);
         if (!fPhoiMoi || !fPhoiMoi.size) return err(&quot;Chua co anh phoi SIM moi&quot;, 422);
         if (fLoi.length === 0) return err(&quot;Chua co anh chup loi he thong&quot;, 422);
         if (fLoi.length &gt; 5) return err(&quot;Anh chup loi he thong toi da 5 anh&quot;, 422);
@@ -7579,7 +7580,7 @@ function normKbKey(s) {
             <div><label>Phiếu yêu cầu thay SIM (*)</label><input type="file" id="khPhieu" accept="image/*" capture="environment" required /><div class="desc" id="khPhieuInfo">Chưa chọn ảnh.</div></div>
             <div><label>Ảnh mặt trước giấy tờ (*)</label><input type="file" id="khDocFront" accept="image/*" capture="environment" required /><div class="desc" id="khDocFrontInfo">Chưa chọn ảnh. Sau khi tải lên, hệ thống tự đóng dấu tọa độ + thời gian và đọc OCR để đối chiếu số giấy tờ.</div></div>
             <div id="khDocBackBox"><label>Ảnh mặt sau giấy tờ (*)</label><input type="file" id="khDocBack" accept="image/*" capture="environment" /><div class="desc" id="khDocBackInfo">Chưa chọn ảnh. Chỉ bắt buộc khi loại giấy tờ là CCCD/CC gắn chíp.</div></div>
-            <div><label>Ảnh chân dung KH</label><input type="file" id="khPortrait" accept="image/*" capture="environment" /><div class="desc" id="khPortraitInfo">Không bắt buộc. Ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
+            <div><label>Ảnh chân dung KH (*)</label><input type="file" id="khPortrait" accept="image/*" capture="environment" required /><div class="desc" id="khPortraitInfo">Chưa chọn ảnh. Ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
             <div><label>Ảnh bản cam kết của KH</label><input type="file" id="khCommit" accept="image/*" capture="environment" /><div class="desc" id="khCommitInfo">Không bắt buộc. Ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
             <div><label>Ảnh các hồ sơ khác liên quan</label><input type="file" id="khOther" accept="image/*,.pdf" multiple /><div class="desc" id="khOtherInfo">Không bắt buộc. Cho phép ảnh hoặc file PDF; ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
             <div><label>Ảnh chụp lỗi hệ thống (*) (tối đa 5 ảnh)</label><input type="file" id="khErr" accept="image/*" multiple required /><div class="desc" id="khErrInfo">Bắt buộc ít nhất 1 ảnh. Tối đa 5 ảnh.</div></div>
@@ -12958,7 +12959,7 @@ const KH_DOC_LABELS = { CCCD: "CCCD/CC gắn chíp", HO_CHIEU: "Hộ chiếu", V
 function khNormDoc(s) { return String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
 // Cac muc bat buoc (co dau *): SDT, ten TB, so giay to, seri SIM cu/moi
 // (10 so), ghi chu, phieu, anh mat truoc giay to, anh mat sau (chi CCCD),
-// anh phoi SIM moi, anh loi he thong, tich xac nhan + OCR khop (13 muc).
+// anh chan dung, anh phoi SIM moi, anh loi he thong, tich xac nhan + OCR khop (14 muc).
 // Hien truc tiep muc nao con thieu de nguoi nhap khoi phai bam Gui moi biet.
 function khMissingItems() {
   const items = [];
@@ -12974,6 +12975,7 @@ function khMissingItems() {
   if (!khPhieu) items.push("Phiếu yêu cầu thay SIM");
   if (!khFront) items.push("Ảnh mặt trước giấy tờ");
   if ($("khDocType").value === "CCCD" && !khBack) items.push("Ảnh mặt sau giấy tờ");
+  if (!khPortrait) items.push("Ảnh chân dung");
   if (khOcrStatus !== "OK") items.push("Kiểm tra OCR khớp số giấy tờ");
   return items;
 }
@@ -13140,7 +13142,7 @@ $("khDocFront").addEventListener("change", async () => {
   khUpdateMissing();
 });
 $("khDocBack").addEventListener("change", async () => { khBack = await khPickStamped($("khDocBack"), $("khDocBackInfo")); khUpdateMissing(); });
-$("khPortrait").addEventListener("change", async () => { khPortrait = await khPickStamped($("khPortrait"), $("khPortraitInfo")); });
+$("khPortrait").addEventListener("change", async () => { khPortrait = await khPickStamped($("khPortrait"), $("khPortraitInfo")); khUpdateMissing(); });
 $("khCommit").addEventListener("change", async () => { khCommit = await khPickStamped($("khCommit"), $("khCommitInfo")); khUpdateMissing(); });
 // Anh phoi SIM gui nguyen nhu anh phieu (khong dong dau toa do/gio).
 $("khPhoiCu").addEventListener("change", async () => { khPhoiCu = await khPickPlain($("khPhoiCu"), $("khPhoiCuInfo")); khUpdateMissing(); });
@@ -13157,7 +13159,7 @@ function khResetForm() {
   $("khPhieuInfo").textContent = "Chưa chọn ảnh.";
   $("khDocFrontInfo").textContent = "Chưa chọn ảnh. Sau khi tải lên, hệ thống tự đóng dấu tọa độ + thời gian và đọc OCR để đối chiếu số giấy tờ.";
   $("khDocBackInfo").textContent = "Chưa chọn ảnh. Chỉ bắt buộc khi loại giấy tờ là CCCD/CC gắn chíp.";
-  $("khPortraitInfo").textContent = "Không bắt buộc. Ảnh sẽ được đóng dấu tọa độ + thời gian.";
+  $("khPortraitInfo").textContent = "Chưa chọn ảnh. Ảnh sẽ được đóng dấu tọa độ + thời gian.";
   $("khCommitInfo").textContent = "Không bắt buộc. Ảnh sẽ được đóng dấu tọa độ + thời gian.";
   $("khOtherInfo").textContent = "Không bắt buộc. Cho phép ảnh hoặc file PDF; ảnh sẽ được đóng dấu tọa độ + thời gian.";
   $("khErrInfo").textContent = "Bắt buộc ít nhất 1 ảnh. Tối đa 5 ảnh.";
@@ -13186,6 +13188,7 @@ $("khSubmitBtn").addEventListener("click", async () => {
   if (!khPhieu) { setMsg($("khSimMsg"), "Hãy tải ảnh phiếu yêu cầu thay SIM.", false); return; }
   if (!khFront) { setMsg($("khSimMsg"), "Hãy tải ảnh mặt trước giấy tờ.", false); return; }
   if (docType === "CCCD" && !khBack) { setMsg($("khSimMsg"), "CCCD/CC gắn chíp cần đủ ảnh mặt trước và mặt sau.", false); return; }
+  if (!khPortrait) { setMsg($("khSimMsg"), "Hãy tải ảnh chân dung khách hàng.", false); return; }
   if (!khPhoiMoi) { setMsg($("khSimMsg"), "Hãy tải ảnh phôi SIM mới.", false); return; }
   if (khErr.length === 0) { setMsg($("khSimMsg"), "Hãy tải ít nhất 1 ảnh chụp lỗi hệ thống.", false); return; }
   if (!$("khConfirm").checked) { setMsg($("khSimMsg"), "Hãy tích xác nhận thông tin khai báo chính xác trước khi gửi hồ sơ.", false); return; }
@@ -13207,7 +13210,7 @@ $("khSubmitBtn").addEventListener("click", async () => {
     fd.append("phieu", khPhieu.blob, "phieu.jpg");
     fd.append("cccd_truoc", khFront.blob, "truoc.jpg");
     if (khBack) fd.append("cccd_sau", khBack.blob, "sau.jpg");
-    if (khPortrait) fd.append("chan_dung", khPortrait.blob, "chandung.jpg");
+    fd.append("chan_dung", khPortrait.blob, "chandung.jpg");
     if (khCommit) fd.append("cam_ket", khCommit.blob, "camket.jpg");
     if (khPhoiCu) fd.append("phoi_cu", khPhoiCu.blob, "phoicu.jpg");
     fd.append("phoi_moi", khPhoiMoi.blob, "phoimoi.jpg");
