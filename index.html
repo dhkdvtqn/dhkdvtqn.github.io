@@ -3346,7 +3346,7 @@ async function ensureCareTables(env) {
 // chi luu key trong bang; khac_keys/loi_keys la JSON array cac key.
 async function ensureKhSimTable(env) {
   await env.DB.prepare(
-    &quot;CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT, seri_sim_cu TEXT, seri_sim_moi TEXT, phoi_cu_key TEXT, phoi_moi_key TEXT, xac_nhan INTEGER NOT NULL DEFAULT 0, needs_update INTEGER NOT NULL DEFAULT 0)&quot;
+    &quot;CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT, updated_at TEXT, seri_sim_cu TEXT, seri_sim_moi TEXT, phoi_cu_key TEXT, phoi_moi_key TEXT, xac_nhan INTEGER NOT NULL DEFAULT 0, needs_update INTEGER NOT NULL DEFAULT 0)&quot;
   ).run();
   // Migration: bang cu (truoc 28/11/2026) chua co cot seri/phoi/xac nhan
   const cols = await env.DB.prepare(&quot;PRAGMA table_info(kh_sim_requests)&quot;).all();
@@ -3357,6 +3357,7 @@ async function ensureKhSimTable(env) {
   if (!names.has(&quot;phoi_moi_key&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN phoi_moi_key TEXT&quot;).run();
   if (!names.has(&quot;xac_nhan&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN xac_nhan INTEGER NOT NULL DEFAULT 0&quot;).run();
   if (!names.has(&quot;needs_update&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN needs_update INTEGER NOT NULL DEFAULT 0&quot;).run();
+  if (!names.has(&quot;updated_at&quot;)) await env.DB.prepare(&quot;ALTER TABLE kh_sim_requests ADD COLUMN updated_at TEXT&quot;).run();
 }
 async function putKhSimFile(env, slot, file, allowPdf) {
   if (!env.ANH) throw new Error(&quot;Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker)&quot;);
@@ -7250,15 +7251,15 @@ function normKbKey(s) {
         const loiKeys = [];
         for (let i = 0; i &lt; fLoi.length; i++) loiKeys.push(await putKhSimFile(env, &quot;loi&quot; + i, fLoi[i], false));
         const r = await env.DB.prepare(
-          &quot;INSERT INTO kh_sim_requests (so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, phieu_key, cccd_truoc_key, cccd_sau_key, chan_dung_key, cam_ket_key, khac_keys, loi_keys, ocr_trang_thai, ocr_so_doc, lat, lng, created_by, created_by_ten, don_vi_id, created_at, seri_sim_cu, seri_sim_moi, phoi_cu_key, phoi_moi_key, xac_nhan) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)&quot;
-        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : null, isFinite(lng) ? lng : null, me.id, me.ho_ten, me.don_vi_id || null, saigonNow(), seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, 1).run();
+          &quot;INSERT INTO kh_sim_requests (so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, phieu_key, cccd_truoc_key, cccd_sau_key, chan_dung_key, cam_ket_key, khac_keys, loi_keys, ocr_trang_thai, ocr_so_doc, lat, lng, created_by, created_by_ten, don_vi_id, created_at, updated_at, seri_sim_cu, seri_sim_moi, phoi_cu_key, phoi_moi_key, xac_nhan) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)&quot;
+        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : null, isFinite(lng) ? lng : null, me.id, me.ho_ten, me.don_vi_id || null, saigonNow(), saigonNow(), seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, 1).run();
         return json({ ok: true, id: r.meta.last_row_id });
       }
       if (path === &quot;/api/kh-sim&quot; &amp;&amp; method === &quot;GET&quot;) {
         if (!hasModule(me, &quot;khoso&quot;)) return err(&quot;Tai khoan khong co quyen xem ho so KH&quot;, 403);
         await ensureKhSimTable(env);
         const limit = Math.min(200, Number(url.searchParams.get(&quot;limit&quot;)) || 100);
-        let sql = &quot;SELECT id, so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, ocr_trang_thai, ocr_so_doc, seri_sim_cu, seri_sim_moi, xac_nhan, created_by, created_by_ten, don_vi_id, created_at, needs_update FROM kh_sim_requests&quot;;
+        let sql = &quot;SELECT id, so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, ocr_trang_thai, ocr_so_doc, seri_sim_cu, seri_sim_moi, xac_nhan, created_by, created_by_ten, don_vi_id, created_at, updated_at, needs_update FROM kh_sim_requests&quot;;
         let binds = [];
         if (!isPrivileged &amp;&amp; !isLeaderLike) {
           sql += &quot; WHERE created_by = ?&quot;;
@@ -7396,8 +7397,8 @@ function normKbKey(s) {
         if (fKhac.length) { for (const k of oldKhac) await delOld(k); khacKeys = []; for (let i = 0; i &lt; fKhac.length; i++) khacKeys.push(await putKhSimFile(env, &quot;khac&quot; + i, fKhac[i], true)); }
         if (fLoi.length) { for (const k of oldLoi) await delOld(k); loiKeys = []; for (let i = 0; i &lt; fLoi.length; i++) loiKeys.push(await putKhSimFile(env, &quot;loi&quot; + i, fLoi[i], false)); }
         await env.DB.prepare(
-          &quot;UPDATE kh_sim_requests SET so_thue_bao = ?, ten_thue_bao = ?, loai_giay_to = ?, so_giay_to = ?, ghi_chu = ?, phieu_key = ?, cccd_truoc_key = ?, cccd_sau_key = ?, chan_dung_key = ?, cam_ket_key = ?, khac_keys = ?, loi_keys = ?, ocr_trang_thai = ?, ocr_so_doc = ?, lat = ?, lng = ?, seri_sim_cu = ?, seri_sim_moi = ?, phoi_cu_key = ?, phoi_moi_key = ?, xac_nhan = 1, needs_update = 0 WHERE id = ?&quot;
-        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : rec.lat, isFinite(lng) ? lng : rec.lng, seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, rec.id).run();
+          &quot;UPDATE kh_sim_requests SET so_thue_bao = ?, ten_thue_bao = ?, loai_giay_to = ?, so_giay_to = ?, ghi_chu = ?, phieu_key = ?, cccd_truoc_key = ?, cccd_sau_key = ?, chan_dung_key = ?, cam_ket_key = ?, khac_keys = ?, loi_keys = ?, ocr_trang_thai = ?, ocr_so_doc = ?, lat = ?, lng = ?, seri_sim_cu = ?, seri_sim_moi = ?, phoi_cu_key = ?, phoi_moi_key = ?, updated_at = ?, xac_nhan = 1, needs_update = 0 WHERE id = ?&quot;
+        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : rec.lat, isFinite(lng) ? lng : rec.lng, seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, saigonNow(), rec.id).run();
         return json({ ok: true, id: rec.id });
       }
       // Xem file dinh kem cua ho so (anh/PDF) theo slot, dung pham vi xem chi tiet.
@@ -13393,7 +13394,7 @@ function khRenderSimList() {
   const rows = khSimRows.filter((r) => !q || khNormSearch(r.so_thue_bao).includes(q) || khNormSearch(r.so_giay_to).includes(q) || khNormSearch(r.ten_thue_bao).includes(q));
   const shown = rows.slice(0, 10);
   $("khSimListBody").innerHTML = shown.map((r) =>
-    "<tr><td><b>" + esc(r.so_thue_bao) + "</b></td><td>" + esc(r.ten_thue_bao) + "</td><td>" + esc(KH_DOC_LABELS[r.loai_giay_to] || r.loai_giay_to) + "</td><td>" + esc(r.so_giay_to) + "</td><td>" + (r.ocr_trang_thai === "OK" ? "<span class='pill ok'>✓ OK</span>" : esc(r.ocr_trang_thai || "")) + "</td><td>" + esc(r.created_by_ten || "") + "</td><td>" + esc(r.created_at || "") + "</td><td>" + (r.needs_update ? "<span class='pill bad'>⚠ Cần cập nhật</span> " : "") + "<button class='btn sm blue' data-kh-view='" + r.id + "'>Xem</button>" + ((r.needs_update && (r.created_by === me.id || khIsAdminLike())) ? " <button class='btn sm blue' data-kh-edit='" + r.id + "'>Sửa</button>" : "") + "</td></tr>").join("") ||
+    "<tr><td><b>" + esc(r.so_thue_bao) + "</b></td><td>" + esc(r.ten_thue_bao) + "</td><td>" + esc(KH_DOC_LABELS[r.loai_giay_to] || r.loai_giay_to) + "</td><td>" + esc(r.so_giay_to) + "</td><td>" + (r.ocr_trang_thai === "OK" ? "<span class='pill ok'>✓ OK</span>" : esc(r.ocr_trang_thai || "")) + "</td><td>" + esc(r.created_by_ten || "") + "</td><td>" + esc(r.updated_at || r.created_at || "") + "</td><td>" + (r.needs_update ? "<span class='pill bad'>⚠ Cần cập nhật</span> " : "") + "<button class='btn sm blue' data-kh-view='" + r.id + "'>Xem</button>" + ((r.needs_update && (r.created_by === me.id || khIsAdminLike())) ? " <button class='btn sm blue' data-kh-edit='" + r.id + "'>Sửa</button>" : "") + "</td></tr>").join("") ||
     (khSimRows.length ? "<tr><td colspan='8'>Không tìm thấy hồ sơ phù hợp.</td></tr>" : "<tr><td colspan='8'>Chưa có hồ sơ.</td></tr>");
   $("khSimListBody").querySelectorAll("[data-kh-view]").forEach((b) => b.addEventListener("click", () => khOpenDetail(Number(b.dataset.khView))));
   $("khSimListBody").querySelectorAll("[data-kh-edit]").forEach((b) => b.addEventListener("click", () => khOpenEdit(Number(b.dataset.khEdit))));
@@ -13412,7 +13413,7 @@ async function khOpenDetail(id) {
   try {
     const d = await api("/api/kh-sim/" + id);
     const r = d.row;
-    $("khDetailSub").textContent = "Số thuê bao " + r.so_thue_bao + " — " + r.ten_thue_bao + " — gửi " + (r.created_at || "") + " bởi " + (r.created_by_ten || "");
+    $("khDetailSub").textContent = "Số thuê bao " + r.so_thue_bao + " — " + r.ten_thue_bao + " — gửi " + (r.updated_at || r.created_at || "") + " bởi " + (r.created_by_ten || "");
     const slotBtn = (slot, label, idx) => "<button class='btn sm blue' type='button' data-khfile='" + slot + (idx != null ? ":" + idx : "") + "'>" + esc(label) + "</button>";
     let khacHtml = "—", loiHtml = "—";
     try { const ks = JSON.parse(r.khac_keys || "[]"); if (ks.length) khacHtml = ks.map((k, i) => slotBtn("khac", "Hồ sơ khác " + (i + 1) + (String(k).endsWith(".pdf") ? " (PDF)" : ""), i)).join(" "); } catch (e) { /* giu — */ }
