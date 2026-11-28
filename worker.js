@@ -195,7 +195,7 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -> giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = ["dashboard", "salesdash", "mobiledash", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care", "channelmap", "staff", "policy", "gsheet"];
+const MODULE_KEYS = ["dashboard", "salesdash", "mobiledash", "units", "users", "import", "config", "reports", "packages", "loginstats", "settings", "care", "channelmap", "staff", "policy", "gsheet", "khoso"];
 
 // Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
 // (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
@@ -849,6 +849,41 @@ async function ensureCareTables(env) {
   const cols = await env.DB.prepare("PRAGMA table_info(cham_soc)").all();
   const names = new Set((cols.results || []).map((c) => c.name));
   if (!names.has("y_kien")) await env.DB.prepare("ALTER TABLE cham_soc ADD COLUMN y_kien TEXT").run();
+}
+
+// ---- Quan ly ho so KH - yeu cau thay SIM (28/11/2026) ----
+// 1 ho so = 1 lan gui form thay SIM kem anh (phieu, giay to, chan dung,
+// cam ket, ho so khac, anh loi he thong). Anh luu R2 prefix kh-sim/,
+// chi luu key trong bang; khac_keys/loi_keys la JSON array cac key.
+async function ensureKhSimTable(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT)"
+  ).run();
+}
+async function putKhSimFile(env, slot, file, allowPdf) {
+  if (!env.ANH) throw new Error("Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker)");
+  const mime = file.type || "";
+  const isImg = mime.startsWith("image/");
+  const isPdf = mime === "application/pdf";
+  if (!isImg && !(allowPdf && isPdf)) throw new Error("File " + slot + " phai la anh" + (allowPdf ? " hoac PDF" : ""));
+  if (file.size > 5 * 1024 * 1024) throw new Error("File " + slot + " vuot qua 5MB");
+  const ext = mime === "image/jpeg" ? "jpg" : mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : mime === "image/gif" ? "gif" : mime === "application/pdf" ? "pdf" : "";
+  if (!ext) throw new Error("Dinh dang file " + slot + " khong duoc ho tro (chi nhan jpg, png, webp, gif" + (allowPdf ? ", pdf" : "") + ")");
+  const key = "kh-sim/" + slot + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + ext;
+  await env.ANH.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: mime } });
+  return key;
+}
+// Kiem tra file truoc khi upload (tra ve thong bao loi hoac null): loi dinh
+// dang/kich thuoc la loi nhap lieu (422), khong phai loi he thong (500).
+function khSimFileError(slot, file, allowPdf) {
+  if (!file || !file.size) return null;
+  const mime = file.type || "";
+  const okMime = mime.startsWith("image/") || (allowPdf && mime === "application/pdf");
+  if (!okMime) return "File " + slot + " phai la anh" + (allowPdf ? " hoac PDF" : "");
+  if (file.size > 5 * 1024 * 1024) return "File " + slot + " vuot qua 5MB";
+  const okExt = ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(mime) || (allowPdf && mime === "application/pdf");
+  if (!okExt) return "Dinh dang file " + slot + " khong duoc ho tro (chi nhan jpg, png, webp, gif" + (allowPdf ? ", pdf" : "") + ")";
+  return null;
 }
 
 // ---- Dong bo du lieu tu Google Sheet (module 5.10) ----
@@ -4632,6 +4667,146 @@ function normKbKey(s) {
         // Bat buoc phai co header nay thi trinh duyet moi cho trang web (GitHub
         // Pages, Vercel, ...) doc duoc anh tra ve tu Worker — thieu no, fetch
         // se bi chan va bao "Failed to fetch" du Worker van tra anh binh thuong.
+        headers.set("Access-Control-Allow-Origin", "*");
+        return new Response(obj.body, { headers });
+      }
+      // ---- Quan ly ho so KH - yeu cau thay SIM (28/11/2026) ----
+      // Gui ho so: multipart (form + anh). Bat buoc: SDT 09xxxxxxxx, ten TB,
+      // loai giay to (CCCD/HO_CHIEU/VNEID), so giay to, ghi chu ly do, anh
+      // phieu + anh mat truoc giay to + anh cam ket; CCCD can them mat sau;
+      // OCR phai OK (client chay Tesseract tren anh mat truoc truoc khi gui).
+      // Anh chan dung / ho so khac / anh loi he thong (toi da 5) khong bat buoc.
+      // Xem danh sach: admin/subadmin toan tinh; lanh dao/Chuyen vien thay cay
+      // don vi minh; nhan su khac chi thay ho so do chinh minh gui.
+      if (path === "/api/kh-sim" && method === "POST") {
+        if (!hasModule(me, "khoso")) return err("Tai khoan khong co quyen dung module Quan ly ho so KH", 403);
+        await ensureKhSimTable(env);
+        const ct = request.headers.get("content-type") || "";
+        if (!ct.includes("multipart/form-data")) return err("Du lieu gui len phai la multipart", 422);
+        const fd = await request.formData();
+        const soThueBao = toText(fd.get("so_thue_bao"));
+        const tenThueBao = toText(fd.get("ten_thue_bao"));
+        const loaiGiayTo = toText(fd.get("loai_giay_to"));
+        const soGiayTo = toText(fd.get("so_giay_to"));
+        const ghiChu = toText(fd.get("ghi_chu"));
+        const ocrTrangThai = toText(fd.get("ocr_trang_thai"));
+        const ocrSoDoc = toText(fd.get("ocr_so_doc"));
+        const latRaw = fd.get("lat");
+        const lngRaw = fd.get("lng");
+        const lat = (latRaw === null || latRaw === "") ? NaN : Number(latRaw);
+        const lng = (lngRaw === null || lngRaw === "") ? NaN : Number(lngRaw);
+        if (!/^09\d{8}$/.test(soThueBao)) return err("So thue bao phai dung dinh dang 09xxxxxxxx (10 so)", 422);
+        if (!tenThueBao) return err("Thieu ten thue bao", 422);
+        if (!["CCCD", "HO_CHIEU", "VNEID"].includes(loaiGiayTo)) return err("Loai giay to khong hop le", 422);
+        if (!soGiayTo) return err("Thieu so giay to", 422);
+        if (!ghiChu) return err("Thieu ghi chu ly do de nghi", 422);
+        if (ocrTrangThai !== "OK") return err("Chua kiem tra OCR khop so giay to (can chay OCR tren anh mat truoc giay to truoc khi gui)", 422);
+        const fPhieu = fd.get("phieu");
+        const fTruoc = fd.get("cccd_truoc");
+        const fSau = fd.get("cccd_sau");
+        const fChanDung = fd.get("chan_dung");
+        const fCamKet = fd.get("cam_ket");
+        const fKhac = fd.getAll("khac").filter((f) => f && f.size > 0);
+        const fLoi = fd.getAll("loi").filter((f) => f && f.size > 0);
+        if (!fPhieu || !fPhieu.size) return err("Chua co anh phieu yeu cau thay SIM", 422);
+        if (!fTruoc || !fTruoc.size) return err("Chua co anh mat truoc giay to", 422);
+        if (loaiGiayTo === "CCCD" && (!fSau || !fSau.size)) return err("CCCD/CC gan chip can du anh mat truoc va mat sau", 422);
+        if (!fCamKet || !fCamKet.size) return err("Chua co anh ban cam ket cua KH", 422);
+        if (fLoi.length > 5) return err("Anh chup loi he thong toi da 5 anh", 422);
+        // Kiem tra dinh dang/kich thuoc tat ca file TRUOC khi upload (422),
+        // tranh truong hop upload do roi moi bao loi.
+        const fileChecks = [
+          ["phieu", fPhieu, false], ["mat truoc giay to", fTruoc, false],
+          ["mat sau giay to", fSau, false], ["chan dung", fChanDung, false], ["cam ket", fCamKet, false],
+          ...fKhac.map((f, i) => ["ho so khac " + (i + 1), f, true]),
+          ...fLoi.map((f, i) => ["anh loi " + (i + 1), f, false]),
+        ];
+        for (const [slot, f, allowPdf] of fileChecks) {
+          const fe = khSimFileError(slot, f, allowPdf);
+          if (fe) return err(fe, 422);
+        }
+        const phieuKey = await putKhSimFile(env, "phieu", fPhieu, false);
+        const truocKey = await putKhSimFile(env, "truoc", fTruoc, false);
+        const sauKey = (loaiGiayTo === "CCCD" && fSau && fSau.size) ? await putKhSimFile(env, "sau", fSau, false) : null;
+        const chanDungKey = (fChanDung && fChanDung.size) ? await putKhSimFile(env, "chandung", fChanDung, false) : null;
+        const camKetKey = await putKhSimFile(env, "camket", fCamKet, false);
+        const khacKeys = [];
+        for (let i = 0; i < fKhac.length; i++) khacKeys.push(await putKhSimFile(env, "khac" + i, fKhac[i], true));
+        const loiKeys = [];
+        for (let i = 0; i < fLoi.length; i++) loiKeys.push(await putKhSimFile(env, "loi" + i, fLoi[i], false));
+        const r = await env.DB.prepare(
+          "INSERT INTO kh_sim_requests (so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, phieu_key, cccd_truoc_key, cccd_sau_key, chan_dung_key, cam_ket_key, khac_keys, loi_keys, ocr_trang_thai, ocr_so_doc, lat, lng, created_by, created_by_ten, don_vi_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : null, isFinite(lng) ? lng : null, me.id, me.ho_ten, me.don_vi_id || null, saigonNow()).run();
+        return json({ ok: true, id: r.meta.last_row_id });
+      }
+      if (path === "/api/kh-sim" && method === "GET") {
+        if (!hasModule(me, "khoso")) return err("Tai khoan khong co quyen xem ho so KH", 403);
+        await ensureKhSimTable(env);
+        const limit = Math.min(200, Number(url.searchParams.get("limit")) || 100);
+        let sql = "SELECT id, so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, ocr_trang_thai, ocr_so_doc, created_by_ten, don_vi_id, created_at FROM kh_sim_requests";
+        let binds = [];
+        if (!isPrivileged && !isLeaderLike) {
+          sql += " WHERE created_by = ?";
+          binds = [me.id];
+        } else if (!isPrivileged && isLeaderLike) {
+          // Ho so do admin tao (don_vi_id NULL = toan tinh) thi lanh dao nao
+          // cung thay; ho so cua nhan su thi chi lanh dao cua cay don vi do thay.
+          sql = unitSubtreeCTE() + " " + sql + " WHERE (don_vi_id IS NULL OR don_vi_id IN (SELECT id FROM subtree))";
+          binds = [me.don_vi_id];
+        }
+        sql += " ORDER BY id DESC LIMIT ?";
+        binds.push(limit);
+        const res = await env.DB.prepare(sql).bind(...binds).all();
+        return json({ ok: true, rows: res.results || [] });
+      }
+      const khSimMatch = path.match(/^\/api\/kh-sim\/(\d+)$/);
+      if (khSimMatch && method === "GET") {
+        if (!hasModule(me, "khoso")) return err("Tai khoan khong co quyen xem ho so KH", 403);
+        await ensureKhSimTable(env);
+        const rec = await env.DB.prepare("SELECT * FROM kh_sim_requests WHERE id = ?").bind(Number(khSimMatch[1])).first();
+        if (!rec) return err("Khong tim thay ho so", 404);
+        if (!isPrivileged) {
+          let allowed = rec.created_by === me.id;
+          if (!allowed && isLeaderLike && me.don_vi_id) {
+            const ok = await env.DB.prepare(unitSubtreeCTE() + " SELECT 1 FROM kh_sim_requests WHERE id = ? AND (don_vi_id IS NULL OR don_vi_id IN (SELECT id FROM subtree))").bind(me.don_vi_id, rec.id).first();
+            allowed = !!ok;
+          }
+          if (!allowed) return err("Ho so khong thuoc pham vi cua ban", 403);
+        }
+        return json({ ok: true, row: rec });
+      }
+      // Xem file dinh kem cua ho so (anh/PDF) theo slot, dung pham vi xem chi tiet.
+      const khSimFileMatch = path.match(/^\/api\/kh-sim\/(\d+)\/file$/);
+      if (khSimFileMatch && method === "GET") {
+        if (!hasModule(me, "khoso")) return err("Tai khoan khong co quyen xem ho so KH", 403);
+        await ensureKhSimTable(env);
+        const rec = await env.DB.prepare("SELECT * FROM kh_sim_requests WHERE id = ?").bind(Number(khSimFileMatch[1])).first();
+        if (!rec) return err("Khong tim thay ho so", 404);
+        if (!isPrivileged) {
+          let allowed = rec.created_by === me.id;
+          if (!allowed && isLeaderLike && me.don_vi_id) {
+            const ok = await env.DB.prepare(unitSubtreeCTE() + " SELECT 1 FROM kh_sim_requests WHERE id = ? AND (don_vi_id IS NULL OR don_vi_id IN (SELECT id FROM subtree))").bind(me.don_vi_id, rec.id).first();
+            allowed = !!ok;
+          }
+          if (!allowed) return err("Ho so khong thuoc pham vi cua ban", 403);
+        }
+        const slot = url.searchParams.get("slot") || "";
+        const idx = Number(url.searchParams.get("idx") || 0);
+        let key = null;
+        if (slot === "phieu") key = rec.phieu_key;
+        else if (slot === "truoc") key = rec.cccd_truoc_key;
+        else if (slot === "sau") key = rec.cccd_sau_key;
+        else if (slot === "chandung") key = rec.chan_dung_key;
+        else if (slot === "camket") key = rec.cam_ket_key;
+        else if (slot === "khac") { try { key = (JSON.parse(rec.khac_keys || "[]"))[idx] || null; } catch (e) { key = null; } }
+        else if (slot === "loi") { try { key = (JSON.parse(rec.loi_keys || "[]"))[idx] || null; } catch (e) { key = null; } }
+        if (!key) return err("Khong tim thay file", 404);
+        if (!env.ANH) return err("Chua cau hinh R2 Object Storage", 501);
+        const obj = await env.ANH.get(key);
+        if (!obj) return err("Khong tim thay file", 404);
+        const headers = new Headers();
+        obj.writeHttpMetadata(headers);
+        headers.set("Cache-Control", "private, max-age=3600");
         headers.set("Access-Control-Allow-Origin", "*");
         return new Response(obj.body, { headers });
       }

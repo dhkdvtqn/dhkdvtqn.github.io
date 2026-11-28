@@ -1471,6 +1471,16 @@ html.is-mobile #appRoot #careNvBody td:nth-child(3),html.is-mobile #appRoot #ovP
         </div>
         <button class="nav-btn" data-panel="panel-channelmap">🗺️ Bản đồ kênh bán</button>
         <button class="nav-btn" data-panel="panel-care">🧭 Chăm sóc điểm bán</button>
+        <div class="nav-group closed" data-group="khoso">
+          <button class="nav-group-head" type="button">📁 Quản lý hồ sơ KH <span class="nav-caret">▾</span></button>
+          <div class="nav-group-body">
+            <button class="nav-btn nav-sub" data-panel="panel-kh-sim">📱 Hồ sơ KH yêu cầu thay SIM</button>
+            <button class="nav-btn nav-sub" data-panel="panel-kh-tttb">📝 Hồ sơ KH yêu cầu cập nhật TTTB</button>
+            <button class="nav-btn nav-sub" data-panel="panel-kh-caplai">📞 Hồ sơ KH yêu cầu cấp lại số di động</button>
+            <button class="nav-btn nav-sub" data-panel="panel-kh-chuyenquyen">🔄 Hồ sơ KH yêu cầu chuyển quyền TB di động</button>
+            <button class="nav-btn nav-sub" data-panel="panel-kh-goi">📦 Hồ sơ KH yêu cầu đăng ký gói cước/nâng gói cước</button>
+          </div>
+        </div>
         <button class="nav-btn" data-panel="panel-settings">⚙️ Cài đặt</button>
       </aside>
       <div>
@@ -2669,7 +2679,7 @@ function toText(v) {
 // modules luu dang JSON trong cot nguoi_dung.modules. NULL = chua thiet lap
 // rieng -&gt; giu quyen cu theo vai tro (khong khoa gi them). Admin luon duoc
 // phep dung moi module bat ke modules ghi gi.
-const MODULE_KEYS = [&quot;dashboard&quot;, &quot;salesdash&quot;, &quot;mobiledash&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;, &quot;channelmap&quot;, &quot;staff&quot;, &quot;policy&quot;, &quot;gsheet&quot;];
+const MODULE_KEYS = [&quot;dashboard&quot;, &quot;salesdash&quot;, &quot;mobiledash&quot;, &quot;units&quot;, &quot;users&quot;, &quot;import&quot;, &quot;config&quot;, &quot;reports&quot;, &quot;packages&quot;, &quot;loginstats&quot;, &quot;settings&quot;, &quot;care&quot;, &quot;channelmap&quot;, &quot;staff&quot;, &quot;policy&quot;, &quot;gsheet&quot;, &quot;khoso&quot;];
 
 // Chuan hoa loai kenh ban: nhan ma (DUQ/DBL/GARA/DDV) hoac ten day du
 // (khong phan biet hoa/thuong, khong dau). Chuan hoa ve dang khong dau
@@ -3323,6 +3333,41 @@ async function ensureCareTables(env) {
   const cols = await env.DB.prepare(&quot;PRAGMA table_info(cham_soc)&quot;).all();
   const names = new Set((cols.results || []).map((c) =&gt; c.name));
   if (!names.has(&quot;y_kien&quot;)) await env.DB.prepare(&quot;ALTER TABLE cham_soc ADD COLUMN y_kien TEXT&quot;).run();
+}
+
+// ---- Quan ly ho so KH - yeu cau thay SIM (28/11/2026) ----
+// 1 ho so = 1 lan gui form thay SIM kem anh (phieu, giay to, chan dung,
+// cam ket, ho so khac, anh loi he thong). Anh luu R2 prefix kh-sim/,
+// chi luu key trong bang; khac_keys/loi_keys la JSON array cac key.
+async function ensureKhSimTable(env) {
+  await env.DB.prepare(
+    &quot;CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT)&quot;
+  ).run();
+}
+async function putKhSimFile(env, slot, file, allowPdf) {
+  if (!env.ANH) throw new Error(&quot;Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker)&quot;);
+  const mime = file.type || &quot;&quot;;
+  const isImg = mime.startsWith(&quot;image/&quot;);
+  const isPdf = mime === &quot;application/pdf&quot;;
+  if (!isImg &amp;&amp; !(allowPdf &amp;&amp; isPdf)) throw new Error(&quot;File &quot; + slot + &quot; phai la anh&quot; + (allowPdf ? &quot; hoac PDF&quot; : &quot;&quot;));
+  if (file.size &gt; 5 * 1024 * 1024) throw new Error(&quot;File &quot; + slot + &quot; vuot qua 5MB&quot;);
+  const ext = mime === &quot;image/jpeg&quot; ? &quot;jpg&quot; : mime === &quot;image/png&quot; ? &quot;png&quot; : mime === &quot;image/webp&quot; ? &quot;webp&quot; : mime === &quot;image/gif&quot; ? &quot;gif&quot; : mime === &quot;application/pdf&quot; ? &quot;pdf&quot; : &quot;&quot;;
+  if (!ext) throw new Error(&quot;Dinh dang file &quot; + slot + &quot; khong duoc ho tro (chi nhan jpg, png, webp, gif&quot; + (allowPdf ? &quot;, pdf&quot; : &quot;&quot;) + &quot;)&quot;);
+  const key = &quot;kh-sim/&quot; + slot + &quot;-&quot; + Date.now() + &quot;-&quot; + Math.random().toString(36).slice(2, 8) + &quot;.&quot; + ext;
+  await env.ANH.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: mime } });
+  return key;
+}
+// Kiem tra file truoc khi upload (tra ve thong bao loi hoac null): loi dinh
+// dang/kich thuoc la loi nhap lieu (422), khong phai loi he thong (500).
+function khSimFileError(slot, file, allowPdf) {
+  if (!file || !file.size) return null;
+  const mime = file.type || &quot;&quot;;
+  const okMime = mime.startsWith(&quot;image/&quot;) || (allowPdf &amp;&amp; mime === &quot;application/pdf&quot;);
+  if (!okMime) return &quot;File &quot; + slot + &quot; phai la anh&quot; + (allowPdf ? &quot; hoac PDF&quot; : &quot;&quot;);
+  if (file.size &gt; 5 * 1024 * 1024) return &quot;File &quot; + slot + &quot; vuot qua 5MB&quot;;
+  const okExt = [&quot;image/jpeg&quot;, &quot;image/png&quot;, &quot;image/webp&quot;, &quot;image/gif&quot;].includes(mime) || (allowPdf &amp;&amp; mime === &quot;application/pdf&quot;);
+  if (!okExt) return &quot;Dinh dang file &quot; + slot + &quot; khong duoc ho tro (chi nhan jpg, png, webp, gif&quot; + (allowPdf ? &quot;, pdf&quot; : &quot;&quot;) + &quot;)&quot;;
+  return null;
 }
 
 // ---- Dong bo du lieu tu Google Sheet (module 5.10) ----
@@ -7109,6 +7154,146 @@ function normKbKey(s) {
         headers.set(&quot;Access-Control-Allow-Origin&quot;, &quot;*&quot;);
         return new Response(obj.body, { headers });
       }
+      // ---- Quan ly ho so KH - yeu cau thay SIM (28/11/2026) ----
+      // Gui ho so: multipart (form + anh). Bat buoc: SDT 09xxxxxxxx, ten TB,
+      // loai giay to (CCCD/HO_CHIEU/VNEID), so giay to, ghi chu ly do, anh
+      // phieu + anh mat truoc giay to + anh cam ket; CCCD can them mat sau;
+      // OCR phai OK (client chay Tesseract tren anh mat truoc truoc khi gui).
+      // Anh chan dung / ho so khac / anh loi he thong (toi da 5) khong bat buoc.
+      // Xem danh sach: admin/subadmin toan tinh; lanh dao/Chuyen vien thay cay
+      // don vi minh; nhan su khac chi thay ho so do chinh minh gui.
+      if (path === &quot;/api/kh-sim&quot; &amp;&amp; method === &quot;POST&quot;) {
+        if (!hasModule(me, &quot;khoso&quot;)) return err(&quot;Tai khoan khong co quyen dung module Quan ly ho so KH&quot;, 403);
+        await ensureKhSimTable(env);
+        const ct = request.headers.get(&quot;content-type&quot;) || &quot;&quot;;
+        if (!ct.includes(&quot;multipart/form-data&quot;)) return err(&quot;Du lieu gui len phai la multipart&quot;, 422);
+        const fd = await request.formData();
+        const soThueBao = toText(fd.get(&quot;so_thue_bao&quot;));
+        const tenThueBao = toText(fd.get(&quot;ten_thue_bao&quot;));
+        const loaiGiayTo = toText(fd.get(&quot;loai_giay_to&quot;));
+        const soGiayTo = toText(fd.get(&quot;so_giay_to&quot;));
+        const ghiChu = toText(fd.get(&quot;ghi_chu&quot;));
+        const ocrTrangThai = toText(fd.get(&quot;ocr_trang_thai&quot;));
+        const ocrSoDoc = toText(fd.get(&quot;ocr_so_doc&quot;));
+        const latRaw = fd.get(&quot;lat&quot;);
+        const lngRaw = fd.get(&quot;lng&quot;);
+        const lat = (latRaw === null || latRaw === &quot;&quot;) ? NaN : Number(latRaw);
+        const lng = (lngRaw === null || lngRaw === &quot;&quot;) ? NaN : Number(lngRaw);
+        if (!/^09\d{8}$/.test(soThueBao)) return err(&quot;So thue bao phai dung dinh dang 09xxxxxxxx (10 so)&quot;, 422);
+        if (!tenThueBao) return err(&quot;Thieu ten thue bao&quot;, 422);
+        if (![&quot;CCCD&quot;, &quot;HO_CHIEU&quot;, &quot;VNEID&quot;].includes(loaiGiayTo)) return err(&quot;Loai giay to khong hop le&quot;, 422);
+        if (!soGiayTo) return err(&quot;Thieu so giay to&quot;, 422);
+        if (!ghiChu) return err(&quot;Thieu ghi chu ly do de nghi&quot;, 422);
+        if (ocrTrangThai !== &quot;OK&quot;) return err(&quot;Chua kiem tra OCR khop so giay to (can chay OCR tren anh mat truoc giay to truoc khi gui)&quot;, 422);
+        const fPhieu = fd.get(&quot;phieu&quot;);
+        const fTruoc = fd.get(&quot;cccd_truoc&quot;);
+        const fSau = fd.get(&quot;cccd_sau&quot;);
+        const fChanDung = fd.get(&quot;chan_dung&quot;);
+        const fCamKet = fd.get(&quot;cam_ket&quot;);
+        const fKhac = fd.getAll(&quot;khac&quot;).filter((f) =&gt; f &amp;&amp; f.size &gt; 0);
+        const fLoi = fd.getAll(&quot;loi&quot;).filter((f) =&gt; f &amp;&amp; f.size &gt; 0);
+        if (!fPhieu || !fPhieu.size) return err(&quot;Chua co anh phieu yeu cau thay SIM&quot;, 422);
+        if (!fTruoc || !fTruoc.size) return err(&quot;Chua co anh mat truoc giay to&quot;, 422);
+        if (loaiGiayTo === &quot;CCCD&quot; &amp;&amp; (!fSau || !fSau.size)) return err(&quot;CCCD/CC gan chip can du anh mat truoc va mat sau&quot;, 422);
+        if (!fCamKet || !fCamKet.size) return err(&quot;Chua co anh ban cam ket cua KH&quot;, 422);
+        if (fLoi.length &gt; 5) return err(&quot;Anh chup loi he thong toi da 5 anh&quot;, 422);
+        // Kiem tra dinh dang/kich thuoc tat ca file TRUOC khi upload (422),
+        // tranh truong hop upload do roi moi bao loi.
+        const fileChecks = [
+          [&quot;phieu&quot;, fPhieu, false], [&quot;mat truoc giay to&quot;, fTruoc, false],
+          [&quot;mat sau giay to&quot;, fSau, false], [&quot;chan dung&quot;, fChanDung, false], [&quot;cam ket&quot;, fCamKet, false],
+          ...fKhac.map((f, i) =&gt; [&quot;ho so khac &quot; + (i + 1), f, true]),
+          ...fLoi.map((f, i) =&gt; [&quot;anh loi &quot; + (i + 1), f, false]),
+        ];
+        for (const [slot, f, allowPdf] of fileChecks) {
+          const fe = khSimFileError(slot, f, allowPdf);
+          if (fe) return err(fe, 422);
+        }
+        const phieuKey = await putKhSimFile(env, &quot;phieu&quot;, fPhieu, false);
+        const truocKey = await putKhSimFile(env, &quot;truoc&quot;, fTruoc, false);
+        const sauKey = (loaiGiayTo === &quot;CCCD&quot; &amp;&amp; fSau &amp;&amp; fSau.size) ? await putKhSimFile(env, &quot;sau&quot;, fSau, false) : null;
+        const chanDungKey = (fChanDung &amp;&amp; fChanDung.size) ? await putKhSimFile(env, &quot;chandung&quot;, fChanDung, false) : null;
+        const camKetKey = await putKhSimFile(env, &quot;camket&quot;, fCamKet, false);
+        const khacKeys = [];
+        for (let i = 0; i &lt; fKhac.length; i++) khacKeys.push(await putKhSimFile(env, &quot;khac&quot; + i, fKhac[i], true));
+        const loiKeys = [];
+        for (let i = 0; i &lt; fLoi.length; i++) loiKeys.push(await putKhSimFile(env, &quot;loi&quot; + i, fLoi[i], false));
+        const r = await env.DB.prepare(
+          &quot;INSERT INTO kh_sim_requests (so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, phieu_key, cccd_truoc_key, cccd_sau_key, chan_dung_key, cam_ket_key, khac_keys, loi_keys, ocr_trang_thai, ocr_so_doc, lat, lng, created_by, created_by_ten, don_vi_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)&quot;
+        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : null, isFinite(lng) ? lng : null, me.id, me.ho_ten, me.don_vi_id || null, saigonNow()).run();
+        return json({ ok: true, id: r.meta.last_row_id });
+      }
+      if (path === &quot;/api/kh-sim&quot; &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;khoso&quot;)) return err(&quot;Tai khoan khong co quyen xem ho so KH&quot;, 403);
+        await ensureKhSimTable(env);
+        const limit = Math.min(200, Number(url.searchParams.get(&quot;limit&quot;)) || 100);
+        let sql = &quot;SELECT id, so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, ocr_trang_thai, ocr_so_doc, created_by_ten, don_vi_id, created_at FROM kh_sim_requests&quot;;
+        let binds = [];
+        if (!isPrivileged &amp;&amp; !isLeaderLike) {
+          sql += &quot; WHERE created_by = ?&quot;;
+          binds = [me.id];
+        } else if (!isPrivileged &amp;&amp; isLeaderLike) {
+          // Ho so do admin tao (don_vi_id NULL = toan tinh) thi lanh dao nao
+          // cung thay; ho so cua nhan su thi chi lanh dao cua cay don vi do thay.
+          sql = unitSubtreeCTE() + &quot; &quot; + sql + &quot; WHERE (don_vi_id IS NULL OR don_vi_id IN (SELECT id FROM subtree))&quot;;
+          binds = [me.don_vi_id];
+        }
+        sql += &quot; ORDER BY id DESC LIMIT ?&quot;;
+        binds.push(limit);
+        const res = await env.DB.prepare(sql).bind(...binds).all();
+        return json({ ok: true, rows: res.results || [] });
+      }
+      const khSimMatch = path.match(/^\/api\/kh-sim\/(\d+)$/);
+      if (khSimMatch &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;khoso&quot;)) return err(&quot;Tai khoan khong co quyen xem ho so KH&quot;, 403);
+        await ensureKhSimTable(env);
+        const rec = await env.DB.prepare(&quot;SELECT * FROM kh_sim_requests WHERE id = ?&quot;).bind(Number(khSimMatch[1])).first();
+        if (!rec) return err(&quot;Khong tim thay ho so&quot;, 404);
+        if (!isPrivileged) {
+          let allowed = rec.created_by === me.id;
+          if (!allowed &amp;&amp; isLeaderLike &amp;&amp; me.don_vi_id) {
+            const ok = await env.DB.prepare(unitSubtreeCTE() + &quot; SELECT 1 FROM kh_sim_requests WHERE id = ? AND (don_vi_id IS NULL OR don_vi_id IN (SELECT id FROM subtree))&quot;).bind(me.don_vi_id, rec.id).first();
+            allowed = !!ok;
+          }
+          if (!allowed) return err(&quot;Ho so khong thuoc pham vi cua ban&quot;, 403);
+        }
+        return json({ ok: true, row: rec });
+      }
+      // Xem file dinh kem cua ho so (anh/PDF) theo slot, dung pham vi xem chi tiet.
+      const khSimFileMatch = path.match(/^\/api\/kh-sim\/(\d+)\/file$/);
+      if (khSimFileMatch &amp;&amp; method === &quot;GET&quot;) {
+        if (!hasModule(me, &quot;khoso&quot;)) return err(&quot;Tai khoan khong co quyen xem ho so KH&quot;, 403);
+        await ensureKhSimTable(env);
+        const rec = await env.DB.prepare(&quot;SELECT * FROM kh_sim_requests WHERE id = ?&quot;).bind(Number(khSimFileMatch[1])).first();
+        if (!rec) return err(&quot;Khong tim thay ho so&quot;, 404);
+        if (!isPrivileged) {
+          let allowed = rec.created_by === me.id;
+          if (!allowed &amp;&amp; isLeaderLike &amp;&amp; me.don_vi_id) {
+            const ok = await env.DB.prepare(unitSubtreeCTE() + &quot; SELECT 1 FROM kh_sim_requests WHERE id = ? AND (don_vi_id IS NULL OR don_vi_id IN (SELECT id FROM subtree))&quot;).bind(me.don_vi_id, rec.id).first();
+            allowed = !!ok;
+          }
+          if (!allowed) return err(&quot;Ho so khong thuoc pham vi cua ban&quot;, 403);
+        }
+        const slot = url.searchParams.get(&quot;slot&quot;) || &quot;&quot;;
+        const idx = Number(url.searchParams.get(&quot;idx&quot;) || 0);
+        let key = null;
+        if (slot === &quot;phieu&quot;) key = rec.phieu_key;
+        else if (slot === &quot;truoc&quot;) key = rec.cccd_truoc_key;
+        else if (slot === &quot;sau&quot;) key = rec.cccd_sau_key;
+        else if (slot === &quot;chandung&quot;) key = rec.chan_dung_key;
+        else if (slot === &quot;camket&quot;) key = rec.cam_ket_key;
+        else if (slot === &quot;khac&quot;) { try { key = (JSON.parse(rec.khac_keys || &quot;[]&quot;))[idx] || null; } catch (e) { key = null; } }
+        else if (slot === &quot;loi&quot;) { try { key = (JSON.parse(rec.loi_keys || &quot;[]&quot;))[idx] || null; } catch (e) { key = null; } }
+        if (!key) return err(&quot;Khong tim thay file&quot;, 404);
+        if (!env.ANH) return err(&quot;Chua cau hinh R2 Object Storage&quot;, 501);
+        const obj = await env.ANH.get(key);
+        if (!obj) return err(&quot;Khong tim thay file&quot;, 404);
+        const headers = new Headers();
+        obj.writeHttpMetadata(headers);
+        headers.set(&quot;Cache-Control&quot;, &quot;private, max-age=3600&quot;);
+        headers.set(&quot;Access-Control-Allow-Origin&quot;, &quot;*&quot;);
+        return new Response(obj.body, { headers });
+      }
       // ---- Bao cao cham soc diem ban (trong muc Bao cao thong ke) ----
       // Chi admin/subadmin/lanh dao don vi duoc xem (diem ban thuong khong duoc,
       // ke ca khi modules NULL) — pham vi: lanh dao chi thay cay don vi cua minh.
@@ -7355,6 +7540,55 @@ function normKbKey(s) {
           <div id="chMapLegend" class="map-legend" style="margin-top:10px"></div>
         </section>
 
+        <section class="panel hidden" id="panel-kh-sim">
+          <h2>📱 Hồ sơ KH yêu cầu thay SIM</h2>
+          <p class="desc">Tiếp nhận hồ sơ thay SIM của khách hàng: nhập thông tin thuê bao, tải ảnh phiếu yêu cầu + giấy tờ + bản cam kết. Ảnh giấy tờ, ảnh chân dung, ảnh cam kết và ảnh hồ sơ khác được hệ thống tự đóng dấu tọa độ và thời gian lúc tải lên. Sau khi tải ảnh mặt trước giấy tờ, hệ thống đọc OCR số giấy tờ để đối chiếu với số đã nhập — khớp mới được gửi hồ sơ.</p>
+          <form id="khSimForm" class="form-grid" onsubmit="return false;">
+            <div><label>Số thuê bao di động (*)</label><input id="khPhone" inputmode="tel" placeholder="09xxxxxxxx — VD: 0912345678" /></div>
+            <div><label>Tên thuê bao (*)</label><input id="khName" placeholder="Họ tên khách hàng" /></div>
+            <div><label>Loại giấy tờ tùy thân (*)</label><select id="khDocType"><option value="CCCD">CCCD/CC gắn chíp</option><option value="HO_CHIEU">Hộ chiếu</option><option value="VNEID">VNeID mức 2</option></select></div>
+            <div><label>Số CCCD/CC/hộ chiếu (*)</label><input id="khDocNo" placeholder="Nhập số giấy tờ" /></div>
+            <div><label>Phiếu yêu cầu thay SIM (*)</label><input type="file" id="khPhieu" accept="image/*" capture="environment" /><div class="desc" id="khPhieuInfo">Chưa chọn ảnh.</div></div>
+            <div><label>Ảnh mặt trước giấy tờ (*)</label><input type="file" id="khDocFront" accept="image/*" capture="environment" /><div class="desc" id="khDocFrontInfo">Chưa chọn ảnh. Sau khi tải lên, hệ thống tự đóng dấu tọa độ + thời gian và đọc OCR để đối chiếu số giấy tờ.</div></div>
+            <div id="khDocBackBox"><label>Ảnh mặt sau giấy tờ (*)</label><input type="file" id="khDocBack" accept="image/*" capture="environment" /><div class="desc" id="khDocBackInfo">Chưa chọn ảnh. Chỉ bắt buộc khi loại giấy tờ là CCCD/CC gắn chíp.</div></div>
+            <div><label>Ảnh chân dung KH</label><input type="file" id="khPortrait" accept="image/*" capture="environment" /><div class="desc" id="khPortraitInfo">Không bắt buộc. Ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
+            <div><label>Ảnh bản cam kết của KH (*)</label><input type="file" id="khCommit" accept="image/*" capture="environment" /><div class="desc" id="khCommitInfo">Chưa chọn ảnh. Ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
+            <div><label>Ảnh các hồ sơ khác liên quan</label><input type="file" id="khOther" accept="image/*,.pdf" multiple /><div class="desc" id="khOtherInfo">Không bắt buộc. Cho phép ảnh hoặc file PDF; ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
+            <div><label>Ảnh chụp lỗi hệ thống (tối đa 5 ảnh)</label><input type="file" id="khErr" accept="image/*" multiple /><div class="desc" id="khErrInfo">Không bắt buộc. Tối đa 5 ảnh.</div></div>
+            <div style="grid-column:1/-1"><label>Ghi chú (*) — lý do đề nghị thay SIM</label><textarea id="khNote" rows="2" placeholder="VD: SIM hỏng, mất sóng..."></textarea></div>
+            <div style="grid-column:1/-1">
+              <div id="khOcrBox" class="desc">Chưa kiểm tra OCR. Hãy tải ảnh mặt trước giấy tờ để hệ thống đọc số và đối chiếu.</div>
+              <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                <button class="btn gray" type="button" id="khOcrBtn">🔍 Chạy lại OCR</button>
+                <button class="btn blue" type="button" id="khSubmitBtn">📤 Gửi hồ sơ</button>
+              </div>
+            </div>
+          </form>
+          <div id="khSimMsg"></div>
+          <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Hồ sơ đã gửi</h3>
+          <div class="tbl-wrap"><table class="data"><thead><tr><th>Số thuê bao</th><th>Tên thuê bao</th><th>Loại giấy tờ</th><th>Số giấy tờ</th><th>OCR</th><th>Người gửi</th><th>Ngày gửi</th><th></th></tr></thead><tbody id="khSimListBody"><tr><td colspan="8">Chưa có hồ sơ.</td></tr></tbody></table></div>
+        </section>
+
+        <section class="panel hidden" id="panel-kh-tttb">
+          <h2>📝 Hồ sơ KH yêu cầu cập nhật TTTB</h2>
+          <p class="desc">Đang trong quá trình xây dựng.</p>
+        </section>
+
+        <section class="panel hidden" id="panel-kh-caplai">
+          <h2>📞 Hồ sơ KH yêu cầu cấp lại số di động</h2>
+          <p class="desc">Đang trong quá trình xây dựng.</p>
+        </section>
+
+        <section class="panel hidden" id="panel-kh-chuyenquyen">
+          <h2>🔄 Hồ sơ KH yêu cầu chuyển quyền TB di động</h2>
+          <p class="desc">Đang trong quá trình xây dựng.</p>
+        </section>
+
+        <section class="panel hidden" id="panel-kh-goi">
+          <h2>📦 Hồ sơ KH yêu cầu đăng ký gói cước/nâng gói cước</h2>
+          <p class="desc">Đang trong quá trình xây dựng.</p>
+        </section>
+
         <section class="panel hidden" id="panel-loginstats">
           <h2>Thống kê đăng nhập</h2>
           <p class="desc">Thống kê số lượt đăng nhập hệ thống của người dùng theo từng tháng. Chỉ admin và SubAdmin được xem module này. Số liệu được ghi lại tự động mỗi khi có người đăng nhập thành công (tính từ khi chức năng này được bật).</p>
@@ -7450,6 +7684,15 @@ function normKbKey(s) {
     <div class="field" style="margin-top:10px"><label>Ghi chú</label><input id="careNote" placeholder="VD: Đã kiểm tra biển hiệu, bổ sung tờ rơi gói mới" /></div>
     <div style="display:flex;gap:10px;margin-top:14px"><button class="btn blue" type="button" id="careSaveBtn" disabled>Lưu kết quả</button><button class="btn gray" type="button" id="careCancelBtn">Đóng</button></div>
     <div id="careModalMsg"></div>
+  </div>
+</div>
+
+<div id="khDetailBack" class="modal-back hidden">
+  <div class="modal" style="max-width:640px">
+    <h2>Hồ sơ thay SIM</h2>
+    <p class="sub" id="khDetailSub"></p>
+    <div id="khDetailBody"></div>
+    <div style="display:flex;gap:10px;margin-top:14px"><button class="btn gray" type="button" id="khDetailCloseBtn">Đóng</button></div>
   </div>
 </div>
 </div>
@@ -7758,7 +8001,7 @@ const MODULE_DEFS = [
   ["dashboard", "Dashboard chi trả hoa hồng"], ["salesdash", "Dashboard KBH"], ["mobiledash", "Dashboard TTCSKH"], ["units", "Quản lý đơn vị"], ["users", "Quản lý kênh bán"], ["staff", "Quản lý người dùng"],
   ["import", "Quản lý dữ liệu đầu vào"], ["config", "Cấu hình kết nối D1"], ["reports", "Báo cáo thống kê"],
   ["packages", "Danh mục gói cước"], ["loginstats", "Thống kê đăng nhập"], ["care", "Chăm sóc điểm bán"], ["channelmap", "Bản đồ kênh bán"], ["settings", "Cài đặt"],
-  ["policy", "Cơ chế chính sách"],
+  ["policy", "Cơ chế chính sách"], ["khoso", "Quản lý hồ sơ KH"],
 ];
 const PANEL_MODULES = {
   "panel-dashboard": "dashboard", "panel-salesdash": "salesdash", "panel-mobile": "mobiledash", "panel-units": "units", "panel-users": "users", "panel-staff": "staff", "panel-import": "import",
@@ -7767,6 +8010,7 @@ const PANEL_MODULES = {
   "panel-gsheet": "gsheet",
   "panel-loginstats": "loginstats", "panel-care": "care", "panel-channelmap": "channelmap", "panel-settings": "settings",
   "panel-policy-new": "policy", "panel-policy-existing": "policy",
+  "panel-kh-sim": "khoso", "panel-kh-tttb": "khoso", "panel-kh-caplai": "khoso", "panel-kh-chuyenquyen": "khoso", "panel-kh-goi": "khoso",
 };
 const DEFAULT_MODULES = ["dashboard", "reports", "packages", "settings", "policy"];
 const LEADER_MODULES = [...DEFAULT_MODULES, "care"];
@@ -8052,6 +8296,7 @@ function openPanel(panelId, btn) {
   if (panelId === "panel-carereport") { const pn = new Date(), pp2 = (x) => String(x).padStart(2, "0"); const ym = pn.getFullYear() + "-" + pp2(pn.getMonth() + 1); if (!$("crFrom").value) $("crFrom").value = ym + "-01"; if (!$("crTo").value) $("crTo").value = ym + "-" + new Date(pn.getFullYear(), pn.getMonth() + 1, 0).getDate(); if (!$("crMonth").value) $("crMonth").value = ym; }
   if (panelId === "panel-care") loadCareBatches();
   if (panelId === "panel-channelmap") loadChannelMap();
+  if (panelId === "panel-kh-sim") loadKhSimList();
   if (panelId === "panel-config") $("cfgApiUrl").value = apiBase;
 }
 document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel, b)));
@@ -12657,6 +12902,301 @@ $("chMapNamesBtn").addEventListener("click", () => {
   $("chMapNamesBtn").textContent = chMapShowNames ? "🙈 Ẩn tên điểm bán" : "👁 Hiện tên điểm bán";
   renderChannelMap(false);
 });
+
+/* ---------------- Quan ly ho so KH - thay SIM ---------------- */
+// Anh giay to / chan dung / cam ket / ho so khac (anh) duoc dong dau toa do
+// + thoi gian giong anh cham soc diem ban (canvas, nen < 1MB). Phieu yeu cau
+// va anh loi he thong gui nguyen file goc (khong dong dau).
+// OCR chay bang Tesseract.js (CDN, lazy-load): doc so tren anh mat truoc
+// giay to roi doi chieu voi so da nhap — khop moi duoc gui ho so.
+let khFront = null, khBack = null, khPhieu = null, khPortrait = null, khCommit = null;
+let khOther = [], khErr = [];
+let khOcrStatus = "CHUA_KIEM_TRA", khOcrText = "", khLat = null, khLng = null;
+let khTessReady = null;
+const KH_DOC_LABELS = { CCCD: "CCCD/CC gắn chíp", HO_CHIEU: "Hộ chiếu", VNEID: "VNeID mức 2" };
+function khNormDoc(s) { return String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+function khSetOcr(status, text) {
+  khOcrStatus = status;
+  const box = $("khOcrBox");
+  if (!box) return;
+  const color = status === "OK" ? "var(--ok)" : status === "DANG_KIEM_TRA" ? "var(--blue-dark)" : status === "CHUA_KIEM_TRA" ? "inherit" : "var(--bad)";
+  box.innerHTML = "<b style='color:" + color + "'>" + esc(text) + "</b>";
+}
+async function khStampPhoto(file) {
+  const loc = await fetchDeviceLocation();
+  const photoTime = new Date();
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error("Không đọc được file ảnh"));
+    im.src = URL.createObjectURL(file);
+  });
+  const MAX = 1600;
+  const baseScale = Math.min(1, MAX / Math.max(img.width, img.height));
+  function makeStampedCanvas(scaleMul) {
+    const cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(img.width * baseScale * scaleMul));
+    cv.height = Math.max(1, Math.round(img.height * baseScale * scaleMul));
+    const ctx = cv.getContext("2d");
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    const barH = Math.max(46, Math.round(cv.height * 0.1));
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
+    ctx.fillRect(0, cv.height - barH, cv.width, barH);
+    ctx.fillStyle = "#fff";
+    ctx.font = Math.max(15, Math.round(barH * 0.3)) + "px sans-serif";
+    ctx.fillText("Lat: " + loc.lat.toFixed(6) + "   Lng: " + loc.lng.toFixed(6), 12, cv.height - barH + Math.round(barH * 0.42));
+    ctx.fillText("Thời gian chụp: " + fmtDT(photoTime), 12, cv.height - Math.round(barH * 0.16));
+    return cv;
+  }
+  const MAX_BYTES = 1000 * 1000;
+  const attempts = [
+    { s: 1, q: 0.85 }, { s: 1, q: 0.7 }, { s: 1, q: 0.55 },
+    { s: 0.75, q: 0.7 }, { s: 0.75, q: 0.55 },
+    { s: 0.5, q: 0.6 }, { s: 0.5, q: 0.45 }, { s: 0.35, q: 0.5 },
+  ];
+  let blob = null;
+  for (const a of attempts) {
+    const b = await new Promise((resolve) => makeStampedCanvas(a.s).toBlob(resolve, "image/jpeg", a.q));
+    if (!b) continue;
+    blob = b;
+    if (b.size < MAX_BYTES) break;
+  }
+  URL.revokeObjectURL(img.src);
+  if (!blob) throw new Error("Không xử lý được ảnh");
+  return { blob, lat: loc.lat, lng: loc.lng, photoTime: photoTime.toISOString() };
+}
+function khStampInfo(st) {
+  return "Đã đóng dấu: Lat " + st.lat.toFixed(6) + ", Lng " + st.lng.toFixed(6) + " — Thời gian chụp " + fmtDT(new Date(st.photoTime)) + ". Dung lượng sau nén: " + (st.blob.size / 1024).toFixed(0) + " KB.";
+}
+async function khPickStamped(inputEl, infoEl) {
+  const file = inputEl.files[0];
+  if (!file) return null;
+  infoEl.textContent = "Đang xử lý ảnh và lấy vị trí lúc chụp…";
+  try {
+    const st = await khStampPhoto(file);
+    infoEl.innerHTML = esc(khStampInfo(st)) + "<br /><img src='" + URL.createObjectURL(st.blob) + "' style='max-width:180px;border-radius:8px;margin-top:6px' alt='Ảnh đã đóng dấu' />";
+    return st;
+  } catch (e) {
+    infoEl.textContent = "Chưa đóng dấu được ảnh: " + e.message + ". Hãy bật định vị và chọn lại ảnh.";
+    return null;
+  }
+}
+async function khPickPlain(inputEl, infoEl) {
+  const file = inputEl.files[0];
+  if (!file) return null;
+  if (!file.type.startsWith("image/")) { infoEl.textContent = "File phải là ảnh."; return null; }
+  if (file.size > 5 * 1024 * 1024) { infoEl.textContent = "Ảnh vượt quá 5MB."; return null; }
+  infoEl.innerHTML = "Đã chọn: " + esc(file.name) + " (" + (file.size / 1024).toFixed(0) + " KB).<br /><img src='" + URL.createObjectURL(file) + "' style='max-width:180px;border-radius:8px;margin-top:6px' alt='Ảnh đã chọn' />";
+  return { blob: file, lat: null, lng: null, photoTime: null, name: file.name };
+}
+async function khPickMulti(inputEl, infoEl, opts) {
+  const files = [...(inputEl.files || [])];
+  if (opts.max && files.length > opts.max) { infoEl.textContent = "Tối đa " + opts.max + " file — hãy chọn lại."; inputEl.value = ""; return []; }
+  const out = [];
+  const lines = [];
+  for (const f of files) {
+    if (f.type.startsWith("image/")) {
+      if (f.size > 5 * 1024 * 1024) { lines.push("✗ " + f.name + ": vượt quá 5MB."); continue; }
+      if (opts.stampImages) {
+        try {
+          const st = await khStampPhoto(f);
+          out.push({ blob: st.blob, name: f.name });
+          lines.push("✓ " + f.name + " (đã đóng dấu, " + (st.blob.size / 1024).toFixed(0) + " KB)");
+        } catch (e) { lines.push("✗ " + f.name + ": " + e.message); }
+      } else {
+        out.push({ blob: f, name: f.name });
+        lines.push("✓ " + f.name + " (" + (f.size / 1024).toFixed(0) + " KB)");
+      }
+    } else if (opts.allowPdf && f.type === "application/pdf") {
+      if (f.size > 5 * 1024 * 1024) { lines.push("✗ " + f.name + ": vượt quá 5MB."); continue; }
+      out.push({ blob: f, name: f.name, isPdf: true });
+      lines.push("✓ " + f.name + " (PDF, " + (f.size / 1024).toFixed(0) + " KB)");
+    } else {
+      lines.push("✗ " + f.name + ": chỉ nhận ảnh" + (opts.allowPdf ? " hoặc PDF" : "") + ".");
+    }
+  }
+  infoEl.innerHTML = lines.map(esc).join("<br />") || "Chưa chọn file.";
+  return out;
+}
+function khLoadTesseract() {
+  if (khTessReady) return khTessReady;
+  khTessReady = new Promise((resolve, reject) => {
+    if (window.Tesseract) return resolve(window.Tesseract);
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    s.onload = () => (window.Tesseract ? resolve(window.Tesseract) : reject(new Error("Không tải được thư viện OCR")));
+    s.onerror = () => reject(new Error("Không tải được thư viện OCR (kiểm tra mạng)"));
+    document.head.appendChild(s);
+  });
+  return khTessReady;
+}
+async function khRunOcr() {
+  const docNo = khNormDoc($("khDocNo").value);
+  if (!khFront) { khSetOcr("CHUA_KIEM_TRA", "Chưa có ảnh mặt trước giấy tờ để đọc OCR."); return; }
+  if (!docNo) { khSetOcr("CHUA_KIEM_TRA", "Hãy nhập số giấy tờ trước khi chạy OCR."); return; }
+  khSetOcr("DANG_KIEM_TRA", "Đang đọc OCR ảnh mặt trước giấy tờ…");
+  try {
+    const T = await khLoadTesseract();
+    const res = await T.recognize(khFront.blob, "eng");
+    const text = (res && res.data && res.data.text) || "";
+    khOcrText = text;
+    const flat = khNormDoc(text);
+    if (!flat) { khSetOcr("KHONG_DOC_DUOC", "Không đọc được số nào từ ảnh. Hãy chụp rõ hơn (đủ sáng, không lóa, số giấy tờ nằm trong khung hình) rồi chạy lại OCR."); return; }
+    if (flat.includes(docNo)) { khSetOcr("OK", "✓ OCR khớp: đọc được số “" + docNo + "” trên ảnh giấy tờ."); }
+    else {
+      const cand = (text.match(/[A-Za-z0-9][A-Za-z0-9 \-.]{5,}/g) || []).map((x) => khNormDoc(x)).filter((x) => x.length >= 6).sort((a, b) => b.length - a.length)[0] || flat.slice(0, 20);
+      khSetOcr("KHONG_KHOP", "✗ OCR đọc được “" + cand + "” — không khớp với số đã nhập “" + docNo + "”. Hãy nhập lại số giấy tờ (hoặc chụp lại ảnh rõ hơn) rồi chạy lại OCR.");
+    }
+  } catch (e) {
+    khSetOcr("LOI", "Không chạy được OCR: " + e.message + ". Hãy kiểm tra mạng rồi chạy lại.");
+  }
+}
+$("khDocType").addEventListener("change", () => {
+  const isCccd = $("khDocType").value === "CCCD";
+  $("khDocBackBox").classList.toggle("hidden", !isCccd);
+  if (!isCccd) { khBack = null; $("khDocBack").value = ""; $("khDocBackInfo").textContent = "Không cần với Hộ chiếu / VNeID mức 2."; }
+  khSetOcr("CHUA_KIEM_TRA", "Đã đổi loại giấy tờ — hãy chạy lại OCR sau khi tải ảnh mặt trước.");
+});
+$("khDocNo").addEventListener("change", () => { if (khFront) khRunOcr(); });
+$("khPhieu").addEventListener("change", async () => { khPhieu = await khPickPlain($("khPhieu"), $("khPhieuInfo")); });
+$("khDocFront").addEventListener("change", async () => {
+  khFront = await khPickStamped($("khDocFront"), $("khDocFrontInfo"));
+  if (khFront) { khLat = khFront.lat; khLng = khFront.lng; khRunOcr(); }
+  else khSetOcr("CHUA_KIEM_TRA", "Chưa có ảnh mặt trước giấy tờ để đọc OCR.");
+});
+$("khDocBack").addEventListener("change", async () => { khBack = await khPickStamped($("khDocBack"), $("khDocBackInfo")); });
+$("khPortrait").addEventListener("change", async () => { khPortrait = await khPickStamped($("khPortrait"), $("khPortraitInfo")); });
+$("khCommit").addEventListener("change", async () => { khCommit = await khPickStamped($("khCommit"), $("khCommitInfo")); });
+$("khOther").addEventListener("change", async () => { khOther = await khPickMulti($("khOther"), $("khOtherInfo"), { stampImages: true, allowPdf: true }); });
+$("khErr").addEventListener("change", async () => { khErr = await khPickMulti($("khErr"), $("khErrInfo"), { stampImages: false, allowPdf: false, max: 5 }); });
+$("khOcrBtn").addEventListener("click", () => khRunOcr());
+function khResetForm() {
+  ["khPhone", "khName", "khDocNo", "khNote"].forEach((id) => { $(id).value = ""; });
+  ["khPhieu", "khDocFront", "khDocBack", "khPortrait", "khCommit", "khOther", "khErr"].forEach((id) => { $(id).value = ""; });
+  $("khDocType").value = "CCCD";
+  $("khDocBackBox").classList.remove("hidden");
+  $("khPhieuInfo").textContent = "Chưa chọn ảnh.";
+  $("khDocFrontInfo").textContent = "Chưa chọn ảnh. Sau khi tải lên, hệ thống tự đóng dấu tọa độ + thời gian và đọc OCR để đối chiếu số giấy tờ.";
+  $("khDocBackInfo").textContent = "Chưa chọn ảnh. Chỉ bắt buộc khi loại giấy tờ là CCCD/CC gắn chíp.";
+  $("khPortraitInfo").textContent = "Không bắt buộc. Ảnh sẽ được đóng dấu tọa độ + thời gian.";
+  $("khCommitInfo").textContent = "Chưa chọn ảnh. Ảnh sẽ được đóng dấu tọa độ + thời gian.";
+  $("khOtherInfo").textContent = "Không bắt buộc. Cho phép ảnh hoặc file PDF; ảnh sẽ được đóng dấu tọa độ + thời gian.";
+  $("khErrInfo").textContent = "Không bắt buộc. Tối đa 5 ảnh.";
+  khFront = khBack = khPhieu = khPortrait = khCommit = null;
+  khOther = []; khErr = [];
+  khLat = khLng = null; khOcrText = "";
+  khSetOcr("CHUA_KIEM_TRA", "Chưa kiểm tra OCR. Hãy tải ảnh mặt trước giấy tờ để hệ thống đọc số và đối chiếu.");
+}
+$("khSubmitBtn").addEventListener("click", async () => {
+  const phone = $("khPhone").value.trim();
+  const name = $("khName").value.trim();
+  const docType = $("khDocType").value;
+  const docNo = $("khDocNo").value.trim();
+  const note = $("khNote").value.trim();
+  if (!/^09\d{8}$/.test(phone)) { setMsg($("khSimMsg"), "Số thuê bao phải đúng định dạng 09xxxxxxxx (10 số, VD: 0912345678).", false); return; }
+  if (!name) { setMsg($("khSimMsg"), "Hãy nhập tên thuê bao.", false); return; }
+  if (!docNo) { setMsg($("khSimMsg"), "Hãy nhập số giấy tờ.", false); return; }
+  if (!note) { setMsg($("khSimMsg"), "Hãy nhập ghi chú lý do đề nghị thay SIM.", false); return; }
+  if (!khPhieu) { setMsg($("khSimMsg"), "Hãy tải ảnh phiếu yêu cầu thay SIM.", false); return; }
+  if (!khFront) { setMsg($("khSimMsg"), "Hãy tải ảnh mặt trước giấy tờ.", false); return; }
+  if (docType === "CCCD" && !khBack) { setMsg($("khSimMsg"), "CCCD/CC gắn chíp cần đủ ảnh mặt trước và mặt sau.", false); return; }
+  if (!khCommit) { setMsg($("khSimMsg"), "Hãy tải ảnh bản cam kết của KH.", false); return; }
+  if (khOcrStatus !== "OK") { setMsg($("khSimMsg"), "Chưa kiểm tra OCR khớp số giấy tờ — hãy chạy OCR và đảm bảo kết quả khớp rồi gửi lại.", false); return; }
+  $("khSubmitBtn").disabled = true;
+  try {
+    const fd = new FormData();
+    fd.append("so_thue_bao", phone);
+    fd.append("ten_thue_bao", name);
+    fd.append("loai_giay_to", docType);
+    fd.append("so_giay_to", docNo);
+    fd.append("ghi_chu", note);
+    fd.append("ocr_trang_thai", khOcrStatus);
+    fd.append("ocr_so_doc", khNormDoc(docNo));
+    if (khLat !== null && khLng !== null) { fd.append("lat", khLat); fd.append("lng", khLng); }
+    fd.append("phieu", khPhieu.blob, "phieu.jpg");
+    fd.append("cccd_truoc", khFront.blob, "truoc.jpg");
+    if (khBack) fd.append("cccd_sau", khBack.blob, "sau.jpg");
+    if (khPortrait) fd.append("chan_dung", khPortrait.blob, "chandung.jpg");
+    fd.append("cam_ket", khCommit.blob, "camket.jpg");
+    khOther.forEach((o) => fd.append("khac", o.blob, o.isPdf ? o.name : "khac.jpg"));
+    khErr.forEach((o) => fd.append("loi", o.blob, o.name));
+    const res = await fetch(apiBase + "/api/kh-sim", { method: "POST", headers: token ? { Authorization: "Bearer " + token } : {}, body: fd });
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* bo qua */ }
+    if (!res.ok) throw new Error((data && data.error) || ("Gửi hồ sơ thất bại (" + res.status + ")"));
+    setMsg($("khSimMsg"), "Đã gửi hồ sơ thay SIM cho " + phone + " (mã hồ sơ #" + data.id + ").", true);
+    khResetForm();
+    loadKhSimList();
+  } catch (e) {
+    setMsg($("khSimMsg"), e.message, false);
+  }
+  $("khSubmitBtn").disabled = false;
+});
+async function loadKhSimList() {
+  try {
+    const d = await api("/api/kh-sim");
+    $("khSimListBody").innerHTML = (d.rows || []).map((r) =>
+      "<tr><td><b>" + esc(r.so_thue_bao) + "</b></td><td>" + esc(r.ten_thue_bao) + "</td><td>" + esc(KH_DOC_LABELS[r.loai_giay_to] || r.loai_giay_to) + "</td><td>" + esc(r.so_giay_to) + "</td><td>" + (r.ocr_trang_thai === "OK" ? "<span class='pill ok'>✓ OK</span>" : esc(r.ocr_trang_thai || "")) + "</td><td>" + esc(r.created_by_ten || "") + "</td><td>" + esc(r.created_at || "") + "</td><td><button class='btn sm blue' data-kh-view='" + r.id + "'>Xem</button></td></tr>").join("") ||
+      "<tr><td colspan='8'>Chưa có hồ sơ.</td></tr>";
+    $("khSimListBody").querySelectorAll("[data-kh-view]").forEach((b) => b.addEventListener("click", () => khOpenDetail(Number(b.dataset.khView))));
+  } catch (e) {
+    $("khSimListBody").innerHTML = "<tr><td colspan='8'>Không tải được danh sách: " + esc(e.message) + "</td></tr>";
+  }
+}
+async function khOpenDetail(id) {
+  try {
+    const d = await api("/api/kh-sim/" + id);
+    const r = d.row;
+    $("khDetailSub").textContent = "Số thuê bao " + r.so_thue_bao + " — " + r.ten_thue_bao + " — gửi " + (r.created_at || "") + " bởi " + (r.created_by_ten || "");
+    const slotBtn = (slot, label, idx) => "<button class='btn sm blue' type='button' data-khfile='" + slot + (idx != null ? ":" + idx : "") + "'>" + esc(label) + "</button>";
+    let khacHtml = "—", loiHtml = "—";
+    try { const ks = JSON.parse(r.khac_keys || "[]"); if (ks.length) khacHtml = ks.map((k, i) => slotBtn("khac", "Hồ sơ khác " + (i + 1) + (String(k).endsWith(".pdf") ? " (PDF)" : ""), i)).join(" "); } catch (e) { /* giu — */ }
+    try { const ls = JSON.parse(r.loi_keys || "[]"); if (ls.length) loiHtml = ls.map((k, i) => slotBtn("loi", "Ảnh lỗi " + (i + 1), i)).join(" "); } catch (e) { /* giu — */ }
+    $("khDetailBody").innerHTML =
+      "<table class='data'><tbody>" +
+      "<tr><td><b>Số thuê bao</b></td><td>" + esc(r.so_thue_bao) + "</td></tr>" +
+      "<tr><td><b>Tên thuê bao</b></td><td>" + esc(r.ten_thue_bao) + "</td></tr>" +
+      "<tr><td><b>Loại giấy tờ</b></td><td>" + esc(KH_DOC_LABELS[r.loai_giay_to] || r.loai_giay_to) + "</td></tr>" +
+      "<tr><td><b>Số giấy tờ</b></td><td>" + esc(r.so_giay_to) + "</td></tr>" +
+      "<tr><td><b>OCR</b></td><td>" + (r.ocr_trang_thai === "OK" ? "<span class='pill ok'>✓ OK</span>" : esc(r.ocr_trang_thai || "")) + (r.ocr_so_doc ? " — đã đọc: " + esc(r.ocr_so_doc) : "") + "</td></tr>" +
+      "<tr><td><b>Ghi chú</b></td><td>" + esc(r.ghi_chu || "") + "</td></tr>" +
+      "<tr><td><b>Phiếu yêu cầu</b></td><td>" + (r.phieu_key ? slotBtn("phieu", "Xem ảnh phiếu") : "—") + "</td></tr>" +
+      "<tr><td><b>Giấy tờ mặt trước</b></td><td>" + (r.cccd_truoc_key ? slotBtn("truoc", "Xem ảnh") : "—") + "</td></tr>" +
+      "<tr><td><b>Giấy tờ mặt sau</b></td><td>" + (r.cccd_sau_key ? slotBtn("sau", "Xem ảnh") : "—") + "</td></tr>" +
+      "<tr><td><b>Ảnh chân dung</b></td><td>" + (r.chan_dung_key ? slotBtn("chandung", "Xem ảnh") : "—") + "</td></tr>" +
+      "<tr><td><b>Bản cam kết</b></td><td>" + (r.cam_ket_key ? slotBtn("camket", "Xem ảnh") : "—") + "</td></tr>" +
+      "<tr><td><b>Hồ sơ khác</b></td><td>" + khacHtml + "</td></tr>" +
+      "<tr><td><b>Ảnh lỗi hệ thống</b></td><td>" + loiHtml + "</td></tr>" +
+      "</tbody></table>" +
+      "<div id='khDetailFileBox' style='margin-top:10px'></div>";
+    $("khDetailBody").querySelectorAll("[data-khfile]").forEach((b) => b.addEventListener("click", () => {
+      const parts = b.dataset.khfile.split(":");
+      khOpenFile(id, parts[0], parts[1] != null ? Number(parts[1]) : null);
+    }));
+    $("khDetailBack").classList.remove("hidden");
+  } catch (e) { setMsg($("khSimMsg"), "Không mở được hồ sơ: " + e.message, false); }
+}
+async function khOpenFile(id, slot, idx) {
+  try {
+    const url = apiBase + "/api/kh-sim/" + id + "/file?slot=" + encodeURIComponent(slot) + (idx != null ? "&idx=" + idx : "");
+    const res = await fetch(url, { headers: token ? { Authorization: "Bearer " + token } : {} });
+    if (!res.ok) {
+      let m = "Không tải được file";
+      try { const j = await res.json(); if (j && j.error) m = j.error; } catch (e) { /* bo qua */ }
+      throw new Error(m);
+    }
+    const blob = await res.blob();
+    const box = $("khDetailFileBox");
+    const u = URL.createObjectURL(blob);
+    if (blob.type === "application/pdf") {
+      box.innerHTML = "<a class='btn blue' href='" + u + "' target='_blank' rel='noopener'>Mở file PDF trong tab mới</a>";
+      window.open(u, "_blank");
+    } else {
+      box.innerHTML = "<img src='" + u + "' style='max-width:100%;border-radius:12px' alt='File đính kèm' />";
+    }
+  } catch (e) { setMsg($("khSimMsg"), e.message, false); }
+}
+$("khDetailCloseBtn").addEventListener("click", () => $("khDetailBack").classList.add("hidden"));
 
 /* ---------------- Bao cao cham soc diem ban ---------------- */
 function careRepRange() {
