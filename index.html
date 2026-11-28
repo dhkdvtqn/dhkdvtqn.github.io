@@ -7544,20 +7544,21 @@ function normKbKey(s) {
           <h2>📱 Hồ sơ KH yêu cầu thay SIM</h2>
           <p class="desc">Tiếp nhận hồ sơ thay SIM của khách hàng: nhập thông tin thuê bao, tải ảnh phiếu yêu cầu + giấy tờ + bản cam kết. Ảnh giấy tờ, ảnh chân dung, ảnh cam kết và ảnh hồ sơ khác được hệ thống tự đóng dấu tọa độ và thời gian lúc tải lên. Sau khi tải ảnh mặt trước giấy tờ, hệ thống đọc OCR số giấy tờ để đối chiếu với số đã nhập — khớp mới được gửi hồ sơ.</p>
           <form id="khSimForm" class="form-grid" onsubmit="return false;">
-            <div><label>Số thuê bao di động (*)</label><input id="khPhone" inputmode="tel" placeholder="09xxxxxxxx — VD: 0912345678" /></div>
-            <div><label>Tên thuê bao (*)</label><input id="khName" placeholder="Họ tên khách hàng" /></div>
+            <div><label>Số thuê bao di động (*)</label><input id="khPhone" inputmode="tel" placeholder="09xxxxxxxx — VD: 0912345678" required /></div>
+            <div><label>Tên thuê bao (*)</label><input id="khName" placeholder="Họ tên khách hàng" required /></div>
             <div><label>Loại giấy tờ tùy thân (*)</label><select id="khDocType"><option value="CCCD">CCCD/CC gắn chíp</option><option value="HO_CHIEU">Hộ chiếu</option><option value="VNEID">VNeID mức 2</option></select></div>
-            <div><label>Số CCCD/CC/hộ chiếu (*)</label><input id="khDocNo" placeholder="Nhập số giấy tờ" /></div>
-            <div><label>Phiếu yêu cầu thay SIM (*)</label><input type="file" id="khPhieu" accept="image/*" capture="environment" /><div class="desc" id="khPhieuInfo">Chưa chọn ảnh.</div></div>
-            <div><label>Ảnh mặt trước giấy tờ (*)</label><input type="file" id="khDocFront" accept="image/*" capture="environment" /><div class="desc" id="khDocFrontInfo">Chưa chọn ảnh. Sau khi tải lên, hệ thống tự đóng dấu tọa độ + thời gian và đọc OCR để đối chiếu số giấy tờ.</div></div>
+            <div><label>Số CCCD/CC/hộ chiếu (*)</label><input id="khDocNo" placeholder="Nhập số giấy tờ" required /></div>
+            <div><label>Phiếu yêu cầu thay SIM (*)</label><input type="file" id="khPhieu" accept="image/*" capture="environment" required /><div class="desc" id="khPhieuInfo">Chưa chọn ảnh.</div></div>
+            <div><label>Ảnh mặt trước giấy tờ (*)</label><input type="file" id="khDocFront" accept="image/*" capture="environment" required /><div class="desc" id="khDocFrontInfo">Chưa chọn ảnh. Sau khi tải lên, hệ thống tự đóng dấu tọa độ + thời gian và đọc OCR để đối chiếu số giấy tờ.</div></div>
             <div id="khDocBackBox"><label>Ảnh mặt sau giấy tờ (*)</label><input type="file" id="khDocBack" accept="image/*" capture="environment" /><div class="desc" id="khDocBackInfo">Chưa chọn ảnh. Chỉ bắt buộc khi loại giấy tờ là CCCD/CC gắn chíp.</div></div>
             <div><label>Ảnh chân dung KH</label><input type="file" id="khPortrait" accept="image/*" capture="environment" /><div class="desc" id="khPortraitInfo">Không bắt buộc. Ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
-            <div><label>Ảnh bản cam kết của KH (*)</label><input type="file" id="khCommit" accept="image/*" capture="environment" /><div class="desc" id="khCommitInfo">Chưa chọn ảnh. Ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
+            <div><label>Ảnh bản cam kết của KH (*)</label><input type="file" id="khCommit" accept="image/*" capture="environment" required /><div class="desc" id="khCommitInfo">Chưa chọn ảnh. Ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
             <div><label>Ảnh các hồ sơ khác liên quan</label><input type="file" id="khOther" accept="image/*,.pdf" multiple /><div class="desc" id="khOtherInfo">Không bắt buộc. Cho phép ảnh hoặc file PDF; ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
             <div><label>Ảnh chụp lỗi hệ thống (tối đa 5 ảnh)</label><input type="file" id="khErr" accept="image/*" multiple /><div class="desc" id="khErrInfo">Không bắt buộc. Tối đa 5 ảnh.</div></div>
-            <div style="grid-column:1/-1"><label>Ghi chú (*) — lý do đề nghị thay SIM</label><textarea id="khNote" rows="2" placeholder="VD: SIM hỏng, mất sóng..."></textarea></div>
+            <div style="grid-column:1/-1"><label>Ghi chú (*) — lý do đề nghị thay SIM</label><textarea id="khNote" rows="2" placeholder="VD: SIM hỏng, mất sóng..." required></textarea></div>
             <div style="grid-column:1/-1">
               <div id="khOcrBox" class="desc">Chưa kiểm tra OCR. Hãy tải ảnh mặt trước giấy tờ để hệ thống đọc số và đối chiếu.</div>
+              <div id="khMissing" class="desc" style="margin-top:8px"></div>
               <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
                 <button class="btn gray" type="button" id="khOcrBtn">🔍 Chạy lại OCR</button>
                 <button class="btn blue" type="button" id="khSubmitBtn">📤 Gửi hồ sơ</button>
@@ -12915,8 +12916,32 @@ let khOcrStatus = "CHUA_KIEM_TRA", khOcrText = "", khLat = null, khLng = null;
 let khTessReady = null;
 const KH_DOC_LABELS = { CCCD: "CCCD/CC gắn chíp", HO_CHIEU: "Hộ chiếu", VNEID: "VNeID mức 2" };
 function khNormDoc(s) { return String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+// Cac muc bat buoc (co dau *): SDT, ten TB, so giay to, ghi chu, phieu,
+// anh mat truoc giay to, anh mat sau (chi CCCD), anh cam ket + OCR khop.
+// Hien truc tiep muc nao con thieu de nguoi nhap khoi phai bam Gui moi biet.
+function khMissingItems() {
+  const items = [];
+  if (!/^09\d{8}$/.test($("khPhone").value.trim())) items.push("Số thuê bao di động (09xxxxxxxx)");
+  if (!$("khName").value.trim()) items.push("Tên thuê bao");
+  if (!$("khDocNo").value.trim()) items.push("Số giấy tờ");
+  if (!$("khNote").value.trim()) items.push("Ghi chú lý do");
+  if (!khPhieu) items.push("Phiếu yêu cầu thay SIM");
+  if (!khFront) items.push("Ảnh mặt trước giấy tờ");
+  if ($("khDocType").value === "CCCD" && !khBack) items.push("Ảnh mặt sau giấy tờ");
+  if (!khCommit) items.push("Ảnh bản cam kết");
+  if (khOcrStatus !== "OK") items.push("Kiểm tra OCR khớp số giấy tờ");
+  return items;
+}
+function khUpdateMissing() {
+  const box = $("khMissing");
+  if (!box) return;
+  const items = khMissingItems();
+  if (!items.length) { box.innerHTML = "<b style='color:var(--ok)'>✓ Đã đủ thông tin bắt buộc — có thể gửi hồ sơ.</b>"; return; }
+  box.innerHTML = "Còn thiếu <b style='color:var(--bad)'>" + items.length + " mục bắt buộc</b>: " + esc(items.join(", ")) + ".";
+}
 function khSetOcr(status, text) {
   khOcrStatus = status;
+  khUpdateMissing();
   const box = $("khOcrBox");
   if (!box) return;
   const color = status === "OK" ? "var(--ok)" : status === "DANG_KIEM_TRA" ? "var(--blue-dark)" : status === "CHUA_KIEM_TRA" ? "inherit" : "var(--bad)";
@@ -13053,20 +13078,23 @@ async function khRunOcr() {
 }
 $("khDocType").addEventListener("change", () => {
   const isCccd = $("khDocType").value === "CCCD";
+  $("khDocBack").required = isCccd;
   $("khDocBackBox").classList.toggle("hidden", !isCccd);
+  khUpdateMissing();
   if (!isCccd) { khBack = null; $("khDocBack").value = ""; $("khDocBackInfo").textContent = "Không cần với Hộ chiếu / VNeID mức 2."; }
   khSetOcr("CHUA_KIEM_TRA", "Đã đổi loại giấy tờ — hãy chạy lại OCR sau khi tải ảnh mặt trước.");
 });
-$("khDocNo").addEventListener("change", () => { if (khFront) khRunOcr(); });
-$("khPhieu").addEventListener("change", async () => { khPhieu = await khPickPlain($("khPhieu"), $("khPhieuInfo")); });
+$("khDocNo").addEventListener("change", () => { khUpdateMissing(); if (khFront) khRunOcr(); });
+$("khPhieu").addEventListener("change", async () => { khPhieu = await khPickPlain($("khPhieu"), $("khPhieuInfo")); khUpdateMissing(); });
 $("khDocFront").addEventListener("change", async () => {
   khFront = await khPickStamped($("khDocFront"), $("khDocFrontInfo"));
   if (khFront) { khLat = khFront.lat; khLng = khFront.lng; khRunOcr(); }
   else khSetOcr("CHUA_KIEM_TRA", "Chưa có ảnh mặt trước giấy tờ để đọc OCR.");
+  khUpdateMissing();
 });
-$("khDocBack").addEventListener("change", async () => { khBack = await khPickStamped($("khDocBack"), $("khDocBackInfo")); });
+$("khDocBack").addEventListener("change", async () => { khBack = await khPickStamped($("khDocBack"), $("khDocBackInfo")); khUpdateMissing(); });
 $("khPortrait").addEventListener("change", async () => { khPortrait = await khPickStamped($("khPortrait"), $("khPortraitInfo")); });
-$("khCommit").addEventListener("change", async () => { khCommit = await khPickStamped($("khCommit"), $("khCommitInfo")); });
+$("khCommit").addEventListener("change", async () => { khCommit = await khPickStamped($("khCommit"), $("khCommitInfo")); khUpdateMissing(); });
 $("khOther").addEventListener("change", async () => { khOther = await khPickMulti($("khOther"), $("khOtherInfo"), { stampImages: true, allowPdf: true }); });
 $("khErr").addEventListener("change", async () => { khErr = await khPickMulti($("khErr"), $("khErrInfo"), { stampImages: false, allowPdf: false, max: 5 }); });
 $("khOcrBtn").addEventListener("click", () => khRunOcr());
@@ -13197,6 +13225,14 @@ async function khOpenFile(id, slot, idx) {
   } catch (e) { setMsg($("khSimMsg"), e.message, false); }
 }
 $("khDetailCloseBtn").addEventListener("click", () => $("khDetailBack").classList.add("hidden"));
+// Dau (*) do cho cac muc bat buoc + dong "Con thieu ..." cap nhat theo tung
+// lan go/chon (khong doi den luc bam Gui moi bao thieu).
+document.querySelectorAll("#khSimForm label").forEach((l) => {
+  if (l.textContent.includes("(*)")) l.innerHTML = l.innerHTML.replace("(*)", "<span style=\"color:#dc2626;font-weight:700\">(*)</span>");
+});
+$("khDocBack").required = true;
+$("khSimForm").addEventListener("input", () => khUpdateMissing());
+khUpdateMissing();
 
 /* ---------------- Bao cao cham soc diem ban ---------------- */
 function careRepRange() {
