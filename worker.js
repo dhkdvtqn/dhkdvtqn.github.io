@@ -4681,7 +4681,7 @@ function normKbKey(s) {
       // ---- Quan ly ho so KH - yeu cau thay SIM (28/11/2026) ----
       // Gui ho so: multipart (form + anh). Bat buoc: SDT 09xxxxxxxx, ten TB,
       // loai giay to (CCCD/HO_CHIEU/VNEID), so giay to, ghi chu ly do, anh
-      // phieu + anh mat truoc giay to + anh cam ket; CCCD can them mat sau;
+      // phieu + anh mat truoc giay to; CCCD can them mat sau; anh cam ket khong bat buoc;
       // OCR phai OK (client chay Tesseract tren anh mat truoc truoc khi gui).
       // Anh chan dung / ho so khac khong bat buoc; anh loi he thong (toi da 5) bat buoc it nhat 1 anh.
       // Xem danh sach: admin/subadmin toan tinh; lanh dao/Chuyen vien thay cay
@@ -4729,7 +4729,6 @@ function normKbKey(s) {
         if (!fPhieu || !fPhieu.size) return err("Chua co anh phieu yeu cau thay SIM", 422);
         if (!fTruoc || !fTruoc.size) return err("Chua co anh mat truoc giay to", 422);
         if (loaiGiayTo === "CCCD" && (!fSau || !fSau.size)) return err("CCCD/CC gan chip can du anh mat truoc va mat sau", 422);
-        if (!fCamKet || !fCamKet.size) return err("Chua co anh ban cam ket cua KH", 422);
         if (!fPhoiMoi || !fPhoiMoi.size) return err("Chua co anh phoi SIM moi", 422);
         if (fLoi.length === 0) return err("Chua co anh chup loi he thong", 422);
         if (fLoi.length > 5) return err("Anh chup loi he thong toi da 5 anh", 422);
@@ -4750,7 +4749,7 @@ function normKbKey(s) {
         const truocKey = await putKhSimFile(env, "truoc", fTruoc, false);
         const sauKey = (loaiGiayTo === "CCCD" && fSau && fSau.size) ? await putKhSimFile(env, "sau", fSau, false) : null;
         const chanDungKey = (fChanDung && fChanDung.size) ? await putKhSimFile(env, "chandung", fChanDung, false) : null;
-        const camKetKey = await putKhSimFile(env, "camket", fCamKet, false);
+        const camKetKey = (fCamKet && fCamKet.size) ? await putKhSimFile(env, "camket", fCamKet, false) : null;
         const phoiCuKey = (fPhoiCu && fPhoiCu.size) ? await putKhSimFile(env, "phoicu", fPhoiCu, false) : null;
         const phoiMoiKey = await putKhSimFile(env, "phoimoi", fPhoiMoi, false);
         const khacKeys = [];
