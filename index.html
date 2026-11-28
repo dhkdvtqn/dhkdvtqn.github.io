@@ -7176,7 +7176,7 @@ function normKbKey(s) {
         const ct = request.headers.get(&quot;content-type&quot;) || &quot;&quot;;
         if (!ct.includes(&quot;multipart/form-data&quot;)) return err(&quot;Du lieu gui len phai la multipart&quot;, 422);
         const fd = await request.formData();
-        const soThueBao = toText(fd.get(&quot;so_thue_bao&quot;));
+        const soThueBao = toText(fd.get(&quot;so_thue_bao&quot;)).replace(/\D/g, &quot;&quot;);
         const tenThueBao = toText(fd.get(&quot;ten_thue_bao&quot;));
         const loaiGiayTo = toText(fd.get(&quot;loai_giay_to&quot;));
         const soGiayTo = toText(fd.get(&quot;so_giay_to&quot;));
@@ -7192,7 +7192,7 @@ function normKbKey(s) {
         const lngRaw = fd.get(&quot;lng&quot;);
         const lat = (latRaw === null || latRaw === &quot;&quot;) ? NaN : Number(latRaw);
         const lng = (lngRaw === null || lngRaw === &quot;&quot;) ? NaN : Number(lngRaw);
-        if (!/^09\d{8}$/.test(soThueBao)) return err(&quot;So thue bao phai dung dinh dang 09xxxxxxxx (10 so)&quot;, 422);
+        if (!/^\d{10}$/.test(soThueBao)) return err(&quot;So thue bao phai la 10 chu so&quot;, 422);
         if (!tenThueBao) return err(&quot;Thieu ten thue bao&quot;, 422);
         if (![&quot;CCCD&quot;, &quot;HO_CHIEU&quot;, &quot;VNEID&quot;].includes(loaiGiayTo)) return err(&quot;Loai giay to khong hop le&quot;, 422);
         if (!soGiayTo) return err(&quot;Thieu so giay to&quot;, 422);
@@ -7568,13 +7568,13 @@ function normKbKey(s) {
           <h2>📱 Hồ sơ KH yêu cầu thay SIM</h2>
           <p class="desc">Tiếp nhận hồ sơ thay SIM của khách hàng: nhập thông tin thuê bao + số seri SIM cũ/mới, tải ảnh phiếu yêu cầu + giấy tờ + phôi SIM + bản cam kết. Ảnh giấy tờ, ảnh chân dung, ảnh cam kết và ảnh hồ sơ khác được hệ thống tự đóng dấu tọa độ và thời gian lúc tải lên. Sau khi tải ảnh mặt trước giấy tờ, hệ thống đọc OCR số giấy tờ để đối chiếu với số đã nhập — khớp mới được gửi hồ sơ.</p>
           <form id="khSimForm" class="form-grid" onsubmit="return false;">
-            <div><label>Số thuê bao di động (*)</label><input id="khPhone" inputmode="tel" placeholder="09xxxxxxxx — VD: 0912345678" required /></div>
+            <div><label>Số thuê bao di động (*)</label><input id="khPhone" inputmode="tel" placeholder="Nhập đủ 10 chữ số — VD: 0912345678" required /></div>
             <div><label>Tên thuê bao (*)</label><input id="khName" placeholder="Họ tên khách hàng" required /></div>
             <div><label>Loại giấy tờ tùy thân (*)</label><select id="khDocType"><option value="CCCD">CCCD/CC gắn chíp</option><option value="HO_CHIEU">Hộ chiếu</option><option value="VNEID">VNeID mức 2</option></select></div>
             <div><label>Số CCCD/CC/hộ chiếu (*)</label><input id="khDocNo" placeholder="Nhập số giấy tờ" required /></div>
             <div><label>Số seri SIM cũ (*)</label><input id="khSeriCu" inputmode="numeric" maxlength="10" placeholder="10 số seri SIM cũ" required /></div>
             <div><label>Số seri SIM mới (*)</label><input id="khSeriMoi" inputmode="numeric" maxlength="10" placeholder="10 số seri SIM mới" required /></div>
-            <div><label>Ảnh phôi SIM gốc</label><input type="file" id="khPhoiCu" accept="image/*" capture="environment" /><div class="desc" id="khPhoiCuInfo">Không bắt buộc. Nếu KH dùng ESIM thì chụp màn hình ESIM trên điện thoại.</div></div>
+            <div><label>Ảnh phôi SIM gốc</label><input type="file" id="khPhoiCu" accept="image/*" capture="environment" /><div class="desc" id="khPhoiCuInfo">Nếu KH dùng ESIM thì chụp màn hình ESIM trên điện thoại.</div></div>
             <div><label>Ảnh phôi SIM mới (*)</label><input type="file" id="khPhoiMoi" accept="image/*" capture="environment" required /><div class="desc" id="khPhoiMoiInfo">Chưa chọn ảnh.</div></div>
             <div><label>Phiếu yêu cầu thay SIM (*)</label><input type="file" id="khPhieu" accept="image/*" capture="environment" required /><div class="desc" id="khPhieuInfo">Chưa chọn ảnh.</div></div>
             <div><label>Ảnh mặt trước giấy tờ (*)</label><input type="file" id="khDocFront" accept="image/*" capture="environment" required /><div class="desc" id="khDocFrontInfo">Chưa chọn ảnh. Sau khi tải lên, hệ thống tự đóng dấu tọa độ + thời gian và đọc OCR để đối chiếu số giấy tờ.</div></div>
@@ -7584,7 +7584,7 @@ function normKbKey(s) {
             <div><label>Ảnh các hồ sơ khác liên quan</label><input type="file" id="khOther" accept="image/*,.pdf" multiple /><div class="desc" id="khOtherInfo">Không bắt buộc. Cho phép ảnh hoặc file PDF; ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
             <div><label>Ảnh chụp lỗi hệ thống (tối đa 5 ảnh)</label><input type="file" id="khErr" accept="image/*" multiple /><div class="desc" id="khErrInfo">Không bắt buộc. Tối đa 5 ảnh.</div></div>
             <div style="grid-column:1/-1"><label>Ghi chú (*) — lý do đề nghị thay SIM</label><textarea id="khNote" rows="2" placeholder="VD: SIM hỏng, mất sóng..." required></textarea></div>
-            <div style="grid-column:1/-1"><label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer"><input type="checkbox" id="khConfirm" style="margin-top:3px;flex:none" /> <span>Tôi xác nhận các thông tin khai báo là chính xác và hoàn toàn chịu trách nhiệm trước pháp luật và Viễn thông Quảng Ninh nếu sai phạm. (*)</span></label></div>
+            <div style="grid-column:1/-1"><label class="checkline" style="align-items:flex-start"><input type="checkbox" id="khConfirm" /> <span style="flex:1;min-width:0">Tôi xác nhận các thông tin khai báo là chính xác và hoàn toàn chịu trách nhiệm trước pháp luật và Viễn thông Quảng Ninh nếu sai phạm. (*)</span></label></div>
             <div style="grid-column:1/-1">
               <div id="khOcrBox" class="desc">Chưa kiểm tra OCR. Hãy tải ảnh mặt trước giấy tờ để hệ thống đọc số và đối chiếu.</div>
               <div id="khMissing" class="desc" style="margin-top:8px"></div>
@@ -12952,7 +12952,7 @@ function khNormDoc(s) { return String(s || "").toUpperCase().replace(/[^A-Z0-9]/
 // Hien truc tiep muc nao con thieu de nguoi nhap khoi phai bam Gui moi biet.
 function khMissingItems() {
   const items = [];
-  if (!/^09\d{8}$/.test($("khPhone").value.trim())) items.push("Số thuê bao di động (09xxxxxxxx)");
+  if (!/^\d{10}$/.test($("khPhone").value.replace(/\D/g, ""))) items.push("Số thuê bao di động (10 số)");
   if (!$("khName").value.trim()) items.push("Tên thuê bao");
   if (!$("khDocNo").value.trim()) items.push("Số giấy tờ");
   if (!$("khNote").value.trim()) items.push("Ghi chú lý do");
@@ -13151,7 +13151,7 @@ function khResetForm() {
   $("khCommitInfo").textContent = "Chưa chọn ảnh. Ảnh sẽ được đóng dấu tọa độ + thời gian.";
   $("khOtherInfo").textContent = "Không bắt buộc. Cho phép ảnh hoặc file PDF; ảnh sẽ được đóng dấu tọa độ + thời gian.";
   $("khErrInfo").textContent = "Không bắt buộc. Tối đa 5 ảnh.";
-  $("khPhoiCuInfo").textContent = "Không bắt buộc. Nếu KH dùng ESIM thì chụp màn hình ESIM trên điện thoại.";
+  $("khPhoiCuInfo").textContent = "Nếu KH dùng ESIM thì chụp màn hình ESIM trên điện thoại.";
   $("khPhoiMoiInfo").textContent = "Chưa chọn ảnh.";
   khFront = khBack = khPhieu = khPortrait = khCommit = null;
   khPhoiCu = khPhoiMoi = null;
@@ -13160,14 +13160,14 @@ function khResetForm() {
   khSetOcr("CHUA_KIEM_TRA", "Chưa kiểm tra OCR. Hãy tải ảnh mặt trước giấy tờ để hệ thống đọc số và đối chiếu.");
 }
 $("khSubmitBtn").addEventListener("click", async () => {
-  const phone = $("khPhone").value.trim();
+  const phone = $("khPhone").value.replace(/\D/g, "");
   const name = $("khName").value.trim();
   const docType = $("khDocType").value;
   const docNo = $("khDocNo").value.trim();
   const note = $("khNote").value.trim();
   const seriCu = $("khSeriCu").value.replace(/\D/g, "");
   const seriMoi = $("khSeriMoi").value.replace(/\D/g, "");
-  if (!/^09\d{8}$/.test(phone)) { setMsg($("khSimMsg"), "Số thuê bao phải đúng định dạng 09xxxxxxxx (10 số, VD: 0912345678).", false); return; }
+  if (!/^\d{10}$/.test(phone)) { setMsg($("khSimMsg"), "Số thuê bao phải đủ 10 chữ số (VD: 0912345678).", false); return; }
   if (!name) { setMsg($("khSimMsg"), "Hãy nhập tên thuê bao.", false); return; }
   if (!docNo) { setMsg($("khSimMsg"), "Hãy nhập số giấy tờ.", false); return; }
   if (!/^\d{10}$/.test(seriCu)) { setMsg($("khSimMsg"), "Số seri SIM cũ phải là 10 chữ số.", false); return; }

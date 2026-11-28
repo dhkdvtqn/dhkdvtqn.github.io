@@ -4692,7 +4692,7 @@ function normKbKey(s) {
         const ct = request.headers.get("content-type") || "";
         if (!ct.includes("multipart/form-data")) return err("Du lieu gui len phai la multipart", 422);
         const fd = await request.formData();
-        const soThueBao = toText(fd.get("so_thue_bao"));
+        const soThueBao = toText(fd.get("so_thue_bao")).replace(/\D/g, "");
         const tenThueBao = toText(fd.get("ten_thue_bao"));
         const loaiGiayTo = toText(fd.get("loai_giay_to"));
         const soGiayTo = toText(fd.get("so_giay_to"));
@@ -4708,7 +4708,7 @@ function normKbKey(s) {
         const lngRaw = fd.get("lng");
         const lat = (latRaw === null || latRaw === "") ? NaN : Number(latRaw);
         const lng = (lngRaw === null || lngRaw === "") ? NaN : Number(lngRaw);
-        if (!/^09\d{8}$/.test(soThueBao)) return err("So thue bao phai dung dinh dang 09xxxxxxxx (10 so)", 422);
+        if (!/^\d{10}$/.test(soThueBao)) return err("So thue bao phai la 10 chu so", 422);
         if (!tenThueBao) return err("Thieu ten thue bao", 422);
         if (!["CCCD", "HO_CHIEU", "VNEID"].includes(loaiGiayTo)) return err("Loai giay to khong hop le", 422);
         if (!soGiayTo) return err("Thieu so giay to", 422);
