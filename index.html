@@ -13463,7 +13463,17 @@ async function khOpenFile(id, slot, idx) {
       box.innerHTML = "<a class='btn blue' href='" + u + "' target='_blank' rel='noopener'>Mở file PDF trong tab mới</a>";
       window.open(u, "_blank");
     } else {
-      box.innerHTML = "<img src='" + u + "' style='max-width:100%;max-height:65vh;border-radius:12px' alt='File đính kèm' />";
+      box.innerHTML = "<img src='" + u + "' style='max-width:100%;max-height:65vh;border-radius:12px;cursor:pointer' title='Bấm để mở ảnh gốc' alt='File đính kèm' /><div style='font-size:12px;color:#64748b;margin-top:6px'>Bấm vào ảnh để mở ảnh gốc.</div>";
+      box.querySelector("img").addEventListener("click", () => {
+        const w = window.open(u, "_blank");
+        if (!w) {
+          // Trinh duyet chan mo tab moi: tai anh xuong thay the (giong viewCarePhoto).
+          const a = document.createElement("a");
+          a.href = u; a.download = "anh-ho-so-" + id + "-" + slot + ".jpg";
+          document.body.appendChild(a); a.click(); a.remove();
+          alert("Trình duyệt đã chặn mở tab mới nên ảnh được tải xuống thay thế — hãy mở file vừa tải để xem, hoặc cho phép trang này mở cửa sổ bật lên rồi bấm lại.");
+        }
+      });
     }
   } catch (e) { setMsg($("khSimMsg"), e.message, false); }
 }
