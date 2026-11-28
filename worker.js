@@ -857,8 +857,16 @@ async function ensureCareTables(env) {
 // chi luu key trong bang; khac_keys/loi_keys la JSON array cac key.
 async function ensureKhSimTable(env) {
   await env.DB.prepare(
-    "CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT)"
+    "CREATE TABLE IF NOT EXISTS kh_sim_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, so_thue_bao TEXT NOT NULL, ten_thue_bao TEXT NOT NULL, loai_giay_to TEXT NOT NULL, so_giay_to TEXT NOT NULL, ghi_chu TEXT NOT NULL, phieu_key TEXT, cccd_truoc_key TEXT, cccd_sau_key TEXT, chan_dung_key TEXT, cam_ket_key TEXT, khac_keys TEXT, loi_keys TEXT, ocr_trang_thai TEXT, ocr_so_doc TEXT, lat REAL, lng REAL, created_by INTEGER, created_by_ten TEXT, don_vi_id INTEGER, created_at TEXT, seri_sim_cu TEXT, seri_sim_moi TEXT, phoi_cu_key TEXT, phoi_moi_key TEXT, xac_nhan INTEGER NOT NULL DEFAULT 0)"
   ).run();
+  // Migration: bang cu (truoc 28/11/2026) chua co cot seri/phoi/xac nhan
+  const cols = await env.DB.prepare("PRAGMA table_info(kh_sim_requests)").all();
+  const names = new Set((cols.results || []).map((c) => c.name));
+  if (!names.has("seri_sim_cu")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN seri_sim_cu TEXT").run();
+  if (!names.has("seri_sim_moi")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN seri_sim_moi TEXT").run();
+  if (!names.has("phoi_cu_key")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN phoi_cu_key TEXT").run();
+  if (!names.has("phoi_moi_key")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN phoi_moi_key TEXT").run();
+  if (!names.has("xac_nhan")) await env.DB.prepare("ALTER TABLE kh_sim_requests ADD COLUMN xac_nhan INTEGER NOT NULL DEFAULT 0").run();
 }
 async function putKhSimFile(env, slot, file, allowPdf) {
   if (!env.ANH) throw new Error("Chua cau hinh R2 Object Storage (chua gan bucket ANH cho Worker)");
@@ -4691,6 +4699,11 @@ function normKbKey(s) {
         const ghiChu = toText(fd.get("ghi_chu"));
         const ocrTrangThai = toText(fd.get("ocr_trang_thai"));
         const ocrSoDoc = toText(fd.get("ocr_so_doc"));
+        // So seri SIM: chi giu chu so, phai du 10 so (nguoi nhap co the go kem
+        // khoang trang/gach noi). Xac nhan: FormData tra ve "1" khi tich.
+        const seriSimCu = toText(fd.get("seri_sim_cu")).replace(/\D/g, "");
+        const seriSimMoi = toText(fd.get("seri_sim_moi")).replace(/\D/g, "");
+        const xacNhan = fd.get("xac_nhan");
         const latRaw = fd.get("lat");
         const lngRaw = fd.get("lng");
         const lat = (latRaw === null || latRaw === "") ? NaN : Number(latRaw);
@@ -4700,24 +4713,31 @@ function normKbKey(s) {
         if (!["CCCD", "HO_CHIEU", "VNEID"].includes(loaiGiayTo)) return err("Loai giay to khong hop le", 422);
         if (!soGiayTo) return err("Thieu so giay to", 422);
         if (!ghiChu) return err("Thieu ghi chu ly do de nghi", 422);
+        if (!/^\d{10}$/.test(seriSimCu)) return err("So seri SIM cu phai la 10 chu so", 422);
+        if (!/^\d{10}$/.test(seriSimMoi)) return err("So seri SIM moi phai la 10 chu so", 422);
+        if (xacNhan !== "1" && xacNhan !== 1 && xacNhan !== true) return err("Can tich xac nhan thong tin khai bao chinh xac truoc khi gui ho so", 422);
         if (ocrTrangThai !== "OK") return err("Chua kiem tra OCR khop so giay to (can chay OCR tren anh mat truoc giay to truoc khi gui)", 422);
         const fPhieu = fd.get("phieu");
         const fTruoc = fd.get("cccd_truoc");
         const fSau = fd.get("cccd_sau");
         const fChanDung = fd.get("chan_dung");
         const fCamKet = fd.get("cam_ket");
+        const fPhoiCu = fd.get("phoi_cu");
+        const fPhoiMoi = fd.get("phoi_moi");
         const fKhac = fd.getAll("khac").filter((f) => f && f.size > 0);
         const fLoi = fd.getAll("loi").filter((f) => f && f.size > 0);
         if (!fPhieu || !fPhieu.size) return err("Chua co anh phieu yeu cau thay SIM", 422);
         if (!fTruoc || !fTruoc.size) return err("Chua co anh mat truoc giay to", 422);
         if (loaiGiayTo === "CCCD" && (!fSau || !fSau.size)) return err("CCCD/CC gan chip can du anh mat truoc va mat sau", 422);
         if (!fCamKet || !fCamKet.size) return err("Chua co anh ban cam ket cua KH", 422);
+        if (!fPhoiMoi || !fPhoiMoi.size) return err("Chua co anh phoi SIM moi", 422);
         if (fLoi.length > 5) return err("Anh chup loi he thong toi da 5 anh", 422);
         // Kiem tra dinh dang/kich thuoc tat ca file TRUOC khi upload (422),
         // tranh truong hop upload do roi moi bao loi.
         const fileChecks = [
           ["phieu", fPhieu, false], ["mat truoc giay to", fTruoc, false],
           ["mat sau giay to", fSau, false], ["chan dung", fChanDung, false], ["cam ket", fCamKet, false],
+          ["phoi SIM goc", fPhoiCu, false], ["phoi SIM moi", fPhoiMoi, false],
           ...fKhac.map((f, i) => ["ho so khac " + (i + 1), f, true]),
           ...fLoi.map((f, i) => ["anh loi " + (i + 1), f, false]),
         ];
@@ -4730,20 +4750,22 @@ function normKbKey(s) {
         const sauKey = (loaiGiayTo === "CCCD" && fSau && fSau.size) ? await putKhSimFile(env, "sau", fSau, false) : null;
         const chanDungKey = (fChanDung && fChanDung.size) ? await putKhSimFile(env, "chandung", fChanDung, false) : null;
         const camKetKey = await putKhSimFile(env, "camket", fCamKet, false);
+        const phoiCuKey = (fPhoiCu && fPhoiCu.size) ? await putKhSimFile(env, "phoicu", fPhoiCu, false) : null;
+        const phoiMoiKey = await putKhSimFile(env, "phoimoi", fPhoiMoi, false);
         const khacKeys = [];
         for (let i = 0; i < fKhac.length; i++) khacKeys.push(await putKhSimFile(env, "khac" + i, fKhac[i], true));
         const loiKeys = [];
         for (let i = 0; i < fLoi.length; i++) loiKeys.push(await putKhSimFile(env, "loi" + i, fLoi[i], false));
         const r = await env.DB.prepare(
-          "INSERT INTO kh_sim_requests (so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, phieu_key, cccd_truoc_key, cccd_sau_key, chan_dung_key, cam_ket_key, khac_keys, loi_keys, ocr_trang_thai, ocr_so_doc, lat, lng, created_by, created_by_ten, don_vi_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : null, isFinite(lng) ? lng : null, me.id, me.ho_ten, me.don_vi_id || null, saigonNow()).run();
+          "INSERT INTO kh_sim_requests (so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, phieu_key, cccd_truoc_key, cccd_sau_key, chan_dung_key, cam_ket_key, khac_keys, loi_keys, ocr_trang_thai, ocr_so_doc, lat, lng, created_by, created_by_ten, don_vi_id, created_at, seri_sim_cu, seri_sim_moi, phoi_cu_key, phoi_moi_key, xac_nhan) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        ).bind(soThueBao, tenThueBao, loaiGiayTo, soGiayTo, ghiChu, phieuKey, truocKey, sauKey, chanDungKey, camKetKey, JSON.stringify(khacKeys), JSON.stringify(loiKeys), ocrTrangThai, ocrSoDoc, isFinite(lat) ? lat : null, isFinite(lng) ? lng : null, me.id, me.ho_ten, me.don_vi_id || null, saigonNow(), seriSimCu, seriSimMoi, phoiCuKey, phoiMoiKey, 1).run();
         return json({ ok: true, id: r.meta.last_row_id });
       }
       if (path === "/api/kh-sim" && method === "GET") {
         if (!hasModule(me, "khoso")) return err("Tai khoan khong co quyen xem ho so KH", 403);
         await ensureKhSimTable(env);
         const limit = Math.min(200, Number(url.searchParams.get("limit")) || 100);
-        let sql = "SELECT id, so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, ocr_trang_thai, ocr_so_doc, created_by_ten, don_vi_id, created_at FROM kh_sim_requests";
+        let sql = "SELECT id, so_thue_bao, ten_thue_bao, loai_giay_to, so_giay_to, ghi_chu, ocr_trang_thai, ocr_so_doc, seri_sim_cu, seri_sim_moi, xac_nhan, created_by_ten, don_vi_id, created_at FROM kh_sim_requests";
         let binds = [];
         if (!isPrivileged && !isLeaderLike) {
           sql += " WHERE created_by = ?";
@@ -4798,6 +4820,8 @@ function normKbKey(s) {
         else if (slot === "sau") key = rec.cccd_sau_key;
         else if (slot === "chandung") key = rec.chan_dung_key;
         else if (slot === "camket") key = rec.cam_ket_key;
+        else if (slot === "phoi_cu") key = rec.phoi_cu_key;
+        else if (slot === "phoi_moi") key = rec.phoi_moi_key;
         else if (slot === "khac") { try { key = (JSON.parse(rec.khac_keys || "[]"))[idx] || null; } catch (e) { key = null; } }
         else if (slot === "loi") { try { key = (JSON.parse(rec.loi_keys || "[]"))[idx] || null; } catch (e) { key = null; } }
         if (!key) return err("Khong tim thay file", 404);
