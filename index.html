@@ -8195,6 +8195,14 @@ function defaultPanelForMe(fallback, u) {
     const b = document.querySelector('.nav-btn[data-panel="panel-mobile"]');
     if (b && !b.classList.contains("hidden")) return "panel-mobile";
   }
+  // User khong co quyen xem bao cao: mo luon Co che chinh sach > Thue bao
+  // phat trien moi khi dang nhap (28/11). Nut Bao cao bi an theo phan quyen
+  // chinh la dau hieu khong co quyen reports.
+  const rp = document.querySelector('.nav-btn[data-panel="panel-reports"]');
+  if (!rp || rp.classList.contains("hidden")) {
+    const b = document.querySelector('.nav-btn[data-panel="panel-policy-new"]');
+    if (b && !b.classList.contains("hidden")) return "panel-policy-new";
+  }
   return fallback;
 }
 let posView = "home";
