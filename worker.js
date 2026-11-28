@@ -4683,7 +4683,7 @@ function normKbKey(s) {
       // loai giay to (CCCD/HO_CHIEU/VNEID), so giay to, ghi chu ly do, anh
       // phieu + anh mat truoc giay to + anh cam ket; CCCD can them mat sau;
       // OCR phai OK (client chay Tesseract tren anh mat truoc truoc khi gui).
-      // Anh chan dung / ho so khac / anh loi he thong (toi da 5) khong bat buoc.
+      // Anh chan dung / ho so khac khong bat buoc; anh loi he thong (toi da 5) bat buoc it nhat 1 anh.
       // Xem danh sach: admin/subadmin toan tinh; lanh dao/Chuyen vien thay cay
       // don vi minh; nhan su khac chi thay ho so do chinh minh gui.
       if (path === "/api/kh-sim" && method === "POST") {
@@ -4731,6 +4731,7 @@ function normKbKey(s) {
         if (loaiGiayTo === "CCCD" && (!fSau || !fSau.size)) return err("CCCD/CC gan chip can du anh mat truoc va mat sau", 422);
         if (!fCamKet || !fCamKet.size) return err("Chua co anh ban cam ket cua KH", 422);
         if (!fPhoiMoi || !fPhoiMoi.size) return err("Chua co anh phoi SIM moi", 422);
+        if (fLoi.length === 0) return err("Chua co anh chup loi he thong", 422);
         if (fLoi.length > 5) return err("Anh chup loi he thong toi da 5 anh", 422);
         // Kiem tra dinh dang/kich thuoc tat ca file TRUOC khi upload (422),
         // tranh truong hop upload do roi moi bao loi.

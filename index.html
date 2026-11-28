@@ -446,8 +446,8 @@
 #appRoot .greeting .sign {margin-top:14px;font-weight:800;color:#ffb066;letter-spacing:.4px}
 #appRoot footer {color:var(--muted);font-size:13px;text-align:center;padding:22px 0 34px}
 #appRoot /* ---------- Modal ---------- */
-.modal-back {position:fixed;inset:0;background:rgba(4,26,46,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
-#appRoot .modal {background:#fff;border-radius:18px;max-width:430px;width:100%;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.modal-back {position:fixed;inset:0;background:rgba(4,26,46,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+#appRoot .modal {background:#fff;border-radius:18px;max-width:430px;width:100%;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.3);margin:auto;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow-y:auto}
 #appRoot .modal h2 {color:var(--blue-deep);font-size:21px;margin-bottom:4px}
 #appRoot .modal .sub {color:var(--muted);font-size:13.5px;margin-bottom:16px;line-height:1.6}
 #appRoot .field {margin-bottom:13px}
@@ -7167,7 +7167,7 @@ function normKbKey(s) {
       // loai giay to (CCCD/HO_CHIEU/VNEID), so giay to, ghi chu ly do, anh
       // phieu + anh mat truoc giay to + anh cam ket; CCCD can them mat sau;
       // OCR phai OK (client chay Tesseract tren anh mat truoc truoc khi gui).
-      // Anh chan dung / ho so khac / anh loi he thong (toi da 5) khong bat buoc.
+      // Anh chan dung / ho so khac khong bat buoc; anh loi he thong (toi da 5) bat buoc it nhat 1 anh.
       // Xem danh sach: admin/subadmin toan tinh; lanh dao/Chuyen vien thay cay
       // don vi minh; nhan su khac chi thay ho so do chinh minh gui.
       if (path === &quot;/api/kh-sim&quot; &amp;&amp; method === &quot;POST&quot;) {
@@ -7215,6 +7215,7 @@ function normKbKey(s) {
         if (loaiGiayTo === &quot;CCCD&quot; &amp;&amp; (!fSau || !fSau.size)) return err(&quot;CCCD/CC gan chip can du anh mat truoc va mat sau&quot;, 422);
         if (!fCamKet || !fCamKet.size) return err(&quot;Chua co anh ban cam ket cua KH&quot;, 422);
         if (!fPhoiMoi || !fPhoiMoi.size) return err(&quot;Chua co anh phoi SIM moi&quot;, 422);
+        if (fLoi.length === 0) return err(&quot;Chua co anh chup loi he thong&quot;, 422);
         if (fLoi.length &gt; 5) return err(&quot;Anh chup loi he thong toi da 5 anh&quot;, 422);
         // Kiem tra dinh dang/kich thuoc tat ca file TRUOC khi upload (422),
         // tranh truong hop upload do roi moi bao loi.
@@ -7566,7 +7567,7 @@ function normKbKey(s) {
 
         <section class="panel hidden" id="panel-kh-sim">
           <h2>📱 Hồ sơ KH yêu cầu thay SIM</h2>
-          <p class="desc">Tiếp nhận hồ sơ thay SIM của khách hàng: nhập thông tin thuê bao + số seri SIM cũ/mới, tải ảnh phiếu yêu cầu + giấy tờ + phôi SIM + bản cam kết. Ảnh giấy tờ, ảnh chân dung, ảnh cam kết và ảnh hồ sơ khác được hệ thống tự đóng dấu tọa độ và thời gian lúc tải lên. Sau khi tải ảnh mặt trước giấy tờ, hệ thống đọc OCR số giấy tờ để đối chiếu với số đã nhập — khớp mới được gửi hồ sơ.</p>
+          <p class="desc">Các đơn vị lưu ý: Phòng ĐHKD chỉ nhận hỗ trợ thay SIM đối với các trường hợp khi NVKD/GDV thay SIM cho khách hàng nhưng bị lỗi trên hệ thống và bắt buộc KH phải có đầy đủ giấy tờ tùy thân để chứng minh thông tin chính chủ. Trường hợp KH không có giấy tờ tùy thân, Phòng ĐHKD sẽ không hỗ trợ thay SIM. Trân trọng cảm ơn!</p>
           <form id="khSimForm" class="form-grid" onsubmit="return false;">
             <div><label>Số thuê bao di động (*)</label><input id="khPhone" inputmode="tel" placeholder="Nhập đủ 10 chữ số — VD: 0912345678" required /></div>
             <div><label>Tên thuê bao (*)</label><input id="khName" placeholder="Họ tên khách hàng" required /></div>
@@ -7582,7 +7583,7 @@ function normKbKey(s) {
             <div><label>Ảnh chân dung KH</label><input type="file" id="khPortrait" accept="image/*" capture="environment" /><div class="desc" id="khPortraitInfo">Không bắt buộc. Ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
             <div><label>Ảnh bản cam kết của KH (*)</label><input type="file" id="khCommit" accept="image/*" capture="environment" required /><div class="desc" id="khCommitInfo">Chưa chọn ảnh. Ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
             <div><label>Ảnh các hồ sơ khác liên quan</label><input type="file" id="khOther" accept="image/*,.pdf" multiple /><div class="desc" id="khOtherInfo">Không bắt buộc. Cho phép ảnh hoặc file PDF; ảnh sẽ được đóng dấu tọa độ + thời gian.</div></div>
-            <div><label>Ảnh chụp lỗi hệ thống (tối đa 5 ảnh)</label><input type="file" id="khErr" accept="image/*" multiple /><div class="desc" id="khErrInfo">Không bắt buộc. Tối đa 5 ảnh.</div></div>
+            <div><label>Ảnh chụp lỗi hệ thống (*) (tối đa 5 ảnh)</label><input type="file" id="khErr" accept="image/*" multiple required /><div class="desc" id="khErrInfo">Bắt buộc ít nhất 1 ảnh. Tối đa 5 ảnh.</div></div>
             <div style="grid-column:1/-1"><label>Ghi chú (*) — lý do đề nghị thay SIM</label><textarea id="khNote" rows="2" placeholder="VD: SIM hỏng, mất sóng..." required></textarea></div>
             <div style="grid-column:1/-1"><label class="checkline" style="align-items:flex-start"><input type="checkbox" id="khConfirm" /> <span style="flex:1;min-width:0">Tôi xác nhận các thông tin khai báo là chính xác và hoàn toàn chịu trách nhiệm trước pháp luật và Viễn thông Quảng Ninh nếu sai phạm. (*)</span></label></div>
             <div style="grid-column:1/-1">
@@ -7596,6 +7597,8 @@ function normKbKey(s) {
           </form>
           <div id="khSimMsg"></div>
           <h3 style="margin:20px 0 8px;color:var(--blue-dark)">Hồ sơ đã gửi</h3>
+          <input id="khSimSearch" placeholder="Tìm theo SĐT, số giấy tờ hoặc tên khách hàng…" style="margin-bottom:6px" />
+          <div class="desc" id="khSimListCount" style="margin-bottom:8px"></div>
           <div class="tbl-wrap"><table class="data"><thead><tr><th>Số thuê bao</th><th>Tên thuê bao</th><th>Loại giấy tờ</th><th>Số giấy tờ</th><th>OCR</th><th>Người gửi</th><th>Ngày gửi</th><th></th></tr></thead><tbody id="khSimListBody"><tr><td colspan="8">Chưa có hồ sơ.</td></tr></tbody></table></div>
         </section>
 
@@ -12948,7 +12951,7 @@ const KH_DOC_LABELS = { CCCD: "CCCD/CC gắn chíp", HO_CHIEU: "Hộ chiếu", V
 function khNormDoc(s) { return String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
 // Cac muc bat buoc (co dau *): SDT, ten TB, so giay to, seri SIM cu/moi
 // (10 so), ghi chu, phieu, anh mat truoc giay to, anh mat sau (chi CCCD),
-// anh cam ket, anh phoi SIM moi, tich xac nhan + OCR khop (13 muc).
+// anh cam ket, anh phoi SIM moi, anh loi he thong, tich xac nhan + OCR khop (14 muc).
 // Hien truc tiep muc nao con thieu de nguoi nhap khoi phai bam Gui moi biet.
 function khMissingItems() {
   const items = [];
@@ -12959,6 +12962,7 @@ function khMissingItems() {
   if (!/^\d{10}$/.test($("khSeriCu").value.replace(/\D/g, ""))) items.push("Số seri SIM cũ (10 số)");
   if (!/^\d{10}$/.test($("khSeriMoi").value.replace(/\D/g, ""))) items.push("Số seri SIM mới (10 số)");
   if (!khPhoiMoi) items.push("Ảnh phôi SIM mới");
+  if (khErr.length === 0) items.push("Ảnh chụp lỗi hệ thống (ít nhất 1 ảnh)");
   if (!$("khConfirm").checked) items.push("Tích xác nhận thông tin chính xác");
   if (!khPhieu) items.push("Phiếu yêu cầu thay SIM");
   if (!khFront) items.push("Ảnh mặt trước giấy tờ");
@@ -13136,7 +13140,7 @@ $("khCommit").addEventListener("change", async () => { khCommit = await khPickSt
 $("khPhoiCu").addEventListener("change", async () => { khPhoiCu = await khPickPlain($("khPhoiCu"), $("khPhoiCuInfo")); khUpdateMissing(); });
 $("khPhoiMoi").addEventListener("change", async () => { khPhoiMoi = await khPickPlain($("khPhoiMoi"), $("khPhoiMoiInfo")); khUpdateMissing(); });
 $("khOther").addEventListener("change", async () => { khOther = await khPickMulti($("khOther"), $("khOtherInfo"), { stampImages: true, allowPdf: true }); });
-$("khErr").addEventListener("change", async () => { khErr = await khPickMulti($("khErr"), $("khErrInfo"), { stampImages: false, allowPdf: false, max: 5 }); });
+$("khErr").addEventListener("change", async () => { khErr = await khPickMulti($("khErr"), $("khErrInfo"), { stampImages: false, allowPdf: false, max: 5 }); khUpdateMissing(); });
 $("khOcrBtn").addEventListener("click", () => khRunOcr());
 function khResetForm() {
   ["khPhone", "khName", "khDocNo", "khNote", "khSeriCu", "khSeriMoi"].forEach((id) => { $(id).value = ""; });
@@ -13150,7 +13154,7 @@ function khResetForm() {
   $("khPortraitInfo").textContent = "Không bắt buộc. Ảnh sẽ được đóng dấu tọa độ + thời gian.";
   $("khCommitInfo").textContent = "Chưa chọn ảnh. Ảnh sẽ được đóng dấu tọa độ + thời gian.";
   $("khOtherInfo").textContent = "Không bắt buộc. Cho phép ảnh hoặc file PDF; ảnh sẽ được đóng dấu tọa độ + thời gian.";
-  $("khErrInfo").textContent = "Không bắt buộc. Tối đa 5 ảnh.";
+  $("khErrInfo").textContent = "Bắt buộc ít nhất 1 ảnh. Tối đa 5 ảnh.";
   $("khPhoiCuInfo").textContent = "Nếu KH dùng ESIM thì chụp màn hình ESIM trên điện thoại.";
   $("khPhoiMoiInfo").textContent = "Chưa chọn ảnh.";
   khFront = khBack = khPhieu = khPortrait = khCommit = null;
@@ -13178,6 +13182,7 @@ $("khSubmitBtn").addEventListener("click", async () => {
   if (docType === "CCCD" && !khBack) { setMsg($("khSimMsg"), "CCCD/CC gắn chíp cần đủ ảnh mặt trước và mặt sau.", false); return; }
   if (!khCommit) { setMsg($("khSimMsg"), "Hãy tải ảnh bản cam kết của KH.", false); return; }
   if (!khPhoiMoi) { setMsg($("khSimMsg"), "Hãy tải ảnh phôi SIM mới.", false); return; }
+  if (khErr.length === 0) { setMsg($("khSimMsg"), "Hãy tải ít nhất 1 ảnh chụp lỗi hệ thống.", false); return; }
   if (!$("khConfirm").checked) { setMsg($("khSimMsg"), "Hãy tích xác nhận thông tin khai báo chính xác trước khi gửi hồ sơ.", false); return; }
   if (khOcrStatus !== "OK") { setMsg($("khSimMsg"), "Chưa kiểm tra OCR khớp số giấy tờ — hãy chạy OCR và đảm bảo kết quả khớp rồi gửi lại.", false); return; }
   $("khSubmitBtn").disabled = true;
@@ -13215,13 +13220,23 @@ $("khSubmitBtn").addEventListener("click", async () => {
   }
   $("khSubmitBtn").disabled = !$("khConfirm").checked;
 });
+let khSimRows = [];
+function khNormSearch(s) { return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/Đ/g, "D").replace(/đ/g, "d").toLowerCase(); }
+function khRenderSimList() {
+  const q = khNormSearch(($("khSimSearch").value || "").trim());
+  const rows = khSimRows.filter((r) => !q || khNormSearch(r.so_thue_bao).includes(q) || khNormSearch(r.so_giay_to).includes(q) || khNormSearch(r.ten_thue_bao).includes(q));
+  const shown = rows.slice(0, 10);
+  $("khSimListBody").innerHTML = shown.map((r) =>
+    "<tr><td><b>" + esc(r.so_thue_bao) + "</b></td><td>" + esc(r.ten_thue_bao) + "</td><td>" + esc(KH_DOC_LABELS[r.loai_giay_to] || r.loai_giay_to) + "</td><td>" + esc(r.so_giay_to) + "</td><td>" + (r.ocr_trang_thai === "OK" ? "<span class='pill ok'>✓ OK</span>" : esc(r.ocr_trang_thai || "")) + "</td><td>" + esc(r.created_by_ten || "") + "</td><td>" + esc(r.created_at || "") + "</td><td><button class='btn sm blue' data-kh-view='" + r.id + "'>Xem</button></td></tr>").join("") ||
+    (khSimRows.length ? "<tr><td colspan='8'>Không tìm thấy hồ sơ phù hợp.</td></tr>" : "<tr><td colspan='8'>Chưa có hồ sơ.</td></tr>");
+  $("khSimListBody").querySelectorAll("[data-kh-view]").forEach((b) => b.addEventListener("click", () => khOpenDetail(Number(b.dataset.khView))));
+  $("khSimListCount").textContent = q ? ("Tìm thấy " + rows.length + " hồ sơ — hiển thị " + shown.length + " hồ sơ gần nhất.") : ("Hiển thị " + shown.length + " / " + khSimRows.length + " hồ sơ gần nhất.");
+}
 async function loadKhSimList() {
   try {
     const d = await api("/api/kh-sim");
-    $("khSimListBody").innerHTML = (d.rows || []).map((r) =>
-      "<tr><td><b>" + esc(r.so_thue_bao) + "</b></td><td>" + esc(r.ten_thue_bao) + "</td><td>" + esc(KH_DOC_LABELS[r.loai_giay_to] || r.loai_giay_to) + "</td><td>" + esc(r.so_giay_to) + "</td><td>" + (r.ocr_trang_thai === "OK" ? "<span class='pill ok'>✓ OK</span>" : esc(r.ocr_trang_thai || "")) + "</td><td>" + esc(r.created_by_ten || "") + "</td><td>" + esc(r.created_at || "") + "</td><td><button class='btn sm blue' data-kh-view='" + r.id + "'>Xem</button></td></tr>").join("") ||
-      "<tr><td colspan='8'>Chưa có hồ sơ.</td></tr>";
-    $("khSimListBody").querySelectorAll("[data-kh-view]").forEach((b) => b.addEventListener("click", () => khOpenDetail(Number(b.dataset.khView))));
+    khSimRows = d.rows || [];
+    khRenderSimList();
   } catch (e) {
     $("khSimListBody").innerHTML = "<tr><td colspan='8'>Không tải được danh sách: " + esc(e.message) + "</td></tr>";
   }
@@ -13280,7 +13295,7 @@ async function khOpenFile(id, slot, idx) {
       box.innerHTML = "<a class='btn blue' href='" + u + "' target='_blank' rel='noopener'>Mở file PDF trong tab mới</a>";
       window.open(u, "_blank");
     } else {
-      box.innerHTML = "<img src='" + u + "' style='max-width:100%;border-radius:12px' alt='File đính kèm' />";
+      box.innerHTML = "<img src='" + u + "' style='max-width:100%;max-height:65vh;border-radius:12px' alt='File đính kèm' />";
     }
   } catch (e) { setMsg($("khSimMsg"), e.message, false); }
 }
@@ -13292,6 +13307,7 @@ document.querySelectorAll("#khSimForm label").forEach((l) => {
 });
 $("khDocBack").required = true;
 $("khSimForm").addEventListener("input", () => khUpdateMissing());
+$("khSimSearch").addEventListener("input", khRenderSimList);
 khUpdateMissing();
 
 /* ---------------- Bao cao cham soc diem ban ---------------- */
